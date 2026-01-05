@@ -250,7 +250,7 @@ export default function EventDashboard() {
 
         {/* TILE 6: STATISTICS (NEW) */}
         <Link
-          href="/competitions/stats"
+          href="/competitions/statistics"
           className="group relative overflow-hidden bg-[#06054e] rounded-3xl p-8 shadow-2xl transition-all duration-500 hover:-translate-y-2 border border-white/10 flex flex-col justify-between min-h-[420px]"
         >
           <div>
