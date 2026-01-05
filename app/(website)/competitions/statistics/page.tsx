@@ -2,8 +2,8 @@
 
 import React, { useMemo } from "react";
 // Using relative paths to import the JSON files
-import playerListData from "@public/data/playerlist.json";
-import matchStatsData from "@public/data/matchstats.json";
+import playerListData from "../../../../data/playerlist.json";
+import matchStatsData from "../../../../data/matchstats.json";
 
 interface Player {
   playerName: string;
