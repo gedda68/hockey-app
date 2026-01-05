@@ -1,0 +1,122 @@
+{
+  "stats": {
+    "2026PLM001": {
+      "goals": [
+        {
+          "team": "Commercial",
+          "playerNum": "10",
+          "playerName": "J. Smith",
+          "time": 12,
+          "type": "Field Goal"
+        },
+        {
+          "team": "Commercial",
+          "playerNum": "7",
+          "playerName": "A. Miller",
+          "time": 34,
+          "type": "Penalty Corner"
+        },
+        {
+          "team": "East Hockey Club",
+          "playerNum": "22",
+          "playerName": "R. Brown",
+          "time": 41,
+          "type": "Penalty Stroke"
+        },
+        {
+          "team": "Commercial",
+          "playerNum": "10",
+          "playerName": "J. Smith",
+          "time": 58,
+          "type": "Field Goal"
+        },
+        {
+          "team": "East Hockey Club",
+          "playerNum": "5",
+          "playerName": "T. Walsh",
+          "time": 60,
+          "type": "Penalty Corner"
+        }
+      ],
+      "cards": [
+        {
+          "team": "Commercial",
+          "playerNum": "5",
+          "playerName": "R. Davis",
+          "time": 22,
+          "type": "Green"
+        },
+        {
+          "team": "East Hockey Club",
+          "playerNum": "14",
+          "playerName": "L. Thompson",
+          "time": 45,
+          "type": "Yellow"
+        }
+      ],
+      "shootout": null
+    },
+    "2026BHL2001": {
+      "goals": [
+        {
+          "team": "Kedron Wavell",
+          "playerNum": "4",
+          "playerName": "S. Lee",
+          "time": 15,
+          "type": "Field Goal"
+        },
+        {
+          "team": "Bulimba",
+          "playerNum": "19",
+          "playerName": "M. Ross",
+          "time": 22,
+          "type": "Penalty Corner"
+        },
+        {
+          "team": "Kedron Wavell",
+          "playerNum": "11",
+          "playerName": "D. Wright",
+          "time": 48,
+          "type": "Field Goal"
+        },
+        {
+          "team": "Bulimba",
+          "playerNum": "19",
+          "playerName": "M. Ross",
+          "time": 55,
+          "type": "Field Goal"
+        }
+      ],
+      "shootout": {
+        "home": [
+          {
+            "playerNum": "4",
+            "playerName": "S. Lee",
+            "type": "Field Goal",
+            "result": "Goal"
+          },
+          {
+            "playerNum": "11",
+            "playerName": "D. Wright",
+            "type": "Penalty Stroke",
+            "result": "Goal"
+          }
+        ],
+        "away": [
+          {
+            "playerNum": "19",
+            "playerName": "M. Ross",
+            "type": "Field Goal",
+            "result": "Goal"
+          },
+          {
+            "playerNum": "3",
+            "playerName": "K. Hudson",
+            "type": "Field Goal",
+            "result": "Miss"
+          }
+        ]
+      }
+    }
+  }
+}

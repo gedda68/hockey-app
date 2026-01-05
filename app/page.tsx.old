@@ -1,0 +1,8 @@
+export default function Home() {
+  return (
+    <p>
+      Hello there! Welcome to your Next.js app with DaisyUI. This is a starter
+      template with a header and footer already set up for you. Get Started
+    </p>
+  );
+}

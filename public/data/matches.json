@@ -1,0 +1,53 @@
+{
+  "lastUpdated": "2026-01-05T14:30:00Z",
+  "season": "2026",
+  "matches": [
+    {
+      "matchId": "2026PLM001",
+      "round": "Round 1",
+      "division": "Premier League Men",
+      "dateTime": "2026-03-14T15:30:00",
+      "location": "State Hockey Centre - Field 1",
+      "homeTeam": "Commercial",
+      "homeTeamIcon": "/icons/chc.png",
+      "awayTeam": "East Hockey Club",
+      "awayTeamIcon": "/icons/easts.jpg",
+      "homeScore": 3,
+      "awayScore": 2,
+      "shootOutRequired": false,
+      "status": "Final"
+    },
+    {
+      "matchId": "2026BHL1001",
+      "round": "Round 1",
+      "division": "BHL1",
+      "dateTime": "2026-03-14T17:00:00",
+      "location": "State Hockey Centre - Field 1",
+      "homeTeam": "University of QLD",
+      "homeTeamIcon": "/icons/uq.png",
+      "awayTeam": "Norths Hockey Club",
+      "awayTeamIcon": "/icons/norths.png",
+      "homeScore": 1,
+      "awayScore": 1,
+      "shootOutRequired": false,
+      "status": "Final"
+    },
+    {
+      "matchId": "2026BHL2001",
+      "round": "Semi Final",
+      "division": "BHL2",
+      "dateTime": "2026-08-22T13:45:00",
+      "location": "Burringbar Park - Field 2",
+      "homeTeam": "Kedron Wavell",
+      "homeTeamIcon": "/icons/kedronwavell.png",
+      "awayTeam": "Bulimba",
+      "awayTeamIcon": "/icons/bulls.png",
+      "homeScore": 2,
+      "awayScore": 2,
+      "shootOutRequired": true,
+      "homeShootOutScore": 4,
+      "awayShootOutScore": 3,
+      "status": "Final (SO)"
+    }
+  ]
+}

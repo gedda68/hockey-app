@@ -1,0 +1,364 @@
+{
+  "Under 12": {
+    "lastUpdated": "January 4, 2026",
+    "trialInfo": {
+      "header": "2026 Trials",
+      "details": "NOMINATIONS CLOSE FRIDAY 22 MAY!<br />Arrive 30 mins early for registration on the day of trials.",
+
+      "alert": "",
+      "schedule": [
+        {
+          "name": "TRIAL 1",
+          "date": "SUN 24 MAY",
+          "time": "10:00AM - 12:00PM",
+          "venue": "SHC TURF"
+        },
+        {
+          "name": "TRIAL 2",
+          "date": "SUN 31 MAY",
+          "time": "8:00AM - 10:00AM",
+          "venue": "SHC GRASS"
+        },
+        {
+          "name": "TRIAL 3",
+          "date": "SUN 7 JUN",
+          "time": "8:00AM - 10:00AM",
+          "venue": "SHC GRASS"
+        },
+        {
+          "name": "WET WEATHER",
+          "date": "SUN 14 JUN",
+          "time": "8:00AM - 10:00AM",
+          "venue": "SHC GRASS",
+          "isSpecial": true
+        }
+      ]
+    },
+    "trainingInfo": {
+      "header": "Team Training Sessions",
+      "details": "Training sessions for selected teams will commence from June 15th at State Hockey Centre.",
+      "schedule": [
+        {
+          "name": "SESSION 1",
+          "date": "MON 15 JUN",
+          "time": "5:30PM - 7:00PM",
+          "venue": "SHC TURF 1"
+        },
+        {
+          "name": "SESSION 2",
+          "date": "MON 22 JUN",
+          "time": "5:30PM - 7:00PM",
+          "venue": "SHC TURF 1"
+        }
+      ]
+    },
+    "Green Team": {
+      "players": [
+        {
+          "name": "James Smith",
+          "club": "Commercial",
+          "icon": "/icons/chc.png"
+        },
+        { "name": "John Doe", "club": "Easts", "icon": "/icons/easts.jpg" },
+        {
+          "name": "Liam Johnson",
+          "club": "Norths",
+          "icon": "/icons/norths.png"
+        },
+        {
+          "name": "Ethan Brown",
+          "club": "Valleys",
+          "icon": "/icons/valleys.png"
+        },
+        {
+          "name": "Mason Davis",
+          "club": "South West United",
+          "icon": "/icons/southwest.png"
+        }
+      ],
+      "staff": {
+        "coach": {
+          "name": "David Miller",
+          "club": "Commercial",
+          "icon": "/icons/chc.png"
+        },
+        "asstCoach": {
+          "name": "Sarah Jenkins",
+          "club": "Norths",
+          "icon": "/icons/norths.png"
+        },
+        "manager": {
+          "name": "Peter Thompson",
+          "club": "Valleys",
+          "icon": "/icons/valleys.png"
+        },
+        "umpire": {
+          "name": "Mark Richards",
+          "club": "South West United",
+          "icon": "/icons/southwest.png"
+        }
+      }
+    },
+    "Yellow Team": { "players": [], "staff": {} },
+    "Blue Team": { "players": [], "staff": {} },
+    "Red Team": { "players": [], "staff": {} },
+    "White Team": { "players": [], "staff": {} },
+    "shadowPlayers": [
+      { "name": "Ben Taylor", "club": "Norths", "icon": "/icons/norths.png" },
+      { "name": "Lucas Fry", "club": "Commercial", "icon": "/icons/chc.png" }
+    ],
+    "withdrawn": [
+      {
+        "name": "Oliver Quinn",
+        "club": "Commercial",
+        "icon": "/icons/chc.png",
+        "reason": "Injury"
+      }
+    ]
+  },
+  "Under 14": {
+    "lastUpdated": "January 2, 2026",
+    "trialInfo": {
+      "header": "2026 Trials",
+      "details": "",
+      "schedule": [
+        {
+          "name": "TRIAL 1",
+          "date": "SAT 23 MAY",
+          "time": "2:00PM - 4:00PM",
+          "venue": "SHC TURF"
+        }
+      ]
+    },
+    "trainingInfo": {
+      "header": "2026 Training",
+      "details": "Commencing May 10th.",
+      "schedule": [
+        {
+          "name": "SESSION 1",
+          "date": "SUN 10 MAY",
+          "time": "7:30AM - 9:00AM",
+          "venue": "SHC TURF"
+        }
+      ]
+    },
+    "Brisbane 1": { "players": [], "staff": {} },
+    "Yellow Team": { "players": [], "staff": {} },
+    "Blue Team": { "players": [], "staff": {} },
+    "shadowPlayers": [],
+    "withdrawn": []
+  },
+  "Under 16": {
+    "lastUpdated": "5th August 2025",
+    "trialInfo": {
+      "header": "2026 Trials",
+      "details": "",
+      "schedule": [
+        {
+          "name": "TRIAL 1",
+          "date": "SAT 28 JUNE",
+          "time": "10:00 - 11:30AM",
+          "venue": "SHC TURF"
+        },
+        {
+          "name": "TRIAL 2",
+          "date": "SUN 12 JULY",
+          "time": "10:00 - 11:30AM",
+          "venue": "SHC TURF"
+        },
+        {
+          "name": "TRIAL 3",
+          "date": "SUN 19 JULY",
+          "time": "10:00 - 11:30AM",
+          "venue": "SHC TURF"
+        }
+      ]
+    },
+    "trainingInfo": {
+      "header": "2026 Training",
+      "details": "Commencing May 10th.",
+      "schedule": [
+        {
+          "name": "SESSION 1",
+          "date": "SUN 26 JULY",
+          "time": "9:00 - 10:30AM",
+          "venue": "SHC TURF"
+        },
+        {
+          "name": "SESSION 2",
+          "date": "SUN 9 AUGUST",
+          "time": "9:00 - 10:30AM",
+          "venue": "SHC TURF"
+        },
+        {
+          "name": "SESSION 3",
+          "date": "SUN 16 AUGUST",
+          "time": "9:00 - 10:30AM",
+          "venue": "SHC TURF"
+        },
+        {
+          "name": "SESSION 4",
+          "date": "SUN 23 AUGUST",
+          "time": "9:00 - 10:30AM",
+          "venue": "SHC TURF"
+        },
+        {
+          "name": "SESSION 5",
+          "date": "SUN 30 AUGUST",
+          "time": "9:00 - 10:30AM",
+          "venue": "SHC TURF"
+        },
+        {
+          "name": "SESSION 6",
+          "date": "SUN 6 SEPTEMBER",
+          "time": "9:00 - 10:30AM",
+          "venue": "SHC TURF"
+        },
+        {
+          "name": "SESSION 7",
+          "date": "SUN 13 SEPTEMBER",
+          "time": "9:00 - 10:30AM",
+          "venue": "SHC TURF"
+        }
+      ]
+    },
+    "tournamentInfo": {
+      "header": "2026 Tournament Information",
+      "details": "Commencing May 10th.",
+      "schedule": [
+        {
+          "tournament": "U16 Tournament Info",
+          "name": "Queensland U16 State Championships",
+          "date": "20 - 23 SEPTEMBER",
+          "city": "Townsville",
+          "tournamentlink": "https://hockeyqld.altiusrt.com/competitions/288"
+        }
+      ]
+    },
+
+    "Brisbane 1": {
+      "players": [
+        {
+          "name": "Cameron Allinson",
+          "club": "Valleys",
+          "icon": "/icons/valleys.png"
+        },
+        {
+          "name": "Matthew Alvarez",
+          "club": "Easts",
+          "icon": "/icons/easts.jpg"
+        },
+        {
+          "name": "Aiden Bowers",
+          "club": "Saints",
+          "icon": "/icons/saints.png"
+        },
+        {
+          "name": "Ben Chiu Chong",
+          "club": "Norths",
+          "icon": "/icons/norths.png"
+        },
+        {
+          "name": "Kaelan Harvey",
+          "club": "Norths",
+          "icon": "/icons/norths.png"
+        },
+        {
+          "name": "Liam Holmes",
+          "club": "Bulimba",
+          "icon": "/icons/bulls.png"
+        },
+        {
+          "name": "Lachlan Johnson",
+          "club": "Valleys",
+          "icon": "/icons/valleys.png"
+        },
+        {
+          "name": "Ollie Jones-Drummond",
+          "club": "Bulimba",
+          "icon": "/icons/bulls.png"
+        },
+        {
+          "name": "Joshua Kerr",
+          "club": "Valleys",
+          "icon": "/icons/valleys.png"
+        },
+        {
+          "name": "Mitchell Little-Kidner",
+          "club": "Saints",
+          "icon": "/icons/saints.png"
+        },
+        {
+          "name": "Jack MacPherson",
+          "club": "Saints",
+          "icon": "/icons/saints.png"
+        },
+        {
+          "name": "James Neubecker",
+          "club": "Easts",
+          "icon": "/icons/easts.jpg"
+        },
+        {
+          "name": "Jonathan Price",
+          "club": "Easts",
+          "icon": "/icons/easts.jpg"
+        },
+        {
+          "name": "James Swanson (GK)",
+          "club": "Bulimba",
+          "icon": "/icons/bulls.png"
+        },
+        {
+          "name": "Daniel Thirgood",
+          "club": "Norths",
+          "icon": "/icons/norths.png"
+        }
+      ],
+      "staff": {
+        "coach": {
+          "name": "Connor Evans",
+          "club": "Valleys",
+          "icon": "/icons/valleys.png"
+        },
+        "asstCoach": {
+          "name": "Ben Smith",
+          "club": "Kedron Wavell",
+          "icon": "/icons/kedronwavell.png"
+        },
+        "manager": {
+          "name": "Sian Neubecker",
+          "club": "Easts",
+          "icon": "/icons/easts.jpg"
+        },
+        "umpire": {
+          "name": "TBA",
+          "club": "",
+          "icon": ""
+        }
+      }
+    },
+    "Brisbane 2": { "players": [], "staff": {} },
+    "shadowPlayers": [],
+    "withdrawn": [
+      {
+        "name": "Mitchell Aitchison",
+        "club": "Commercial",
+        "icon": "/icons/chc.png",
+        "reason": "Release to other association"
+      }
+    ]
+  },
+  "Under 18": {
+    "lastUpdated": "January 1, 2026",
+    "Green Team": { "players": [], "staff": {} },
+    "Yellow Team": { "players": [], "staff": {} },
+    "shadowPlayers": [],
+    "withdrawn": []
+  },
+  "Open": {
+    "lastUpdated": "January 3, 2026",
+    "Green Team": { "players": [], "staff": {} },
+    "shadowPlayers": [],
+    "withdrawn": []
+  }
+}

@@ -1,0 +1,84 @@
+{
+  "players": [
+    {
+      "playerName": "J. Smith",
+      "playerNum": "10",
+      "club": "Commercial",
+      "gender": "Male",
+      "dateOfBirth": "1995-05-12",
+      "isGoalkeeper": false
+    },
+    {
+      "playerName": "A. Miller",
+      "playerNum": "7",
+      "club": "Commercial",
+      "gender": "Male",
+      "dateOfBirth": "1998-11-20",
+      "isGoalkeeper": false
+    },
+    {
+      "playerName": "R. Davis",
+      "playerNum": "5",
+      "club": "Commercial",
+      "gender": "Male",
+      "dateOfBirth": "2001-03-15",
+      "isGoalkeeper": false
+    },
+    {
+      "playerName": "R. Brown",
+      "playerNum": "22",
+      "club": "East Hockey Club",
+      "gender": "Male",
+      "dateOfBirth": "1992-07-08",
+      "isGoalkeeper": false
+    },
+    {
+      "playerName": "T. Walsh",
+      "playerNum": "5",
+      "club": "East Hockey Club",
+      "gender": "Male",
+      "dateOfBirth": "1999-01-30",
+      "isGoalkeeper": false
+    },
+    {
+      "playerName": "L. Thompson",
+      "playerNum": "14",
+      "club": "East Hockey Club",
+      "gender": "Male",
+      "dateOfBirth": "1996-09-22",
+      "isGoalkeeper": false
+    },
+    {
+      "playerName": "S. Lee",
+      "playerNum": "4",
+      "club": "Kedron Wavell",
+      "gender": "Male",
+      "dateOfBirth": "2000-04-10",
+      "isGoalkeeper": true
+    },
+    {
+      "playerName": "D. Wright",
+      "playerNum": "11",
+      "club": "Kedron Wavell",
+      "gender": "Male",
+      "dateOfBirth": "1997-12-05",
+      "isGoalkeeper": false
+    },
+    {
+      "playerName": "M. Ross",
+      "playerNum": "19",
+      "club": "Bulimba",
+      "gender": "Male",
+      "dateOfBirth": "1994-06-18",
+      "isGoalkeeper": false
+    },
+    {
+      "playerName": "K. Hudson",
+      "playerNum": "3",
+      "club": "Bulimba",
+      "gender": "Male",
+      "dateOfBirth": "2002-08-14",
+      "isGoalkeeper": false
+    }
+  ]
+}
