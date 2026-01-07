@@ -5,6 +5,7 @@ import Link from "next/link";
 import RefreshButton from "../../../components/RefreshButton";
 import MatchList from "../../../components/MatchList";
 import Image from "next/image";
+//import statsPath from "../../data/matchstats.json";
 
 export const dynamic = "force-dynamic";
 
@@ -16,7 +17,7 @@ export default async function MatchesPage({
   // 1. DATA LOADING
   const matchesPath = path.join(process.cwd(), "public/data/matches.json");
   const standingsPath = path.join(process.cwd(), "public/data/standings.json");
-  const statsPath = path.join(process.cwd(), "public/data/matchstats.json");
+  const statsPath = path.join(process.cwd(), "/data/matchstats.json");
 
   const [matchesData, standingsData, statsData] = await Promise.all([
     fs.readFile(matchesPath, "utf8").then(JSON.parse),

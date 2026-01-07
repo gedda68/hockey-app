@@ -1,0 +1,34 @@
+{
+  "upcoming": [
+    {
+      "id": "2026-F-01",
+      "date": "2026-06-12",
+      "time": "18:30",
+      "division": "Premier",
+      "homeTeam": "Titans HC",
+      "awayTeam": "Redwood Stars",
+      "venue": "State Hockey Centre - Pitch 1",
+      "isFeatureGame": true
+    },
+    {
+      "id": "2026-F-02",
+      "date": "2026-06-12",
+      "time": "20:00",
+      "division": "Premier",
+      "homeTeam": "Arctic Foxes",
+      "awayTeam": "Desert Vipers",
+      "venue": "State Hockey Centre - Pitch 1",
+      "isFeatureGame": false
+    },
+    {
+      "id": "2026-F-03",
+      "date": "2026-06-19",
+      "time": "19:00",
+      "division": "BHL D1",
+      "homeTeam": "Coastal United",
+      "awayTeam": "Northern Gryphons",
+      "venue": "Regional Turf",
+      "isFeatureGame": false
+    }
+  ]
+}
