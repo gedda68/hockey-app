@@ -1,80 +1,72 @@
+import React from "react";
 import Link from "next/link";
 import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "../../lib/utils";
 
 const filterButtonVariants = cva(
-  "inline-flex items-center justify-center rounded-full font-black uppercase transition-all border-2",
+  "px-4 py-2 rounded-full text-[10px] font-black border transition-all",
   {
     variants: {
       variant: {
-        primary: "hover:shadow-md",
-        secondary: "hover:shadow-md",
-        status: "hover:shadow-md",
+        primary: "",
+        secondary: "",
       },
-      size: {
-        sm: "text-[9px] px-3 py-1.5",
-        md: "text-[10px] px-4 py-2",
-        lg: "text-xs px-6 py-3",
-      },
-      active: {
+      isActive: {
         true: "",
         false: "",
       },
     },
     compoundVariants: [
+      // Primary variant styles
       {
         variant: "primary",
-        active: true,
-        className: "bg-[#06054e] text-white border-[#06054e]",
-      },
-      {
-        variant: "primary",
-        active: false,
-        className:
-          "bg-white text-slate-500 border-slate-200 hover:border-slate-300",
-      },
-      {
-        variant: ["secondary", "status"],
-        active: true,
+        isActive: true,
         className: "bg-red-600 text-white border-red-600 shadow-md",
       },
       {
-        variant: ["secondary", "status"],
-        active: false,
+        variant: "primary",
+        isActive: false,
         className:
-          "bg-white text-slate-500 border-slate-200 hover:border-slate-300",
+          "bg-white text-slate-500 border-slate-200 hover:border-[#06054e]",
+      },
+      // Secondary variant styles
+      {
+        variant: "secondary",
+        isActive: true,
+        className: "bg-[#06054e] text-white border-[#06054e] shadow-md",
+      },
+      {
+        variant: "secondary",
+        isActive: false,
+        className:
+          "bg-white text-slate-500 border-slate-200 hover:border-[#06054e]",
       },
     ],
     defaultVariants: {
-      variant: "primary",
-      size: "md",
-      active: false,
+      variant: "secondary",
+      isActive: false,
     },
   }
 );
 
-interface FilterButtonProps extends VariantProps<typeof filterButtonVariants> {
+export interface FilterButtonProps
+  extends VariantProps<typeof filterButtonVariants> {
   href: string;
-  isActive: boolean;
   children: React.ReactNode;
   className?: string;
 }
 
 export default function FilterButton({
   href,
-  isActive,
   children,
   variant,
-  size,
+  isActive,
   className,
 }: FilterButtonProps) {
   return (
     <Link
       href={href}
-      className={cn(
-        filterButtonVariants({ variant, size, active: isActive }),
-        className
-      )}
+      className={cn(filterButtonVariants({ variant, isActive }), className)}
     >
       {children}
     </Link>
