@@ -1,65 +1,106 @@
 import React from "react";
-import { promises as fs } from "fs";
-import path from "path";
 import Link from "next/link";
-import RefreshButton from "../../../components/RefreshButton";
-import MatchList from "../../../components/MatchList";
-import Image from "next/image";
-//import statsPath from "../../data/matchstats.json";
+import MatchList from "../../../components/matches/MatchList";
+import MatchFilters from "../../../components/matches/MatchFilters";
+import PageHeader from "../../../components/shared/PageHeader";
+import StandingsTable from "../../../components/standings/StandingsTable";
+import type { ViewType } from "../../../types";
+
+// Import data utility functions
+import {
+  filterMatches,
+  getDivisions,
+  getRounds,
+  getSeasons,
+  getCurrentSeason,
+  getDivisionStandings,
+  getMatchStatsData,
+  getUmpireAllocationsMap,
+  getUmpireList,
+} from "../../../lib/data";
 
 export const dynamic = "force-dynamic";
 
 export default async function MatchesPage({
   searchParams,
 }: {
-  searchParams: { div?: string; round?: string; status?: string };
+  searchParams: {
+    div?: string;
+    round?: string;
+    status?: string;
+    view?: string;
+    year?: string;
+    standingsYear?: string;
+  };
 }) {
-  // 1. DATA LOADING
-  const matchesPath = path.join(process.cwd(), "public/data/matches.json");
-  const standingsPath = path.join(process.cwd(), "public/data/standings.json");
-  const statsPath = path.join(process.cwd(), "/data/matchstats.json");
-
-  const [matchesData, standingsData, statsData] = await Promise.all([
-    fs.readFile(matchesPath, "utf8").then(JSON.parse),
-    fs.readFile(standingsPath, "utf8").then(JSON.parse),
-    fs.readFile(statsPath, "utf8").then(JSON.parse),
-  ]);
-
-  const allMatches = matchesData.matches;
-
-  // 2. PARAMS & FILTERS
+  // 1. PARAMS
   const params = await searchParams;
   const selectedDiv = params.div || "All";
   const selectedRound = params.round || "All";
   const selectedStatus = params.status || "All";
+  const selectedView: ViewType = (params.view as ViewType) || "results";
 
-  const divisions = [
-    "All",
-    ...Array.from(new Set(allMatches.map((m: any) => m.division))),
-  ];
-  const rounds = [
-    "All",
-    ...Array.from(new Set(allMatches.map((m: any) => m.round))),
-  ];
-  const statuses = ["All", "Live", "Final"];
+  // 2. DATA LOADING using utility functions
+  const [
+    seasons,
+    currentSeason,
+    divisions,
+    rounds,
+    filteredMatches,
+    currentStandings,
+    statsData,
+    umpireAllocations,
+    umpireList,
+  ] = await Promise.all([
+    getSeasons(),
+    getCurrentSeason(),
+    getDivisions(selectedView),
+    getRounds(selectedView),
+    filterMatches({
+      type: selectedView,
+      division: selectedDiv,
+      round: selectedRound,
+      status: selectedStatus,
+    }),
+    getDivisionStandings(selectedDiv),
+    getMatchStatsData(),
+    getUmpireAllocationsMap(),
+    getUmpireList(),
+  ]);
 
-  const filteredMatches = allMatches.filter((match: any) => {
-    const divMatch = selectedDiv === "All" || match.division === selectedDiv;
-    const roundMatch = selectedRound === "All" || match.round === selectedRound;
+  const selectedYear = params.year || currentSeason?.year.toString() || "2026";
+  const standingsYear =
+    params.standingsYear || currentSeason?.year.toString() || "2026";
 
-    let statusMatch = true;
-    if (selectedStatus === "Live") {
-      statusMatch =
-        match.status.toLowerCase().includes("live") ||
-        match.status.toLowerCase().includes("progress");
-    } else if (selectedStatus === "Final") {
-      statusMatch = match.status.toLowerCase().includes("final");
-    }
-    return divMatch && roundMatch && statusMatch;
-  });
+  const statuses =
+    selectedView === "upcoming"
+      ? ["All", "Scheduled"]
+      : ["All", "Live", "Final"];
 
-  const currentStandings = standingsData.divisions.find(
-    (d: any) => d.divisionName === selectedDiv
+  // View toggle buttons
+  const viewToggle = (
+    <>
+      <Link
+        href={`/competitions/matches?view=results&div=${selectedDiv}&round=${selectedRound}&status=All&year=${selectedYear}&standingsYear=${standingsYear}`}
+        className={`px-6 py-2 rounded-full text-[10px] font-black uppercase tracking-widest transition-all shadow-lg ${
+          selectedView === "results"
+            ? "bg-red-600 text-white"
+            : "bg-white text-slate-600 hover:bg-slate-100"
+        }`}
+      >
+        Results
+      </Link>
+      <Link
+        href={`/competitions/matches?view=upcoming&div=${selectedDiv}&round=${selectedRound}&status=All&year=${selectedYear}&standingsYear=${standingsYear}`}
+        className={`px-6 py-2 rounded-full text-[10px] font-black uppercase tracking-widest transition-all shadow-lg ${
+          selectedView === "upcoming"
+            ? "bg-red-600 text-white"
+            : "bg-white text-slate-600 hover:bg-slate-100"
+        }`}
+      >
+        Fixtures
+      </Link>
+    </>
   );
 
   return (
@@ -74,104 +115,61 @@ export default async function MatchesPage({
           </span>{" "}
           Back to Dashboard
         </Link>
-        <RefreshButton />
       </div>
 
       <div className="flex flex-col mb-10 border-b-4 border-[#06054e] pb-6">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
-          <h1 className="text-4xl font-black text-[#06054e] uppercase italic tracking-tighter">
-            Match <span className="text-red-600">Results</span>
-          </h1>
-          <Link
-            href="/competitions/fixtures"
-            className="bg-red-600 text-white px-6 py-2 rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-[#06054e] transition-all shadow-lg"
-          >
-            View Upcoming Fixtures
-          </Link>
-        </div>
+        <PageHeader
+          title={selectedView === "upcoming" ? "Upcoming" : "Match"}
+          highlight={selectedView === "upcoming" ? "Fixtures" : "Results"}
+          actions={viewToggle}
+        />
 
-        <div className="flex flex-wrap gap-x-12 gap-y-6">
-          <div className="flex flex-col gap-2">
-            <span className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em]">
-              Match Status
-            </span>
-            <div className="flex gap-2">
-              {statuses.map((stat) => (
-                <Link
-                  key={stat}
-                  href={`/competitions/matches?div=${selectedDiv}&round=${selectedRound}&status=${stat}`}
-                  className={`px-4 py-2 rounded-full text-[10px] font-black uppercase transition-all border ${
-                    selectedStatus === stat
-                      ? "bg-red-600 text-white border-red-600 shadow-md"
-                      : "bg-white text-slate-500 border-slate-200"
-                  }`}
-                >
-                  {stat}
-                </Link>
-              ))}
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-2">
-            <span className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em]">
-              Division
-            </span>
-            <div className="flex gap-2 flex-wrap">
-              {divisions.map((div: any) => (
-                <Link
-                  key={div}
-                  href={`/competitions/matches?div=${div}&round=${selectedRound}&status=${selectedStatus}`}
-                  className={`px-4 py-2 rounded-full text-[10px] font-black uppercase border transition-all ${
-                    selectedDiv === div
-                      ? "bg-[#06054e] text-white border-[#06054e]"
-                      : "bg-white text-slate-500 border-slate-200"
-                  }`}
-                >
-                  {div}
-                </Link>
-              ))}
-            </div>
-          </div>
-        </div>
+        <MatchFilters
+          seasons={seasons}
+          divisions={divisions}
+          rounds={rounds}
+          statuses={statuses}
+          selectedYear={selectedYear}
+          selectedDiv={selectedDiv}
+          selectedRound={selectedRound}
+          selectedStatus={selectedStatus}
+          selectedView={selectedView}
+        />
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-10">
         <div className="xl:col-span-8">
-          {/* THIS IS THE CLIENT COMPONENT HANDLING MODALS */}
-          <MatchList matches={filteredMatches} stats={statsData.stats} />
+          {filteredMatches.length > 0 ? (
+            <MatchList
+              matches={filteredMatches}
+              stats={selectedView === "results" ? statsData : {}}
+              isUpcoming={selectedView === "upcoming"}
+              umpireAllocations={umpireAllocations}
+              umpireList={umpireList}
+            />
+          ) : (
+            <div className="bg-white rounded-3xl p-8 text-center text-slate-500">
+              <p className="text-sm">
+                {selectedView === "upcoming"
+                  ? "No upcoming fixtures scheduled yet."
+                  : "No match results available yet."}
+              </p>
+              <p className="text-xs mt-2">
+                {selectedView === "upcoming"
+                  ? "Check back soon for the fixture list!"
+                  : "Check back after matches have been played!"}
+              </p>
+            </div>
+          )}
         </div>
 
         <div className="xl:col-span-4">
-          <div className="sticky top-8 bg-[#06054e] rounded-3xl p-6 shadow-2xl text-white">
-            <h2 className="text-lg font-black uppercase italic mb-6">
-              Live Table
-            </h2>
-            {currentStandings ? (
-              <div className="space-y-1">
-                {currentStandings.teams.map((team: any) => (
-                  <div
-                    key={team.club}
-                    className="grid grid-cols-12 items-center bg-white/5 p-2 rounded-lg text-xs"
-                  >
-                    <div className="col-span-2 font-black text-slate-500">
-                      {team.pos}
-                    </div>
-                    <div className="col-span-7 flex items-center gap-2 font-bold uppercase text-[10px]">
-                      <Image src={team.icon} alt="" width={16} height={16} />{" "}
-                      {team.club}
-                    </div>
-                    <div className="col-span-3 text-right font-black text-blue-400">
-                      {team.pts}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-[10px] text-slate-500 uppercase">
-                Select a division to view table
-              </p>
-            )}
-          </div>
+          <StandingsTable
+            division={currentStandings}
+            selectedDiv={selectedDiv}
+            seasons={seasons}
+            selectedYear={standingsYear}
+          />
         </div>
       </div>
     </div>

@@ -1,0 +1,96 @@
+{
+  "umpires": [
+    {
+      "umpireName": "J. Smith",
+      "umpireNumber": "0000001",
+      "club": "Commercial",
+      "gender": "Male",
+      "dateOfBirth": "1995-05-12",
+      "umpireLevel": "Level 2",
+      "isActive": true
+    },
+    {
+      "umpireName": "A. Miller",
+      "umpireNumber": "0000002",
+      "club": "Commercial",
+      "gender": "Male",
+      "dateOfBirth": "1998-11-20",
+      "umpireLevel": "Level 1",
+      "isActive": true
+    },
+    {
+      "umpireName": "R. Davis",
+      "umpireNumber": "0000003",
+      "club": "Commercial",
+      "gender": "Male",
+      "dateOfBirth": "2001-03-15",
+      "isGoalkeeper": false
+    },
+    {
+      "umpireName": "R. Brown",
+      "umpireNumber": "0000004",
+      "club": "East Hockey Club",
+      "gender": "Male",
+      "dateOfBirth": "1992-07-08",
+      "umpireLevel": "Level 1",
+      "isActive": true
+    },
+    {
+      "umpireName": "T. Walsh",
+      "umpireNumber": "0000005",
+      "club": "East Hockey Club",
+      "gender": "Male",
+      "dateOfBirth": "1999-01-30",
+      "umpireLevel": "Level 1",
+      "isActive": true
+    },
+
+    {
+      "umpireName": "L. Thompson",
+      "umpireNumber": "0000006",
+      "club": "East Hockey Club",
+      "gender": "Male",
+      "dateOfBirth": "1996-09-22",
+      "umpireLevel": "Level 1",
+      "isActive": true
+    },
+
+    {
+      "umpireName": "S. Lee",
+      "umpireNumber": "0000007",
+      "club": "Kedron Wavell",
+      "gender": "Male",
+      "dateOfBirth": "2000-04-10",
+      "umpireLevel": "Level 1",
+      "isActive": true
+    },
+
+    {
+      "umpireName": "D. Wright",
+      "umpireNumber": "0000008",
+      "club": "Kedron Wavell",
+      "gender": "Male",
+      "dateOfBirth": "1997-12-05",
+      "umpireLevel": "Level 1",
+      "isActive": true
+    },
+    {
+      "umpireName": "M. Ross",
+      "umpireNumber": "0000009",
+      "club": "Bulimba",
+      "gender": "Male",
+      "dateOfBirth": "1994-06-18",
+      "umpireLevel": "Level 1",
+      "isActive": true
+    },
+    {
+      "umpireName": "K. Hudson",
+      "umpireNumber": "0000010",
+      "club": "Bulimba",
+      "gender": "Male",
+      "dateOfBirth": "2002-08-14",
+      "umpireLevel": "Level 1",
+      "isActive": true
+    }
+  ]
+}

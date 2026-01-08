@@ -1,0 +1,108 @@
+{
+  "umpireAllocations": [
+    {
+      "matchId": "2026BHL1001",
+      "umpires": [
+        {
+          "umpireType": "primary",
+          "umpireId": "0000001",
+          "dateAllocated": "2024-06-15",
+          "dateAccepted": "2024-06-16",
+          "dateUpdated": "2024-06-20"
+        },
+        {
+          "umpireType": "primary",
+          "umpireId": "0000002",
+          "dateAllocated": "2024-06-15",
+          "dateAccepted": null,
+          "dateUpdated": "2024-06-20"
+        },
+        {
+          "umpireType": "backup",
+          "umpireId": "0000003",
+          "dateAllocated": "2024-06-15",
+          "dateAccepted": null,
+          "dateUpdated": "2024-06-20"
+        }
+      ]
+    },
+    {
+      "matchId": "2025PLM001",
+      "umpires": [
+        {
+          "umpireType": "primary",
+          "umpireId": "0000003",
+          "dateAllocated": "2024-06-18",
+          "dateAccepted": "2024-06-19",
+          "dateUpdated": "2024-06-19"
+        },
+        {
+          "umpireType": "primary",
+          "umpireId": "0000004",
+          "dateAllocated": "2024-06-18",
+          "dateAccepted": null,
+          "dateUpdated": "2024-06-19"
+        },
+        {
+          "umpireType": "backup",
+          "umpireId": "0000011",
+          "dateAllocated": "2024-06-18",
+          "dateAccepted": null,
+          "dateUpdated": "2024-06-19"
+        }
+      ]
+    },
+    {
+      "matchId": "2025BHL1001",
+      "umpires": [
+        {
+          "umpireType": "primary",
+          "umpireId": "0000005",
+          "dateAllocated": "2024-06-20",
+          "dateAccepted": null,
+          "dateUpdated": "2024-06-20"
+        },
+        {
+          "umpireType": "primary",
+          "umpireId": "0000006",
+          "dateAllocated": "2024-06-20",
+          "dateAccepted": "2024-06-21",
+          "dateUpdated": "2024-06-21"
+        },
+        {
+          "umpireType": "backup",
+          "umpireId": "0000012",
+          "dateAllocated": "2024-06-20",
+          "dateAccepted": null,
+          "dateUpdated": "2024-06-21"
+        }
+      ]
+    },
+    {
+      "matchId": "2025BHL2001",
+      "umpires": [
+        {
+          "umpireType": "primary",
+          "umpireId": "0000007",
+          "dateAllocated": "2024-06-22",
+          "dateAccepted": null,
+          "dateUpdated": "2024-06-22"
+        },
+        {
+          "umpireType": "primary",
+          "umpireId": "0000008",
+          "dateAllocated": "2024-06-22",
+          "dateAccepted": null,
+          "dateUpdated": "2024-06-22"
+        },
+        {
+          "umpireType": "backup",
+          "umpireId": "0000013",
+          "dateAllocated": "2024-06-22",
+          "dateAccepted": null,
+          "dateUpdated": "2024-06-22"
+        }
+      ]
+    }
+  ]
+}
