@@ -1,10 +1,10 @@
 import StandingsTableClient from "./StandingsTableClient";
-import type { Division, Season } from "../../types";
+import type { Division } from "../../types";
 
 interface StandingsTableProps {
   division: Division | null;
   selectedDiv: string;
-  seasons: Season[];
+  availableYears: string[];
   currentYear: string;
 }
 

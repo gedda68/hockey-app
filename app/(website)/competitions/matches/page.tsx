@@ -13,11 +13,15 @@ import {
   getRounds,
   getSeasons,
   getCurrentSeason,
-  getDivisionStandings,
   getMatchStatsData,
   getUmpireAllocationsMap,
   getUmpireList,
 } from "../../../lib/data";
+
+import {
+  getDivisionStandings,
+  getStandingsYears,
+} from "../../../lib/data/standings";
 
 export const dynamic = "force-dynamic";
 
@@ -47,10 +51,10 @@ export default async function MatchesPage({
     divisions,
     rounds,
     filteredMatches,
-    currentStandings,
     statsData,
     umpireAllocations,
     umpireList,
+    standingsYears,
   ] = await Promise.all([
     getSeasons(),
     getCurrentSeason(),
@@ -62,15 +66,20 @@ export default async function MatchesPage({
       round: selectedRound,
       status: selectedStatus,
     }),
-    getDivisionStandings(selectedDiv),
     getMatchStatsData(),
     getUmpireAllocationsMap(),
     getUmpireList(),
+    getStandingsYears(),
   ]);
 
   const selectedYear = params.year || currentSeason?.year.toString() || "2026";
-  const standingsYear =
-    params.standingsYear || currentSeason?.year.toString() || "2026";
+  const standingsYear = params.standingsYear || standingsYears[0] || "2025";
+
+  // Get standings for selected division and year
+  const currentStandings =
+    selectedDiv !== "All"
+      ? await getDivisionStandings(selectedDiv, standingsYear)
+      : null;
 
   const statuses =
     selectedView === "upcoming"
@@ -167,7 +176,7 @@ export default async function MatchesPage({
           <StandingsTable
             division={currentStandings}
             selectedDiv={selectedDiv}
-            seasons={seasons}
+            availableYears={standingsYears}
             currentYear={standingsYear}
           />
         </div>

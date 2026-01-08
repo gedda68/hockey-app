@@ -23,17 +23,24 @@ export interface Team {
   club: string;
   icon: string;
   pts: number;
-  played?: number;
-  won?: number;
-  drawn?: number;
-  lost?: number;
+  p?: number; // played (matches your JSON)
+  played?: number; // alternative name
+  w?: number; // won
+  won?: number; // alternative
+  d?: number; // drawn
+  drawn?: number; // alternative
+  l?: number; // lost
+  lost?: number; // alternative
+  gd?: number; // goal difference (matches your JSON)
   goalsFor?: number;
   goalsAgainst?: number;
-  goalDifference?: number;
+  goalDifference?: number; // alternative
 }
 
 export interface Division {
   divisionName: string;
+  year?: string; // Added to match your JSON
+  slug?: string; // Added to match your JSON
   teams: Team[];
 }
 

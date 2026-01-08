@@ -38,8 +38,8 @@ const pointsVariants = cva("col-span-2 text-right font-black text-blue-400");
 
 interface StandingsRowProps {
   team: Team;
-  promotionZone?: number; // Top N teams
-  relegationZone?: number; // Bottom N teams
+  promotionZone?: number;
+  relegationZone?: number;
   totalTeams?: number;
 }
 
@@ -49,7 +49,10 @@ export default function StandingsRow({
   relegationZone = 2,
   totalTeams = 10,
 }: StandingsRowProps) {
-  const goalDiff = team.goalDifference || 0;
+  // Use 'gd' from JSON (goal difference)
+  const goalDiff = team.gd || team.goalDifference || 0;
+  // Use 'p' from JSON (played)
+  const played = team.p || team.played || 0;
 
   // Determine position zone
   const getPositionZone = () => {
@@ -88,7 +91,7 @@ export default function StandingsRow({
 
       {/* Played */}
       <div className="col-span-2 text-center font-bold text-slate-300">
-        {team.played || 0}
+        {played}
       </div>
 
       {/* Goal Difference */}

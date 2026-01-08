@@ -49,6 +49,17 @@
           "l": 5,
           "gd": -2,
           "pts": 17
+        },
+        {
+          "pos": 5,
+          "club": "Kedron Wavell",
+          "icon": "/icons/kedronwavell.png",
+          "p": 12,
+          "w": 1,
+          "d": 1,
+          "l": 1,
+          "gd": -24,
+          "pts": 4
         }
       ]
     },

@@ -6,7 +6,7 @@ import { cn } from "../../lib/utils";
 import StandingsRow from "./StandingsRow";
 import Button from "../ui/Button";
 import Text from "../ui/Text";
-import type { Division, Season } from "../../types";
+import type { Division } from "../../types";
 
 const standingsContainerVariants = cva(
   "sticky top-8 bg-[#06054e] rounded-3xl p-6 shadow-2xl text-white"
@@ -21,14 +21,14 @@ const emptyStateVariants = cva("text-center py-8");
 interface StandingsTableClientProps {
   division: Division | null;
   selectedDiv: string;
-  seasons: Season[];
+  availableYears: string[];
   currentYear: string;
 }
 
 export default function StandingsTableClient({
   division,
   selectedDiv,
-  seasons,
+  availableYears,
   currentYear,
 }: StandingsTableClientProps) {
   const router = useRouter();
@@ -42,7 +42,7 @@ export default function StandingsTableClient({
 
   return (
     <div className={standingsContainerVariants()}>
-      {/* Header with Year Filter */}
+      {/* Header */}
       <div className="flex justify-between items-center mb-4">
         <Text as="h2" className="text-lg font-black uppercase italic">
           Standings
@@ -50,26 +50,26 @@ export default function StandingsTableClient({
       </div>
 
       {/* Year Filter */}
-      {seasons.length > 0 && (
+      {availableYears.length > 1 && (
         <div className="mb-4 pb-4 border-b border-white/20">
           <Text variant="label" className="text-white/60 mb-2 block">
             Season
           </Text>
           <div className="flex gap-2 flex-wrap">
-            {seasons.map((season) => (
+            {availableYears.map((year) => (
               <Button
-                key={season.year}
+                key={year}
                 variant="outline"
                 size="sm"
-                onClick={() => handleYearChange(season.year.toString())}
+                onClick={() => handleYearChange(year)}
                 className={cn(
                   "text-[9px] transition-all",
-                  currentYear === season.year.toString()
+                  currentYear === year
                     ? "bg-white text-[#06054e] border-white hover:bg-white/90"
                     : "bg-transparent text-white border-white/30 hover:bg-white/10 hover:border-white/50"
                 )}
               >
-                {season.year}
+                {year}
               </Button>
             ))}
           </div>
@@ -109,21 +109,28 @@ export default function StandingsTableClient({
               </div>
               <div>
                 <Text variant="label" className="text-white/60 block mb-1">
-                  Matches
+                  Played
                 </Text>
                 <Text className="text-xl font-black text-white">
-                  {division.teams.reduce((sum, t) => sum + (t.played || 0), 0)}
+                  {division.teams.reduce(
+                    (sum, t) => sum + (t.p || t.played || 0),
+                    0
+                  )}
                 </Text>
               </div>
               <div>
                 <Text variant="label" className="text-white/60 block mb-1">
-                  Goals
+                  Avg GD
                 </Text>
                 <Text className="text-xl font-black text-white">
-                  {division.teams.reduce(
-                    (sum, t) => sum + (t.goalsFor || 0),
-                    0
-                  )}
+                  {Math.round(
+                    (division.teams.reduce(
+                      (sum, t) => sum + (t.gd || t.goalDifference || 0),
+                      0
+                    ) /
+                      division.teams.length) *
+                      10
+                  ) / 10}
                 </Text>
               </div>
             </div>
@@ -134,7 +141,7 @@ export default function StandingsTableClient({
           <Text variant="label" className="text-slate-400">
             {selectedDiv === "All"
               ? "Select a division to view standings"
-              : "No standings available"}
+              : "No standings available for this year"}
           </Text>
         </div>
       )}
