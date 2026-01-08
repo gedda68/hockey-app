@@ -3,6 +3,7 @@
   "divisions": [
     {
       "divisionName": "Premier League Men",
+      "year": "2025",
       "slug": "premier-men",
       "teams": [
         {
@@ -54,6 +55,7 @@
     {
       "divisionName": "BHL2",
       "slug": "BHL2-M",
+      "year": "2025",
       "teams": [
         {
           "pos": 1,

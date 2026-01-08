@@ -168,7 +168,7 @@ export default async function MatchesPage({
             division={currentStandings}
             selectedDiv={selectedDiv}
             seasons={seasons}
-            selectedYear={standingsYear}
+            currentYear={standingsYear}
           />
         </div>
       </div>
