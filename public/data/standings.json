@@ -1,96 +1,183 @@
 {
   "lastUpdated": "2026-01-05T20:00:00Z",
-  "divisions": [
-    {
-      "divisionName": "Premier League Men",
-      "year": "2025",
-      "slug": "premier-men",
-      "teams": [
-        {
-          "pos": 1,
-          "club": "Commercial",
-          "icon": "/icons/chc.png",
-          "p": 12,
-          "w": 10,
-          "d": 1,
-          "l": 1,
-          "gd": 24,
-          "pts": 31
-        },
-        {
-          "pos": 2,
-          "club": "UQ Hockey",
-          "icon": "/icons/uq.png",
-          "p": 12,
-          "w": 8,
-          "d": 2,
-          "l": 2,
-          "gd": 15,
-          "pts": 26
-        },
-        {
-          "pos": 3,
-          "club": "East Hockey Club",
-          "icon": "/icons/easts.jpg",
-          "p": 12,
-          "w": 7,
-          "d": 3,
-          "l": 2,
-          "gd": 10,
-          "pts": 24
-        },
-        {
-          "pos": 4,
-          "club": "Norths",
-          "icon": "/icons/norths.png",
-          "p": 12,
-          "w": 5,
-          "d": 2,
-          "l": 5,
-          "gd": -2,
-          "pts": 17
-        },
-        {
-          "pos": 5,
-          "club": "Kedron Wavell",
-          "icon": "/icons/kedronwavell.png",
-          "p": 12,
-          "w": 1,
-          "d": 1,
-          "l": 1,
-          "gd": -24,
-          "pts": 4
-        }
-      ]
+  "seasons": {
+    "2025": {
+      "Premier League Men": {
+        "slug": "premier-men",
+        "teams": [
+          {
+            "pos": 1,
+            "club": "Commercial",
+            "icon": "/icons/chc.png",
+            "p": 12,
+            "w": 10,
+            "d": 1,
+            "l": 1,
+            "gd": 24,
+            "pts": 31
+          },
+          {
+            "pos": 2,
+            "club": "UQ Hockey",
+            "icon": "/icons/uq.png",
+            "p": 12,
+            "w": 8,
+            "d": 2,
+            "l": 2,
+            "gd": 15,
+            "pts": 26
+          },
+          {
+            "pos": 3,
+            "club": "East Hockey Club",
+            "icon": "/icons/easts.jpg",
+            "p": 12,
+            "w": 7,
+            "d": 3,
+            "l": 2,
+            "gd": 10,
+            "pts": 24
+          },
+          {
+            "pos": 4,
+            "club": "Norths",
+            "icon": "/icons/norths.png",
+            "p": 12,
+            "w": 5,
+            "d": 2,
+            "l": 5,
+            "gd": -2,
+            "pts": 17
+          },
+          {
+            "pos": 5,
+            "club": "Kedron Wavell",
+            "icon": "/icons/kedronwavell.png",
+            "p": 12,
+            "w": 1,
+            "d": 1,
+            "l": 1,
+            "gd": -24,
+            "pts": 4
+          }
+        ]
+      },
+      "BHL2": {
+        "slug": "BHL2-M",
+        "teams": [
+          {
+            "pos": 1,
+            "club": "East Hockey Club",
+            "icon": "/icons/easts.jpg",
+            "p": 10,
+            "w": 9,
+            "d": 0,
+            "l": 1,
+            "gd": 30,
+            "pts": 27
+          },
+          {
+            "pos": 2,
+            "club": "Commercial",
+            "icon": "/icons/chc.png",
+            "p": 10,
+            "w": 7,
+            "d": 1,
+            "l": 2,
+            "gd": 12,
+            "pts": 22
+          }
+        ]
+      }
     },
-    {
-      "divisionName": "BHL2",
-      "slug": "BHL2-M",
-      "year": "2025",
-      "teams": [
-        {
-          "pos": 1,
-          "club": "East Hockey Club",
-          "icon": "/icons/easts.jpg",
-          "p": 10,
-          "w": 9,
-          "d": 0,
-          "l": 1,
-          "gd": 30,
-          "pts": 27
-        },
-        {
-          "pos": 2,
-          "club": "Commercial",
-          "icon": "/icons/chc.png",
-          "p": 10,
-          "w": 7,
-          "d": 1,
-          "l": 2,
-          "gd": 12,
-          "pts": 22
-        }
-      ]
+    "2024": {
+      "Premier League Men": {
+        "slug": "premier-men",
+        "teams": [
+          {
+            "pos": 1,
+            "club": "Commercial",
+            "icon": "/icons/chc.png",
+            "p": 12,
+            "w": 10,
+            "d": 1,
+            "l": 1,
+            "gd": 24,
+            "pts": 31
+          },
+          {
+            "pos": 2,
+            "club": "UQ Hockey",
+            "icon": "/icons/uq.png",
+            "p": 12,
+            "w": 8,
+            "d": 2,
+            "l": 2,
+            "gd": 15,
+            "pts": 26
+          },
+          {
+            "pos": 3,
+            "club": "East Hockey Club",
+            "icon": "/icons/easts.jpg",
+            "p": 12,
+            "w": 7,
+            "d": 3,
+            "l": 2,
+            "gd": 10,
+            "pts": 24
+          },
+          {
+            "pos": 4,
+            "club": "Norths",
+            "icon": "/icons/norths.png",
+            "p": 12,
+            "w": 5,
+            "d": 2,
+            "l": 5,
+            "gd": -2,
+            "pts": 17
+          },
+          {
+            "pos": 5,
+            "club": "Kedron Wavell",
+            "icon": "/icons/kedronwavell.png",
+            "p": 12,
+            "w": 1,
+            "d": 1,
+            "l": 1,
+            "gd": -24,
+            "pts": 4
+          }
+        ]
+      },
+      "BHL2": {
+        "slug": "BHL2-M",
+        "teams": [
+          {
+            "pos": 1,
+            "club": "East Hockey Club",
+            "icon": "/icons/easts.jpg",
+            "p": 10,
+            "w": 9,
+            "d": 0,
+            "l": 1,
+            "gd": 30,
+            "pts": 27
+          },
+          {
+            "pos": 2,
+            "club": "Commercial",
+            "icon": "/icons/chc.png",
+            "p": 10,
+            "w": 7,
+            "d": 1,
+            "l": 2,
+            "gd": 12,
+            "pts": 22
+          }
+        ]
+      }
     }
-  ]
+  }
 }

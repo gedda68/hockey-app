@@ -6,6 +6,7 @@ interface StandingsTableProps {
   selectedDiv: string;
   availableYears: string[];
   currentYear: string;
+  showYearFilter?: boolean;
 }
 
 export default function StandingsTable(props: StandingsTableProps) {

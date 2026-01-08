@@ -3,7 +3,15 @@ import path from "path";
 import type { Division, Team } from "../../types";
 
 interface StandingsData {
-  divisions: Division[];
+  lastUpdated: string;
+  seasons: {
+    [year: string]: {
+      [divisionName: string]: {
+        slug: string;
+        teams: Team[];
+      };
+    };
+  };
 }
 
 /**
@@ -16,11 +24,25 @@ export async function getStandingsData(): Promise<StandingsData> {
 }
 
 /**
- * Get all divisions with standings
+ * Get available years from standings
  */
-export async function getAllDivisions(): Promise<Division[]> {
+export async function getStandingsYears(): Promise<string[]> {
   const data = await getStandingsData();
-  return data.divisions || [];
+  return Object.keys(data.seasons).sort().reverse(); // Most recent first
+}
+
+/**
+ * Get all division names across all years
+ */
+export async function getDivisionNames(): Promise<string[]> {
+  const data = await getStandingsData();
+  const divisionSet = new Set<string>();
+
+  Object.values(data.seasons).forEach((yearData) => {
+    Object.keys(yearData).forEach((divName) => divisionSet.add(divName));
+  });
+
+  return Array.from(divisionSet);
 }
 
 /**
@@ -32,16 +54,25 @@ export async function getDivisionStandings(
 ): Promise<Division | null> {
   const data = await getStandingsData();
 
-  // Filter by division name
-  let divisions = data.divisions.filter((d) => d.divisionName === divisionName);
-
-  // If year specified, filter by year
-  if (year) {
-    divisions = divisions.filter((d) => d.year === year);
+  // If no year specified, get most recent year
+  if (!year) {
+    const years = await getStandingsYears();
+    year = years[0];
   }
 
-  // Return the most recent if multiple found, or the first match
-  return divisions[0] || null;
+  // Check if year and division exist
+  if (!data.seasons[year] || !data.seasons[year][divisionName]) {
+    return null;
+  }
+
+  const divisionData = data.seasons[year][divisionName];
+
+  return {
+    divisionName,
+    year,
+    slug: divisionData.slug,
+    teams: divisionData.teams,
+  };
 }
 
 /**
@@ -49,25 +80,45 @@ export async function getDivisionStandings(
  */
 export async function getDivisionsByYear(year: string): Promise<Division[]> {
   const data = await getStandingsData();
-  return data.divisions.filter((d) => d.year === year);
+
+  if (!data.seasons[year]) {
+    return [];
+  }
+
+  const divisions: Division[] = [];
+  const yearData = data.seasons[year];
+
+  Object.entries(yearData).forEach(([divName, divData]) => {
+    divisions.push({
+      divisionName: divName,
+      year,
+      slug: divData.slug,
+      teams: divData.teams,
+    });
+  });
+
+  return divisions;
 }
 
 /**
- * Get division names only
+ * Get all divisions with standings (across all years)
  */
-export async function getDivisionNames(): Promise<string[]> {
-  const divisions = await getAllDivisions();
-  const uniqueNames = new Set(divisions.map((d) => d.divisionName));
-  return Array.from(uniqueNames);
-}
+export async function getAllDivisions(): Promise<Division[]> {
+  const data = await getStandingsData();
+  const divisions: Division[] = [];
 
-/**
- * Get available years from standings
- */
-export async function getStandingsYears(): Promise<string[]> {
-  const divisions = await getAllDivisions();
-  const years = new Set(divisions.map((d) => d.year).filter(Boolean));
-  return Array.from(years).sort().reverse(); // Most recent first
+  Object.entries(data.seasons).forEach(([year, yearData]) => {
+    Object.entries(yearData).forEach(([divName, divData]) => {
+      divisions.push({
+        divisionName: divName,
+        year,
+        slug: divData.slug,
+        teams: divData.teams,
+      });
+    });
+  });
+
+  return divisions;
 }
 
 /**
@@ -162,7 +213,6 @@ export async function getStandingsStats(divisionName: string, year?: string) {
 
   const teams = division.teams;
 
-  // Calculate total goals (using gd and working backwards)
   const totalPlayed = teams.reduce((sum, t) => sum + (t.p || 0), 0);
   const avgPointsPerGame =
     teams.reduce((sum, t) => sum + (t.pts || 0), 0) / totalPlayed || 0;

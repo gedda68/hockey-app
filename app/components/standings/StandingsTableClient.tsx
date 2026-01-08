@@ -23,6 +23,7 @@ interface StandingsTableClientProps {
   selectedDiv: string;
   availableYears: string[];
   currentYear: string;
+  showYearFilter?: boolean;
 }
 
 export default function StandingsTableClient({
@@ -30,6 +31,7 @@ export default function StandingsTableClient({
   selectedDiv,
   availableYears,
   currentYear,
+  showYearFilter = true,
 }: StandingsTableClientProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -42,15 +44,28 @@ export default function StandingsTableClient({
 
   return (
     <div className={standingsContainerVariants()}>
-      {/* Header */}
-      <div className="flex justify-between items-center mb-4">
-        <Text as="h2" className="text-lg font-black uppercase italic">
+      {/* Header with Current Filters */}
+      <div className="mb-4">
+        <Text
+          as="h2"
+          className="text-lg font-black uppercase italic text-white/90 mb-1"
+        >
           Standings
         </Text>
+        {division && (
+          <div className="flex flex-col gap-0.5">
+            <Text className="text-[11px] font-bold text-white/70">
+              {division.divisionName}
+            </Text>
+            <Text className="text-[9px] font-bold text-white/50 uppercase tracking-wide">
+              {currentYear} Season
+            </Text>
+          </div>
+        )}
       </div>
 
       {/* Year Filter */}
-      {availableYears.length > 1 && (
+      {showYearFilter && availableYears.length > 1 && (
         <div className="mb-4 pb-4 border-b border-white/20">
           <Text variant="label" className="text-white/60 mb-2 block">
             Season
