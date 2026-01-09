@@ -1,15 +1,15 @@
 import React from "react";
 import Link from "next/link";
-import StandingsTableFull from "../../../components/standings/StandingsTableFull";
-import PageHeader from "../../../components/shared/PageHeader";
-import FilterButton from "../../../components/shared/FilterButton";
+import StandingsTableFull from "../../../../components/standings/StandingsTableFull";
+import PageHeader from "../../../../components/shared/PageHeader";
+import FilterButton from "../../../../components/shared/FilterButton";
 import type { Division } from "../../../types";
 
 // Import data utility functions
 import {
   getStandingsYears,
   getDivisionsByYear,
-} from "../../../lib/data/standings";
+} from "../../../../lib/data/standings";
 
 export const dynamic = "force-dynamic";
 

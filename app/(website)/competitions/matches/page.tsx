@@ -1,10 +1,10 @@
 import React from "react";
 import Link from "next/link";
-import MatchList from "../../../components/matches/MatchList";
-import MatchFilters from "../../../components/matches/MatchFilters";
-import PageHeader from "../../../components/shared/PageHeader";
-import StandingsTable from "../../../components/standings/StandingsTable";
-import type { ViewType } from "../../../types";
+import MatchList from "../../../../components/matches/MatchList";
+import MatchFilters from "../../../../components/matches/MatchFilters";
+import PageHeader from "../../../../components/shared/PageHeader";
+import StandingsTable from "../../../../components/standings/StandingsTable";
+import type { ViewType } from "../../../../types";
 
 // Import data utility functions
 import {
@@ -16,12 +16,12 @@ import {
   getMatchStatsData,
   getUmpireAllocationsMap,
   getUmpireList,
-} from "../../../lib/data";
+} from "../../../../lib/data";
 
 import {
   getDivisionStandings,
   getStandingsYears,
-} from "../../../lib/data/standings";
+} from "../../../../lib/data/standings";
 
 export const dynamic = "force-dynamic";
 

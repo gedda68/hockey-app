@@ -13,7 +13,7 @@ interface MatchesData {
  * Get all matches data from JSON file
  */
 export async function getMatchesData(): Promise<MatchesData> {
-  const matchesPath = path.join(process.cwd(), "public/data/matches.json");
+  const matchesPath = path.join(process.cwd(), "/data/matches/matches.json");
   const data = await fs.readFile(matchesPath, "utf8");
   return JSON.parse(data);
 }

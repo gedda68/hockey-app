@@ -10,7 +10,10 @@ interface StatsData {
  * Get all match stats from JSON file
  */
 export async function getMatchStatsData(): Promise<Record<string, MatchStats>> {
-  const statsPath = path.join(process.cwd(), "data/matchstats.json");
+  const statsPath = path.join(
+    process.cwd(),
+    "/data/statistics/match-stats.json"
+  );
   const data = await fs.readFile(statsPath, "utf8");
   const parsed: StatsData = JSON.parse(data);
   return parsed.stats || {};

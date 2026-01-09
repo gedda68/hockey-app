@@ -1,6 +1,6 @@
 import Link from "next/link";
-import MatchListSkeleton from "../../../components/matches/MatchListSkeleton";
-import StandingsSkeleton from "../../../components/standings/StandingsSkeleton";
+import MatchListSkeleton from "../../../../components/matches/MatchListSkeleton";
+import StandingsSkeleton from "../../../../components/standings/StandingsSkeleton";
 
 export default function MatchesLoading() {
   return (

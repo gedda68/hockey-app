@@ -1,11 +1,11 @@
 import React from "react";
 import Link from "next/link";
-import PageHeader from "../../../components/shared/PageHeader";
-import FilterButton from "../../../components/shared/FilterButton";
-import StatisticsCard from "../../../components/statistics/StatisticsCard";
-import TopScorersTable from "../../../components/statistics/TopScorersTable";
-import TopAssistsTable from "../../../components/statistics/TopAssistsTable";
-import TeamStatsTable from "../../../components/statistics/TeamStatsTable";
+import PageHeader from "../../../../components/shared/PageHeader";
+import FilterButton from "../../../../components/shared/FilterButton";
+import StatisticsCard from "../../../../components/statistics/StatisticsCard";
+import TopScorersTable from "../../../../components/statistics/TopScorersTable";
+import TopAssistsTable from "../../../../components/statistics/TopAssistsTable";
+import TeamStatsTable from "../../../../components/statistics/TeamStatsTable";
 
 export const dynamic = "force-dynamic";
 

@@ -14,7 +14,10 @@ interface UmpireAllocationsData {
  * Get all umpires from JSON file
  */
 export async function getUmpireList(): Promise<UmpireDetails[]> {
-  const umpireListPath = path.join(process.cwd(), "data/umpireList.json");
+  const umpireListPath = path.join(
+    process.cwd(),
+    "/data/umpires/umpire-list.json"
+  );
   const data = await fs.readFile(umpireListPath, "utf8");
   const parsed: UmpireListData = JSON.parse(data);
   return parsed.umpires || [];
@@ -26,7 +29,7 @@ export async function getUmpireList(): Promise<UmpireDetails[]> {
 export async function getUmpireAllocations(): Promise<UmpireAllocation[]> {
   const allocationsPath = path.join(
     process.cwd(),
-    "data/umpireAllocations.json"
+    "/data/umpires/umpire-allocations.json"
   );
   const data = await fs.readFile(allocationsPath, "utf8");
   const parsed: UmpireAllocationsData = JSON.parse(data);
