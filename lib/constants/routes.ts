@@ -16,6 +16,8 @@ export const ROUTES = {
   CLUB_DETAIL: (slug: string) => `/clubs/${slug}`,
   CLUB_CONTACT: (slug: string) => `/clubs/${slug}/contact`,
 
+  // officials
+
   // Competitions
   COMPETITIONS: "/competitions",
   EVENTS: "/competitions/events",
@@ -24,8 +26,10 @@ export const ROUTES = {
   STANDINGS: "/competitions/standings",
   STATISTICS: "/competitions/statistics",
 
+  OFFICIALS: "competitions/officials", // ✅ Correct
+  UMPIRE_ALLOCATIONS: "/competitions/officials/umpire-allocations",
+
   // Other
-  OFFICIALS: "/officials",
   PLAY: "/play",
   REPRESENTATIVE: "/representative",
   SHOP: "/shop",
@@ -46,6 +50,8 @@ export const NAV_GROUPS = {
     { label: "Statistics", href: ROUTES.STATISTICS },
     { label: "Events", href: ROUTES.EVENTS },
     { label: "Fixtures", href: ROUTES.FIXTURES },
+    { label: "Officials", href: ROUTES.OFFICIALS },
+    { label: "Umpire Allocations", href: ROUTES.UMPIRE_ALLOCATIONS },
   ],
 
   SECONDARY: [
