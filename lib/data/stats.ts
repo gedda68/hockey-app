@@ -1,213 +1,58 @@
-import { promises as fs } from "fs";
-import path from "path";
-import type { MatchStats, Goal, Card } from "../../types";
-
-interface StatsData {
-  stats: Record<string, MatchStats>;
-}
-
 /**
- * Get all match stats from JSON file
+ * Statistics Data Utilities
+ *
+ * Functions for loading and processing statistics data
  */
-export async function getMatchStatsData(): Promise<Record<string, MatchStats>> {
-  const statsPath = path.join(
-    process.cwd(),
-    "/data/statistics/match-stats.json"
-  );
-  const data = await fs.readFile(statsPath, "utf8");
-  const parsed: StatsData = JSON.parse(data);
-  return parsed.stats || {};
-}
+
+import matchStatsData from "../../data/statistics/match-stats.json";
 
 /**
- * Get stats for a specific match
+ * Get match statistics data
  */
-export async function getStatsForMatch(
-  matchId: string
-): Promise<MatchStats | null> {
-  const allStats = await getMatchStatsData();
-  return allStats[matchId] || null;
+export async function getMatchStatsData(): Promise<Record<string, any>> {
+  return matchStatsData as Record<string, any>;
 }
 
 /**
- * Get goals for a specific match
+ * Get statistics for a specific match
  */
-export async function getGoalsForMatch(matchId: string): Promise<Goal[]> {
-  const stats = await getStatsForMatch(matchId);
-  return stats?.goals || [];
+export async function getMatchStats(matchId: string): Promise<any | null> {
+  const stats = await getMatchStatsData();
+  return stats[matchId] || null;
 }
 
 /**
- * Get cards for a specific match
+ * Get player statistics (if available)
  */
-export async function getCardsForMatch(matchId: string): Promise<Card[]> {
-  const stats = await getStatsForMatch(matchId);
-  return stats?.cards || [];
+export async function getPlayerStatistics(division?: string, season?: string) {
+  // This would load from player-stats.json if it exists
+  // For now, return empty array or mock data
+  return [];
 }
 
 /**
- * Get shootout data for a specific match
+ * Get team statistics (if available)
  */
-export async function getShootoutForMatch(matchId: string) {
-  const stats = await getStatsForMatch(matchId);
-  return stats?.shootout || null;
+export async function getTeamStatistics(division?: string, season?: string) {
+  // This would load from team-stats.json if it exists
+  // For now, return empty array or mock data
+  return [];
 }
 
 /**
- * Get goals by team
- */
-export async function getGoalsByTeam(
-  matchId: string,
-  teamName: string
-): Promise<Goal[]> {
-  const goals = await getGoalsForMatch(matchId);
-  return goals.filter((g) => g.team === teamName);
-}
-
-/**
- * Get cards by team
- */
-export async function getCardsByTeam(
-  matchId: string,
-  teamName: string
-): Promise<Card[]> {
-  const cards = await getCardsForMatch(matchId);
-  return cards.filter((c) => c.team === teamName);
-}
-
-/**
- * Get goals by player
- */
-export async function getGoalsByPlayer(
-  matchId: string,
-  playerName: string
-): Promise<Goal[]> {
-  const goals = await getGoalsForMatch(matchId);
-  return goals.filter((g) => g.playerName === playerName);
-}
-
-/**
- * Get timeline events (goals + cards) for a match
- */
-export async function getTimelineEvents(matchId: string) {
-  const stats = await getStatsForMatch(matchId);
-  if (!stats) return [];
-
-  const goalEvents = (stats.goals || []).map((g) => ({
-    ...g,
-    eventType: "GOAL" as const,
-    minute: g.time,
-  }));
-
-  const cardEvents = (stats.cards || []).map((c) => ({
-    ...c,
-    eventType: "CARD" as const,
-    minute: c.time,
-  }));
-
-  return [...goalEvents, ...cardEvents].sort((a, b) => a.minute - b.minute);
-}
-
-/**
- * Get total goals for a team across all matches
- */
-export async function getTotalGoalsByTeam(teamName: string): Promise<number> {
-  const allStats = await getMatchStatsData();
-  let totalGoals = 0;
-
-  Object.values(allStats).forEach((matchStats) => {
-    const teamGoals =
-      matchStats.goals?.filter((g) => g.team === teamName) || [];
-    totalGoals += teamGoals.length;
-  });
-
-  return totalGoals;
-}
-
-/**
- * Get top scorers across all matches
+ * Get top scorers
  */
 export async function getTopScorers(limit: number = 10) {
-  const allStats = await getMatchStatsData();
-  const scorerMap = new Map<
-    string,
-    { player: string; goals: number; team: string }
-  >();
-
-  Object.values(allStats).forEach((matchStats) => {
-    matchStats.goals?.forEach((goal) => {
-      const key = `${goal.playerName}-${goal.team}`;
-      const existing = scorerMap.get(key);
-
-      if (existing) {
-        existing.goals++;
-      } else {
-        scorerMap.set(key, {
-          player: goal.playerName,
-          goals: 1,
-          team: goal.team,
-        });
-      }
-    });
-  });
-
-  return Array.from(scorerMap.values())
-    .sort((a, b) => b.goals - a.goals)
-    .slice(0, limit);
+  // This would aggregate from match stats or player stats
+  // For now, return empty array
+  return [];
 }
 
 /**
- * Get card statistics
+ * Get top assists
  */
-export async function getCardStats() {
-  const allStats = await getMatchStatsData();
-  const cardCounts = { green: 0, yellow: 0, red: 0 };
-
-  Object.values(allStats).forEach((matchStats) => {
-    matchStats.cards?.forEach((card) => {
-      const cardType = card.type.toLowerCase();
-      if (cardType === "green") cardCounts.green++;
-      else if (cardType === "yellow") cardCounts.yellow++;
-      else if (cardType === "red") cardCounts.red++;
-    });
-  });
-
-  return cardCounts;
-}
-
-/**
- * Get matches with shootouts
- */
-export async function getShootoutMatches(): Promise<string[]> {
-  const allStats = await getMatchStatsData();
-
-  return Object.entries(allStats)
-    .filter(([_, stats]) => stats.shootout !== null)
-    .map(([matchId]) => matchId);
-}
-
-/**
- * Calculate goal scoring patterns
- */
-export async function getGoalScoringPatterns() {
-  const allStats = await getMatchStatsData();
-  const timeRanges = {
-    "0-15": 0,
-    "16-30": 0,
-    "31-45": 0,
-    "46-60": 0,
-    "60+": 0,
-  };
-
-  Object.values(allStats).forEach((matchStats) => {
-    matchStats.goals?.forEach((goal) => {
-      if (goal.time <= 15) timeRanges["0-15"]++;
-      else if (goal.time <= 30) timeRanges["16-30"]++;
-      else if (goal.time <= 45) timeRanges["31-45"]++;
-      else if (goal.time <= 60) timeRanges["46-60"]++;
-      else timeRanges["60+"]++;
-    });
-  });
-
-  return timeRanges;
+export async function getTopAssists(limit: number = 10) {
+  // This would aggregate from match stats or player stats
+  // For now, return empty array
+  return [];
 }

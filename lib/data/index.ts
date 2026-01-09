@@ -1,69 +1,58 @@
 /**
- * Central export file for all data utility functions
- * Import from here to access all data functions
+ * Data Layer Index
+ *
+ * Central export for all data utilities.
+ * Import from here for consistency.
+ *
+ * @example
+ * import { getMatches, getStandingsYears, getUmpireList } from '@/lib/data';
  */
 
-// Matches
+// Match data utilities
 export {
-  getMatchesData,
-  getUpcomingMatches,
-  getMatchResults,
+  getMatches,
   getMatchById,
-  getMatchesByDivision,
-  getMatchesByRound,
-  getMatchesByStatus,
+  filterMatches,
   getDivisions,
   getRounds,
   getSeasons,
   getCurrentSeason,
-  filterMatches,
+  getMatchesByDateRange,
+  getUpcomingMatches,
+  getRecentMatches,
+  getMatchesByClub,
 } from "./matches";
 
-// Standings
+// Standings data utilities
 export {
-  getStandingsData,
-  getAllDivisions,
+  getStandingsYears,
+  getDivisionsByYear,
   getDivisionStandings,
+  getAllDivisions,
   getDivisionNames,
-  getTopTeams,
-  getTeamByClub,
-  getTeamPosition,
-  sortStandings,
-  getZoneTeams,
-  getStandingsStats,
+  getCurrentSeasonYear,
+  divisionExistsInYear,
 } from "./standings";
 
-// Umpires
+// Umpire data utilities
 export {
   getUmpireList,
+  getUmpireByNumber,
   getUmpireAllocations,
   getUmpireAllocationsMap,
-  getUmpireById,
+  getUmpireAllocationForMatch,
   getUmpiresForMatch,
-  getPrimaryUmpiresForMatch,
-  getBackupUmpiresForMatch,
-  getUmpiresByClub,
   getActiveUmpires,
   getUmpiresByLevel,
-  getMatchesForUmpire,
-  hasUmpireAccepted,
-  getUmpireStats,
+  getUmpiresByClub,
 } from "./umpires";
 
-// Match Stats
+// Statistics data utilities
 export {
   getMatchStatsData,
-  getStatsForMatch,
-  getGoalsForMatch,
-  getCardsForMatch,
-  getShootoutForMatch,
-  getGoalsByTeam,
-  getCardsByTeam,
-  getGoalsByPlayer,
-  getTimelineEvents,
-  getTotalGoalsByTeam,
+  getMatchStats,
+  getPlayerStatistics,
+  getTeamStatistics,
   getTopScorers,
-  getCardStats,
-  getShootoutMatches,
-  getGoalScoringPatterns,
+  getTopAssists,
 } from "./stats";
