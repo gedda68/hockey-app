@@ -42,7 +42,7 @@ export default async function ClubsPage() {
 
             {/* Club Name */}
             <h2 className="text-xl font-black uppercase text-slate-900 mb-2 text-center">
-              {club.title}
+              {club.title} ({club.abbreviation})
             </h2>
 
             {/* Description */}
@@ -55,10 +55,11 @@ export default async function ClubsPage() {
               {/* About Button */}
               <Link
                 href={`/clubs/${club.slug}`}
-                className="block w-full text-center px-4 py-2 rounded-full text-sm font-black border-2 transition-all"
+                className="block w-full text-center px-4 py-2 rounded-full text-sm font-black border-2 transition-all hover:opacity-90"
                 style={{
                   borderColor: club.color,
-                  color: club.color,
+                  backgroundColor: club.bgColor, // ← Added background color
+                  color: "white", // ← Changed to white for contrast
                 }}
               >
                 About
@@ -70,7 +71,8 @@ export default async function ClubsPage() {
                 className="block w-full text-center px-4 py-2 rounded-full text-sm font-black border-2 transition-all"
                 style={{
                   borderColor: club.color,
-                  color: club.color,
+                  backgroundColor: club.bgColor, // ← Added background color
+                  color: "white", // ← Changed to white for contrast
                 }}
               >
                 Contact

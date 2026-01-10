@@ -166,7 +166,7 @@ export default async function ClubDetailsPage({ params }: { params: Params }) {
               href={`/clubs/${club.slug}/contact`}
               className="px-6 py-3 rounded-full text-sm font-black text-white transition-all hover:shadow-lg"
               style={{
-                backgroundColor: club.color,
+                backgroundColor: club.bgColor,
               }}
             >
               Contact Club
