@@ -1,22 +1,176 @@
-export default function ClubsPage() {
-  const clubs = [
+{
+  "clubs": [
     {
-      title: "Commercial Hockey Club",
-      description:
-        "Built with Next.js 15 and Tailwind v4 for instant loading states.",
-      icon: "⚡",
-      iconSrc: "/icons/chc.png", // Local image path
-      href: 
+      "title": "Commercial Hockey Club",
+      "abbreviation": "CHC",
+      "description": "Hockey club based in Brisbane, Queensland, Australia.",
+      "icon": "⚡",
+      "iconSrc": "/icons/chc.png",
+      "href": "https://commercialhockeyclub.majestri.com.au/wspHome.aspx",
+      "slug": "commercial-hockey",
+      "address": "106 Finsbury Street, Newmarket, QLD, 4051",
+      "color": "#8b39d3",
+      "bgColor": "#8b39d3",
+      "about": "<strong>How the Commercial Hockey Club was formed</strong><br /><br />The Commercial Hockey Club (CHC) was formed in 1944, when a group of high school students at the State Commercial High School in George Street, Brisbane, formed a J2 team to play in the Brisbane Junior Hockey fixtures. The founding members included Stan Griffin OAM, Eric Vile, Arnold Dodd, K. Schwede, T Lang and R Mavromatie.<br /><br />By the end of 1945, most of the original members had left high school and in 1946 CHC fielded a B2 team and a J2 team. The number of our teams grew over the following years and in 1949 CHC won its first premiership in the B1 Grade.<br /><br />Our first women's team was formed in 1949.<br /><br />It has been a fantastic rollercoaster ride up to the present where we have become Brisbane Hockey's foremost family club.",
+      "facebookUrl": "https://www.facebook.com/www.chcestablished1944.com.au",
+      "instagramUrl": "https://www.instagram.com/commercialhockey/",
+      "twitterUrl": "https://twitter.com/CommHockeyClub",
+      "contacts": [
+        {
+          "role": "President",
+          "name": "Paul Dawson",
+          "email": "president@commercialhockeyclub.com",
+          "phone": "0409 329 766"
+        },
+        {
+          "role": "Secretary",
+          "name": "Jo Hudson",
+          "email": "secretary@commercialhockeyclub.com",
+          "phone": "0448 748 231"
+        },
+        {
+          "role": "Treasurer",
+          "name": "Nicola Lambie",
+          "email": "treasurer@commercialhockeyclub.com",
+          "phone": "0430 942 611"
+        },
+        {
+          "role": "Men's Players Chairperson",
+          "name": "Grant Mapp",
+          "email": "mchair@commercialhockeyclub.com",
+          "phone": "0402 264 865"
+        },
+        {
+          "role": "Women's Players Chairperson",
+          "name": "Carol Chui Chong",
+          "email": "wchair@commercialhockeyclub.com",
+          "phone": "0412 977 189"
+        },
+        {
+          "role": "Junior Boys Chairperson",
+          "name": "Sylvia Fraser",
+          "email": "jboyschair@commercialhockeyclub.com",
+          "phone": "0406 334 162"
+        },
+        {
+          "role": "Junior Girls Chairperson",
+          "name": "Chris Rush",
+          "email": "jgchair@commercialhockeyclub.com",
+          "phone": "0424 172 245"
+        }
+      ]
     },
     {
-      title: "DaisyUI Components",
-      description:
-        "Beautifully designed, accessible components out of the box.",
-      icon: "🎨",
-    },href: "https://commercialhockeyclub.majestri.com.au/wspHome.aspx",
-    {
-      title: "Responsive Design",
-      description: "Fully optimized for mobile, tablet, and desktop screens.",
-      icon: "📱",
+      "title": "Bulimba Hockey Club",
+      "abbreviation": "BUL",
+      "description": "Welcome to the Bulimba Bulls!",
+      "icon": "🎨",
+      "iconSrc": "/icons/bulls.png",
+      "href": "https://bulimbahc.majestri.com.au/",
+      "slug": "bulimba-hockey",
+      "color": "#49ed69",
+      "bgColor": "#49ed69",
+      "about": "",
+      "facebookUrl": "https://www.facebook.com/BulimbaHockeyClub",
+      "instagramUrl": "https://www.instagram.com/bulimbahockeyclub/",
+      "twitterUrl": "https://twitter.com/BulimbaHockey",
+      "contacts": []
     },
-  ];
+    {
+      "title": "All Stars Hockey Club",
+      "abbreviation": "ALS",
+      "description": "Fully optimized for mobile, tablet, and desktop screens.",
+      "icon": "📱",
+      "iconSrc": "/icons/allstars.jpg",
+      "href": "https://allstarshockeyclub.wixsite.com/home",
+      "slug": "allstars-hockey",
+      "color": "#1a1a1a",
+      "bgColor": "#1a1a1a",
+      "about": "",
+      "facebookUrl": "",
+      "instagramUrl": "",
+      "twitterUrl": "",
+      "contacts": []
+    },
+    {
+      "title": "Kedron Wavell Hockey Club",
+      "abbreviation": "KWC",
+      "description": "Fully optimized for mobile, tablet, and desktop screens.",
+      "icon": "📱",
+      "iconSrc": "/icons/kedronwavell.png",
+      "href": "https://kwhockey.com/",
+      "slug": "kedronwavell-hockey",
+      "color": "#c40a16",
+      "bgColor": "#c40a16",
+      "about": "",
+      "facebookUrl": "",
+      "instagramUrl": "",
+      "twitterUrl": "",
+      "contacts": []
+    },
+    {
+      "title": "East Hockey Club",
+      "abbreviation": "EST",
+      "description": "East Hockey Club Brisbane",
+      "icon": "🏑",
+      "iconSrc": "/icons/easts.jpg",
+      "href": "https://easthockeyclub.com.au/",
+      "slug": "east-hockey",
+      "color": "#0066cc",
+      "bgColor": "#0066cc",
+      "about": "",
+      "facebookUrl": "https://www.facebook.com/EastHockeyClub",
+      "instagramUrl": "",
+      "twitterUrl": "",
+      "contacts": []
+    },
+    {
+      "title": "Norths Hockey Club",
+      "abbreviation": "NTH",
+      "description": "Brisbane Norths Hockey Club",
+      "icon": "🏑",
+      "iconSrc": "/icons/norths.png",
+      "href": "https://northshockeyclub.com.au/",
+      "slug": "norths-hockey",
+      "color": "#ff6600",
+      "bgColor": "#ff6600",
+      "about": "",
+      "facebookUrl": "",
+      "instagramUrl": "",
+      "twitterUrl": "",
+      "contacts": []
+    },
+    {
+      "title": "UQ Hockey Club",
+      "abbreviation": "UQH",
+      "description": "University of Queensland Hockey Club",
+      "icon": "🏑",
+      "iconSrc": "/icons/uq.png",
+      "href": "https://uqhockey.com/",
+      "slug": "uq-hockey",
+      "color": "#4b2d83",
+      "bgColor": "#4b2d83",
+      "about": "",
+      "facebookUrl": "",
+      "instagramUrl": "",
+      "twitterUrl": "",
+      "contacts": []
+    },
+    {
+      "title": "Valleys Hockey Club",
+      "abbreviation": "VAL",
+      "description": "Valleys Hockey Club Brisbane",
+      "icon": "🏑",
+      "iconSrc": "/icons/valleys.png",
+      "href": "https://valleyshockey.com.au/",
+      "slug": "valleys-hockey",
+      "color": "#228B22",
+      "bgColor": "#228B22",
+      "about": "",
+      "facebookUrl": "",
+      "instagramUrl": "",
+      "twitterUrl": "",
+      "contacts": []
+    }
+  ]
+}

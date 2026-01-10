@@ -72,7 +72,8 @@ export default async function MatchesPage({
     getStandingsYears(),
   ]);
 
-  const selectedYear = params.year || currentSeason?.year.toString() || "2026";
+  const selectedYear = params.year || currentSeason?.toString() || "2026";
+
   const standingsYear = params.standingsYear || standingsYears[0] || "2025";
 
   // Get standings for selected division and year

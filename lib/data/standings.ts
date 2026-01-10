@@ -1,131 +1,198 @@
 /**
- * Standings Data Utilities
+ * Standings Data Functions
  *
- * Functions for loading and processing standings data
+ * Load standings data from /data folder
  */
 
+// Direct import from /data folder
 import standingsData from "../../data/standings/standings.json";
-import type { Division } from "../../types";
 
-// Type for the standings JSON structure
-interface StandingsJSON {
-  season: number;
-  divisions: Division[];
+// Types
+interface StandingsTeam {
+  pos: number;
+  club: string;
+  icon: string;
+  p: number; // played
+  w: number; // wins
+  d: number; // draws
+  l: number; // losses
+  gd: number; // goal difference
+  pts: number; // points
+}
+
+interface Division {
+  divisionName: string;
+  slug: string;
+  teams: StandingsTeam[];
 }
 
 /**
- * Get all available standings years
+ * Get all available years
  */
 export async function getStandingsYears(): Promise<string[]> {
-  // If you have multiple files like standings-2024.json, standings-2025.json
-  // you would dynamically import them. For now, return available years.
-
-  // Extract unique years from the data
-  const years = new Set<number>();
-
-  if (Array.isArray(standingsData)) {
-    // If it's an array of season data
-    standingsData.forEach((item: any) => {
-      if (item.season) {
-        years.add(item.season);
-      }
-    });
-  } else if ((standingsData as any).season) {
-    // If it's a single season object
-    years.add((standingsData as any).season);
+  try {
+    const data = standingsData as any;
+    const seasons = data.seasons || {};
+    return Object.keys(seasons).sort((a, b) => parseInt(b) - parseInt(a));
+  } catch (error) {
+    console.error("Failed to load standings years:", error);
+    return [];
   }
-
-  // If no years found, return current and previous year
-  if (years.size === 0) {
-    const currentYear = new Date().getFullYear();
-    return [currentYear.toString(), (currentYear - 1).toString()];
-  }
-
-  return Array.from(years)
-    .sort((a, b) => b - a) // Sort descending (newest first)
-    .map((year) => year.toString());
 }
 
 /**
- * Get all divisions for a specific year
+ * Get divisions for a specific year
  */
 export async function getDivisionsByYear(year: string): Promise<Division[]> {
-  const yearNum = parseInt(year);
+  try {
+    const data = standingsData as any;
+    const yearData = data.seasons?.[year];
 
-  if (Array.isArray(standingsData)) {
-    const seasonData = standingsData.find(
-      (item: any) => item.season === yearNum
-    );
-    return seasonData?.divisions || [];
-  } else if ((standingsData as any).season === yearNum) {
-    return (standingsData as any).divisions || [];
+    if (!yearData) {
+      return [];
+    }
+
+    const divisions: Division[] = [];
+
+    for (const [divisionName, divisionData] of Object.entries(yearData)) {
+      const division = divisionData as any;
+      divisions.push({
+        divisionName,
+        slug: division.slug || divisionName.toLowerCase().replace(/\s+/g, "-"),
+        teams: division.teams || [],
+      });
+    }
+
+    return divisions;
+  } catch (error) {
+    console.error("Failed to load divisions:", error);
+    return [];
   }
-
-  // If data structure is just divisions array
-  if ((standingsData as any).divisions) {
-    return (standingsData as any).divisions;
-  }
-
-  return [];
 }
 
 /**
  * Get standings for a specific division and year
  */
 export async function getDivisionStandings(
-  divisionName: string,
-  year?: string
+  year: string,
+  divisionName: string
 ): Promise<Division | null> {
-  const divisions = year
-    ? await getDivisionsByYear(year)
-    : (standingsData as any).divisions || [];
-
-  return (
-    divisions.find((d: Division) => d.divisionName === divisionName) || null
-  );
-}
-
-/**
- * Get all divisions (for current season)
- */
-export async function getAllDivisions(): Promise<Division[]> {
-  if ((standingsData as any).divisions) {
-    return (standingsData as any).divisions;
+  try {
+    const divisions = await getDivisionsByYear(year);
+    return divisions.find((d) => d.divisionName === divisionName) || null;
+  } catch (error) {
+    console.error("Failed to load division standings:", error);
+    return null;
   }
+}
 
-  if (Array.isArray(standingsData) && standingsData.length > 0) {
-    return standingsData[0].divisions || [];
+/**
+ * Get all divisions across all years
+ */
+export async function getAllDivisions(): Promise<string[]> {
+  try {
+    const data = standingsData as any;
+    const seasons = data.seasons || {};
+    const divisionSet = new Set<string>();
+
+    for (const yearData of Object.values(seasons)) {
+      const year = yearData as any;
+      for (const divisionName of Object.keys(year)) {
+        divisionSet.add(divisionName);
+      }
+    }
+
+    return Array.from(divisionSet).sort();
+  } catch (error) {
+    console.error("Failed to load all divisions:", error);
+    return [];
   }
-
-  return [];
 }
 
 /**
- * Get division names
+ * Get top teams across all divisions
  */
-export async function getDivisionNames(year?: string): Promise<string[]> {
-  const divisions = year
-    ? await getDivisionsByYear(year)
-    : await getAllDivisions();
+export async function getTopTeams(limit: number = 5): Promise<StandingsTeam[]> {
+  try {
+    const years = await getStandingsYears();
+    if (years.length === 0) return [];
 
-  return divisions.map((d: Division) => d.divisionName);
+    const latestYear = years[0];
+    const divisions = await getDivisionsByYear(latestYear);
+
+    const allTeams: StandingsTeam[] = [];
+    divisions.forEach((division) => {
+      allTeams.push(...division.teams);
+    });
+
+    // Sort by points, then goal difference
+    allTeams.sort((a, b) => {
+      if (b.pts !== a.pts) return b.pts - a.pts;
+      return b.gd - a.gd;
+    });
+
+    return allTeams.slice(0, limit);
+  } catch (error) {
+    console.error("Failed to load top teams:", error);
+    return [];
+  }
 }
 
 /**
- * Get current season year
+ * Get team's standings across all divisions
  */
-export async function getCurrentSeasonYear(): Promise<string> {
-  const years = await getStandingsYears();
-  return years[0] || new Date().getFullYear().toString();
+export async function getTeamStandings(teamName: string): Promise<
+  {
+    year: string;
+    division: string;
+    standing: StandingsTeam;
+  }[]
+> {
+  try {
+    const data = standingsData as any;
+    const seasons = data.seasons || {};
+    const results: {
+      year: string;
+      division: string;
+      standing: StandingsTeam;
+    }[] = [];
+
+    for (const [year, yearData] of Object.entries(seasons)) {
+      const divisions = yearData as any;
+      for (const [divisionName, divisionData] of Object.entries(divisions)) {
+        const division = divisionData as any;
+        const team = division.teams?.find(
+          (t: StandingsTeam) => t.club === teamName
+        );
+
+        if (team) {
+          results.push({
+            year,
+            division: divisionName,
+            standing: team,
+          });
+        }
+      }
+    }
+
+    return results.sort((a, b) => parseInt(b.year) - parseInt(a.year));
+  } catch (error) {
+    console.error("Failed to load team standings:", error);
+    return [];
+  }
 }
 
 /**
- * Check if a division exists in a specific year
+ * Get current season standings
  */
-export async function divisionExistsInYear(
-  divisionName: string,
-  year: string
-): Promise<boolean> {
-  const divisions = await getDivisionsByYear(year);
-  return divisions.some((d: Division) => d.divisionName === divisionName);
+export async function getCurrentSeasonStandings(): Promise<Division[]> {
+  try {
+    const years = await getStandingsYears();
+    if (years.length === 0) return [];
+
+    return getDivisionsByYear(years[0]);
+  } catch (error) {
+    console.error("Failed to load current season standings:", error);
+    return [];
+  }
 }

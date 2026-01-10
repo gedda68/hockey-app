@@ -47,12 +47,12 @@ export default function MatchFilters({
           <div className="flex gap-2">
             {seasons.map((season) => (
               <FilterButton
-                key={season.year}
-                href={buildUrl({ year: season.year.toString() })}
-                isActive={selectedYear === season.year.toString()}
+                key={season}
+                href={buildUrl({ year: season.toString() })}
+                isActive={selectedYear === season.toString()}
                 variant="primary"
               >
-                {season.year}
+                {season}
               </FilterButton>
             ))}
           </div>

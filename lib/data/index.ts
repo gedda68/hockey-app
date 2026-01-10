@@ -1,40 +1,30 @@
 /**
  * Data Layer Index
  *
- * Central export for all data utilities.
- * Import from here for consistency.
- *
- * @example
- * import { getMatches, getStandingsYears, getUmpireList } from '@/lib/data';
+ * Central export file for all data functions
  */
 
-// Match data utilities
+// Export all matches functions
 export {
   getMatches,
   getMatchById,
-  filterMatches,
-  getDivisions,
-  getRounds,
-  getSeasons,
-  getCurrentSeason,
-  getMatchesByDateRange,
+  getMatchesByDivision,
+  getMatchesBySeason,
+  getMatchesByStatus,
   getUpcomingMatches,
+  getCompletedMatches,
+  getFeatureGames,
+  getDivisions,
+  getSeasons,
+  getRounds,
+  getCurrentSeason,
+  getMatchesForTeam,
   getRecentMatches,
-  getMatchesByClub,
+  filterMatches,
+  getMatchStatsData,
 } from "./matches";
 
-// Standings data utilities
-export {
-  getStandingsYears,
-  getDivisionsByYear,
-  getDivisionStandings,
-  getAllDivisions,
-  getDivisionNames,
-  getCurrentSeasonYear,
-  divisionExistsInYear,
-} from "./standings";
-
-// Umpire data utilities
+// Export all umpires functions
 export {
   getUmpireList,
   getUmpireByNumber,
@@ -47,12 +37,32 @@ export {
   getUmpiresByClub,
 } from "./umpires";
 
-// Statistics data utilities
+// Export standings functions
 export {
-  getMatchStatsData,
-  getMatchStats,
-  getPlayerStatistics,
-  getTeamStatistics,
-  getTopScorers,
-  getTopAssists,
-} from "./stats";
+  getStandingsYears,
+  getDivisionsByYear,
+  getDivisionStandings,
+  getAllDivisions,
+  getTopTeams,
+  getTeamStandings,
+  getCurrentSeasonStandings,
+} from "./standings";
+
+// Export clubs functions
+export {
+  getClubs,
+  getClubBySlug,
+  getClubSlugs,
+  searchClubs,
+  getClubContacts,
+  getClubsWithSocial,
+  getFeaturedClubs,
+} from "./clubs";
+
+// Export types
+export type { Club, ClubContact } from "./clubs";
+
+// You can add more exports as you create more data modules
+export * from "./stats";
+// export * from './events';
+// export * from './fixtures';

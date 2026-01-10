@@ -1,0 +1,25 @@
+export default function ClubsPage() {
+  const clubs = [
+    {
+      code: "CHC",
+      title: "Commercial Hockey Club",
+      description:
+        "Inner north Brisbane field hockey club",
+      icon: "⚡",
+      iconSrc: "/icons/chc.png", // Local image path
+      href: "https://commercialhockeyclub.majestri.com.au/wspHome.aspx",
+    },
+    {
+      title: "DaisyUI Components",
+      description:
+        "Beautifully designed, accessible components out of the box.",
+      icon: "🎨",
+    },href: "https://commercialhockeyclub.majestri.com.au/wspHome.aspx",
+    {
+      title: "Responsive Design",
+      description: "Fully optimized for mobile, tablet, and desktop screens.",
+      icon: "📱",
+    },
+  ];
+
+  
