@@ -1,0 +1,643 @@
+"use client";
+
+import React, { useState, useEffect } from "react";
+import Image from "next/image";
+import Link from "next/link";
+
+/**
+ * HELPER: Renders club icon only if valid club and icon path exist
+ */
+const ClubIcon = ({ club, icon }: { club: string; icon?: string }) => {
+  if (!icon || club === "TBA" || club === "—" || !club) return null;
+  return (
+    <div className="relative w-5 h-5 flex-shrink-0">
+      <Image src={icon} alt={club} fill className="object-contain" />
+    </div>
+  );
+};
+
+/**
+ * HELPER: Table component for Trial and Training (Time & Venue focus)
+ */
+const ScheduleTable = ({ data, type }: { data: any; type: string }) => (
+  <div className="overflow-x-auto">
+    <table className="w-full text-slate-700">
+      <thead className="bg-slate-100">
+        <tr>
+          <th className="px-4 py-3 text-left text-xs font-black uppercase text-[#06054e]">
+            {type}
+          </th>
+          <th className="px-4 py-3 text-left text-xs font-black uppercase text-[#06054e]">
+            Date
+          </th>
+          <th className="px-4 py-3 text-left text-xs font-black uppercase text-[#06054e]">
+            Time
+          </th>
+          <th className="px-4 py-3 text-left text-xs font-black uppercase text-[#06054e]">
+            Venue
+          </th>
+        </tr>
+      </thead>
+      <tbody className="divide-y divide-slate-100">
+        {data?.schedule?.length > 0 ? (
+          data.schedule.map((item: any, idx: number) => (
+            <tr
+              key={idx}
+              className={item.isSpecial ? "bg-red-50" : "hover:bg-slate-50"}
+            >
+              <td
+                className={`px-4 py-3 font-bold ${
+                  item.isSpecial ? "text-red-600 italic" : "text-[#06054e]"
+                }`}
+              >
+                {item.name}
+              </td>
+              <td className="px-4 py-3 text-sm">{item.date}</td>
+              <td className="px-4 py-3 text-sm">{item.time}</td>
+              <td className="px-4 py-3 text-sm font-bold">{item.venue}</td>
+            </tr>
+          ))
+        ) : (
+          <tr>
+            <td
+              colSpan={4}
+              className="px-4 py-8 text-center text-sm italic text-slate-400"
+            >
+              No {type.toLowerCase()} dates scheduled.
+            </td>
+          </tr>
+        )}
+      </tbody>
+    </table>
+  </div>
+);
+
+/**
+ * HELPER: Table component for Tournament (City & Link focus)
+ */
+const TournamentTable = ({ data }: { data: any }) => (
+  <div className="overflow-x-auto">
+    <table className="w-full text-slate-700">
+      <thead className="bg-slate-100">
+        <tr>
+          <th className="px-4 py-3 text-left text-xs font-black uppercase text-[#06054e]">
+            Tournament
+          </th>
+          <th className="px-4 py-3 text-left text-xs font-black uppercase text-[#06054e]">
+            Date
+          </th>
+          <th className="px-4 py-3 text-left text-xs font-black uppercase text-[#06054e]">
+            City
+          </th>
+          <th className="px-4 py-3 text-center text-xs font-black uppercase text-[#06054e]">
+            Info
+          </th>
+        </tr>
+      </thead>
+      <tbody className="divide-y divide-slate-100">
+        {data?.schedule?.length > 0 ? (
+          data.schedule.map((item: any, idx: number) => (
+            <tr key={idx} className="hover:bg-slate-50">
+              <td className="px-4 py-3 font-bold text-[#06054e]">
+                {item.name}
+              </td>
+              <td className="px-4 py-3 text-sm">{item.date}</td>
+              <td className="px-4 py-3 text-sm">{item.city}</td>
+              <td className="px-4 py-3 text-center">
+                {item.tournamentlink ? (
+                  <a
+                    href={item.tournamentlink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-block px-4 py-1 bg-[#06054e] text-white rounded-full text-xs font-black uppercase hover:bg-[#0a0870] transition-all"
+                  >
+                    Link
+                  </a>
+                ) : (
+                  <span className="text-slate-400">—</span>
+                )}
+              </td>
+            </tr>
+          ))
+        ) : (
+          <tr>
+            <td
+              colSpan={4}
+              className="px-4 py-8 text-center text-sm italic text-slate-400"
+            >
+              No tournament information listed.
+            </td>
+          </tr>
+        )}
+      </tbody>
+    </table>
+  </div>
+);
+
+const AGE_GROUPS = ["Under 12", "Under 14", "Under 16", "Under 18", "Open"];
+
+const TEAM_THEMES: Record<string, { bg: string; text: string }> = {
+  "Green Team": { bg: "#15803d", text: "white" },
+  "Yellow Team": { bg: "#facc15", text: "black" },
+  "Blue Team": { bg: "#1d4ed8", text: "white" },
+  "Red Team": { bg: "#b91c1c", text: "white" },
+  "White Team": { bg: "#f8fafc", text: "black" },
+  Default: { bg: "#06054e", text: "white" },
+};
+
+export default function RepresentativePage() {
+  const [activeAge, setActiveAge] = useState("Under 12");
+  const [rosterData, setRosterData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [showTrialModal, setShowTrialModal] = useState(false);
+  const [showTrainingModal, setShowTrainingModal] = useState(false);
+  const [showTournamentModal, setShowTournamentModal] = useState(false);
+
+  useEffect(() => {
+    fetch("/data/rosters/rosters.json")
+      .then((res) => res.json())
+      .then((data) => {
+        setRosterData(data);
+        setLoading(false);
+      })
+      .catch((err) => {
+        console.error("Error loading rosters:", err);
+        setLoading(false);
+      });
+  }, []);
+
+  if (loading)
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-[#06054e]">
+        <div className="w-16 h-16 border-4 border-yellow-400 border-t-transparent rounded-full animate-spin"></div>
+        <p className="text-sm font-bold uppercase tracking-widest text-white mt-4">
+          Loading Teams...
+        </p>
+      </div>
+    );
+
+  const currentAgeData = rosterData?.[activeAge] || {};
+
+  // Component for the Dynamic Alert with HTML support
+  const ModalAlert = ({ info }: { info: any }) => {
+    if (!info?.details) return null;
+    return (
+      <div className="mt-6 p-4 bg-amber-50 border-l-4 border-amber-400 rounded-r-lg">
+        <h3 className="text-sm font-black text-amber-900 uppercase italic tracking-tight mb-2">
+          Important Notice:
+        </h3>
+        <div
+          className="text-xs font-bold text-amber-800 leading-relaxed"
+          dangerouslySetInnerHTML={{ __html: info.details }}
+        />
+      </div>
+    );
+  };
+
+  const availableTeams = Object.keys(currentAgeData).filter(
+    (key) =>
+      ![
+        "shadowPlayers",
+        "withdrawn",
+        "lastUpdated",
+        "trialInfo",
+        "trainingInfo",
+        "tournamentInfo",
+      ].includes(key)
+  );
+
+  return (
+    <div className="min-h-screen bg-slate-50 pb-20">
+      {/* Back Button */}
+      <div className="max-w-7xl mx-auto px-4 pt-8">
+        <Link
+          href="/"
+          className="text-xs font-black uppercase tracking-widest text-slate-400 hover:text-[#06054e] flex items-center gap-2 group"
+        >
+          <span className="transition-transform group-hover:-translate-x-1">
+            ←
+          </span>
+          Back to Home
+        </Link>
+      </div>
+
+      {/* HEADER HERO */}
+      <div className="max-w-7xl mx-auto px-4 py-12">
+        <div
+          className="relative text-center mb-12 p-12 rounded-3xl shadow-xl overflow-hidden border-4 border-[#06054e]"
+          style={{
+            backgroundImage: `url('/icons/bne-rep-16-2.jpg')`,
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+          }}
+        >
+          {/* DARK OVERLAY */}
+          <div className="absolute inset-0 bg-[#06054e]/70 z-0"></div>
+
+          {/* CONTENT */}
+          <div className="relative z-10">
+            <h1 className="text-5xl md:text-6xl font-black text-yellow-200 uppercase tracking-tighter leading-none drop-shadow-md mb-4">
+              2026 Brisbane Representative Teams
+            </h1>
+
+            <div className="inline-block px-6 py-2 bg-black/40 backdrop-blur-sm rounded-full text-xs font-bold text-white uppercase tracking-widest border border-white/20 shadow-lg">
+              Last Updated: {currentAgeData.lastUpdated || "TBA"}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* MODALS */}
+      {showTrialModal && (
+        <div
+          className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
+          onClick={() => setShowTrialModal(false)}
+        >
+          <div
+            className="bg-white rounded-3xl max-w-3xl w-full max-h-[90vh] overflow-y-auto shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="sticky top-0 bg-white border-b-4 border-yellow-400 px-8 py-6 flex justify-between items-start rounded-t-3xl">
+              <div>
+                <h3 className="text-3xl font-black uppercase text-[#06054e]">
+                  {activeAge} Trials
+                </h3>
+                <div className="mt-2 inline-block px-3 py-1 bg-slate-100 rounded-full text-xs font-bold text-slate-500 uppercase">
+                  Updated: {currentAgeData.lastUpdated}
+                </div>
+              </div>
+              <button
+                onClick={() => setShowTrialModal(false)}
+                className="text-slate-400 hover:text-slate-900 transition-colors"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="24"
+                  height="24"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            </div>
+            <div className="p-8">
+              <ScheduleTable data={currentAgeData.trialInfo} type="Trial" />
+              <ModalAlert info={currentAgeData.trialInfo} />
+              <div className="mt-8">
+                <button
+                  onClick={() => setShowTrialModal(false)}
+                  className="w-full px-8 py-4 bg-[#06054e] text-white rounded-full font-black uppercase hover:bg-[#0a0870] transition-all"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showTrainingModal && (
+        <div
+          className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
+          onClick={() => setShowTrainingModal(false)}
+        >
+          <div
+            className="bg-white rounded-3xl max-w-3xl w-full max-h-[90vh] overflow-y-auto shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="sticky top-0 bg-white border-b-4 border-blue-400 px-8 py-6 flex justify-between items-start rounded-t-3xl">
+              <div>
+                <h3 className="text-3xl font-black uppercase text-[#06054e]">
+                  {activeAge} Training
+                </h3>
+                <div className="mt-2 inline-block px-3 py-1 bg-slate-100 rounded-full text-xs font-bold text-slate-500 uppercase">
+                  Updated: {currentAgeData.lastUpdated}
+                </div>
+              </div>
+              <button
+                onClick={() => setShowTrainingModal(false)}
+                className="text-slate-400 hover:text-slate-900 transition-colors"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="24"
+                  height="24"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            </div>
+            <div className="p-8">
+              <ScheduleTable
+                data={currentAgeData.trainingInfo}
+                type="Session"
+              />
+              <ModalAlert info={currentAgeData.trainingInfo} />
+              <div className="mt-8">
+                <button
+                  onClick={() => setShowTrainingModal(false)}
+                  className="w-full px-8 py-4 bg-[#06054e] text-white rounded-full font-black uppercase hover:bg-[#0a0870] transition-all"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showTournamentModal && (
+        <div
+          className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
+          onClick={() => setShowTournamentModal(false)}
+        >
+          <div
+            className="bg-white rounded-3xl max-w-3xl w-full max-h-[90vh] overflow-y-auto shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="sticky top-0 bg-white border-b-4 border-indigo-400 px-8 py-6 flex justify-between items-start rounded-t-3xl">
+              <div>
+                <h3 className="text-3xl font-black uppercase text-[#06054e]">
+                  {activeAge} Tournament
+                </h3>
+                <div className="mt-2 inline-block px-3 py-1 bg-slate-100 rounded-full text-xs font-bold text-slate-500 uppercase">
+                  Updated: {currentAgeData.lastUpdated}
+                </div>
+              </div>
+              <button
+                onClick={() => setShowTournamentModal(false)}
+                className="text-slate-400 hover:text-slate-900 transition-colors"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="24"
+                  height="24"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            </div>
+            <div className="p-8">
+              <TournamentTable data={currentAgeData.tournamentInfo} />
+              <ModalAlert info={currentAgeData.tournamentInfo} />
+              <div className="mt-8">
+                <button
+                  onClick={() => setShowTournamentModal(false)}
+                  className="w-full px-8 py-4 bg-[#06054e] text-white rounded-full font-black uppercase hover:bg-[#0a0870] transition-all"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MAIN CONTENT */}
+      <main className="max-w-7xl mx-auto px-4">
+        {/* Navigation Tabs */}
+        <div className="flex flex-wrap justify-center gap-3 mb-12">
+          {AGE_GROUPS.map((age) => (
+            <button
+              key={age}
+              onClick={() => setActiveAge(age)}
+              className={`px-8 py-3 rounded-full font-black uppercase text-sm transition-all ${
+                activeAge === age
+                  ? "bg-[#06054e] text-white shadow-xl scale-105"
+                  : "bg-white text-[#06054e] shadow-sm hover:shadow-md"
+              }`}
+            >
+              {age}
+            </button>
+          ))}
+        </div>
+
+        {/* Action Buttons */}
+        <div className="flex flex-wrap justify-center gap-8 mb-16">
+          <button
+            onClick={() => setShowTrialModal(true)}
+            className="group transition-transform hover:scale-105 active:scale-95"
+          >
+            <div className="relative w-32 h-32 md:w-40 md:h-40 mb-2 drop-shadow-md group-hover:drop-shadow-xl transition-all">
+              <Image
+                src="/icons/trials.png"
+                alt="Trials"
+                fill
+                className="object-contain"
+              />
+            </div>
+            <div className="text-sm font-black uppercase text-slate-600">
+              Trials
+            </div>
+          </button>
+          <button
+            onClick={() => setShowTrainingModal(true)}
+            className="group transition-transform hover:scale-105 active:scale-95"
+          >
+            <div className="relative w-32 h-32 md:w-40 md:h-40 mb-2 drop-shadow-md group-hover:drop-shadow-xl transition-all">
+              <Image
+                src="/icons/training.png"
+                alt="Training"
+                fill
+                className="object-contain"
+              />
+            </div>
+            <div className="text-sm font-black uppercase text-slate-600">
+              Training
+            </div>
+          </button>
+          <button
+            onClick={() => setShowTournamentModal(true)}
+            className="group transition-transform hover:scale-105 active:scale-95"
+          >
+            <div className="relative w-32 h-32 md:w-40 md:h-40 mb-2 drop-shadow-md group-hover:drop-shadow-xl transition-all">
+              <Image
+                src="/icons/tournamentinfo.png"
+                alt="Tournament Info"
+                fill
+                className="object-contain"
+              />
+            </div>
+            <div className="text-sm font-black uppercase text-slate-600">
+              Tournaments
+            </div>
+          </button>
+        </div>
+
+        {/* Dynamic Team Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-16">
+          {availableTeams.map((teamName) => {
+            const teamInfo = currentAgeData[teamName];
+            const theme = TEAM_THEMES[teamName] || TEAM_THEMES["Default"];
+            const players = (teamInfo.players || []).slice(0, 18);
+
+            return (
+              <div
+                key={teamName}
+                className="bg-white rounded-3xl shadow-lg border border-slate-200 overflow-hidden"
+              >
+                <div
+                  className="px-6 py-4 font-black text-center uppercase text-lg"
+                  style={{ backgroundColor: theme.bg, color: theme.text }}
+                >
+                  {activeAge} — {teamName}
+                </div>
+                <div className="p-6">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b-2 border-slate-200">
+                        <th className="pb-3 text-left text-xs uppercase text-slate-400 font-black">
+                          Player Name
+                        </th>
+                        <th className="pb-3 text-right text-xs uppercase text-slate-400 font-black">
+                          Club
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {players.map((p: any, i: number) => (
+                        <tr key={i} className="hover:bg-slate-50">
+                          <td className="py-3 font-bold text-sm">{p.name}</td>
+                          <td className="py-3 flex items-center justify-end gap-2">
+                            <span className="text-xs uppercase font-medium text-slate-600">
+                              {p.club}
+                            </span>
+                            <ClubIcon club={p.club} icon={p.icon} />
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+
+                  {/* Staff Block */}
+                  <div className="mt-6 p-6 bg-slate-50 rounded-2xl border border-slate-200">
+                    <div className="grid grid-cols-1 gap-3">
+                      {["coach", "asstCoach", "manager", "umpire"].map(
+                        (role) => {
+                          const person = teamInfo.staff?.[role] || {
+                            name: "TBA",
+                            club: "TBA",
+                          };
+                          const labels: any = {
+                            coach: "Coach",
+                            asstCoach: "Asst Coach",
+                            manager: "Manager",
+                            umpire: "Umpire",
+                          };
+                          return (
+                            <div
+                              key={role}
+                              className="flex items-center justify-between border-l-4 border-[#06054e] pl-4 py-2 bg-white rounded-r-lg"
+                            >
+                              <div className="flex flex-col">
+                                <span className="text-xs uppercase text-slate-400 font-black">
+                                  {labels[role]}
+                                </span>
+                                <span className="font-bold text-sm">
+                                  {person.name}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs text-slate-500 font-medium">
+                                  {person.club}
+                                </span>
+                                <ClubIcon
+                                  club={person.club}
+                                  icon={person.icon}
+                                />
+                              </div>
+                            </div>
+                          );
+                        }
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* SHADOWS & WITHDRAWN */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <div className="bg-white rounded-3xl border-2 border-dashed border-slate-300 shadow-sm p-8">
+            <h3 className="text-2xl font-black uppercase text-slate-600 mb-6 flex items-center gap-3">
+              <span className="w-2 h-8 bg-slate-400 rounded-full"></span> Shadow
+              Players
+            </h3>
+            <div className="grid grid-cols-1 gap-3">
+              {currentAgeData.shadowPlayers?.length > 0 ? (
+                currentAgeData.shadowPlayers.map((p: any, i: number) => (
+                  <div
+                    key={i}
+                    className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-100"
+                  >
+                    <span className="font-bold text-sm text-slate-700">
+                      {p.name}
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs uppercase text-slate-500">
+                        {p.club}
+                      </span>
+                      <ClubIcon club={p.club} icon={p.icon} />
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <p className="text-sm italic text-slate-400">None listed.</p>
+              )}
+            </div>
+          </div>
+
+          <div className="bg-red-50 rounded-3xl border-2 border-red-200 shadow-sm p-8">
+            <h3 className="text-2xl font-black uppercase text-red-700 mb-6 flex items-center gap-3">
+              <span className="w-2 h-8 bg-red-400 rounded-full"></span>{" "}
+              Withdrawn
+            </h3>
+            <div className="space-y-3">
+              {currentAgeData.withdrawn?.length > 0 ? (
+                currentAgeData.withdrawn.map((p: any, i: number) => (
+                  <div
+                    key={i}
+                    className="flex items-center justify-between p-4 bg-white rounded-xl border border-red-100 shadow-sm"
+                  >
+                    <div className="flex flex-col">
+                      <span className="font-bold text-sm text-red-900">
+                        {p.name}
+                      </span>
+                      <span className="text-xs text-red-500 font-bold uppercase">
+                        {p.reason || "Withdrawn"}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs uppercase text-slate-500">
+                        {p.club}
+                      </span>
+                      <ClubIcon club={p.club} icon={p.icon} />
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <p className="text-sm italic text-slate-400">None listed.</p>
+              )}
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  );
+}

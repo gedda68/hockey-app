@@ -1,0 +1,1604 @@
+{
+  "Under 12": {
+    "lastUpdated": "2026-01-15",
+    "Green Team": {
+      "players": [
+        {
+          "name": "Jack Thompson",
+          "club": "Commercial",
+          "icon": "/icons/chc.png"
+        },
+        {
+          "name": "Emma Wilson",
+          "club": "Bulimba",
+          "icon": "/icons/bulls.png"
+        },
+        {
+          "name": "Oliver Chen",
+          "club": "East Hockey Club",
+          "icon": "/icons/easts.jpg"
+        },
+        {
+          "name": "Sophie Martin",
+          "club": "Norths",
+          "icon": "/icons/norths.png"
+        },
+        {
+          "name": "Lucas Anderson",
+          "club": "UQ Hockey",
+          "icon": "/icons/uq.png"
+        },
+        {
+          "name": "Mia Roberts",
+          "club": "Valleys",
+          "icon": "/icons/valleys.png"
+        },
+        {
+          "name": "Noah Brown",
+          "club": "Commercial",
+          "icon": "/icons/chc.png"
+        },
+        {
+          "name": "Ava Taylor",
+          "club": "Kedron Wavell",
+          "icon": "/icons/kedronwavell.png"
+        },
+        {
+          "name": "Ethan Davis",
+          "club": "East Hockey Club",
+          "icon": "/icons/easts.jpg"
+        },
+        {
+          "name": "Isabella White",
+          "club": "Bulimba",
+          "icon": "/icons/bulls.png"
+        },
+        {
+          "name": "Mason Harris",
+          "club": "Norths",
+          "icon": "/icons/norths.png"
+        },
+        {
+          "name": "Charlotte Lee",
+          "club": "UQ Hockey",
+          "icon": "/icons/uq.png"
+        },
+        {
+          "name": "Liam Walker",
+          "club": "Valleys",
+          "icon": "/icons/valleys.png"
+        },
+        {
+          "name": "Amelia Young",
+          "club": "Commercial",
+          "icon": "/icons/chc.png"
+        },
+        {
+          "name": "James Mitchell",
+          "club": "East Hockey Club",
+          "icon": "/icons/easts.jpg"
+        },
+        {
+          "name": "Harper King",
+          "club": "Bulimba",
+          "icon": "/icons/bulls.png"
+        },
+        {
+          "name": "Benjamin Scott",
+          "club": "Kedron Wavell",
+          "icon": "/icons/kedronwavell.png"
+        },
+        { "name": "Ella Green", "club": "Norths", "icon": "/icons/norths.png" }
+      ],
+      "staff": {
+        "coach": {
+          "name": "Sarah Johnson",
+          "club": "Commercial",
+          "icon": "/icons/chc.png"
+        },
+        "asstCoach": {
+          "name": "Mike Roberts",
+          "club": "East Hockey Club",
+          "icon": "/icons/easts.jpg"
+        },
+        "manager": {
+          "name": "Lisa Chen",
+          "club": "Bulimba",
+          "icon": "/icons/bulls.png"
+        },
+        "umpire": {
+          "name": "David Brown",
+          "club": "Norths",
+          "icon": "/icons/norths.png"
+        }
+      }
+    },
+    "Yellow Team": {
+      "players": [
+        {
+          "name": "William Turner",
+          "club": "Valleys",
+          "icon": "/icons/valleys.png"
+        },
+        { "name": "Grace Adams", "club": "UQ Hockey", "icon": "/icons/uq.png" },
+        {
+          "name": "Henry Campbell",
+          "club": "Commercial",
+          "icon": "/icons/chc.png"
+        },
+        { "name": "Zoe Parker", "club": "Bulimba", "icon": "/icons/bulls.png" },
+        {
+          "name": "Alexander Hill",
+          "club": "East Hockey Club",
+          "icon": "/icons/easts.jpg"
+        },
+        {
+          "name": "Lily Collins",
+          "club": "Kedron Wavell",
+          "icon": "/icons/kedronwavell.png"
+        },
+        {
+          "name": "Daniel Wood",
+          "club": "Norths",
+          "icon": "/icons/norths.png"
+        },
+        {
+          "name": "Chloe Baker",
+          "club": "Valleys",
+          "icon": "/icons/valleys.png"
+        },
+        {
+          "name": "Matthew Price",
+          "club": "UQ Hockey",
+          "icon": "/icons/uq.png"
+        },
+        {
+          "name": "Emily Foster",
+          "club": "Commercial",
+          "icon": "/icons/chc.png"
+        },
+        {
+          "name": "Ryan Hughes",
+          "club": "East Hockey Club",
+          "icon": "/icons/easts.jpg"
+        },
+        {
+          "name": "Abigail Ross",
+          "club": "Bulimba",
+          "icon": "/icons/bulls.png"
+        },
+        {
+          "name": "Joshua Bell",
+          "club": "Kedron Wavell",
+          "icon": "/icons/kedronwavell.png"
+        },
+        {
+          "name": "Madison Cooper",
+          "club": "Norths",
+          "icon": "/icons/norths.png"
+        },
+        {
+          "name": "Nathan Ward",
+          "club": "Valleys",
+          "icon": "/icons/valleys.png"
+        },
+        {
+          "name": "Scarlett Gray",
+          "club": "UQ Hockey",
+          "icon": "/icons/uq.png"
+        },
+        {
+          "name": "Andrew Reed",
+          "club": "Commercial",
+          "icon": "/icons/chc.png"
+        },
+        {
+          "name": "Victoria James",
+          "club": "East Hockey Club",
+          "icon": "/icons/easts.jpg"
+        }
+      ],
+      "staff": {
+        "coach": {
+          "name": "Peter Williams",
+          "club": "Valleys",
+          "icon": "/icons/valleys.png"
+        },
+        "asstCoach": {
+          "name": "Rachel Turner",
+          "club": "UQ Hockey",
+          "icon": "/icons/uq.png"
+        },
+        "manager": {
+          "name": "Tom Anderson",
+          "club": "Commercial",
+          "icon": "/icons/chc.png"
+        },
+        "umpire": {
+          "name": "Karen Phillips",
+          "club": "Bulimba",
+          "icon": "/icons/bulls.png"
+        }
+      }
+    },
+    "shadowPlayers": [
+      {
+        "name": "Samuel Morgan",
+        "club": "Commercial",
+        "icon": "/icons/chc.png"
+      },
+      {
+        "name": "Olivia Stewart",
+        "club": "East Hockey Club",
+        "icon": "/icons/easts.jpg"
+      },
+      { "name": "Tyler Brooks", "club": "Norths", "icon": "/icons/norths.png" },
+      { "name": "Hannah Murphy", "club": "UQ Hockey", "icon": "/icons/uq.png" }
+    ],
+    "withdrawn": [
+      {
+        "name": "Jacob Peterson",
+        "club": "Valleys",
+        "icon": "/icons/valleys.png",
+        "reason": "Injury"
+      },
+      {
+        "name": "Sophie Richardson",
+        "club": "Bulimba",
+        "icon": "/icons/bulls.png",
+        "reason": "Personal"
+      }
+    ],
+    "trialInfo": {
+      "schedule": [
+        {
+          "name": "Trial Session 1",
+          "date": "2026-02-08",
+          "time": "9:00 AM - 11:00 AM",
+          "venue": "State Hockey Centre - Field 1",
+          "isSpecial": false
+        },
+        {
+          "name": "Trial Session 2",
+          "date": "2026-02-15",
+          "time": "9:00 AM - 11:00 AM",
+          "venue": "State Hockey Centre - Field 1",
+          "isSpecial": false
+        },
+        {
+          "name": "Final Selection Trial",
+          "date": "2026-02-22",
+          "time": "9:00 AM - 12:00 PM",
+          "venue": "State Hockey Centre - Fields 1 & 2",
+          "isSpecial": true
+        }
+      ],
+      "details": "<strong>Important:</strong> All players must register online before attending trials. Bring your own stick, mouthguard, and shin pads. <a href='/about/contact' class='underline text-amber-900'>Contact us</a> for more information."
+    },
+    "trainingInfo": {
+      "schedule": [
+        {
+          "name": "Weekly Training",
+          "date": "Every Tuesday",
+          "time": "5:00 PM - 6:30 PM",
+          "venue": "Burringbar Park - Field 1"
+        },
+        {
+          "name": "Weekly Training",
+          "date": "Every Thursday",
+          "time": "5:00 PM - 6:30 PM",
+          "venue": "Burringbar Park - Field 1"
+        },
+        {
+          "name": "Skills Session",
+          "date": "Every Saturday",
+          "time": "8:00 AM - 9:30 AM",
+          "venue": "State Hockey Centre - Field 2"
+        }
+      ],
+      "details": "Training attendance is mandatory. Please notify your coach if you cannot attend."
+    },
+    "tournamentInfo": {
+      "schedule": [
+        {
+          "name": "Queensland Junior Championships",
+          "date": "2026-04-10 to 2026-04-13",
+          "city": "Gold Coast, QLD",
+          "tournamentlink": "https://www.hockeyqld.org.au"
+        },
+        {
+          "name": "National Junior Festival",
+          "date": "2026-06-15 to 2026-06-20",
+          "city": "Sydney, NSW",
+          "tournamentlink": "https://www.hockey.org.au"
+        }
+      ],
+      "details": "Tournament fees and accommodation details will be sent to registered players in March."
+    }
+  },
+  "Under 14": {
+    "lastUpdated": "2026-01-15",
+    "Blue Team": {
+      "players": [
+        {
+          "name": "Connor Hughes",
+          "club": "Commercial",
+          "icon": "/icons/chc.png"
+        },
+        {
+          "name": "Maya Santos",
+          "club": "East Hockey Club",
+          "icon": "/icons/easts.jpg"
+        },
+        {
+          "name": "Finn O'Brien",
+          "club": "Norths",
+          "icon": "/icons/norths.png"
+        },
+        { "name": "Ruby Walsh", "club": "UQ Hockey", "icon": "/icons/uq.png" },
+        {
+          "name": "Archer Bennett",
+          "club": "Valleys",
+          "icon": "/icons/valleys.png"
+        },
+        {
+          "name": "Isla Thompson",
+          "club": "Bulimba",
+          "icon": "/icons/bulls.png"
+        },
+        {
+          "name": "Oscar Mitchell",
+          "club": "Kedron Wavell",
+          "icon": "/icons/kedronwavell.png"
+        },
+        {
+          "name": "Freya Davis",
+          "club": "Commercial",
+          "icon": "/icons/chc.png"
+        },
+        {
+          "name": "Hudson Clark",
+          "club": "East Hockey Club",
+          "icon": "/icons/easts.jpg"
+        },
+        {
+          "name": "Willow Martinez",
+          "club": "Norths",
+          "icon": "/icons/norths.png"
+        },
+        { "name": "Leo Garcia", "club": "UQ Hockey", "icon": "/icons/uq.png" },
+        {
+          "name": "Hazel Rodriguez",
+          "club": "Valleys",
+          "icon": "/icons/valleys.png"
+        },
+        {
+          "name": "Jasper Wilson",
+          "club": "Bulimba",
+          "icon": "/icons/bulls.png"
+        },
+        {
+          "name": "Violet Anderson",
+          "club": "Kedron Wavell",
+          "icon": "/icons/kedronwavell.png"
+        },
+        {
+          "name": "Felix Taylor",
+          "club": "Commercial",
+          "icon": "/icons/chc.png"
+        },
+        {
+          "name": "Aurora Moore",
+          "club": "East Hockey Club",
+          "icon": "/icons/easts.jpg"
+        },
+        {
+          "name": "Kai Jackson",
+          "club": "Norths",
+          "icon": "/icons/norths.png"
+        },
+        { "name": "Luna White", "club": "UQ Hockey", "icon": "/icons/uq.png" }
+      ],
+      "staff": {
+        "coach": {
+          "name": "Mark Thompson",
+          "club": "Commercial",
+          "icon": "/icons/chc.png"
+        },
+        "asstCoach": {
+          "name": "Jenny Lee",
+          "club": "East Hockey Club",
+          "icon": "/icons/easts.jpg"
+        },
+        "manager": {
+          "name": "Paul Mitchell",
+          "club": "Norths",
+          "icon": "/icons/norths.png"
+        },
+        "umpire": {
+          "name": "Amanda Wilson",
+          "club": "UQ Hockey",
+          "icon": "/icons/uq.png"
+        }
+      }
+    },
+    "Red Team": {
+      "players": [
+        {
+          "name": "Xavier Harris",
+          "club": "Valleys",
+          "icon": "/icons/valleys.png"
+        },
+        {
+          "name": "Sienna Martin",
+          "club": "Bulimba",
+          "icon": "/icons/bulls.png"
+        },
+        {
+          "name": "Miles Robinson",
+          "club": "Kedron Wavell",
+          "icon": "/icons/kedronwavell.png"
+        },
+        {
+          "name": "Ivy Thompson",
+          "club": "Commercial",
+          "icon": "/icons/chc.png"
+        },
+        {
+          "name": "Ezra Campbell",
+          "club": "East Hockey Club",
+          "icon": "/icons/easts.jpg"
+        },
+        {
+          "name": "Aria Collins",
+          "club": "Norths",
+          "icon": "/icons/norths.png"
+        },
+        {
+          "name": "Theo Edwards",
+          "club": "UQ Hockey",
+          "icon": "/icons/uq.png"
+        },
+        {
+          "name": "Nova Peterson",
+          "club": "Valleys",
+          "icon": "/icons/valleys.png"
+        },
+        {
+          "name": "Jude Foster",
+          "club": "Bulimba",
+          "icon": "/icons/bulls.png"
+        },
+        {
+          "name": "Stella Murphy",
+          "club": "Kedron Wavell",
+          "icon": "/icons/kedronwavell.png"
+        },
+        {
+          "name": "Caleb Rivera",
+          "club": "Commercial",
+          "icon": "/icons/chc.png"
+        },
+        {
+          "name": "Eloise Cooper",
+          "club": "East Hockey Club",
+          "icon": "/icons/easts.jpg"
+        },
+        {
+          "name": "Ashton Reed",
+          "club": "Norths",
+          "icon": "/icons/norths.png"
+        },
+        {
+          "name": "Penelope Bailey",
+          "club": "UQ Hockey",
+          "icon": "/icons/uq.png"
+        },
+        {
+          "name": "Beckett Howard",
+          "club": "Valleys",
+          "icon": "/icons/valleys.png"
+        },
+        {
+          "name": "Clara Price",
+          "club": "Bulimba",
+          "icon": "/icons/bulls.png"
+        },
+        {
+          "name": "Rowan Kelly",
+          "club": "Kedron Wavell",
+          "icon": "/icons/kedronwavell.png"
+        },
+        {
+          "name": "Savannah Gray",
+          "club": "Commercial",
+          "icon": "/icons/chc.png"
+        }
+      ],
+      "staff": {
+        "coach": {
+          "name": "Chris Anderson",
+          "club": "Valleys",
+          "icon": "/icons/valleys.png"
+        },
+        "asstCoach": {
+          "name": "Nicole Harris",
+          "club": "Bulimba",
+          "icon": "/icons/bulls.png"
+        },
+        "manager": {
+          "name": "Greg Roberts",
+          "club": "Kedron Wavell",
+          "icon": "/icons/kedronwavell.png"
+        },
+        "umpire": {
+          "name": "Melissa Turner",
+          "club": "Commercial",
+          "icon": "/icons/chc.png"
+        }
+      }
+    },
+    "shadowPlayers": [
+      {
+        "name": "Dylan Brooks",
+        "club": "East Hockey Club",
+        "icon": "/icons/easts.jpg"
+      },
+      { "name": "Piper Woods", "club": "Norths", "icon": "/icons/norths.png" },
+      { "name": "Sawyer James", "club": "UQ Hockey", "icon": "/icons/uq.png" }
+    ],
+    "withdrawn": [
+      {
+        "name": "Logan Bennett",
+        "club": "Commercial",
+        "icon": "/icons/chc.png",
+        "reason": "Relocated"
+      }
+    ],
+    "trialInfo": {
+      "schedule": [
+        {
+          "name": "Trial Session 1",
+          "date": "2026-02-10",
+          "time": "4:00 PM - 6:00 PM",
+          "venue": "State Hockey Centre - Field 2",
+          "isSpecial": false
+        },
+        {
+          "name": "Trial Session 2",
+          "date": "2026-02-17",
+          "time": "4:00 PM - 6:00 PM",
+          "venue": "State Hockey Centre - Field 2",
+          "isSpecial": false
+        },
+        {
+          "name": "Final Selection",
+          "date": "2026-02-24",
+          "time": "4:00 PM - 7:00 PM",
+          "venue": "State Hockey Centre - Fields 1 & 2",
+          "isSpecial": true
+        }
+      ],
+      "details": "Players must be 13 or under on January 1, 2026. Medical clearance required."
+    },
+    "trainingInfo": {
+      "schedule": [
+        {
+          "name": "Squad Training",
+          "date": "Every Monday",
+          "time": "5:30 PM - 7:00 PM",
+          "venue": "State Hockey Centre - Field 1"
+        },
+        {
+          "name": "Squad Training",
+          "date": "Every Wednesday",
+          "time": "5:30 PM - 7:00 PM",
+          "venue": "State Hockey Centre - Field 1"
+        },
+        {
+          "name": "Match Practice",
+          "date": "Every Saturday",
+          "time": "2:00 PM - 4:00 PM",
+          "venue": "Burringbar Park - Field 2"
+        }
+      ],
+      "details": "Minimum 80% attendance required. Fitness sessions on Friday mornings optional."
+    },
+    "tournamentInfo": {
+      "schedule": [
+        {
+          "name": "State Championships",
+          "date": "2026-04-18 to 2026-04-21",
+          "city": "Brisbane, QLD",
+          "tournamentlink": "https://www.hockeyqld.org.au"
+        },
+        {
+          "name": "National Junior Championships",
+          "date": "2026-07-05 to 2026-07-12",
+          "city": "Melbourne, VIC",
+          "tournamentlink": "https://www.hockey.org.au"
+        }
+      ],
+      "details": "Full tournament schedule and travel arrangements to be confirmed in March 2026."
+    }
+  },
+  "Under 16": {
+    "lastUpdated": "2026-01-15",
+    "White Team": {
+      "players": [
+        {
+          "name": "Cooper Stevens",
+          "club": "Commercial",
+          "icon": "/icons/chc.png"
+        },
+        {
+          "name": "Mackenzie Price",
+          "club": "East Hockey Club",
+          "icon": "/icons/easts.jpg"
+        },
+        {
+          "name": "Austin Ward",
+          "club": "Norths",
+          "icon": "/icons/norths.png"
+        },
+        {
+          "name": "Harper Foster",
+          "club": "UQ Hockey",
+          "icon": "/icons/uq.png"
+        },
+        {
+          "name": "Landon Ross",
+          "club": "Valleys",
+          "icon": "/icons/valleys.png"
+        },
+        {
+          "name": "Skylar Hughes",
+          "club": "Bulimba",
+          "icon": "/icons/bulls.png"
+        },
+        {
+          "name": "Parker Bell",
+          "club": "Kedron Wavell",
+          "icon": "/icons/kedronwavell.png"
+        },
+        {
+          "name": "Kennedy Gray",
+          "club": "Commercial",
+          "icon": "/icons/chc.png"
+        },
+        {
+          "name": "Brody Coleman",
+          "club": "East Hockey Club",
+          "icon": "/icons/easts.jpg"
+        },
+        {
+          "name": "Reagan Butler",
+          "club": "Norths",
+          "icon": "/icons/norths.png"
+        },
+        {
+          "name": "Ryder Sullivan",
+          "club": "UQ Hockey",
+          "icon": "/icons/uq.png"
+        },
+        {
+          "name": "Emerson Barnes",
+          "club": "Valleys",
+          "icon": "/icons/valleys.png"
+        },
+        {
+          "name": "Chase Powell",
+          "club": "Bulimba",
+          "icon": "/icons/bulls.png"
+        },
+        {
+          "name": "Peyton Sanders",
+          "club": "Kedron Wavell",
+          "icon": "/icons/kedronwavell.png"
+        },
+        {
+          "name": "Colton Perry",
+          "club": "Commercial",
+          "icon": "/icons/chc.png"
+        },
+        {
+          "name": "Addison Russell",
+          "club": "East Hockey Club",
+          "icon": "/icons/easts.jpg"
+        },
+        {
+          "name": "Tanner Griffin",
+          "club": "Norths",
+          "icon": "/icons/norths.png"
+        },
+        { "name": "Morgan Hayes", "club": "UQ Hockey", "icon": "/icons/uq.png" }
+      ],
+      "staff": {
+        "coach": {
+          "name": "Steve Mitchell",
+          "club": "Commercial",
+          "icon": "/icons/chc.png"
+        },
+        "asstCoach": {
+          "name": "Caroline Woods",
+          "club": "East Hockey Club",
+          "icon": "/icons/easts.jpg"
+        },
+        "manager": {
+          "name": "Brian Cooper",
+          "club": "Norths",
+          "icon": "/icons/norths.png"
+        },
+        "umpire": {
+          "name": "Rebecca Adams",
+          "club": "UQ Hockey",
+          "icon": "/icons/uq.png"
+        }
+      }
+    },
+    "Green Team": {
+      "players": [
+        {
+          "name": "Blake Patterson",
+          "club": "Valleys",
+          "icon": "/icons/valleys.png"
+        },
+        {
+          "name": "Quinn Alexander",
+          "club": "Bulimba",
+          "icon": "/icons/bulls.png"
+        },
+        {
+          "name": "Griffin Watson",
+          "club": "Kedron Wavell",
+          "icon": "/icons/kedronwavell.png"
+        },
+        {
+          "name": "Avery Henderson",
+          "club": "Commercial",
+          "icon": "/icons/chc.png"
+        },
+        {
+          "name": "Dawson Coleman",
+          "club": "East Hockey Club",
+          "icon": "/icons/easts.jpg"
+        },
+        {
+          "name": "Riley Jenkins",
+          "club": "Norths",
+          "icon": "/icons/norths.png"
+        },
+        {
+          "name": "Preston Barnes",
+          "club": "UQ Hockey",
+          "icon": "/icons/uq.png"
+        },
+        {
+          "name": "Taylor Ross",
+          "club": "Valleys",
+          "icon": "/icons/valleys.png"
+        },
+        {
+          "name": "Spencer Hughes",
+          "club": "Bulimba",
+          "icon": "/icons/bulls.png"
+        },
+        {
+          "name": "Jordan Mitchell",
+          "club": "Kedron Wavell",
+          "icon": "/icons/kedronwavell.png"
+        },
+        {
+          "name": "Dakota Reed",
+          "club": "Commercial",
+          "icon": "/icons/chc.png"
+        },
+        {
+          "name": "Cameron Foster",
+          "club": "East Hockey Club",
+          "icon": "/icons/easts.jpg"
+        },
+        {
+          "name": "Alexis Murphy",
+          "club": "Norths",
+          "icon": "/icons/norths.png"
+        },
+        {
+          "name": "Hayden Cooper",
+          "club": "UQ Hockey",
+          "icon": "/icons/uq.png"
+        },
+        {
+          "name": "Payton Rivera",
+          "club": "Valleys",
+          "icon": "/icons/valleys.png"
+        },
+        {
+          "name": "Finley Bailey",
+          "club": "Bulimba",
+          "icon": "/icons/bulls.png"
+        },
+        {
+          "name": "Reese Howard",
+          "club": "Kedron Wavell",
+          "icon": "/icons/kedronwavell.png"
+        },
+        {
+          "name": "Casey Edwards",
+          "club": "Commercial",
+          "icon": "/icons/chc.png"
+        }
+      ],
+      "staff": {
+        "coach": {
+          "name": "James Peterson",
+          "club": "Valleys",
+          "icon": "/icons/valleys.png"
+        },
+        "asstCoach": {
+          "name": "Michelle Carter",
+          "club": "Bulimba",
+          "icon": "/icons/bulls.png"
+        },
+        "manager": {
+          "name": "Robert King",
+          "club": "Kedron Wavell",
+          "icon": "/icons/kedronwavell.png"
+        },
+        "umpire": {
+          "name": "Sandra Lee",
+          "club": "Commercial",
+          "icon": "/icons/chc.png"
+        }
+      }
+    },
+    "shadowPlayers": [
+      {
+        "name": "Sage Collins",
+        "club": "East Hockey Club",
+        "icon": "/icons/easts.jpg"
+      },
+      { "name": "River Scott", "club": "Norths", "icon": "/icons/norths.png" },
+      {
+        "name": "Phoenix Turner",
+        "club": "UQ Hockey",
+        "icon": "/icons/uq.png"
+      },
+      {
+        "name": "Rowan Phillips",
+        "club": "Valleys",
+        "icon": "/icons/valleys.png"
+      }
+    ],
+    "withdrawn": [
+      {
+        "name": "Carson Martinez",
+        "club": "Bulimba",
+        "icon": "/icons/bulls.png",
+        "reason": "School Commitment"
+      },
+      {
+        "name": "Kendall Wright",
+        "club": "Kedron Wavell",
+        "icon": "/icons/kedronwavell.png",
+        "reason": "Injury"
+      }
+    ],
+    "trialInfo": {
+      "schedule": [
+        {
+          "name": "Trial Session 1",
+          "date": "2026-02-12",
+          "time": "6:00 PM - 8:00 PM",
+          "venue": "State Hockey Centre - Field 1",
+          "isSpecial": false
+        },
+        {
+          "name": "Trial Session 2",
+          "date": "2026-02-19",
+          "time": "6:00 PM - 8:00 PM",
+          "venue": "State Hockey Centre - Field 1",
+          "isSpecial": false
+        },
+        {
+          "name": "Selection Match",
+          "date": "2026-02-26",
+          "time": "6:00 PM - 9:00 PM",
+          "venue": "State Hockey Centre - Fields 1 & 2",
+          "isSpecial": true
+        }
+      ],
+      "details": "High performance pathway. All players must complete fitness testing. Contact <a href='mailto:u16@brisbanehockey.com' class='underline'>u16@brisbanehockey.com</a> for details."
+    },
+    "trainingInfo": {
+      "schedule": [
+        {
+          "name": "Technical Training",
+          "date": "Every Tuesday",
+          "time": "6:00 PM - 7:30 PM",
+          "venue": "State Hockey Centre - Field 1"
+        },
+        {
+          "name": "Tactical Training",
+          "date": "Every Thursday",
+          "time": "6:00 PM - 7:30 PM",
+          "venue": "State Hockey Centre - Field 1"
+        },
+        {
+          "name": "Match Simulation",
+          "date": "Every Sunday",
+          "time": "9:00 AM - 11:00 AM",
+          "venue": "Burringbar Park - Fields 1 & 2"
+        }
+      ],
+      "details": "Strength and conditioning program runs Wednesday 6:00 AM at UQ Sport."
+    },
+    "tournamentInfo": {
+      "schedule": [
+        {
+          "name": "Queensland Championships",
+          "date": "2026-05-08 to 2026-05-12",
+          "city": "Cairns, QLD",
+          "tournamentlink": "https://www.hockeyqld.org.au"
+        },
+        {
+          "name": "Australian Junior Championships",
+          "date": "2026-09-20 to 2026-09-28",
+          "city": "Perth, WA",
+          "tournamentlink": "https://www.hockey.org.au"
+        }
+      ],
+      "details": "International tour opportunity for selected players. More info at team meetings."
+    }
+  },
+  "Under 18": {
+    "lastUpdated": "2026-01-15",
+    "Blue Team": {
+      "players": [
+        {
+          "name": "Jackson Murphy",
+          "club": "Commercial",
+          "icon": "/icons/chc.png"
+        },
+        {
+          "name": "Brooklyn Shaw",
+          "club": "East Hockey Club",
+          "icon": "/icons/easts.jpg"
+        },
+        {
+          "name": "Tyler Harrison",
+          "club": "Norths",
+          "icon": "/icons/norths.png"
+        },
+        {
+          "name": "Aubrey Stone",
+          "club": "UQ Hockey",
+          "icon": "/icons/uq.png"
+        },
+        {
+          "name": "Connor Ford",
+          "club": "Valleys",
+          "icon": "/icons/valleys.png"
+        },
+        { "name": "Chloe Hunt", "club": "Bulimba", "icon": "/icons/bulls.png" },
+        {
+          "name": "Evan Palmer",
+          "club": "Kedron Wavell",
+          "icon": "/icons/kedronwavell.png"
+        },
+        {
+          "name": "Natalie Dixon",
+          "club": "Commercial",
+          "icon": "/icons/chc.png"
+        },
+        {
+          "name": "Kyle Freeman",
+          "club": "East Hockey Club",
+          "icon": "/icons/easts.jpg"
+        },
+        {
+          "name": "Samantha Webb",
+          "club": "Norths",
+          "icon": "/icons/norths.png"
+        },
+        {
+          "name": "Brandon Cole",
+          "club": "UQ Hockey",
+          "icon": "/icons/uq.png"
+        },
+        {
+          "name": "Jessica Riley",
+          "club": "Valleys",
+          "icon": "/icons/valleys.png"
+        },
+        {
+          "name": "Derek Armstrong",
+          "club": "Bulimba",
+          "icon": "/icons/bulls.png"
+        },
+        {
+          "name": "Lauren Pierce",
+          "club": "Kedron Wavell",
+          "icon": "/icons/kedronwavell.png"
+        },
+        {
+          "name": "Marcus Holland",
+          "club": "Commercial",
+          "icon": "/icons/chc.png"
+        },
+        {
+          "name": "Danielle Warren",
+          "club": "East Hockey Club",
+          "icon": "/icons/easts.jpg"
+        },
+        {
+          "name": "Travis Boyd",
+          "club": "Norths",
+          "icon": "/icons/norths.png"
+        },
+        {
+          "name": "Michelle Hart",
+          "club": "UQ Hockey",
+          "icon": "/icons/uq.png"
+        }
+      ],
+      "staff": {
+        "coach": {
+          "name": "Andrew Collins",
+          "club": "Commercial",
+          "icon": "/icons/chc.png"
+        },
+        "asstCoach": {
+          "name": "Emma Richardson",
+          "club": "East Hockey Club",
+          "icon": "/icons/easts.jpg"
+        },
+        "manager": {
+          "name": "Michael Brown",
+          "club": "Norths",
+          "icon": "/icons/norths.png"
+        },
+        "umpire": {
+          "name": "Jennifer Taylor",
+          "club": "UQ Hockey",
+          "icon": "/icons/uq.png"
+        }
+      }
+    },
+    "Red Team": {
+      "players": [
+        {
+          "name": "Sean Wallace",
+          "club": "Valleys",
+          "icon": "/icons/valleys.png"
+        },
+        {
+          "name": "Rachel Bishop",
+          "club": "Bulimba",
+          "icon": "/icons/bulls.png"
+        },
+        {
+          "name": "Jordan Fuller",
+          "club": "Kedron Wavell",
+          "icon": "/icons/kedronwavell.png"
+        },
+        {
+          "name": "Ashley Cunningham",
+          "club": "Commercial",
+          "icon": "/icons/chc.png"
+        },
+        {
+          "name": "Bradley Knight",
+          "club": "East Hockey Club",
+          "icon": "/icons/easts.jpg"
+        },
+        {
+          "name": "Courtney Mason",
+          "club": "Norths",
+          "icon": "/icons/norths.png"
+        },
+        {
+          "name": "Justin Fletcher",
+          "club": "UQ Hockey",
+          "icon": "/icons/uq.png"
+        },
+        {
+          "name": "Nicole Porter",
+          "club": "Valleys",
+          "icon": "/icons/valleys.png"
+        },
+        {
+          "name": "Zachary Lynch",
+          "club": "Bulimba",
+          "icon": "/icons/bulls.png"
+        },
+        {
+          "name": "Kayla Burton",
+          "club": "Kedron Wavell",
+          "icon": "/icons/kedronwavell.png"
+        },
+        {
+          "name": "Trevor Holmes",
+          "club": "Commercial",
+          "icon": "/icons/chc.png"
+        },
+        {
+          "name": "Melissa Cruz",
+          "club": "East Hockey Club",
+          "icon": "/icons/easts.jpg"
+        },
+        {
+          "name": "Craig Patterson",
+          "club": "Norths",
+          "icon": "/icons/norths.png"
+        },
+        {
+          "name": "Stephanie Ferguson",
+          "club": "UQ Hockey",
+          "icon": "/icons/uq.png"
+        },
+        {
+          "name": "Vincent Howard",
+          "club": "Valleys",
+          "icon": "/icons/valleys.png"
+        },
+        {
+          "name": "Christina Wells",
+          "club": "Bulimba",
+          "icon": "/icons/bulls.png"
+        },
+        {
+          "name": "Russell Stevens",
+          "club": "Kedron Wavell",
+          "icon": "/icons/kedronwavell.png"
+        },
+        {
+          "name": "Allison Reid",
+          "club": "Commercial",
+          "icon": "/icons/chc.png"
+        }
+      ],
+      "staff": {
+        "coach": {
+          "name": "David Martinez",
+          "club": "Valleys",
+          "icon": "/icons/valleys.png"
+        },
+        "asstCoach": {
+          "name": "Heather Walker",
+          "club": "Bulimba",
+          "icon": "/icons/bulls.png"
+        },
+        "manager": {
+          "name": "Kenneth Young",
+          "club": "Kedron Wavell",
+          "icon": "/icons/kedronwavell.png"
+        },
+        "umpire": {
+          "name": "Patricia Allen",
+          "club": "Commercial",
+          "icon": "/icons/chc.png"
+        }
+      }
+    },
+    "shadowPlayers": [
+      {
+        "name": "Gabriel Spencer",
+        "club": "East Hockey Club",
+        "icon": "/icons/easts.jpg"
+      },
+      {
+        "name": "Vanessa Clark",
+        "club": "Norths",
+        "icon": "/icons/norths.png"
+      },
+      { "name": "Wesley Morris", "club": "UQ Hockey", "icon": "/icons/uq.png" }
+    ],
+    "withdrawn": [
+      {
+        "name": "Raymond Fisher",
+        "club": "Valleys",
+        "icon": "/icons/valleys.png",
+        "reason": "University Commitment"
+      }
+    ],
+    "trialInfo": {
+      "schedule": [
+        {
+          "name": "Initial Trial",
+          "date": "2026-02-14",
+          "time": "7:00 PM - 9:00 PM",
+          "venue": "State Hockey Centre - Field 1",
+          "isSpecial": false
+        },
+        {
+          "name": "Advanced Trial",
+          "date": "2026-02-21",
+          "time": "7:00 PM - 9:00 PM",
+          "venue": "State Hockey Centre - Field 1",
+          "isSpecial": false
+        },
+        {
+          "name": "Final Selection Camp",
+          "date": "2026-02-28 to 2026-03-01",
+          "time": "9:00 AM - 5:00 PM",
+          "venue": "State Hockey Centre - All Fields",
+          "isSpecial": true
+        }
+      ],
+      "details": "Elite pathway to senior state teams. Medical and fitness testing mandatory. Contact High Performance Manager at <a href='mailto:hp@brisbanehockey.com' class='underline'>hp@brisbanehockey.com</a>"
+    },
+    "trainingInfo": {
+      "schedule": [
+        {
+          "name": "Squad Training",
+          "date": "Every Monday & Wednesday",
+          "time": "7:00 PM - 8:30 PM",
+          "venue": "State Hockey Centre - Field 1"
+        },
+        {
+          "name": "Fitness Session",
+          "date": "Every Friday",
+          "time": "6:00 AM - 7:00 AM",
+          "venue": "UQ Sport Fitness Centre"
+        },
+        {
+          "name": "Match Practice",
+          "date": "Every Sunday",
+          "time": "10:00 AM - 12:00 PM",
+          "venue": "State Hockey Centre - Fields 1 & 2"
+        }
+      ],
+      "details": "Video analysis sessions weekly. Individual development plans provided. Nutrition workshops monthly."
+    },
+    "tournamentInfo": {
+      "schedule": [
+        {
+          "name": "State League Championships",
+          "date": "2026-05-15 to 2026-05-19",
+          "city": "Brisbane, QLD",
+          "tournamentlink": "https://www.hockeyqld.org.au"
+        },
+        {
+          "name": "Australian Championships",
+          "date": "2026-10-01 to 2026-10-10",
+          "city": "Hobart, TAS",
+          "tournamentlink": "https://www.hockey.org.au"
+        },
+        {
+          "name": "Trans-Tasman Series",
+          "date": "2026-12-10 to 2026-12-15",
+          "city": "Auckland, NZ",
+          "tournamentlink": "https://www.hockeynz.co.nz"
+        }
+      ],
+      "details": "International selection opportunities available. Full tournament package and travel details distributed in April."
+    }
+  },
+  "Open": {
+    "lastUpdated": "2026-01-15",
+    "Green Team": {
+      "players": [
+        {
+          "name": "Mitchell Thompson",
+          "club": "Commercial",
+          "icon": "/icons/chc.png"
+        },
+        {
+          "name": "Sarah Johnson",
+          "club": "East Hockey Club",
+          "icon": "/icons/easts.jpg"
+        },
+        {
+          "name": "Adam Clarke",
+          "club": "Norths",
+          "icon": "/icons/norths.png"
+        },
+        {
+          "name": "Emily Roberts",
+          "club": "UQ Hockey",
+          "icon": "/icons/uq.png"
+        },
+        {
+          "name": "Daniel Wilson",
+          "club": "Valleys",
+          "icon": "/icons/valleys.png"
+        },
+        {
+          "name": "Rebecca Harris",
+          "club": "Bulimba",
+          "icon": "/icons/bulls.png"
+        },
+        {
+          "name": "Thomas Anderson",
+          "club": "Kedron Wavell",
+          "icon": "/icons/kedronwavell.png"
+        },
+        {
+          "name": "Laura Mitchell",
+          "club": "Commercial",
+          "icon": "/icons/chc.png"
+        },
+        {
+          "name": "James Parker",
+          "club": "East Hockey Club",
+          "icon": "/icons/easts.jpg"
+        },
+        {
+          "name": "Amanda Davis",
+          "club": "Norths",
+          "icon": "/icons/norths.png"
+        },
+        {
+          "name": "Christopher Lee",
+          "club": "UQ Hockey",
+          "icon": "/icons/uq.png"
+        },
+        {
+          "name": "Victoria Brown",
+          "club": "Valleys",
+          "icon": "/icons/valleys.png"
+        },
+        {
+          "name": "Matthew White",
+          "club": "Bulimba",
+          "icon": "/icons/bulls.png"
+        },
+        {
+          "name": "Katherine Green",
+          "club": "Kedron Wavell",
+          "icon": "/icons/kedronwavell.png"
+        },
+        {
+          "name": "Benjamin Scott",
+          "club": "Commercial",
+          "icon": "/icons/chc.png"
+        },
+        {
+          "name": "Olivia Turner",
+          "club": "East Hockey Club",
+          "icon": "/icons/easts.jpg"
+        },
+        {
+          "name": "Alexander King",
+          "club": "Norths",
+          "icon": "/icons/norths.png"
+        },
+        {
+          "name": "Stephanie Adams",
+          "club": "UQ Hockey",
+          "icon": "/icons/uq.png"
+        }
+      ],
+      "staff": {
+        "coach": {
+          "name": "Richard Campbell",
+          "club": "Commercial",
+          "icon": "/icons/chc.png"
+        },
+        "asstCoach": {
+          "name": "Margaret Foster",
+          "club": "East Hockey Club",
+          "icon": "/icons/easts.jpg"
+        },
+        "manager": {
+          "name": "Philip Reynolds",
+          "club": "Norths",
+          "icon": "/icons/norths.png"
+        },
+        "umpire": {
+          "name": "Catherine Moore",
+          "club": "UQ Hockey",
+          "icon": "/icons/uq.png"
+        }
+      }
+    },
+    "Yellow Team": {
+      "players": [
+        {
+          "name": "Patrick Sullivan",
+          "club": "Valleys",
+          "icon": "/icons/valleys.png"
+        },
+        {
+          "name": "Jennifer Bailey",
+          "club": "Bulimba",
+          "icon": "/icons/bulls.png"
+        },
+        {
+          "name": "Nicholas Cooper",
+          "club": "Kedron Wavell",
+          "icon": "/icons/kedronwavell.png"
+        },
+        {
+          "name": "Elizabeth Reed",
+          "club": "Commercial",
+          "icon": "/icons/chc.png"
+        },
+        {
+          "name": "Gregory Murphy",
+          "club": "East Hockey Club",
+          "icon": "/icons/easts.jpg"
+        },
+        {
+          "name": "Helen Peterson",
+          "club": "Norths",
+          "icon": "/icons/norths.png"
+        },
+        {
+          "name": "Raymond Hughes",
+          "club": "UQ Hockey",
+          "icon": "/icons/uq.png"
+        },
+        {
+          "name": "Dorothy Collins",
+          "club": "Valleys",
+          "icon": "/icons/valleys.png"
+        },
+        {
+          "name": "Kenneth Ward",
+          "club": "Bulimba",
+          "icon": "/icons/bulls.png"
+        },
+        {
+          "name": "Margaret Bell",
+          "club": "Kedron Wavell",
+          "icon": "/icons/kedronwavell.png"
+        },
+        {
+          "name": "Steven Ross",
+          "club": "Commercial",
+          "icon": "/icons/chc.png"
+        },
+        {
+          "name": "Sandra Price",
+          "club": "East Hockey Club",
+          "icon": "/icons/easts.jpg"
+        },
+        {
+          "name": "Timothy Gray",
+          "club": "Norths",
+          "icon": "/icons/norths.png"
+        },
+        {
+          "name": "Nancy Howard",
+          "club": "UQ Hockey",
+          "icon": "/icons/uq.png"
+        },
+        {
+          "name": "Jeffrey Martin",
+          "club": "Valleys",
+          "icon": "/icons/valleys.png"
+        },
+        {
+          "name": "Barbara Kelly",
+          "club": "Bulimba",
+          "icon": "/icons/bulls.png"
+        },
+        {
+          "name": "Gary Richardson",
+          "club": "Kedron Wavell",
+          "icon": "/icons/kedronwavell.png"
+        },
+        {
+          "name": "Susan Edwards",
+          "club": "Commercial",
+          "icon": "/icons/chc.png"
+        }
+      ],
+      "staff": {
+        "coach": {
+          "name": "William Bennett",
+          "club": "Valleys",
+          "icon": "/icons/valleys.png"
+        },
+        "asstCoach": {
+          "name": "Linda Patterson",
+          "club": "Bulimba",
+          "icon": "/icons/bulls.png"
+        },
+        "manager": {
+          "name": "Donald Rivera",
+          "club": "Kedron Wavell",
+          "icon": "/icons/kedronwavell.png"
+        },
+        "umpire": {
+          "name": "Ruth Coleman",
+          "club": "Commercial",
+          "icon": "/icons/chc.png"
+        }
+      }
+    },
+    "shadowPlayers": [
+      {
+        "name": "Jonathan Brooks",
+        "club": "East Hockey Club",
+        "icon": "/icons/easts.jpg"
+      },
+      {
+        "name": "Deborah Stewart",
+        "club": "Norths",
+        "icon": "/icons/norths.png"
+      }
+    ],
+    "withdrawn": [
+      {
+        "name": "Gerald Morris",
+        "club": "UQ Hockey",
+        "icon": "/icons/uq.png",
+        "reason": "Work Commitment"
+      },
+      {
+        "name": "Carol Barnes",
+        "club": "Valleys",
+        "icon": "/icons/valleys.png",
+        "reason": "International Duties"
+      }
+    ],
+    "trialInfo": {
+      "schedule": [
+        {
+          "name": "Open Trial Session",
+          "date": "2026-02-16",
+          "time": "8:00 PM - 10:00 PM",
+          "venue": "State Hockey Centre - Field 1",
+          "isSpecial": false
+        },
+        {
+          "name": "Selection Camp",
+          "date": "2026-02-23 to 2026-02-24",
+          "time": "9:00 AM - 5:00 PM",
+          "venue": "State Hockey Centre - All Fields",
+          "isSpecial": true
+        }
+      ],
+      "details": "Open category for all senior players. National team pathway. Contact <strong>State Selectors</strong> for eligibility queries."
+    },
+    "trainingInfo": {
+      "schedule": [
+        {
+          "name": "High Performance Training",
+          "date": "Every Tuesday & Thursday",
+          "time": "7:30 PM - 9:00 PM",
+          "venue": "State Hockey Centre - Field 1"
+        },
+        {
+          "name": "Strength & Conditioning",
+          "date": "Every Monday, Wednesday, Friday",
+          "time": "6:00 AM - 7:00 AM",
+          "venue": "Brisbane Sports Centre"
+        },
+        {
+          "name": "Match Preparation",
+          "date": "Every Saturday",
+          "time": "4:00 PM - 6:00 PM",
+          "venue": "State Hockey Centre - Fields 1 & 2"
+        }
+      ],
+      "details": "Professional training environment. Sports science support included. Individual performance reviews quarterly."
+    },
+    "tournamentInfo": {
+      "schedule": [
+        {
+          "name": "National Hockey League",
+          "date": "2026-06-01 to 2026-08-30",
+          "city": "Various Cities, AUS",
+          "tournamentlink": "https://www.hockey.org.au/nhl"
+        },
+        {
+          "name": "Oceania Cup",
+          "date": "2026-11-05 to 2026-11-15",
+          "city": "Suva, Fiji",
+          "tournamentlink": "https://www.oceaniahockey.org"
+        },
+        {
+          "name": "Commonwealth Games Qualifier",
+          "date": "2027-02-10 to 2027-02-20",
+          "city": "New Delhi, India",
+          "tournamentlink": "https://www.fih.hockey"
+        }
+      ],
+      "details": "International competition schedule. Full-time training commitment required. National team selection possible."
+    }
+  }
+}
