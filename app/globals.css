@@ -12,13 +12,26 @@
   }
 }
 
-body,
+/*
+  IMPORTANT:
+  ❌ DO NOT put overflow-x:hidden on html or body
+  It breaks fixed + transform drawers
+*/
 html,
-:root,
-.app {
+body,
+:root {
   height: 100%;
   width: 100%;
   @apply text-sm;
+}
+
+/* 
+  Apply overflow clipping ONLY to your app content,
+  NOT the viewport
+*/
+.app {
+  min-height: 100%;
+  width: 100%;
   overflow-x: hidden;
 }
 
@@ -26,6 +39,13 @@ html,
 .btn-primary {
   @apply bg-blue-600 text-yellow-300 hover:bg-blue-700;
 }
+
 .btn-secondary {
   @apply bg-green-600 text-white hover:bg-green-700;
+}
+
+/* app/globals.css */
+.smooth-collapse {
+  overflow: hidden;
+  transition: max-height 0.3s ease-in-out;
 }

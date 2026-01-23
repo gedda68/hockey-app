@@ -1,17 +1,59 @@
 // app/admin/hooks/useDragDrop.ts
-// UPDATED: Added drag & drop for withdrawn players
-
 import { useState } from "react";
 import { DraggedPlayer, Player, Roster } from "../types";
 
-// Extended type to include withdrawn players
 interface ExtendedDraggedPlayer extends Omit<DraggedPlayer, "sourceType"> {
   sourceType: "team" | "shadow" | "withdrawn";
 }
 
-export function useDragDrop(rosters: Roster[], onUpdate: () => Promise<void>) {
+export function useDragDrop(
+  rosters: Roster[],
+  onUpdate: () => Promise<void>,
+  setSaveStatus: (status: "idle" | "saving" | "saved" | "error") => void
+) {
   const [draggedPlayer, setDraggedPlayer] =
     useState<ExtendedDraggedPlayer | null>(null);
+
+  // --- CENTRAL PERSISTENCE LOGIC ---
+  const persistChanges = async (
+    ageGroup: string,
+    updatedData: Partial<Roster>
+  ) => {
+    // Find the current roster to ensure we have the most recent fields (selectors, info, etc)
+    const currentRoster = rosters.find((r) => r.ageGroup === ageGroup);
+    if (!currentRoster) return;
+
+    setSaveStatus("saving");
+
+    try {
+      const response = await fetch(
+        `/api/admin/rosters/${encodeURIComponent(ageGroup)}`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            ...currentRoster, // Keep all existing fields
+            ...updatedData, // Overwrite with the drag-and-drop result
+            lastUpdated: new Date().toLocaleDateString("en-AU"),
+          }),
+        }
+      );
+
+      if (response.ok) {
+        setSaveStatus("saved");
+        await onUpdate();
+        setDraggedPlayer(null); // Clear drag state after success
+        setTimeout(() => setSaveStatus("idle"), 3000);
+      } else {
+        setSaveStatus("error");
+        setTimeout(() => setSaveStatus("idle"), 3000);
+      }
+    } catch (error) {
+      console.error("Save Error:", error);
+      setSaveStatus("error");
+      setTimeout(() => setSaveStatus("idle"), 3000);
+    }
+  };
 
   const handleDragStart = (
     e: React.DragEvent,
@@ -36,8 +78,6 @@ export function useDragDrop(rosters: Roster[], onUpdate: () => Promise<void>) {
     ageGroup: string
   ) => {
     e.preventDefault();
-    e.stopPropagation();
-
     if (!draggedPlayer || draggedPlayer.ageGroup !== ageGroup) return;
     if (
       draggedPlayer.sourceType === "team" &&
@@ -47,140 +87,82 @@ export function useDragDrop(rosters: Roster[], onUpdate: () => Promise<void>) {
       return;
     }
 
-    const roster = rosters.find((r) => r.ageGroup === ageGroup);
-    if (!roster) return;
+    const roster = rosters.find((r) => r.ageGroup === ageGroup)!;
+    let { teams, shadowPlayers, withdrawn } = JSON.parse(
+      JSON.stringify(roster)
+    );
 
-    let updatedTeams = [...roster.teams];
-    let updatedShadowPlayers = [...roster.shadowPlayers];
-    let updatedWithdrawn = [...roster.withdrawn];
-
-    // Remove from source
-    if (draggedPlayer.sourceType === "team" && draggedPlayer.sourceTeam) {
-      updatedTeams = updatedTeams.map((team) =>
-        team.name === draggedPlayer.sourceTeam
+    if (draggedPlayer.sourceType === "team") {
+      teams = teams.map((t: any) =>
+        t.name === draggedPlayer.sourceTeam
           ? {
-              ...team,
-              players: team.players.filter(
-                (_, idx) => idx !== draggedPlayer.sourceIndex
+              ...t,
+              players: t.players.filter(
+                (_: any, i: number) => i !== draggedPlayer.sourceIndex
               ),
             }
-          : team
+          : t
       );
     } else if (draggedPlayer.sourceType === "shadow") {
-      updatedShadowPlayers = updatedShadowPlayers.filter(
-        (_, idx) => idx !== draggedPlayer.sourceIndex
+      shadowPlayers = shadowPlayers.filter(
+        (_: any, i: number) => i !== draggedPlayer.sourceIndex
       );
-    } else if (draggedPlayer.sourceType === "withdrawn") {
-      updatedWithdrawn = updatedWithdrawn.filter(
-        (_, idx) => idx !== draggedPlayer.sourceIndex
+    } else {
+      withdrawn = withdrawn.filter(
+        (_: any, i: number) => i !== draggedPlayer.sourceIndex
       );
     }
 
-    // Add to target team (clean player object - remove 'reason' if it exists)
-    const cleanPlayer: Player = {
+    const cleanPlayer = {
       name: draggedPlayer.player.name,
       club: draggedPlayer.player.club,
       icon: draggedPlayer.player.icon,
     };
-
-    updatedTeams = updatedTeams.map((team) =>
-      team.name === targetTeam
-        ? { ...team, players: [...team.players, cleanPlayer] }
-        : team
+    teams = teams.map((t: any) =>
+      t.name === targetTeam ? { ...t, players: [...t.players, cleanPlayer] } : t
     );
 
-    try {
-      const response = await fetch(
-        `/api/admin/rosters/${encodeURIComponent(ageGroup)}`,
-        {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            ...roster,
-            teams: updatedTeams,
-            shadowPlayers: updatedShadowPlayers,
-            withdrawn: updatedWithdrawn,
-            lastUpdated: new Date().toLocaleDateString("en-AU"),
-          }),
-        }
-      );
-
-      if (response.ok) {
-        await onUpdate();
-        setDraggedPlayer(null);
-      }
-    } catch (error) {
-      console.error("Error:", error);
-    }
+    await persistChanges(ageGroup, { teams, shadowPlayers, withdrawn });
   };
 
   const handleDropOnShadow = async (e: React.DragEvent, ageGroup: string) => {
     e.preventDefault();
-    e.stopPropagation();
-
-    if (!draggedPlayer || draggedPlayer.ageGroup !== ageGroup) return;
-    if (draggedPlayer.sourceType === "shadow") {
-      setDraggedPlayer(null);
+    if (
+      !draggedPlayer ||
+      draggedPlayer.ageGroup !== ageGroup ||
+      draggedPlayer.sourceType === "shadow"
+    )
       return;
-    }
 
-    const roster = rosters.find((r) => r.ageGroup === ageGroup);
-    if (!roster) return;
+    const roster = rosters.find((r) => r.ageGroup === ageGroup)!;
+    let { teams, shadowPlayers, withdrawn } = JSON.parse(
+      JSON.stringify(roster)
+    );
 
-    let updatedTeams = [...roster.teams];
-    let updatedShadowPlayers = [...roster.shadowPlayers];
-    let updatedWithdrawn = [...roster.withdrawn];
-
-    // Remove from source
-    if (draggedPlayer.sourceType === "team" && draggedPlayer.sourceTeam) {
-      updatedTeams = updatedTeams.map((team) =>
-        team.name === draggedPlayer.sourceTeam
+    if (draggedPlayer.sourceType === "team") {
+      teams = teams.map((t: any) =>
+        t.name === draggedPlayer.sourceTeam
           ? {
-              ...team,
-              players: team.players.filter(
-                (_, idx) => idx !== draggedPlayer.sourceIndex
+              ...t,
+              players: t.players.filter(
+                (_: any, i: number) => i !== draggedPlayer.sourceIndex
               ),
             }
-          : team
+          : t
       );
-    } else if (draggedPlayer.sourceType === "withdrawn") {
-      updatedWithdrawn = updatedWithdrawn.filter(
-        (_, idx) => idx !== draggedPlayer.sourceIndex
+    } else {
+      withdrawn = withdrawn.filter(
+        (_: any, i: number) => i !== draggedPlayer.sourceIndex
       );
     }
 
-    // Add to shadow (clean player object)
-    const cleanPlayer: Player = {
+    shadowPlayers.push({
       name: draggedPlayer.player.name,
       club: draggedPlayer.player.club,
       icon: draggedPlayer.player.icon,
-    };
+    });
 
-    updatedShadowPlayers = [...updatedShadowPlayers, cleanPlayer];
-
-    try {
-      const response = await fetch(
-        `/api/admin/rosters/${encodeURIComponent(ageGroup)}`,
-        {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            ...roster,
-            teams: updatedTeams,
-            shadowPlayers: updatedShadowPlayers,
-            withdrawn: updatedWithdrawn,
-            lastUpdated: new Date().toLocaleDateString("en-AU"),
-          }),
-        }
-      );
-
-      if (response.ok) {
-        await onUpdate();
-        setDraggedPlayer(null);
-      }
-    } catch (error) {
-      console.error("Error:", error);
-    }
+    await persistChanges(ageGroup, { teams, shadowPlayers, withdrawn });
   };
 
   const handleDropOnWithdrawn = async (
@@ -188,74 +170,39 @@ export function useDragDrop(rosters: Roster[], onUpdate: () => Promise<void>) {
     ageGroup: string
   ) => {
     e.preventDefault();
-    e.stopPropagation();
-
-    if (!draggedPlayer || draggedPlayer.ageGroup !== ageGroup) return;
-    if (draggedPlayer.sourceType === "withdrawn") {
-      setDraggedPlayer(null);
+    if (
+      !draggedPlayer ||
+      draggedPlayer.ageGroup !== ageGroup ||
+      draggedPlayer.sourceType === "withdrawn"
+    )
       return;
-    }
 
-    const roster = rosters.find((r) => r.ageGroup === ageGroup);
-    if (!roster) return;
-
-    // Ask for withdrawal reason
     const reason = prompt("Reason for withdrawal:", "Injured") || "Withdrawn";
+    const roster = rosters.find((r) => r.ageGroup === ageGroup)!;
+    let { teams, shadowPlayers, withdrawn } = JSON.parse(
+      JSON.stringify(roster)
+    );
 
-    let updatedTeams = [...roster.teams];
-    let updatedShadowPlayers = [...roster.shadowPlayers];
-    let updatedWithdrawn = [...roster.withdrawn];
-
-    // Remove from source
-    if (draggedPlayer.sourceType === "team" && draggedPlayer.sourceTeam) {
-      updatedTeams = updatedTeams.map((team) =>
-        team.name === draggedPlayer.sourceTeam
+    if (draggedPlayer.sourceType === "team") {
+      teams = teams.map((t: any) =>
+        t.name === draggedPlayer.sourceTeam
           ? {
-              ...team,
-              players: team.players.filter(
-                (_, idx) => idx !== draggedPlayer.sourceIndex
+              ...t,
+              players: t.players.filter(
+                (_: any, i: number) => i !== draggedPlayer.sourceIndex
               ),
             }
-          : team
+          : t
       );
-    } else if (draggedPlayer.sourceType === "shadow") {
-      updatedShadowPlayers = updatedShadowPlayers.filter(
-        (_, idx) => idx !== draggedPlayer.sourceIndex
+    } else {
+      shadowPlayers = shadowPlayers.filter(
+        (_: any, i: number) => i !== draggedPlayer.sourceIndex
       );
     }
 
-    // Add to withdrawn with reason
-    updatedWithdrawn = [
-      ...updatedWithdrawn,
-      {
-        ...draggedPlayer.player,
-        reason,
-      },
-    ];
+    withdrawn.push({ ...draggedPlayer.player, reason });
 
-    try {
-      const response = await fetch(
-        `/api/admin/rosters/${encodeURIComponent(ageGroup)}`,
-        {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            ...roster,
-            teams: updatedTeams,
-            shadowPlayers: updatedShadowPlayers,
-            withdrawn: updatedWithdrawn,
-            lastUpdated: new Date().toLocaleDateString("en-AU"),
-          }),
-        }
-      );
-
-      if (response.ok) {
-        await onUpdate();
-        setDraggedPlayer(null);
-      }
-    } catch (error) {
-      console.error("Error:", error);
-    }
+    await persistChanges(ageGroup, { teams, shadowPlayers, withdrawn });
   };
 
   return {

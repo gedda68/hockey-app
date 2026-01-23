@@ -1,6 +1,4 @@
 // app/admin/components/DivisionCard.tsx
-// UPDATED: Added SelectorsSection
-
 import { Roster, Player, Staff, Selector } from "../types";
 import TeamSection from "./TeamSection";
 import ShadowPlayersSection from "./ShadowPlayerSection";
@@ -46,23 +44,29 @@ export default function DivisionCard({
   onSetChair,
   dragDrop,
 }: DivisionCardProps) {
-  const totalPlayers = roster.teams.reduce(
-    (sum, team) => sum + team.players.length,
-    0
-  );
+  // 1. UPDATED: Calculate total players (Teams + Shadows)
+  const totalPlayers =
+    roster.teams.reduce((sum, team) => sum + team.players.length, 0) +
+    (roster.shadowPlayers?.length || 0);
+
+  // Destructure drag handlers for easier use in wrappers
+  const { handleDragOver, handleDropOnShadow, handleDropOnWithdrawn } =
+    dragDrop;
 
   return (
     <div className="bg-white rounded-3xl shadow-lg overflow-hidden border-2 border-slate-200">
-      {/* Header */}
+      {/* ========================================== */}
+      {/* DIVISION HEADER (Collapsed View)          */}
+      {/* ========================================== */}
       <div className="bg-gradient-to-r from-[#06054e] to-[#0a0870] p-6">
         <div className="flex items-center justify-between">
           <div className="flex-1">
             <h2 className="text-2xl font-black uppercase text-white">
-              {roster.ageGroup}
+              {roster.ageGroup} - {roster.season}
             </h2>
             <div className="flex gap-4 mt-2">
               <span className="text-sm text-slate-300">
-                👥 {totalPlayers} players
+                👥 {totalPlayers} total players
               </span>
               <span className="text-sm text-slate-300">
                 🏆 {roster.teams.length} teams
@@ -101,10 +105,12 @@ export default function DivisionCard({
         </div>
       </div>
 
-      {/* Expanded Content */}
+      {/* ========================================== */}
+      {/* EXPANDED CONTENT                          */}
+      {/* ========================================== */}
       {isExpanded && (
         <div className="p-6 space-y-6">
-          {/* Selectors Section - NEW! */}
+          {/* 1. SELECTORS */}
           <SelectorsSection
             selectors={roster.selectors || []}
             ageGroup={roster.ageGroup}
@@ -114,7 +120,7 @@ export default function DivisionCard({
             onSetChair={onSetChair}
           />
 
-          {/* Teams */}
+          {/* 2. TEAMS */}
           <div className="space-y-4">
             {roster.teams.map((team, teamIndex) => (
               <TeamSection
@@ -148,22 +154,34 @@ export default function DivisionCard({
             )}
           </div>
 
-          {/* Shadow Players */}
-          <ShadowPlayersSection
-            shadowPlayers={roster.shadowPlayers}
-            ageGroup={roster.ageGroup}
-            onEdit={onEditShadowPlayer}
-            onDelete={dragDrop.handleDeleteShadowPlayer}
-            dragDrop={dragDrop}
-          />
+          {/* 3. SHADOW PLAYERS - Wrapped in Drop Zone */}
+          <div
+            onDragOver={handleDragOver}
+            onDrop={(e) => handleDropOnShadow(e, roster.ageGroup)}
+            className="rounded-3xl transition-all"
+          >
+            <ShadowPlayersSection
+              shadowPlayers={roster.shadowPlayers}
+              ageGroup={roster.ageGroup}
+              onEdit={onEditShadowPlayer}
+              onDelete={dragDrop.handleDeleteShadowPlayer}
+              dragDrop={dragDrop}
+            />
+          </div>
 
-          {/* Withdrawn */}
-          <WithdrawnSection
-            withdrawn={roster.withdrawn}
-            ageGroup={roster.ageGroup}
-            onDelete={dragDrop.handleDeleteWithdrawnPlayer}
-            dragDrop={dragDrop}
-          />
+          {/* 4. WITHDRAWN - Wrapped in Drop Zone */}
+          <div
+            onDragOver={handleDragOver}
+            onDrop={(e) => handleDropOnWithdrawn(e, roster.ageGroup)}
+            className="rounded-3xl transition-all"
+          >
+            <WithdrawnSection
+              withdrawn={roster.withdrawn}
+              ageGroup={roster.ageGroup}
+              onDelete={dragDrop.handleDeleteWithdrawnPlayer}
+              dragDrop={dragDrop}
+            />
+          </div>
         </div>
       )}
     </div>

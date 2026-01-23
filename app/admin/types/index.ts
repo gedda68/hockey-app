@@ -39,6 +39,7 @@ export interface Selector {
 export interface Roster {
   _id?: string;
   ageGroup: string;
+  season: string;
   lastUpdated: string;
   teams: Team[];
   shadowPlayers: Player[];

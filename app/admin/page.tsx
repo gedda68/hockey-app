@@ -1,5 +1,5 @@
 // app/admin/page.tsx
-// UPDATED: Added selector management
+// UPDATED: Removed AdminHeader (now using sidebar layout)
 
 "use client";
 
@@ -11,8 +11,7 @@ import { useTeamOperations } from "./hooks/useTeamOperations";
 import { useStaffOperations } from "./hooks/useStaffOperations";
 import { useShadowOperations } from "./hooks/useShadowOperations";
 import { useWithdrawnOperations } from "./hooks/useWithdrawnOperations";
-import { useSelectorOperations } from "./hooks/useSelectorOperations"; // NEW
-import AdminHeader from "./components/AdminHeader";
+import { useSelectorOperations } from "./hooks/useSelectorOperations";
 import ActionBar from "./components/ActionBar";
 import DivisionCard from "./components/DivisionCard";
 import AddDivisionModal from "./components/modals/AddDivisionModal";
@@ -21,17 +20,16 @@ import AddPlayerModal from "./components/modals/AddPlayerModal";
 import EditPlayerModal from "./components/modals/EditPlayerModal";
 import EditStaffModal from "./components/modals/EditStaffModal";
 import EditShadowPlayerModal from "./components/modals/EditShadowPlayerModal";
-import EditSelectorModal from "./components/modals/EditSelectorModal"; // NEW
+import EditSelectorModal from "./components/modals/EditSelectorModal";
 import BulkUploadModal from "./components/modals/BulkUploadModal";
 import type {
   EditingPlayer,
   EditingStaff,
   EditingShadowPlayer,
   AddPlayerModal as AddPlayerModalType,
-  Selector, // NEW
+  Selector,
 } from "./types";
 
-// NEW: Interface for editing selector
 interface EditingSelector {
   ageGroup: string;
   selectorIndex: number;
@@ -47,7 +45,7 @@ export default function AdminPanel() {
   const [editingShadowPlayer, setEditingShadowPlayer] =
     useState<EditingShadowPlayer | null>(null);
   const [editingSelector, setEditingSelector] =
-    useState<EditingSelector | null>(null); // NEW
+    useState<EditingSelector | null>(null);
   const [showAddPlayerModal, setShowAddPlayerModal] =
     useState<AddPlayerModalType | null>(null);
   const [showAddTeamModal, setShowAddTeamModal] = useState<string | null>(null);
@@ -55,8 +53,8 @@ export default function AdminPanel() {
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [showAddSelectorModal, setShowAddSelectorModal] = useState<
     string | null
-  >(null); // NEW
-  const [newSelector, setNewSelector] = useState(null);
+  >(null);
+  const [newSelector, setNewSelector] = useState<Selector | null>(null);
 
   const { rosters, loading, refreshing, fetchRosters } = useRosters();
   const dragDrop = useDragDrop(rosters, fetchRosters);
@@ -65,7 +63,10 @@ export default function AdminPanel() {
   const staffOps = useStaffOperations(rosters, fetchRosters);
   const shadowOps = useShadowOperations(rosters, fetchRosters);
   const withdrawnOps = useWithdrawnOperations(rosters, fetchRosters);
-  const selectorOps = useSelectorOperations(rosters, fetchRosters); // NEW
+  const selectorOps = useSelectorOperations(rosters, fetchRosters);
+  const [saveStatus, setSaveStatus] = useState<
+    "idle" | "saving" | "saved" | "error"
+  >("idle");
 
   const handleAddDivision = async (ageGroup: string) => {
     try {
@@ -78,7 +79,7 @@ export default function AdminPanel() {
           teams: [],
           shadowPlayers: [],
           withdrawn: [],
-          selectors: [], // NEW
+          selectors: [],
         }),
       });
 
@@ -120,7 +121,7 @@ export default function AdminPanel() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+      <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-[#06054e] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
           <p className="text-slate-600 font-bold">Loading...</p>
@@ -130,8 +131,22 @@ export default function AdminPanel() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <AdminHeader />
+    <div className="min-h-screen">
+      {/* Page Header */}
+      <div className="bg-white border-b border-slate-200 sticky top-0 z-10">
+        <div className="max-w-7xl mx-auto px-6 py-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-black uppercase text-[#06054e]">
+                Roster Management
+              </h1>
+              <p className="text-sm text-slate-500 mt-1">
+                Manage divisions, teams, and players
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
 
       <ActionBar
         refreshing={refreshing}
@@ -141,7 +156,7 @@ export default function AdminPanel() {
         onBulkUpload={() => setShowUploadModal(true)}
       />
 
-      <div className="max-w-7xl mx-auto px-4 py-8">
+      <div className="max-w-7xl mx-auto px-6 py-8">
         <div className="grid grid-cols-1 gap-6">
           {rosters.map((roster) => (
             <DivisionCard
@@ -185,7 +200,6 @@ export default function AdminPanel() {
                   player,
                 })
               }
-              // NEW: Selector handlers
               onAddSelector={() => setShowAddSelectorModal(roster.ageGroup)}
               onEditSelector={(selectorIndex, selector) =>
                 setEditingSelector({
@@ -230,7 +244,7 @@ export default function AdminPanel() {
         </div>
       </div>
 
-      {/* Existing Modals */}
+      {/* Modals */}
       {showAddDivisionModal && (
         <AddDivisionModal
           onClose={() => setShowAddDivisionModal(false)}
@@ -308,7 +322,6 @@ export default function AdminPanel() {
         />
       )}
 
-      {/* NEW: Selector Modals */}
       {showAddSelectorModal && (
         <EditSelectorModal
           selector={
@@ -320,7 +333,7 @@ export default function AdminPanel() {
               isChair: false,
             }
           }
-          isNew={true} // ← ADD THIS LINE
+          isNew={true}
           onChange={(selector) => setNewSelector(selector)}
           onClose={() => {
             setShowAddSelectorModal(null);
@@ -360,6 +373,30 @@ export default function AdminPanel() {
           onSuccess={fetchRosters}
         />
       )}
+
+      {/* Floating Save Status Toast */}
+      <div
+        className={`fixed bottom-6 right-6 px-6 py-3 rounded-full font-bold shadow-2xl transition-all duration-500 transform ${
+          saveStatus === "saving"
+            ? "translate-y-0 opacity-100 bg-[#06054e] text-white"
+            : saveStatus === "saved"
+            ? "translate-y-0 opacity-100 bg-green-600 text-white"
+            : saveStatus === "error"
+            ? "translate-y-0 opacity-100 bg-red-600 text-white"
+            : "translate-y-20 opacity-0"
+        }`}
+      >
+        <div className="flex items-center gap-3">
+          {saveStatus === "saving" && (
+            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+          )}
+          <span>
+            {saveStatus === "saving" && "SAVING TO DATABASE..."}
+            {saveStatus === "saved" && "✅ CHANGES SAVED"}
+            {saveStatus === "error" && "❌ SAVE FAILED"}
+          </span>
+        </div>
+      </div>
     </div>
   );
 }
