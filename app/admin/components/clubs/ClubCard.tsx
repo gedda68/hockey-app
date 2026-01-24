@@ -19,6 +19,17 @@ export default function ClubCard({ club, onEdit, onDelete }: ClubCardProps) {
     return html.replace(/<[^>]*>/g, "").substring(0, 150);
   };
 
+  {
+    clubs.map((club) => {
+      if (!club.colors || !club.colors.primary) {
+        console.warn(
+          `Club ID ${club.id} (${club.name}) is missing color data!`
+        );
+      }
+      return <ClubCard key={club.id} club={club} />;
+    });
+  }
+
   return (
     <div className="bg-white rounded-2xl shadow-lg overflow-hidden border-2 border-slate-200 hover:shadow-xl transition-all">
       {/* Header with gradient */}

@@ -107,22 +107,40 @@ export interface User {
 // Club Management
 export interface Club {
   _id?: string;
-  clubId: string; // Unique ID
+  id: string; // Match the "id" field in your screenshot
   name: string;
-  shortName: string; // e.g., "BHC" for Brisbane Hockey Club
-  logo: string; // Icon path
+  shortName: string;
+  slug: string; // Added from screenshot
+  logo: string;
   colors: {
     primary: string;
     secondary: string;
+    accent: string; // Added from screenshot
+  };
+  address?: {
+    // Updated to Object based on screenshot
+    street?: string;
+    suburb?: string;
+    state?: string;
+    postcode?: string;
   };
   contact: {
-    email: string;
-    phone: string;
-    address?: string;
-    website?: string;
+    email?: string;
+    phone?: string;
   };
-  isActive: boolean;
+  socialMedia?: {
+    // Added from screenshot
+    facebook?: string;
+    instagram?: string;
+    twitter?: string;
+  };
+  active: boolean; // Changed from isActive to active to match DB
+  established?: string;
+  homeGround?: string;
+  description?: string;
+  about?: string;
   createdAt: string;
+  updatedAt: string;
 }
 
 // Player Entity (Full Profile)

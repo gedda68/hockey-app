@@ -58,7 +58,7 @@ export default function ClubsPage() {
 
   const handleUpdateClub = async (club: Club) => {
     try {
-      const response = await fetch(`/api/admin/clubs/${club.id}`, {
+      const response = await fetch(`/api/admin/clubs/${club._id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(club),
@@ -171,14 +171,32 @@ export default function ClubsPage() {
               Active Clubs ({activeClubs.length})
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {activeClubs.map((club) => (
-                <ClubCard
-                  key={club.id}
-                  club={club}
-                  onEdit={() => setEditingClub(club)}
-                  onDelete={() => handleDeleteClub(club.id)}
-                />
-              ))}
+              {activeClubs.map((club) => {
+                if (
+                  !club.colors ||
+                  typeof club.colors.primary === "undefined"
+                ) {
+                  // This will help you see if the property is missing, null, or named differently
+                  console.log("🔍 Inspecting 'All Stars' Object:", {
+                    name: club.name,
+                    keysPresent: Object.keys(club),
+                    colorsObject: club.colors,
+                    rawClub: club,
+                  });
+
+                  console.error(
+                    "❌ CRASH PREVENTED: Missing color data for:",
+                    club.name || club._id
+                  );
+                  club.colors = {
+                    primary: "#06054e",
+                    secondary: "#facc15",
+                    accent: "",
+                  };
+                }
+
+                return <ClubCard key={club.id || club._id} club={club} />;
+              })}
             </div>
           </div>
         )}
@@ -190,14 +208,41 @@ export default function ClubsPage() {
               Inactive Clubs ({inactiveClubs.length})
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {inactiveClubs.map((club) => (
-                <ClubCard
-                  key={club.id}
-                  club={club}
-                  onEdit={() => setEditingClub(club)}
-                  onDelete={() => handleDeleteClub(club.id)}
-                />
-              ))}
+              {inactiveClubs.map((club) => {
+                // --- DEBUG CODE START ---
+                if (
+                  !club.colors ||
+                  typeof club.colors.primary === "undefined"
+                ) {
+                  // This will help you see if the property is missing, null, or named differently
+                  console.log("🔍 Inspecting 'All Stars' Object:", {
+                    name: club.name,
+                    keysPresent: Object.keys(club),
+                    colorsObject: club.colors,
+                    rawClub: club,
+                  });
+
+                  console.error(
+                    "❌ CRASH PREVENTED: Missing color data for:",
+                    club.name || club._id
+                  );
+                  club.colors = {
+                    primary: "#06054e",
+                    secondary: "#facc15",
+                    accent: "",
+                  };
+                }
+                // --- DEBUG CODE END ---
+
+                return (
+                  <ClubCard
+                    key={club._id}
+                    club={club}
+                    onEdit={() => setEditingClub(club)}
+                    onDelete={() => handleDeleteClub(club._id)}
+                  />
+                );
+              })}
             </div>
           </div>
         )}

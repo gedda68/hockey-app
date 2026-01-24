@@ -1,502 +1,361 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import * as XLSX from "xlsx";
+import { useRouter } from "next/navigation";
 
-export default function EventsPage() {
-  const [data, setData] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState("");
+/**
+ * Local event type to remove `any` usage.
+ * Move to shared types if you reuse it elsewhere.
+ */
+type EventEntry = {
+  name: string;
+  startDate: string;
+  link?: string;
+  [k: string]: unknown;
+};
 
-  // Archive States
-  const [selectedYears, setSelectedYears] = useState<string[]>([]);
-  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
-  const [selectedLocations, setSelectedLocations] = useState<string[]>([]);
-
-  // Table States
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState<number | "All">(10);
-  const [sortConfig, setSortConfig] = useState<{
-    key: string;
-    direction: "asc" | "desc";
-  }>({
-    key: "startDate",
-    direction: "asc",
-  });
+export default function EventDashboard() {
+  const router = useRouter();
+  const [upcoming, setUpcoming] = useState<EventEntry[]>([]);
 
   useEffect(() => {
     fetch("/data/events.json")
       .then((res) => res.json())
-      .then((json) => {
-        setData(json);
-        setLoading(false);
+      .then((data: { events?: EventEntry[] }) => {
+        const events = Array.isArray(data.events) ? data.events : [];
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        const nextFive = events
+          .filter((e) => {
+            if (!e?.startDate) return false;
+            return new Date(String(e.startDate)) >= today;
+          })
+          .sort((a, b) =>
+            String(a.startDate).localeCompare(String(b.startDate))
+          )
+          .slice(0, 5);
+
+        setUpcoming(nextFive);
       })
-      .catch((err) => console.error("Error loading events:", err));
+      .catch((err) => console.error("Error loading preview:", err));
   }, []);
 
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchTerm, itemsPerPage]);
-
-  const themes = data?.themes || {};
-  const defaultTheme = {
-    bg: "bg-slate-100",
-    text: "text-slate-700",
-    border: "border-slate-300",
-  };
-
-  // --- HELPERS ---
-  const getToday = () => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    return today;
-  };
-
-  const isUpcomingSoon = (startDateStr: string) => {
-    const eventDate = new Date(startDateStr);
-    const today = getToday();
-    const nextWeek = new Date();
-    nextWeek.setDate(today.getDate() + 7);
-    return eventDate >= today && eventDate <= nextWeek;
-  };
-
-  const formatToAU = (dateStr: string) => {
-    if (!dateStr) return "";
-    const [year, month, day] = dateStr.split("-");
-    return `${day}-${month}-${year}`;
-  };
-
-  const requestSort = (key: string) => {
-    let direction: "asc" | "desc" = "asc";
-    if (sortConfig.key === key && sortConfig.direction === "asc")
-      direction = "desc";
-    setSortConfig({ key, direction });
-  };
-
-  // --- DATA PROCESSING ---
-  const allEventsProcessed = useMemo(() => {
-    if (!data?.events) return [];
-    return data.events.map((event: any) => ({
-      ...event,
-      year: event.startDate ? event.startDate.split("-")[0] : "",
-    }));
-  }, [data]);
-
-  const archiveOptions = useMemo(
-    () => ({
-      years: Array.from(new Set(allEventsProcessed.map((e) => e.year))).sort(),
-      categories: Array.from(
-        new Set(allEventsProcessed.map((e) => e.type))
-      ).sort(),
-      locations: Array.from(
-        new Set(allEventsProcessed.map((e) => e.location))
-      ).sort(),
-    }),
-    [allEventsProcessed]
-  );
-
-  const filteredAndSortedEvents = useMemo(() => {
-    const today = getToday();
-    let items = allEventsProcessed.filter(
-      (event) => new Date(event.startDate) >= today
-    );
-
-    if (searchTerm) {
-      const s = searchTerm.toLowerCase();
-      items = items.filter(
-        (event: any) =>
-          event.name.toLowerCase().includes(s) ||
-          event.location.toLowerCase().includes(s) ||
-          event.type.toLowerCase().includes(s) ||
-          event.year.includes(s)
-      );
-    }
-    items.sort((a: any, b: any) => {
-      if (a[sortConfig.key] < b[sortConfig.key])
-        return sortConfig.direction === "asc" ? -1 : 1;
-      if (a[sortConfig.key] > b[sortConfig.key])
-        return sortConfig.direction === "asc" ? 1 : -1;
-      return 0;
-    });
-    return items;
-  }, [allEventsProcessed, searchTerm, sortConfig]);
-
-  // --- EXPORTS ---
-  const exportTableToExcel = () => {
-    const exportData = filteredAndSortedEvents.map((e) => ({
-      Year: e.year,
-      Event: e.name,
-      Category: e.type,
-      Location: e.location,
-      Date: formatToAU(e.startDate),
-    }));
-    const ws = XLSX.utils.json_to_sheet(exportData);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Schedule");
-    XLSX.writeFile(wb, "Upcoming_Hockey_Schedule.xlsx");
-  };
-
-  const handleArchiveExport = () => {
-    let toExport = allEventsProcessed;
-    if (selectedYears.length > 0)
-      toExport = toExport.filter((e) => selectedYears.includes(e.year));
-    if (selectedCategories.length > 0)
-      toExport = toExport.filter((e) => selectedCategories.includes(e.type));
-    if (selectedLocations.length > 0)
-      toExport = toExport.filter((e) => selectedLocations.includes(e.location));
-
-    const exportData = toExport.map((e) => ({
-      Year: e.year,
-      Event: e.name,
-      Category: e.type,
-      Location: e.location,
-      Date: e.startDate,
-    }));
-    const ws = XLSX.utils.json_to_sheet(exportData);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Archive");
-    XLSX.writeFile(wb, "Full_History_Export.xlsx");
-  };
-
-  // --- PAGINATION ---
-  const totalPages =
-    itemsPerPage === "All"
-      ? 1
-      : Math.ceil(filteredAndSortedEvents.length / (itemsPerPage as number));
-  const paginatedEvents = useMemo(() => {
-    if (itemsPerPage === "All") return filteredAndSortedEvents;
-    const startIndex = (currentPage - 1) * (itemsPerPage as number);
-    return filteredAndSortedEvents.slice(
-      startIndex,
-      startIndex + (itemsPerPage as number)
-    );
-  }, [filteredAndSortedEvents, currentPage, itemsPerPage]);
-
-  const startItem =
-    (currentPage - 1) * (itemsPerPage === "All" ? 0 : itemsPerPage) + 1;
-  const endItem =
-    itemsPerPage === "All"
-      ? filteredAndSortedEvents.length
-      : Math.min(
-          currentPage * (itemsPerPage as number),
-          filteredAndSortedEvents.length
-        );
-
-  if (loading)
-    return (
-      <div className="min-h-screen flex items-center justify-center font-black text-[#06054e]">
-        LOADING SCHEDULE...
-      </div>
-    );
-
   return (
-    <div className="min-h-screen bg-slate-50 pb-20 font-sans text-slate-900 py-2 px-4">
-      {/* HEADER HERO */}
-      <div className="text-center mb-5 bg-[#66667e] p-2 rounded-lg mx-4">
-        <h1 className="text-4xl font-extrabold sm:text-3xl text-yellow-200">
-          Event Calendar
-        </h1>
+    <div className="min-h-screen bg-slate-50 pb-20 font-sans text-slate-900 px-4 md:px-8 lg:px-12 w-full">
+      {/* 1. WEATHER ALERT BAR */}
+      <div className="w-full mt-4 mb-6">
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 flex items-center justify-between shadow-sm">
+          <div className="flex items-center gap-4">
+            <div className="relative flex h-3 w-3">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-3 w-3 bg-amber-500"></span>
+            </div>
+            <p className="text-xs md:text-sm font-bold text-amber-900 tracking-tight">
+              <span className="uppercase mr-2 font-black">Field Status:</span>
+              All Brisbane Hockey venues currently{" "}
+              <span className="text-green-700">OPEN</span>. No weather delays
+              reported.
+            </p>
+          </div>
+          <span className="text-[10px] font-black text-amber-600 uppercase hidden md:block">
+            Updated: 2 mins ago
+          </span>
+        </div>
       </div>
-      <div className="pb-3 text-left no-print">
-        <Link
-          href="/competitions"
-          className="text-xs font-black uppercase text-slate-400 hover:text-red-600 transition-colors"
+
+      {/* 2. TOP NAVIGATION & HEADER */}
+      <div className="w-full mb-10">
+        <button
+          onClick={() => router.back()}
+          className="mb-6 flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-[#06054e] transition-colors group"
         >
-          ← Back to Competitions
+          <span className="group-hover:-translate-x-1 transition-transform">
+            ←
+          </span>{" "}
+          Back
+        </button>
+
+        <div className="w-full text-center bg-[#66667e] py-8 rounded-3xl shadow-inner relative overflow-hidden">
+          <h1 className="text-5xl font-extrabold text-yellow-200 uppercase tracking-tighter italic sm:text-4xl">
+            Match Day Central
+          </h1>
+          <p className="text-white/70 text-[10px] font-black uppercase tracking-[0.6em] mt-3">
+            Brisbane Hockey Association • Season 2026
+          </p>
+        </div>
+      </div>
+
+      {/* 3. GRID CONTAINER (4 Wide on Desktop) */}
+      <div className="w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {/* TILE 1: EVENT CALENDAR */}
+        <div className="relative overflow-hidden bg-[#06054e] rounded-3xl p-8 shadow-2xl border border-white/10 flex flex-col justify-between min-h-[420px]">
+          <div>
+            <div className="flex items-center justify-between mb-8">
+              <div className="bg-white/10 p-4 rounded-2xl text-2xl">📅</div>
+              <div className="bg-red-600/20 px-3 py-1 rounded-full border border-red-600/30">
+                <span className="text-[10px] font-black uppercase text-red-500 tracking-tighter italic">
+                  Upcoming
+                </span>
+              </div>
+            </div>
+            <h3 className="text-xl font-black text-white uppercase italic mb-4">
+              Calendar
+            </h3>
+            <div className="space-y-2">
+              {upcoming.map((event) => {
+                const key = `${event.name}-${event.startDate}`;
+                const startDateStr = String(event.startDate || "");
+                const dateParts = startDateStr
+                  .split("-")
+                  .reverse()
+                  .slice(0, 2)
+                  .join("/");
+                return (
+                  <div
+                    key={key}
+                    className="flex justify-between items-center gap-4 p-2 -mx-2 rounded-lg hover:bg-white/5 transition-colors group/item"
+                  >
+                    <Link
+                      href={(event.link as string) || "/competitions/events"}
+                      target={event.link ? "_blank" : "_self"}
+                      className="text-xs font-bold text-white truncate max-w-[150px] hover:text-red-400 transition-colors"
+                    >
+                      {event.name} {event.link && "↗"}
+                    </Link>
+                    <span className="text-[10px] font-black text-red-500">
+                      {dateParts}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+          <Link
+            href="/competitions/events"
+            className="mt-8 flex items-center justify-between pt-4 border-t border-white/5"
+          >
+            <span className="text-[10px] font-black uppercase text-white/40">
+              Full Schedule —
+            </span>
+            <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center">
+              <span className="text-black">→</span>
+            </div>
+          </Link>
+        </div>
+
+        {/* the rest of tiles unchanged (omitted here for brevity in this block but kept in file) */}
+        <Link
+          href="https://www.livehockey.com.au"
+          target="_blank"
+          className="group relative overflow-hidden bg-[#06054e] rounded-3xl p-8 shadow-2xl transition-all duration-500 hover:-translate-y-2 border border-white/10 flex flex-col justify-between"
+        >
+          <div>
+            <div className="flex items-center justify-between mb-8">
+              <div className="bg-white/10 p-4 rounded-2xl text-2xl text-red-500">
+                📺
+              </div>
+              <div className="bg-red-600 px-3 py-1 rounded-full animate-pulse shadow-lg">
+                <span className="text-[10px] font-black uppercase text-white">
+                  Live
+                </span>
+              </div>
+            </div>
+            <h3 className="text-xl font-black text-white uppercase italic mb-8">
+              BHA Live <br />
+              <span className="text-red-600">Coverage</span>
+            </h3>
+            <div className="p-4 bg-white/5 rounded-2xl border border-white/5">
+              <p className="text-sm font-bold text-white leading-tight italic">
+                Premier League Match Day
+              </p>
+            </div>
+          </div>
+          <div className="mt-8 flex items-center justify-between">
+            <span className="text-[10px] font-black uppercase text-white/40 group-hover:text-white">
+              Watch Now —
+            </span>
+            <div className="w-10 h-10 rounded-full bg-red-600 flex items-center justify-center group-hover:bg-white transition-all">
+              <span className="text-white group-hover:text-red-600">▶</span>
+            </div>
+          </div>
+        </Link>
+
+        <Link
+          href="/competitions/matches"
+          className="group relative overflow-hidden bg-[#06054e] rounded-3xl p-8 shadow-2xl transition-all duration-500 hover:-translate-y-2 border border-white/10 flex flex-col justify-between"
+        >
+          <div>
+            <div className="flex items-center justify-between mb-8">
+              <div className="bg-white/10 p-4 rounded-2xl text-2xl text-blue-400">
+                🏑
+              </div>
+            </div>
+            <h3 className="text-xl font-black text-white uppercase italic mb-8">
+              Fixtures & <br />
+              <span className="text-blue-400">Times</span>
+            </h3>
+            <p className="text-xs text-white/50 leading-relaxed">
+              Find match times, field allocations, and division schedules across
+              all BHA venues.
+            </p>
+          </div>
+          <div className="mt-8 flex items-center justify-between">
+            <span className="text-[10px] font-black uppercase text-white/40 group-hover:text-white">
+              Find Matches —
+            </span>
+            <div className="w-10 h-10 rounded-full bg-blue-600/20 flex items-center justify-center group-hover:bg-blue-600 transition-all">
+              <span className="text-white font-black">F</span>
+            </div>
+          </div>
+        </Link>
+
+        <Link
+          href="/competitions/standings"
+          className="group relative overflow-hidden bg-[#06054e] rounded-3xl p-8 shadow-2xl transition-all duration-500 hover:-translate-y-2 border border-white/10 flex flex-col justify-between"
+        >
+          <div>
+            <div className="flex items-center justify-between mb-8">
+              <div className="bg-white/10 p-4 rounded-2xl text-2xl text-yellow-400">
+                🏆
+              </div>
+            </div>
+            <h3 className="text-xl font-black text-white uppercase italic mb-8">
+              Ladders & <br />
+              <span className="text-yellow-400">Rankings</span>
+            </h3>
+            <p className="text-xs text-white/50 leading-relaxed">
+              Official league standings, win/loss records, and finals
+              eligibility tracking.
+            </p>
+          </div>
+          <div className="mt-8 flex items-center justify-between">
+            <span className="text-[10px] font-black uppercase text-white/40 group-hover:text-white">
+              View Ladders —
+            </span>
+            <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center group-hover:bg-white transition-all">
+              <span className="text-white group-hover:text-black font-black">
+                L
+              </span>
+            </div>
+          </div>
+        </Link>
+
+        <Link
+          href="/competitions/juniors"
+          className="group relative overflow-hidden bg-[#06054e] rounded-3xl p-8 shadow-2xl transition-all duration-500 hover:-translate-y-2 border border-white/10 flex flex-col justify-between"
+        >
+          <div>
+            <div className="flex items-center justify-between mb-8">
+              <div className="bg-white/10 p-4 rounded-2xl text-2xl text-emerald-400">
+                🌱
+              </div>
+            </div>
+            <h3 className="text-xl font-black text-white uppercase italic mb-8">
+              Junior <br />
+              <span className="text-emerald-400">Pathways</span>
+            </h3>
+            <p className="text-xs text-white/50 leading-relaxed">
+              Information for U7s to U18s including clinics and representative
+              trials.
+            </p>
+          </div>
+          <div className="mt-8 flex items-center justify-between">
+            <span className="text-[10px] font-black uppercase text-white/40 group-hover:text-white">
+              Junior Portal —
+            </span>
+            <div className="w-10 h-10 rounded-full bg-emerald-500/20 flex items-center justify-center group-hover:bg-emerald-500 transition-all">
+              <span className="text-white font-black">J</span>
+            </div>
+          </div>
+        </Link>
+
+        <Link
+          href="/competitions/statistics"
+          className="group relative overflow-hidden bg-[#06054e] rounded-3xl p-8 shadow-2xl transition-all duration-500 hover:-translate-y-2 border border-white/10 flex flex-col justify-between"
+        >
+          <div>
+            <div className="flex items-center justify-between mb-8">
+              <div className="bg-white/10 p-4 rounded-2xl text-2xl text-indigo-400">
+                📊
+              </div>
+            </div>
+            <h3 className="text-xl font-black text-white uppercase italic mb-8">
+              Player <br />
+              <span className="text-indigo-400">Statistics</span>
+            </h3>
+            <p className="text-xs text-white/50 leading-relaxed">
+              Top goal scorers, clean sheets, and individual performance
+              tracking.
+            </p>
+          </div>
+          <div className="mt-8 flex items-center justify-between">
+            <span className="text-[10px] font-black uppercase text-white/40 group-hover:text-white">
+              View Stats —
+            </span>
+            <div className="w-10 h-10 rounded-full bg-indigo-500/20 flex items-center justify-center group-hover:bg-indigo-500 transition-all">
+              <span className="text-white font-black">S</span>
+            </div>
+          </div>
+        </Link>
+
+        <Link
+          href="/competitions/masters"
+          className="group relative overflow-hidden bg-[#06054e] rounded-3xl p-8 shadow-2xl transition-all duration-500 hover:-translate-y-2 border border-white/10 flex flex-col justify-between"
+        >
+          <div>
+            <div className="flex items-center justify-between mb-8">
+              <div className="bg-white/10 p-4 rounded-2xl text-2xl text-orange-400">
+                👴
+              </div>
+            </div>
+            <h3 className="text-xl font-black text-white uppercase italic mb-8">
+              Masters <br />
+              <span className="text-orange-400">Competition</span>
+            </h3>
+            <p className="text-xs text-white/50 leading-relaxed">
+              Over 34s and veteran hockey details, rules, and schedules.
+            </p>
+          </div>
+          <div className="mt-8 flex items-center justify-between">
+            <span className="text-[10px] font-black uppercase text-white/40 group-hover:text-white">
+              Masters Portal —
+            </span>
+            <div className="w-10 h-10 rounded-full bg-orange-500/20 flex items-center justify-center group-hover:bg-orange-500 transition-all">
+              <span className="text-white font-black">M</span>
+            </div>
+          </div>
+        </Link>
+
+        <Link
+          href="/competitions/officials"
+          className="group relative overflow-hidden bg-[#06054e] rounded-3xl p-8 shadow-2xl transition-all duration-500 hover:-translate-y-2 border border-white/10 flex flex-col justify-between"
+        >
+          <div>
+            <div className="flex items-center justify-between mb-8">
+              <div className="bg-white/10 p-4 rounded-2xl text-2xl text-slate-300">
+                🏁
+              </div>
+            </div>
+            <h3 className="text-xl font-black text-white uppercase italic mb-8">
+              Officials & <br />
+              <span className="text-slate-400">Technical</span>
+            </h3>
+            <p className="text-xs text-white/50 leading-relaxed">
+              Umpire appointments, technical officer duties, and rule updates.
+            </p>
+          </div>
+          <div className="mt-8 flex items-center justify-between">
+            <span className="text-[10px] font-black uppercase text-white/40 group-hover:text-white">
+              Umpires Portal —
+            </span>
+            <div className="w-10 h-10 rounded-full bg-slate-500/20 flex items-center justify-center group-hover:bg-slate-500 transition-all">
+              <span className="text-slate-300 font-black">U</span>
+            </div>
+          </div>
         </Link>
       </div>
-
-      <main className="max-w-[1500px] mx-auto px-4">
-        {/* UNIFIED TOOLBAR */}
-        <div className="flex flex-col xl:flex-row gap-6 mb-6 items-center justify-between bg-gray-200 p-5 rounded-xl shadow-sm no-print">
-          <div className="relative w-full xl:max-w-md">
-            <input
-              type="text"
-              placeholder="Search future events..."
-              className="input input-bordered w-full bg-slate-50 pl-10 font-bold focus:border-blue-600"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-            <span className="absolute left-3 top-3.5 opacity-40">🔍</span>
-          </div>
-
-          <div className="flex flex-wrap items-center justify-center gap-4 lg:gap-8">
-            <div className="hidden sm:block border-r border-slate-200 pr-6 text-right">
-              <p className="text-[10px] font-black text-slate-400 uppercase mb-1">
-                Results
-              </p>
-              <p className="text-xs font-bold text-slate-700 whitespace-nowrap">
-                {filteredAndSortedEvents.length > 0
-                  ? `${startItem}-${endItem} of ${filteredAndSortedEvents.length}`
-                  : "0 Found"}
-              </p>
-            </div>
-
-            <div className="flex items-center gap-4 border-r border-slate-200 pr-6">
-              <div className="flex flex-col gap-1">
-                <span className="text-[10px] font-black uppercase text-slate-400 text-center">
-                  Limit
-                </span>
-                <select
-                  className="select select-bordered select-sm font-black h-9 min-h-9"
-                  value={itemsPerPage}
-                  onChange={(e) =>
-                    setItemsPerPage(
-                      e.target.value === "All" ? "All" : Number(e.target.value)
-                    )
-                  }
-                >
-                  <option value={10}>10</option>
-                  <option value={25}>25</option>
-                  <option value="All">All</option>
-                </select>
-              </div>
-
-              {itemsPerPage !== "All" && totalPages > 1 && (
-                <div className="flex flex-col gap-1">
-                  <span className="text-[10px] font-black uppercase text-slate-400 text-center">
-                    Page
-                  </span>
-                  <div className="join border border-slate-200">
-                    <button
-                      className="join-item btn btn-sm bg-white"
-                      disabled={currentPage === 1}
-                      onClick={() => setCurrentPage((prev) => prev - 1)}
-                    >
-                      ‹
-                    </button>
-                    <button className="join-item btn btn-sm bg-[#06054e] text-white pointer-events-none">
-                      {currentPage}
-                    </button>
-                    <button
-                      className="join-item btn btn-sm bg-white"
-                      disabled={currentPage === totalPages}
-                      onClick={() => setCurrentPage((prev) => prev + 1)}
-                    >
-                      ›
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <div className="flex items-center gap-2">
-              <button
-                onClick={exportTableToExcel}
-                className="btn btn-sm bg-emerald-600 hover:bg-emerald-700 text-white border-none font-black text-[10px] uppercase tracking-widest h-9 px-4"
-              >
-                📊 Excel
-              </button>
-              <button
-                onClick={() => window.print()}
-                className="btn btn-sm bg-slate-300 hover:bg-slate-400 text-slate-600 border-none font-black text-[10px] uppercase tracking-widest h-9 px-4"
-              >
-                🖨️ Print
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* LIVE TABLE */}
-        <div className="bg-white shadow-2xl rounded-2xl overflow-hidden border border-slate-200 mb-12">
-          <div className="overflow-x-auto">
-            <table className="table table-zebra w-full">
-              <thead className="bg-slate-50 text-[#06054e] uppercase text-[10px] font-black tracking-widest">
-                <tr>
-                  <th
-                    onClick={() => requestSort("year")}
-                    className="cursor-pointer py-5 pl-6 hover:bg-slate-100"
-                  >
-                    Year ↕
-                  </th>
-                  <th
-                    onClick={() => requestSort("name")}
-                    className="cursor-pointer hover:bg-slate-100"
-                  >
-                    Event ↕
-                  </th>
-                  <th
-                    onClick={() => requestSort("type")}
-                    className="cursor-pointer hover:bg-slate-100"
-                  >
-                    Category ↕
-                  </th>
-                  <th>Location</th>
-                  <th
-                    onClick={() => requestSort("startDate")}
-                    className="cursor-pointer hover:bg-slate-100"
-                  >
-                    Date ↕
-                  </th>
-                  <th className="no-print text-center pr-6 italic">Sync</th>
-                </tr>
-              </thead>
-              <tbody className="text-[13px] font-medium">
-                {paginatedEvents.map((event, i) => {
-                  const theme = themes[event.type] || defaultTheme;
-                  const isSoon = isUpcomingSoon(event.startDate);
-                  return (
-                    <tr
-                      key={i}
-                      className={`border-b border-slate-100 last:border-0 ${
-                        isSoon ? "bg-red-50 border-l-4 border-l-red-600" : ""
-                      }`}
-                    >
-                      <td className="font-black text-slate-400 pl-6">
-                        {event.year}
-                      </td>
-                      <td className="font-bold">
-                        <div className="flex items-center gap-2">
-                          {isSoon && (
-                            <span className="w-2 h-2 rounded-full bg-red-600 animate-ping"></span>
-                          )}
-                          {/* FIXED LINK LOGIC BELOW */}
-                          {event.link ? (
-                            <Link
-                              href={event.link}
-                              target="_blank"
-                              className="text-blue-600 underline hover:text-red-600 transition-colors decoration-blue-200"
-                            >
-                              {event.name}
-                            </Link>
-                          ) : (
-                            event.name
-                          )}
-                        </div>
-                      </td>
-                      <td>
-                        <span
-                          className={`px-2 py-0.5 rounded text-[9px] font-black uppercase border ${theme.bg} ${theme.text} ${theme.border}`}
-                        >
-                          {event.type}
-                        </span>
-                      </td>
-                      <td className="italic text-slate-600">
-                        {event.location}
-                      </td>
-                      <td
-                        className={`font-bold ${isSoon ? "text-red-700" : ""}`}
-                      >
-                        {formatToAU(event.startDate)}
-                      </td>
-                      <td className="text-center no-print pr-6 opacity-30">
-                        📅
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        {/* BOTTOM SECTION: LEGEND & ARCHIVE */}
-        <div className="grid lg:grid-cols-2 gap-8 no-print">
-          <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-200">
-            <h3 className="text-sm font-black uppercase tracking-tighter text-[#06054e] mb-6 border-b pb-4">
-              Category Guide
-            </h3>
-            <div className="grid sm:grid-cols-2 gap-4">
-              {Object.entries(themes).map(([type, styles]: [string, any]) => (
-                <div key={type} className="flex flex-col gap-1">
-                  <span
-                    className={`w-fit px-2 py-0.5 rounded text-[10px] font-black uppercase border ${styles.bg} ${styles.text} ${styles.border}`}
-                  >
-                    {type}
-                  </span>
-                  <p className="text-[10px] text-slate-500 font-medium">
-                    {styles.desc}
-                  </p>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="bg-[#06054e] rounded-3xl shadow-2xl overflow-hidden text-white border border-[#06054e] flex flex-col">
-            <div className="p-8 border-b border-white/10 bg-black/20">
-              <h2 className="text-2xl font-black uppercase italic tracking-tighter">
-                History Archive
-              </h2>
-              <p className="text-blue-200 text-xs mt-1">
-                Refine historical data points for export.
-              </p>
-            </div>
-            <div className="p-8 space-y-6 flex-grow">
-              <div>
-                <label className="text-[10px] font-black uppercase text-blue-300 block mb-3">
-                  Years
-                </label>
-                <div className="flex flex-wrap gap-2">
-                  {archiveOptions.years.map((y) => (
-                    <button
-                      key={y}
-                      onClick={() =>
-                        setSelectedYears((prev) =>
-                          prev.includes(y)
-                            ? prev.filter((i) => i !== y)
-                            : [...prev, y]
-                        )
-                      }
-                      className={`btn btn-xs rounded-full font-bold border-none ${
-                        selectedYears.includes(y)
-                          ? "bg-red-600 text-white"
-                          : "bg-white/10 text-white"
-                      }`}
-                    >
-                      {y}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div>
-                <label className="text-[10px] font-black uppercase text-blue-300 block mb-3">
-                  Categories
-                </label>
-                <div className="flex flex-wrap gap-2">
-                  {archiveOptions.categories.map((c) => (
-                    <button
-                      key={c}
-                      onClick={() =>
-                        setSelectedCategories((prev) =>
-                          prev.includes(c)
-                            ? prev.filter((i) => i !== c)
-                            : [...prev, c]
-                        )
-                      }
-                      className={`btn btn-xs rounded-full font-bold border-none ${
-                        selectedCategories.includes(c)
-                          ? "bg-blue-500 text-white"
-                          : "bg-white/10 text-white"
-                      }`}
-                    >
-                      {c}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-            <div className="bg-black/40 p-6 flex items-center justify-between">
-              <button
-                onClick={() => {
-                  setSelectedYears([]);
-                  setSelectedCategories([]);
-                  setSelectedLocations([]);
-                }}
-                className="text-[10px] font-black uppercase text-blue-300 hover:text-white transition-colors"
-              >
-                Reset
-              </button>
-              <button
-                onClick={handleArchiveExport}
-                className="btn bg-emerald-500 hover:bg-emerald-400 text-[#06054e] border-none font-black uppercase tracking-widest px-8"
-              >
-                📊 Export Archive
-              </button>
-            </div>
-          </div>
-        </div>
-      </main>
     </div>
   );
 }

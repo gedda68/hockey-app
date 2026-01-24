@@ -402,8 +402,8 @@ export default async function HomePage() {
             Join Brisbane Hockey League
           </h2>
           <p className="text-lg opacity-80 mb-8 max-w-2xl mx-auto">
-            Be part of Queensland's premier hockey competition. Find a club near
-            you and start your journey today.
+            Be part of Queensland&apos;s premier hockey competition. Find a club
+            near you and start your journey today.
           </p>
           <div className="flex flex-wrap gap-4 justify-center">
             <Link

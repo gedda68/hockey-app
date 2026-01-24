@@ -1,5 +1,4 @@
 import Link from "next/link";
-import Image from "next/image";
 
 export default function ShopPage() {
   return (
@@ -147,8 +146,8 @@ export default function ShopPage() {
 
           <div className="bg-white rounded-3xl p-8 shadow-sm border border-slate-200">
             <p className="text-center text-slate-600 mb-6">
-              Many clubs have their own merchandise available. Visit your club's
-              website for more information:
+              Many clubs have their own merchandise available. Visit your
+              club&apos;s website for more information:
             </p>
 
             <div className="flex flex-wrap gap-4 justify-center">

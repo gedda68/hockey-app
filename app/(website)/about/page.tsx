@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import React from "react";
 
 export default function PricingPage() {
-  const [isYearly, setIsYearly] = useState(false);
+  // Not interactive currently; use a constant to avoid unused setter warning.
+  const isYearly = false;
 
   const plans = [
     {
@@ -18,7 +19,7 @@ export default function PricingPage() {
     {
       name: "Pro",
       monthlyPrice: 29,
-      yearlyPrice: 24, // Price per month when billed yearly
+      yearlyPrice: 24,
       description: "Advanced features for growing startups.",
       features: [
         "Unlimited Projects",
@@ -52,6 +53,7 @@ export default function PricingPage() {
           About Brisbane Hockey
         </h1>
       </div>
+
       <div className="max-w-5xl mx-auto py-6">
         {/* Pricing Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">

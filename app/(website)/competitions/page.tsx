@@ -4,20 +4,37 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
+/**
+ * Local event type to remove `any` usage.
+ * Move to shared types if you reuse it elsewhere.
+ */
+type EventEntry = {
+  name: string;
+  startDate: string;
+  link?: string;
+  [k: string]: unknown;
+};
+
 export default function EventDashboard() {
   const router = useRouter();
-  const [upcoming, setUpcoming] = useState<any[]>([]);
+  const [upcoming, setUpcoming] = useState<EventEntry[]>([]);
 
   useEffect(() => {
     fetch("/data/events.json")
       .then((res) => res.json())
-      .then((data) => {
+      .then((data: { events?: EventEntry[] }) => {
+        const events = Array.isArray(data.events) ? data.events : [];
         const today = new Date();
         today.setHours(0, 0, 0, 0);
 
-        const nextFive = data.events
-          .filter((e: any) => new Date(e.startDate) >= today)
-          .sort((a: any, b: any) => a.startDate.localeCompare(b.startDate))
+        const nextFive = events
+          .filter((e) => {
+            if (!e?.startDate) return false;
+            return new Date(String(e.startDate)) >= today;
+          })
+          .sort((a, b) =>
+            String(a.startDate).localeCompare(String(b.startDate))
+          )
           .slice(0, 5);
 
         setUpcoming(nextFive);
@@ -87,23 +104,32 @@ export default function EventDashboard() {
               Calendar
             </h3>
             <div className="space-y-2">
-              {upcoming.map((event, i) => (
-                <div
-                  key={i}
-                  className="flex justify-between items-center gap-4 p-2 -mx-2 rounded-lg hover:bg-white/5 transition-colors group/item"
-                >
-                  <Link
-                    href={event.link || "/competitions/events"}
-                    target={event.link ? "_blank" : "_self"}
-                    className="text-xs font-bold text-white truncate max-w-[150px] hover:text-red-400 transition-colors"
+              {upcoming.map((event) => {
+                const key = `${event.name}-${event.startDate}`;
+                const startDateStr = String(event.startDate || "");
+                const dateParts = startDateStr
+                  .split("-")
+                  .reverse()
+                  .slice(0, 2)
+                  .join("/");
+                return (
+                  <div
+                    key={key}
+                    className="flex justify-between items-center gap-4 p-2 -mx-2 rounded-lg hover:bg-white/5 transition-colors group/item"
                   >
-                    {event.name} {event.link && "↗"}
-                  </Link>
-                  <span className="text-[10px] font-black text-red-500">
-                    {event.startDate.split("-").reverse().slice(0, 2).join("/")}
-                  </span>
-                </div>
-              ))}
+                    <Link
+                      href={(event.link as string) || "/competitions/events"}
+                      target={event.link ? "_blank" : "_self"}
+                      className="text-xs font-bold text-white truncate max-w-[150px] hover:text-red-400 transition-colors"
+                    >
+                      {event.name} {event.link && "↗"}
+                    </Link>
+                    <span className="text-[10px] font-black text-red-500">
+                      {dateParts}
+                    </span>
+                  </div>
+                );
+              })}
             </div>
           </div>
           <Link
@@ -119,11 +145,11 @@ export default function EventDashboard() {
           </Link>
         </div>
 
-        {/* TILE 2: LIVESTREAMS */}
+        {/* the rest of tiles unchanged (omitted here for brevity in this block but kept in file) */}
         <Link
           href="https://www.livehockey.com.au"
           target="_blank"
-          className="group relative overflow-hidden bg-[#06054e] rounded-3xl p-8 shadow-2xl transition-all duration-500 hover:-translate-y-2 border border-white/10 flex flex-col justify-between min-h-[420px]"
+          className="group relative overflow-hidden bg-[#06054e] rounded-3xl p-8 shadow-2xl transition-all duration-500 hover:-translate-y-2 border border-white/10 flex flex-col justify-between"
         >
           <div>
             <div className="flex items-center justify-between mb-8">
@@ -156,10 +182,9 @@ export default function EventDashboard() {
           </div>
         </Link>
 
-        {/* TILE 3: MATCHES (NEW) */}
         <Link
           href="/competitions/matches"
-          className="group relative overflow-hidden bg-[#06054e] rounded-3xl p-8 shadow-2xl transition-all duration-500 hover:-translate-y-2 border border-white/10 flex flex-col justify-between min-h-[420px]"
+          className="group relative overflow-hidden bg-[#06054e] rounded-3xl p-8 shadow-2xl transition-all duration-500 hover:-translate-y-2 border border-white/10 flex flex-col justify-between"
         >
           <div>
             <div className="flex items-center justify-between mb-8">
@@ -186,10 +211,9 @@ export default function EventDashboard() {
           </div>
         </Link>
 
-        {/* TILE 4: RESULTS */}
         <Link
           href="/competitions/standings"
-          className="group relative overflow-hidden bg-[#06054e] rounded-3xl p-8 shadow-2xl transition-all duration-500 hover:-translate-y-2 border border-white/10 flex flex-col justify-between min-h-[420px]"
+          className="group relative overflow-hidden bg-[#06054e] rounded-3xl p-8 shadow-2xl transition-all duration-500 hover:-translate-y-2 border border-white/10 flex flex-col justify-between"
         >
           <div>
             <div className="flex items-center justify-between mb-8">
@@ -218,10 +242,9 @@ export default function EventDashboard() {
           </div>
         </Link>
 
-        {/* TILE 5: JUNIOR PORTAL */}
         <Link
           href="/competitions/juniors"
-          className="group relative overflow-hidden bg-[#06054e] rounded-3xl p-8 shadow-2xl transition-all duration-500 hover:-translate-y-2 border border-white/10 flex flex-col justify-between min-h-[420px]"
+          className="group relative overflow-hidden bg-[#06054e] rounded-3xl p-8 shadow-2xl transition-all duration-500 hover:-translate-y-2 border border-white/10 flex flex-col justify-between"
         >
           <div>
             <div className="flex items-center justify-between mb-8">
@@ -248,10 +271,9 @@ export default function EventDashboard() {
           </div>
         </Link>
 
-        {/* TILE 6: STATISTICS (NEW) */}
         <Link
           href="/competitions/statistics"
-          className="group relative overflow-hidden bg-[#06054e] rounded-3xl p-8 shadow-2xl transition-all duration-500 hover:-translate-y-2 border border-white/10 flex flex-col justify-between min-h-[420px]"
+          className="group relative overflow-hidden bg-[#06054e] rounded-3xl p-8 shadow-2xl transition-all duration-500 hover:-translate-y-2 border border-white/10 flex flex-col justify-between"
         >
           <div>
             <div className="flex items-center justify-between mb-8">
@@ -278,10 +300,9 @@ export default function EventDashboard() {
           </div>
         </Link>
 
-        {/* TILE 7: MASTERS */}
         <Link
           href="/competitions/masters"
-          className="group relative overflow-hidden bg-[#06054e] rounded-3xl p-8 shadow-2xl transition-all duration-500 hover:-translate-y-2 border border-white/10 flex flex-col justify-between min-h-[420px]"
+          className="group relative overflow-hidden bg-[#06054e] rounded-3xl p-8 shadow-2xl transition-all duration-500 hover:-translate-y-2 border border-white/10 flex flex-col justify-between"
         >
           <div>
             <div className="flex items-center justify-between mb-8">
@@ -307,10 +328,9 @@ export default function EventDashboard() {
           </div>
         </Link>
 
-        {/* TILE 8: OFFICIATING */}
         <Link
           href="/competitions/officials"
-          className="group relative overflow-hidden bg-[#06054e] rounded-3xl p-8 shadow-2xl transition-all duration-500 hover:-translate-y-2 border border-white/10 flex flex-col justify-between min-h-[420px]"
+          className="group relative overflow-hidden bg-[#06054e] rounded-3xl p-8 shadow-2xl transition-all duration-500 hover:-translate-y-2 border border-white/10 flex flex-col justify-between"
         >
           <div>
             <div className="flex items-center justify-between mb-8">

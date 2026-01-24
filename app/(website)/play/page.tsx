@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import React from "react";
 
 export default function PricingPage() {
-  const [isYearly, setIsYearly] = useState(false);
+  // Not interactive currently; use constant to avoid unused setter warning.
+  const isYearly = false;
 
   const plans = [
     {

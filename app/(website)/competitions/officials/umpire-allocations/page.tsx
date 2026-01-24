@@ -7,47 +7,61 @@ import BackButton from "../../../../../components/layout/BackButton";
 import UmpireAllocationsList from "../../../../../components/umpires/UmpireAllocationsList";
 import type { Metadata } from "next";
 
+/**
+ * Narrow local types (move to shared types if reused).
+ */
+type Umpire = {
+  umpireId?: string;
+  umpireNumber?: string;
+  isActive?: boolean;
+  [k: string]: unknown;
+};
+
+type MatchItem = {
+  matchId?: string;
+  dateTime?: string;
+  status?: string;
+  [k: string]: unknown;
+};
+
+type Allocation = {
+  matchId?: string;
+  umpires?: Array<{ umpireId?: string; umpireNumber?: string }>;
+  [k: string]: unknown;
+};
+
 export const metadata: Metadata = {
   title: "Umpire Allocations | Brisbane Hockey League",
   description: "View umpire allocations for all matches",
 };
 
 export default async function UmpireAllocationsPage() {
-  // Fetch data in parallel
   const [allocations, umpires, matches] = await Promise.all([
     getUmpireAllocations(),
     getUmpireList(),
     getMatches(),
   ]);
 
-  console.log("Allocations:", allocations.length);
-  console.log("Umpires:", umpires.length);
-  console.log("Matches:", matches.length);
+  const allocationsArray = Array.isArray(allocations)
+    ? (allocations as Allocation[])
+    : [];
+  const umpiresArray = Array.isArray(umpires) ? (umpires as Umpire[]) : [];
+  const matchesArray = Array.isArray(matches) ? (matches as MatchItem[]) : [];
 
-  // Ensure we have arrays
-  const allocationsArray = Array.isArray(allocations) ? allocations : [];
-  const umpiresArray = Array.isArray(umpires) ? umpires : [];
-  const matchesArray = Array.isArray(matches) ? matches : [];
-
-  // Create lookup objects (use plain objects instead of Map for better debugging)
-  const umpireMap: Record<string, any> = {};
+  const umpireMap: Record<string, Umpire | undefined> = {};
   umpiresArray.forEach((u) => {
-    if (u && u.umpireNumber) {
-      umpireMap[u.umpireNumber] = u;
+    if (u && u.umpireId) {
+      umpireMap[String(u.umpireId)] = u;
     }
   });
 
-  const matchMap: Record<string, any> = {};
+  const matchMap: Record<string, MatchItem | undefined> = {};
   matchesArray.forEach((m) => {
     if (m && m.matchId) {
-      matchMap[m.matchId] = m;
+      matchMap[String(m.matchId)] = m;
     }
   });
 
-  console.log("UmpireMap keys:", Object.keys(umpireMap).length);
-  console.log("MatchMap keys:", Object.keys(matchMap).length);
-
-  // Enrich allocations with umpire and match details
   const enrichedAllocations = allocationsArray
     .map((allocation) => {
       if (!allocation || !allocation.matchId) {
@@ -55,7 +69,7 @@ export default async function UmpireAllocationsPage() {
         return null;
       }
 
-      const match = matchMap[allocation.matchId];
+      const match = matchMap[String(allocation.matchId)];
       if (!match) {
         console.log("No match found for ID:", allocation.matchId);
         return null;
@@ -67,37 +81,32 @@ export default async function UmpireAllocationsPage() {
       const assignedUmpires = umpiresList
         .map((u) => {
           if (!u || !u.umpireId) return null;
-          return umpireMap[u.umpireId];
+          return umpireMap[String(u.umpireId)];
         })
         .filter(Boolean);
 
       return {
         matchId: allocation.matchId,
         umpires: umpiresList,
-        match: match,
-        assignedUmpires: assignedUmpires,
+        match,
+        assignedUmpires,
       };
     })
     .filter(Boolean)
-    .sort((a, b) => {
-      // Sort by date (most recent first)
+    .sort((a: any, b: any) => {
       try {
         const dateA = new Date(a.match.dateTime).getTime();
         const dateB = new Date(b.match.dateTime).getTime();
         return dateB - dateA;
-      } catch (e) {
+      } catch {
         return 0;
       }
     });
 
-  console.log("Enriched allocations:", enrichedAllocations.length);
-
   return (
     <div className="min-h-screen bg-slate-50 p-4 md:p-12">
-      {/* Back Button */}
       <BackButton href="/officials" label="Back to Officials" />
 
-      {/* Page Header */}
       <div className="mt-6 mb-8">
         <h1 className="text-4xl font-black uppercase italic text-[#06054e] mb-2">
           Umpire Allocations
@@ -107,7 +116,6 @@ export default async function UmpireAllocationsPage() {
         </p>
       </div>
 
-      {/* Statistics */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
         <div className="bg-white rounded-3xl p-6 shadow-lg">
           <div className="text-4xl font-black text-[#06054e] mb-1">
@@ -146,7 +154,6 @@ export default async function UmpireAllocationsPage() {
         </div>
       </div>
 
-      {/* Debug Info (remove after testing) */}
       {enrichedAllocations.length === 0 && (
         <div className="bg-yellow-50 border-2 border-yellow-400 rounded-3xl p-6 mb-6">
           <h3 className="text-lg font-black text-yellow-800 mb-2">
@@ -161,7 +168,6 @@ export default async function UmpireAllocationsPage() {
         </div>
       )}
 
-      {/* Allocations List */}
       <UmpireAllocationsList allocations={enrichedAllocations} />
     </div>
   );

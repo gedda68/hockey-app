@@ -3,7 +3,6 @@ import Link from "next/link";
 import StandingsTableFull from "../../../../components/standings/StandingsTableFull";
 import PageHeader from "../../../../components/shared/PageHeader";
 import FilterButton from "../../../../components/shared/FilterButton";
-import type { Division } from "../../../types";
 
 // Import data utility functions
 import {

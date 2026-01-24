@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import {
@@ -13,7 +13,78 @@ import {
   Archive,
 } from "lucide-react";
 
-// --- DYNAMIC COLOR ENGINE ---
+/* ---- Local types ----
+   Move these to a shared types file if reused.
+*/
+type ScheduleItem = {
+  name: string;
+  date?: string;
+  time?: string;
+  venue?: string;
+  isSpecial?: boolean;
+};
+
+type ScheduleInfo = {
+  header?: string;
+  details?: string;
+  schedule?: ScheduleItem[];
+  [k: string]: unknown;
+};
+
+type Person = {
+  name?: string;
+  club?: string;
+  icon?: string;
+  [k: string]: unknown;
+};
+
+type Player = {
+  name: string;
+  club?: string;
+  icon?: string;
+  reason?: string;
+  [k: string]: unknown;
+};
+
+type Team = {
+  name: string;
+  players?: Player[];
+  staff?: Record<string, Person | undefined>;
+  [k: string]: unknown;
+};
+
+type TournamentEntry = {
+  name?: string;
+  date?: string;
+  city?: string;
+  tournamentlink?: string;
+  [k: string]: unknown;
+};
+
+type Roster = {
+  ageGroup: string;
+  lastUpdated?: string;
+  trialInfo?: ScheduleInfo;
+  trainingInfo?: ScheduleInfo;
+  tournamentInfo?: {
+    header?: string;
+    details?: string;
+    schedule?: TournamentEntry[];
+  };
+  teams?: Team[];
+  shadowPlayers?: Player[];
+  withdrawn?: Player[];
+  [k: string]: unknown;
+};
+
+type RosterResponse = {
+  seasons?: string[];
+  rosters?: Roster[];
+  ageGroups?: string[];
+  [k: string]: unknown;
+};
+
+/* ---- Dynamic color engine (unchanged) ---- */
 const getTeamTheme = (teamName: string) => {
   const name = teamName.toLowerCase();
   if (name.includes("green")) return { bg: "#15803d", text: "white" };
@@ -42,9 +113,9 @@ const getTeamTheme = (teamName: string) => {
   return { bg: `hsl(${h}, 60%, 40%)`, text: "white" };
 };
 
-// --- SUB-COMPONENTS ---
-const ClubIcon = ({ club, icon }: { club: string; icon?: string }) => {
-  if (!icon || ["TBA", "—", ""].includes(club)) return null;
+/* ---- Subcomponents ---- */
+const ClubIcon = ({ club, icon }: { club?: string; icon?: string }) => {
+  if (!icon || !club || ["TBA", "—", ""].includes(club)) return null;
   return (
     <div className="relative w-5 h-5 flex-shrink-0">
       <Image src={icon} alt={club} fill className="object-contain" />
@@ -52,7 +123,21 @@ const ClubIcon = ({ club, icon }: { club: string; icon?: string }) => {
   );
 };
 
-const Modal = ({ isOpen, onClose, title, borderColor, children }: any) => {
+type ModalProps = {
+  isOpen: boolean;
+  onClose: () => void;
+  title?: string;
+  borderColor?: string;
+  children?: React.ReactNode;
+};
+
+const Modal = ({
+  isOpen,
+  onClose,
+  title,
+  borderColor,
+  children,
+}: ModalProps) => {
   if (!isOpen) return null;
   return (
     <div
@@ -93,7 +178,7 @@ const Modal = ({ isOpen, onClose, title, borderColor, children }: any) => {
   );
 };
 
-const ScheduleTable = ({ data }: { data: any }) => (
+const ScheduleTable = ({ data }: { data?: ScheduleInfo }) => (
   <div className="overflow-x-auto rounded-xl border border-slate-200">
     <table className="w-full text-slate-700">
       <thead className="bg-slate-50">
@@ -109,9 +194,9 @@ const ScheduleTable = ({ data }: { data: any }) => (
         </tr>
       </thead>
       <tbody className="divide-y divide-slate-100">
-        {data?.schedule?.map((item: any, idx: number) => (
+        {data?.schedule?.map((item: ScheduleItem, idx: number) => (
           <tr
-            key={idx}
+            key={`${item.name}-${idx}`}
             className={item.isSpecial ? "bg-red-50" : "hover:bg-slate-50/50"}
           >
             <td
@@ -133,11 +218,11 @@ const ScheduleTable = ({ data }: { data: any }) => (
 
 export default function RepresentativePage() {
   const [seasons, setSeasons] = useState<string[]>([]);
-  const [selectedYear, setSelectedYear] = useState(
+  const [selectedYear, setSelectedYear] = useState<string>(
     new Date().getFullYear().toString()
   );
-  const [allRosters, setAllRosters] = useState<any[]>([]); // New state for pre-loaded data
-  const [activeAge, setActiveAge] = useState("");
+  const [allRosters, setAllRosters] = useState<Roster[]>([]); // typed
+  const [activeAge, setActiveAge] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [modals, setModals] = useState({
     trials: false,
@@ -153,17 +238,16 @@ export default function RepresentativePage() {
         const res = await fetch(`/api/rosters?year=${selectedYear}`, {
           cache: "no-store",
         });
-        const json = await res.json();
+        const json = (await res.json()) as RosterResponse;
 
         setSeasons(json.seasons || []);
         setAllRosters(json.rosters || []);
 
-        // Default to first available age group if not set or not in current list
+        // Default to first available age group if not set or not in current list.
+        // Use functional updater to avoid referencing activeAge in closure (fixes exhaustive-deps).
         const ageList = json.ageGroups || [];
         if (ageList.length > 0) {
-          if (!ageList.includes(activeAge)) {
-            setActiveAge(ageList[0]);
-          }
+          setActiveAge((prev) => (ageList.includes(prev) ? prev : ageList[0]));
         } else {
           setActiveAge("");
         }
@@ -174,13 +258,16 @@ export default function RepresentativePage() {
       }
     }
     fetchRosterData();
+    // intentionally only depend on selectedYear
   }, [selectedYear]);
 
   // Derived data based on active tab
   const activeData = allRosters.find((r) => r.ageGroup === activeAge);
 
-  const toggleModal = (key: string, val: boolean) =>
-    setModals((prev) => ({ ...prev, [key]: val }));
+  const toggleModal = (
+    key: "trials" | "training" | "tournament",
+    val: boolean
+  ) => setModals((prev) => ({ ...prev, [key]: val }));
 
   if (loading && allRosters.length === 0)
     return (
@@ -233,25 +320,25 @@ export default function RepresentativePage() {
       <main className="max-w-7xl mx-auto px-4 -mt-10">
         {/* Tabs */}
         <div className="flex flex-wrap justify-center gap-2 mb-16">
-          {allRosters.length > 0
-            ? allRosters.map((r) => (
-                <button
-                  key={r.ageGroup}
-                  onClick={() => setActiveAge(r.ageGroup)}
-                  className={`px-8 py-4 rounded-2xl font-black uppercase text-xs transition-all shadow-lg ${
-                    activeAge === r.ageGroup
-                      ? "bg-yellow-400 text-[#06054e] scale-105"
-                      : "bg-white text-slate-400 hover:text-[#06054e]"
-                  }`}
-                >
-                  {r.ageGroup}
-                </button>
-              ))
-            : !loading && (
-                <div className="bg-white p-8 rounded-3xl shadow-xl text-slate-400 font-bold uppercase text-sm italic">
-                  No rosters found for the {selectedYear} season.
-                </div>
-              )}
+          {allRosters.length > 0 ? (
+            allRosters.map((r) => (
+              <button
+                key={r.ageGroup}
+                onClick={() => setActiveAge(r.ageGroup)}
+                className={`px-8 py-4 rounded-2xl font-black uppercase text-xs transition-all shadow-lg ${
+                  activeAge === r.ageGroup
+                    ? "bg-yellow-400 text-[#06054e] scale-105"
+                    : "bg-white text-slate-400 hover:text-[#06054e]"
+                }`}
+              >
+                {r.ageGroup}
+              </button>
+            ))
+          ) : !loading ? (
+            <div className="bg-white p-8 rounded-3xl shadow-xl text-slate-400 font-bold uppercase text-sm italic">
+              No rosters found for the {selectedYear} season.
+            </div>
+          ) : null}
         </div>
 
         {/* Action Icons */}
@@ -279,18 +366,23 @@ export default function RepresentativePage() {
               icon: Trophy,
               color: "text-indigo-500",
               bgColor: "bg-indigo-50",
-              info: activeData?.tournamentInfo,
+              info: activeData?.tournamentInfo?.schedule,
             },
           ].map(
             (btn) =>
-              btn.info?.schedule?.length > 0 && (
+              btn.info?.length > 0 && (
                 <button
                   key={btn.id}
-                  onClick={() => toggleModal(btn.id, true)}
+                  onClick={() =>
+                    toggleModal(
+                      btn.id as "trials" | "training" | "tournament",
+                      true
+                    )
+                  }
                   className="group flex flex-col items-center"
                 >
                   <div
-                    className={`w-20 h-20 md:w-28 md:h-28 mb-3 rounded-[2.5rem] ${btn.bgColor} flex items-center justify-center transition-all group-hover:-translate-y-2 group-hover:shadow-2xl border-2 border-transparent group-hover:border-current`}
+                    className={`w-20 h-20 md:w-28 md:h-28 mb-3 rounded-[2.5rem] ${btn.bgColor} flex items-center justify-center transition-all group-hover:-translate-y-2 group-hover:shadow-2xl`}
                   >
                     <btn.icon
                       size={44}
@@ -317,11 +409,11 @@ export default function RepresentativePage() {
         ) : (
           <>
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-16">
-              {activeData?.teams?.map((team: any, tIdx: number) => {
-                const theme = getTeamTheme(team.name);
+              {activeData?.teams?.map((team: Team, tIdx: number) => {
+                const theme = getTeamTheme(team.name || "");
                 return (
                   <div
-                    key={tIdx}
+                    key={`${team.name}-${tIdx}`}
                     className="bg-white rounded-[2.5rem] shadow-xl border border-slate-200 overflow-hidden flex flex-col transition-all hover:shadow-2xl"
                   >
                     <div
@@ -333,9 +425,9 @@ export default function RepresentativePage() {
                     <div className="p-8 flex-grow">
                       <table className="w-full mb-8">
                         <tbody className="divide-y divide-slate-100">
-                          {team.players?.map((p: any, pIdx: number) => (
+                          {team.players?.map((p: Player, pIdx: number) => (
                             <tr
-                              key={pIdx}
+                              key={`${p.name}-${pIdx}`}
                               className="group hover:bg-slate-50/80"
                             >
                               <td className="py-3 font-bold text-sm text-slate-800">
@@ -354,8 +446,8 @@ export default function RepresentativePage() {
                       {team.staff && (
                         <div className="space-y-3 bg-slate-50 p-6 rounded-3xl border border-slate-100">
                           {Object.entries(team.staff).map(
-                            ([role, person]: any) =>
-                              person?.name && (
+                            ([role, person]: [string, Person | undefined]) =>
+                              person?.name ? (
                                 <div
                                   key={role}
                                   className="flex justify-between items-center bg-white p-3 px-4 rounded-xl shadow-sm border border-slate-100"
@@ -373,7 +465,7 @@ export default function RepresentativePage() {
                                     icon={person.icon}
                                   />
                                 </div>
-                              )
+                              ) : null
                           )}
                         </div>
                       )}
@@ -385,8 +477,8 @@ export default function RepresentativePage() {
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
               {["shadowPlayers", "withdrawn"].map((key) => {
-                const list = activeData?.[key] || [];
-                if (list.length === 0) return null;
+                const list: Player[] = (activeData as any)?.[key] || [];
+                if (!Array.isArray(list) || list.length === 0) return null;
                 const isWithdrawn = key === "withdrawn";
                 return (
                   <div
@@ -410,9 +502,9 @@ export default function RepresentativePage() {
                       {key.replace(/([A-Z])/g, " $1")}
                     </h3>
                     <div className="grid grid-cols-1 gap-3">
-                      {list.map((p: any, i: number) => (
+                      {list.map((p: Player, i: number) => (
                         <div
-                          key={i}
+                          key={`${p.name}-${i}`}
                           className={`flex items-center justify-between p-5 rounded-2xl border ${
                             isWithdrawn
                               ? "bg-white border-red-50"
@@ -456,7 +548,9 @@ export default function RepresentativePage() {
         {activeData?.trialInfo?.details && (
           <div
             className="mt-8 p-6 bg-amber-50 rounded-2xl text-sm font-bold border-l-4 border-amber-400"
-            dangerouslySetInnerHTML={{ __html: activeData.trialInfo.details }}
+            dangerouslySetInnerHTML={{
+              __html: String(activeData.trialInfo?.details),
+            }}
           />
         )}
       </Modal>
@@ -472,7 +566,7 @@ export default function RepresentativePage() {
           <div
             className="mt-8 p-6 bg-blue-50 rounded-2xl text-sm font-bold border-l-4 border-blue-400"
             dangerouslySetInnerHTML={{
-              __html: activeData.trainingInfo.details,
+              __html: String(activeData.trainingInfo?.details),
             }}
           />
         )}
@@ -500,8 +594,11 @@ export default function RepresentativePage() {
             </thead>
             <tbody className="divide-y divide-slate-100">
               {activeData?.tournamentInfo?.schedule?.map(
-                (t: any, idx: number) => (
-                  <tr key={idx} className="hover:bg-slate-50">
+                (t: TournamentEntry, idx: number) => (
+                  <tr
+                    key={`${t.name ?? "t"}-${idx}`}
+                    className="hover:bg-slate-50"
+                  >
                     <td className="px-4 py-3 font-bold text-[#06054e]">
                       {t.name}
                     </td>
@@ -529,7 +626,7 @@ export default function RepresentativePage() {
           <div
             className="mt-8 p-6 bg-indigo-50 rounded-2xl text-sm font-bold border-l-4 border-indigo-400"
             dangerouslySetInnerHTML={{
-              __html: activeData.tournamentInfo.details,
+              __html: String(activeData.tournamentInfo?.details),
             }}
           />
         )}
