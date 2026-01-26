@@ -93,6 +93,7 @@ export default function ClubsAdminPage() {
   };
 
   const handleEdit = (clubId: string) => {
+    // NESTED STRUCTURE: /admin/clubs/edit/[id]
     router.push(`/admin/clubs/edit/${clubId}`);
   };
 

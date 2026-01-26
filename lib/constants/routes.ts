@@ -16,8 +16,6 @@ export const ROUTES = {
   CLUB_DETAIL: (slug: string) => `/clubs/${slug}`,
   CLUB_CONTACT: (slug: string) => `/clubs/${slug}/contact`,
 
-  // officials
-
   // Competitions
   COMPETITIONS: "/competitions",
   EVENTS: "/competitions/events",
@@ -26,7 +24,8 @@ export const ROUTES = {
   STANDINGS: "/competitions/standings",
   STATISTICS: "/competitions/statistics",
 
-  OFFICIALS: "competitions/officials", // ✅ Correct
+  // Officials
+  OFFICIALS: "/competitions/officials", // ✅ Fixed - added leading slash
   UMPIRE_ALLOCATIONS: "/competitions/officials/umpire-allocations",
 
   // Other
@@ -117,45 +116,9 @@ export function getParentRoute(pathname: string): string {
   return "/" + parts.join("/");
 }
 
-export type RouteKey = keyof typeof ROUTES;
-/**
- * Application Routes
- *
- * Centralized route definitions for type-safe navigation.
- * Update here when routes change to avoid broken links.
- */
-
-export const ROUTES = {
-  // Main pages
-  HOME: "/",
-  ABOUT: "/about",
-  CONTACT: "/contact",
-
-  // Clubs
-  CLUBS: "/clubs",
-  CLUB_DETAIL: (slug: string) => `/clubs/${slug}`,
-  CLUB_CONTACT: (slug: string) => `/clubs/${slug}/contact`,
-
-  // Competitions
-  COMPETITIONS: "/competitions",
-  EVENTS: "/competitions/events",
-  FIXTURES: "/competitions/fixtures",
-  MATCHES: "/competitions/matches",
-  STANDINGS: "/competitions/standings",
-  STATISTICS: "/competitions/statistics",
-
-  // Officials
-  // Keep path rooted with a leading slash to match Next.js routing and docs
-  OFFICIALS: "/competitions/officials",
-  UMPIRE_ALLOCATIONS: "/competitions/officials/umpire-allocations",
-
-  // Other
-  PLAY: "/play",
-  REPRESENTATIVE: "/representative",
-  SHOP: "/shop",
-} as const;
-
+// Type definitions
 export type Routes = typeof ROUTES;
+export type RouteKey = keyof typeof ROUTES;
 export type RouteString = RouteValue<Routes>;
 
 type RouteValue<T> = T extends Record<string, infer V>

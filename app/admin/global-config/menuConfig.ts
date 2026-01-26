@@ -277,6 +277,31 @@ export const menuConfig: MenuItem[] = [
         icon: "💾",
         description: "Database management",
       },
+      {
+        label: "Relationship Types",
+        href: "/admin/global-config/relationships",
+        icon: "💑",
+        description: "Manage Relationship types",
+      },
+      {
+        label: "Gender Types",
+        href: "/admin/global-config/gender",
+        icon: "🏳️‍🌈",
+        description: "Manage gender types",
+      },
+      ,
+      {
+        label: "Role Types",
+        href: "/admin/global-config/roles",
+        icon: "👤",
+        description: "Manage Member Roles",
+      },
+      {
+        label: "Titles",
+        href: "/admin/global-config/salutations",
+        icon: "👤",
+        description: "Manage Name Titles",
+      },
     ],
   },
 ];

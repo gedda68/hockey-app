@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { usePathname } from "next/navigation";
 import SidebarItem from "./SidebarItem";
-import { menuConfig } from "../config/menuConfig";
+import { menuConfig } from "../global-config/menuConfig";
 
 export default function AdminSidebar() {
   const pathname = usePathname();

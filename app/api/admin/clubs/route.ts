@@ -3,29 +3,24 @@
 import { NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 
-// --- GET: FETCH CLUBS ---
+// --- GET: FETCH ALL CLUBS ---
 export async function GET() {
   try {
     const client = await clientPromise;
     const db = client.db("hockey-app");
 
-    // Get unique names to prevent duplicates from your JSON
-    const distinctNames = await db.collection("clubs").distinct("name");
+    // Get ALL clubs (not just unique names)
+    const clubs = await db
+      .collection("clubs")
+      .find({})
+      .sort({ name: 1 })
+      .toArray();
 
-    // Map names to the actual 'id' field found in your hockey-app.clubs.json
-    const clubsData = await Promise.all(
-      distinctNames.map(async (name) => {
-        const doc = await db.collection("clubs").findOne({ name });
-        return {
-          name: doc.name,
-          id: doc.id, // This matches the "id" field in your JSON
-        };
-      })
-    );
+    console.log(`✅ API: Returning ${clubs.length} clubs`);
 
-    return NextResponse.json(clubsData);
+    return NextResponse.json(clubs);
   } catch (error: any) {
-    console.error("CLUBS_GET_ERROR:", error);
+    console.error("❌ API Error fetching clubs:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

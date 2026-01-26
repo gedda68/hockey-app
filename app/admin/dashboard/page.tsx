@@ -11,7 +11,7 @@ let menuConfig: any[] = [];
 let getMainMenuItems: () => any[] = () => [];
 
 try {
-  const config = require("../config/menuConfig");
+  const config = require("../global-config/menuConfig");
   menuConfig = config.menuConfig || [];
   getMainMenuItems = config.getMainMenuItems || (() => []);
 } catch (e) {
