@@ -1,40 +1,44 @@
 // app/api/clubs/[clubId]/members/route.ts
-// CRUD operations for club members
+// Complete API: Create member + List members (with unique ID check)
 
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 
-// GET - List all members for a club
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ clubId: string }> }
-) {
-  try {
-    const { clubId } = await params;
-    const client = await clientPromise;
-    const db = client.db(process.env.DB_NAME || "hockey-app");
+// Helper to generate member ID
+function generateMemberId(clubShortName: string, sequence: number): string {
+  const paddedSequence = sequence.toString().padStart(7, "0");
+  return `${clubShortName}-${paddedSequence}`;
+}
 
-    // Resolve club (by slug or ID)
-    let club = await db.collection("clubs").findOne({ slug: clubId });
-    if (!club) {
-      club = await db.collection("clubs").findOne({ id: clubId });
+// Helper to find next available member ID
+async function getNextAvailableMemberId(
+  db: any,
+  clubId: string,
+  clubShortName: string
+): Promise<string> {
+  let sequence = 1;
+  let memberId = generateMemberId(clubShortName, sequence);
+
+  // Keep incrementing until we find an unused ID
+  while (true) {
+    const existing = await db.collection("members").findOne({ memberId });
+
+    if (!existing) {
+      // This ID is available
+      console.log(`✅ Found available member ID: ${memberId}`);
+      return memberId;
     }
 
-    if (!club) {
-      return NextResponse.json({ error: "Club not found" }, { status: 404 });
+    console.log(`⚠️ Member ID ${memberId} already exists, trying next...`);
+    sequence++;
+    memberId = generateMemberId(clubShortName, sequence);
+
+    // Safety check to prevent infinite loop
+    if (sequence > 10000) {
+      throw new Error(
+        "Unable to generate unique member ID after 10000 attempts"
+      );
     }
-
-    // Get members for this club
-    const members = await db
-      .collection("members")
-      .find({ clubId: club.id })
-      .sort({ "personalInfo.lastName": 1, "personalInfo.firstName": 1 })
-      .toArray();
-
-    return NextResponse.json(members);
-  } catch (error: any) {
-    console.error("Error fetching members:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
 
@@ -44,139 +48,157 @@ export async function POST(
   { params }: { params: Promise<{ clubId: string }> }
 ) {
   try {
-    const { clubId } = await params;
-    const body = await request.json();
+    const { clubId } = await params; // This is the slug
+
+    console.log("===========================================");
+    console.log("📝 CREATE Member Request");
+    console.log("clubId (slug):", clubId);
 
     const client = await clientPromise;
-    const db = client.db(process.env.DB_NAME || "hockey-app");
+    const db = client.db("hockey-app");
 
-    // Resolve club
-    let club = await db.collection("clubs").findOne({ slug: clubId });
+    // Find club by slug
+    const club = await db.collection("clubs").findOne({ slug: clubId });
     if (!club) {
-      club = await db.collection("clubs").findOne({ id: clubId });
-    }
-
-    if (!club) {
+      console.error("❌ Club not found");
       return NextResponse.json({ error: "Club not found" }, { status: 404 });
     }
 
-    // Generate member ID
-    const currentSequence = club.memberSequence || 0;
-    const nextSequence = currentSequence + 1;
-    const memberId = `${club.shortName}-${nextSequence
-      .toString()
-      .padStart(7, "0")}`;
+    console.log("✅ Club found:", {
+      id: club.id,
+      name: club.name,
+      slug: club.slug,
+    });
 
-    // Create member
-    const member = {
+    // Get form data
+    const formData = await request.json();
+
+    // Get club's short name for member ID prefix
+    const clubShortName =
+      club.shortName || club.slug.substring(0, 3).toUpperCase();
+    console.log("🏷️ Club short name:", clubShortName);
+
+    // Get next available member ID (checks for uniqueness)
+    const memberId = await getNextAvailableMemberId(db, club.id, clubShortName);
+
+    console.log("🆔 Generated unique member ID:", memberId);
+
+    // Create member document
+    const memberData = {
       memberId,
-      clubId: club.id,
-      associationId: club.associationId || null,
-
-      personalInfo: {
-        firstName: body.personalInfo.firstName,
-        lastName: body.personalInfo.lastName,
-        displayName:
-          body.personalInfo.displayName ||
-          `${body.personalInfo.firstName} ${body.personalInfo.lastName}`,
-        dateOfBirth: body.personalInfo.dateOfBirth,
-        gender: body.personalInfo.gender,
-        photoUrl: body.personalInfo.photoUrl || null,
-      },
-
-      contact: {
-        primaryEmail: body.contact.primaryEmail,
-        emailOwnership: body.contact.emailOwnership || "Own",
-        additionalEmails: body.contact.additionalEmails || [],
-        phone: body.contact.phone || "",
-        mobile: body.contact.mobile || "",
-      },
-
-      address: {
-        street: body.address?.street || "",
-        suburb: body.address?.suburb || "",
-        state: body.address?.state || "QLD",
-        postcode: body.address?.postcode || "",
-        country: body.address?.country || "Australia",
-      },
-
-      healthcare: {
-        medicare: body.healthcare?.medicare || null,
-        privateHealth: body.healthcare?.privateHealth || null,
-      },
-
-      emergencyContacts: body.emergencyContacts || [],
-
-      socialMedia: {
-        facebook: body.socialMedia?.facebook || "",
-        instagram: body.socialMedia?.instagram || "",
-        twitter: body.socialMedia?.twitter || "",
-        tiktok: body.socialMedia?.tiktok || "",
-        linkedin: body.socialMedia?.linkedin || "",
-      },
-
-      communicationPreferences: {
-        preferredMethod:
-          body.communicationPreferences?.preferredMethod || "Email",
-        emailFrequency: body.communicationPreferences?.emailFrequency || "All",
-        smsNotifications:
-          body.communicationPreferences?.smsNotifications !== false,
-        pushNotifications:
-          body.communicationPreferences?.pushNotifications !== false,
-        socialMediaUpdates:
-          body.communicationPreferences?.socialMediaUpdates || false,
-      },
-
-      membership: {
-        joinDate: body.membership?.joinDate || new Date().toISOString(),
-        membershipType: body.membership.membershipType,
-        status: body.membership?.status || "Active",
-        expiryDate: body.membership?.expiryDate || null,
-        renewalDate: body.membership?.renewalDate || null,
-      },
-
-      roles: body.roles || [],
-
-      playerInfo: body.playerInfo || null,
-
-      teams: body.teams || [],
-
-      family: body.family || null,
-
-      userId: body.userId || null,
-
-      medical: body.medical || {
-        conditions: "",
-        medications: "",
-        allergies: "",
-        doctorName: "",
-        doctorPhone: "",
-      },
-
-      notes: body.notes || "",
-
-      registrationSource: "ClubAdmin",
-      registrationStatus: "Active",
-
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      createdBy: body.createdBy || "club-admin",
-      updatedBy: body.createdBy || "club-admin",
+      clubId: club.id, // ✅ Use club.id
+      personalInfo: formData.personalInfo,
+      contact: formData.contact,
+      address: formData.address,
+      healthcare: formData.healthcare,
+      emergencyContacts: formData.emergencyContacts || [],
+      membership: formData.membership,
+      roles: formData.roles || [],
+      playerInfo: formData.playerInfo || null,
+      medical: formData.medical,
+      familyRelationships: formData.familyRelationships || [],
+      createdAt: new Date(),
+      updatedAt: new Date(),
     };
 
+    console.log("💾 Inserting member into database...");
+
     // Insert member
-    await db.collection("members").insertOne(member);
+    const result = await db.collection("members").insertOne(memberData);
 
-    // Update club sequence
-    await db
-      .collection("clubs")
-      .updateOne({ id: club.id }, { $set: { memberSequence: nextSequence } });
+    console.log("✅ Member created successfully:", memberId);
 
-    console.log(`✅ Created member: ${memberId} for club ${club.shortName}`);
+    // Handle family relationships - add reverse relationships
+    if (
+      formData.familyRelationships &&
+      formData.familyRelationships.length > 0
+    ) {
+      console.log("🔗 Processing family relationships...");
+      for (const rel of formData.familyRelationships) {
+        if (rel.relatedMemberId) {
+          // Add reverse relationship to the related member
+          await db.collection("members").updateOne(
+            { memberId: rel.relatedMemberId },
+            {
+              $push: {
+                familyRelationships: {
+                  relationshipId: `famrel-${Date.now()}-reverse`,
+                  relatedMemberId: memberId,
+                  relationshipType: rel.relationshipType,
+                  forwardRelation: rel.reverseRelation,
+                  reverseRelation: rel.forwardRelation,
+                },
+              },
+            }
+          );
+        }
+      }
+      console.log("✅ Family relationships processed");
+    }
 
-    return NextResponse.json(member, { status: 201 });
+    console.log("===========================================");
+
+    return NextResponse.json({
+      ...memberData,
+      _id: result.insertedId,
+    });
   } catch (error: any) {
-    console.error("Error creating member:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error("💥 Error creating member:", error);
+    return NextResponse.json(
+      { error: error.message || "Failed to create member" },
+      { status: 500 }
+    );
+  }
+}
+
+// GET - List all members in club
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ clubId: string }> }
+) {
+  try {
+    const { clubId } = await params; // This is the slug
+
+    console.log("===========================================");
+    console.log("📥 GET Members List Request");
+    console.log("clubId (slug):", clubId);
+
+    const client = await clientPromise;
+    const db = client.db("hockey-app");
+
+    // Find club by slug
+    console.log("🔍 Looking for club with slug:", clubId);
+    const club = await db.collection("clubs").findOne({ slug: clubId });
+
+    if (!club) {
+      console.error("❌ Club not found with slug:", clubId);
+      return NextResponse.json({ error: "Club not found" }, { status: 404 });
+    }
+
+    console.log("✅ Club found:", {
+      id: club.id,
+      name: club.name,
+      slug: club.slug,
+    });
+
+    // ✅ Get all members using club.id
+    console.log("🔍 Looking for members with clubId:", club.id);
+
+    const members = await db
+      .collection("members")
+      .find({ clubId: club.id })
+      .sort({ "personalInfo.lastName": 1, "personalInfo.firstName": 1 })
+      .toArray();
+
+    console.log(`✅ Found ${members.length} members`);
+    console.log("===========================================");
+
+    return NextResponse.json(members);
+  } catch (error) {
+    console.error("💥 Error fetching members:", error);
+    return NextResponse.json(
+      { error: "Failed to fetch members" },
+      { status: 500 }
+    );
   }
 }

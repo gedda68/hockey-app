@@ -2,6 +2,7 @@
 
 import { Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useCustomAlert } from "@/components/ui/CustomAlert";
 
 interface DeleteButtonProps {
   clubId: string;
@@ -16,6 +17,8 @@ export default function DeleteMemberButton({
 }: DeleteButtonProps) {
   const router = useRouter();
 
+  const { showAlert, AlertComponent } = useCustomAlert();
+
   const handleDelete = async () => {
     if (confirm(`Are you sure you want to delete ${memberName}?`)) {
       try {
@@ -27,7 +30,7 @@ export default function DeleteMemberButton({
           // Refresh the current server component data without a full page reload
           router.refresh();
         } else {
-          alert("Failed to delete member");
+          showAlert("error", "Delete Error", "Failed to delete member.");
         }
       } catch (error) {
         console.error("Delete error:", error);

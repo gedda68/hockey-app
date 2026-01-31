@@ -1,28 +1,31 @@
 // app/api/clubs/[clubId]/members/[memberId]/route.ts
-// GET and UPDATE individual member
+// UPDATED: Uses clubs.id field to match members.clubId
 
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 
-// GET - Get member by ID
+// GET - Fetch single member by memberId
 export async function GET(
   request: NextRequest,
-  { params }: { params: { clubId: string; memberId: string } }
+  { params }: { params: Promise<{ clubId: string; memberId: string }> }
 ) {
   try {
+    const { clubId, memberId } = await params;
+
     const client = await clientPromise;
-    const db = client.db(process.env.DB_NAME || "hockey-app");
+    const db = client.db("hockey-app");
 
     // Find club by slug
-    const club = await db.collection("clubs").findOne({ slug: params.clubId });
+    const club = await db.collection("clubs").findOne({ slug: clubId });
     if (!club) {
       return NextResponse.json({ error: "Club not found" }, { status: 404 });
     }
 
-    // Find member
+    // ✅ Use club.id to match members.clubId
+    // This assumes your club has an "id" field and members have matching "clubId"
     const member = await db.collection("members").findOne({
-      clubId: club.clubId,
-      memberId: params.memberId,
+      memberId: memberId,
+      clubId: club.id, // Uses club.id field
     });
 
     if (!member) {
@@ -30,72 +33,73 @@ export async function GET(
     }
 
     return NextResponse.json(member);
-  } catch (error: any) {
+  } catch (error) {
     console.error("Error fetching member:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to fetch member" },
+      { status: 500 }
+    );
   }
 }
 
 // PUT - Update member
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { clubId: string; memberId: string } }
+  { params }: { params: Promise<{ clubId: string; memberId: string }> }
 ) {
   try {
-    const body = await request.json();
+    const { clubId, memberId } = await params;
+
     const client = await clientPromise;
-    const db = client.db(process.env.DB_NAME || "hockey-app");
+    const db = client.db("hockey-app");
 
     // Find club by slug
-    const club = await db.collection("clubs").findOne({ slug: params.clubId });
+    const club = await db.collection("clubs").findOne({ slug: clubId });
     if (!club) {
       return NextResponse.json({ error: "Club not found" }, { status: 404 });
     }
 
-    // Check member exists
-    const existingMember = await db.collection("members").findOne({
-      clubId: club.clubId,
-      memberId: params.memberId,
-    });
+    // Get update data from request
+    const updateData = await request.json();
 
-    if (!existingMember) {
+    // ✅ Use club.id to match members.clubId
+    const result = await db.collection("members").findOneAndUpdate(
+      {
+        memberId: memberId,
+        clubId: club.id,
+      },
+      {
+        $set: {
+          ...updateData,
+          updatedAt: new Date(),
+        },
+      },
+      {
+        returnDocument: "after",
+      }
+    );
+
+    if (!result) {
       return NextResponse.json({ error: "Member not found" }, { status: 404 });
     }
 
-    // Prepare update data
-    const updateData = {
-      ...body,
-      updatedAt: new Date().toISOString(),
-      updatedBy: "admin", // TODO: Get from session
-    };
+    // Handle family relationships - remove old reverse relationships
+    if (updateData.familyRelationships) {
+      // Get old member data to find relationships to remove
+      const oldMember = await db.collection("members").findOne({
+        memberId: memberId,
+        clubId: club.id,
+      });
 
-    // Don't update these fields
-    delete updateData._id;
-    delete updateData.memberId;
-    delete updateData.clubId;
-    delete updateData.createdAt;
-    delete updateData.createdBy;
-
-    // Update member
-    await db.collection("members").updateOne(
-      {
-        clubId: club.clubId,
-        memberId: params.memberId,
-      },
-      { $set: updateData }
-    );
-
-    // Handle family relationships updates (remove old, add new reverse relationships)
-    if (body.familyRelationships) {
-      // Remove old reverse relationships
-      if (existingMember.familyRelationships) {
-        for (const oldRel of existingMember.familyRelationships) {
+      if (oldMember?.familyRelationships) {
+        // Remove old reverse relationships
+        for (const oldRel of oldMember.familyRelationships) {
           await db.collection("members").updateOne(
             { memberId: oldRel.relatedMemberId },
             {
               $pull: {
                 familyRelationships: {
-                  relatedMemberId: params.memberId,
+                  relatedMemberId: memberId,
                 },
               },
             }
@@ -104,20 +108,18 @@ export async function PUT(
       }
 
       // Add new reverse relationships
-      for (const rel of body.familyRelationships) {
+      for (const rel of updateData.familyRelationships) {
         if (rel.relatedMemberId) {
           await db.collection("members").updateOne(
             { memberId: rel.relatedMemberId },
             {
               $push: {
                 familyRelationships: {
-                  relationshipId: `famrel-${Date.now()}-rev`,
-                  relatedMemberId: params.memberId,
+                  relationshipId: `famrel-${Date.now()}-reverse`,
+                  relatedMemberId: memberId,
                   relationshipType: rel.relationshipType,
                   forwardRelation: rel.reverseRelation,
                   reverseRelation: rel.forwardRelation,
-                  createdAt: new Date().toISOString(),
-                  createdBy: "system",
                 },
               },
             }
@@ -126,47 +128,45 @@ export async function PUT(
       }
     }
 
-    // Get updated member
-    const updatedMember = await db.collection("members").findOne({
-      clubId: club.clubId,
-      memberId: params.memberId,
-    });
-
-    console.log(`✅ Updated member: ${params.memberId}`);
-
-    return NextResponse.json(updatedMember);
-  } catch (error: any) {
+    return NextResponse.json(result);
+  } catch (error) {
     console.error("Error updating member:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to update member" },
+      { status: 500 }
+    );
   }
 }
 
-// DELETE - Delete member
+// DELETE - Remove member
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { clubId: string; memberId: string } }
+  { params }: { params: Promise<{ clubId: string; memberId: string }> }
 ) {
   try {
+    const { clubId, memberId } = await params;
+
     const client = await clientPromise;
-    const db = client.db(process.env.DB_NAME || "hockey-app");
+    const db = client.db("hockey-app");
 
     // Find club by slug
-    const club = await db.collection("clubs").findOne({ slug: params.clubId });
+    const club = await db.collection("clubs").findOne({ slug: clubId });
     if (!club) {
       return NextResponse.json({ error: "Club not found" }, { status: 404 });
     }
 
+    // ✅ Use club.id to match members.clubId
     // Get member to find family relationships
     const member = await db.collection("members").findOne({
-      clubId: club.clubId,
-      memberId: params.memberId,
+      memberId: memberId,
+      clubId: club.id,
     });
 
     if (!member) {
       return NextResponse.json({ error: "Member not found" }, { status: 404 });
     }
 
-    // Remove reverse family relationships
+    // Remove reverse relationships from related members
     if (member.familyRelationships) {
       for (const rel of member.familyRelationships) {
         await db.collection("members").updateOne(
@@ -174,7 +174,7 @@ export async function DELETE(
           {
             $pull: {
               familyRelationships: {
-                relatedMemberId: params.memberId,
+                relatedMemberId: memberId,
               },
             },
           }
@@ -182,17 +182,25 @@ export async function DELETE(
       }
     }
 
-    // Delete member
-    await db.collection("members").deleteOne({
-      clubId: club.clubId,
-      memberId: params.memberId,
+    // Delete the member
+    const result = await db.collection("members").deleteOne({
+      memberId: memberId,
+      clubId: club.id,
     });
 
-    console.log(`✅ Deleted member: ${params.memberId}`);
+    if (result.deletedCount === 0) {
+      return NextResponse.json({ error: "Member not found" }, { status: 404 });
+    }
 
-    return NextResponse.json({ success: true, memberId: params.memberId });
-  } catch (error: any) {
+    return NextResponse.json({
+      success: true,
+      message: "Member deleted successfully",
+    });
+  } catch (error) {
     console.error("Error deleting member:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to delete member" },
+      { status: 500 }
+    );
   }
 }

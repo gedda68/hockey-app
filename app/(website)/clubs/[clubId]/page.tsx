@@ -2,7 +2,13 @@
 // Club dashboard
 
 import Link from "next/link";
-import { Users, Shield, Calendar, TrendingUp } from "lucide-react";
+import {
+  Users,
+  Shield,
+  Calendar,
+  TrendingUp,
+  UserRoundPlus,
+} from "lucide-react";
 
 async function getClubStats(clubId: string) {
   try {
@@ -96,6 +102,13 @@ export default async function ClubDashboardPage({
             description="Organize teams and divisions"
             icon={<Shield size={24} />}
             color="bg-purple-600"
+          />
+          <QuickActionCard
+            href={`/clubs/${clubId}/register`}
+            title="Player Registration"
+            description="Register for the current season"
+            icon={<UserRoundPlus size={24} />}
+            color="bg-orange-600"
           />
         </div>
       </div>

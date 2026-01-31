@@ -15,21 +15,57 @@ export interface ClubContact {
   phone: string;
 }
 
-export interface Club {
-  title: string;
-  description: string;
-  icon?: string;
-  iconSrc?: string;
-  href: string;
+export interface Fee {
+  feeId: string;
+  name: string;
+  category: string;
+  amount: number;
+  gstIncluded: boolean;
+  validFrom: { $date: string } | string;
+  validTo: { $date: string } | string;
+  isActive: boolean;
+}
+
+export interface ClubData {
+  id: string;
+  name: string;
+  shortName: string;
   slug: string;
-  address?: string;
-  color: string;
-  bgColor?: string;
+  logo: string;
+  colors: {
+    primary: string;
+    secondary: string;
+    accent: string;
+  };
+  address: {
+    street: string;
+    suburb: string;
+    state: string;
+    postcode: string;
+    country: string;
+  };
+  contact: {
+    email: string;
+    phone: string;
+    website: string;
+  };
+  socialMedia: {
+    facebook: string;
+    instagram: string;
+    twitter: string;
+  };
+  committee: any[];
+  committeePositions: string[];
+  established: string;
+  homeGround: string;
+  description: string;
   about: string;
-  facebookUrl: string;
-  instagramUrl: string;
-  twitterUrl: string;
-  contacts: ClubContact[];
+  active: boolean;
+  memberSequence: number;
+  parentAssociationId: string;
+  fees: Fee[];
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 /**

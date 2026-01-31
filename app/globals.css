@@ -49,3 +49,7 @@ body,
   overflow: hidden;
   transition: max-height 0.3s ease-in-out;
 }
+
+.input {
+  @apply w-full px-3 py-2 border rounded-xl font-bold;
+}

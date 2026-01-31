@@ -1,4 +1,6 @@
 // app/(website)/clubs/[clubId]/members/new/AddMemberForm.tsx
+// COMPLETE FORM - All 5 Steps + Salutation + Edit Mode + Family Relationships
+
 "use client";
 
 import { useState, useEffect, useRef } from "react";
@@ -20,12 +22,10 @@ import {
   AlertCircle,
   Plus,
   Trash2,
-  Loader2,
 } from "lucide-react";
 import Link from "next/link";
 import TypeAheadSelect from "@/components/admin/TypeAheadSelect";
-import { toast } from "sonner"; // Added sonner
-import DeleteMemberButton from "../DeleteMemberButton";
+import { useCustomAlert } from "@/components/ui/CustomAlert";
 
 interface AddMemberFormProps {
   clubId: string;
@@ -121,6 +121,7 @@ export default function AddMemberForm({
   const [hasFamilyMembers, setHasFamilyMembers] = useState(false);
   const [hasMedicare, setHasMedicare] = useState(false);
   const [hasPrivateHealth, setHasPrivateHealth] = useState(false);
+  const { showAlert, AlertComponent } = useCustomAlert();
 
   // Config data from database
   const [salutations, setSalutations] = useState([]);
@@ -225,6 +226,7 @@ export default function AddMemberForm({
 
   const [formData, setFormData] = useState<FormData>(getInitialFormData());
 
+  // Load initial data for edit mode
   useEffect(() => {
     if (mode === "edit" && initialData) {
       if (initialData.personalInfo?.photoUrl) {
@@ -236,6 +238,7 @@ export default function AddMemberForm({
     }
   }, [mode, initialData]);
 
+  // Fetch config data
   useEffect(() => {
     fetchConfigData();
   }, []);
@@ -286,21 +289,38 @@ export default function AddMemberForm({
       setRelationships(relsData);
       setHealthProviders(healthData);
       setRelationshipTypes(relTypesData);
+
+      console.log("✅ Config loaded:", {
+        salutations: salutationsData.length,
+        genders: gendersData.length,
+        membershipTypes: typesData.length,
+        roles: rolesData.length,
+        relationships: relsData.length,
+        healthProviders: healthData.length,
+        relationshipTypes: relTypesData.length,
+      });
     } catch (error) {
       console.error("Error fetching config:", error);
-      toast.error(
-        "Failed to load form configuration. Please refresh the page."
+      showAlert(
+        "error",
+        "Loading Error",
+        "Failed to load form configuration.\n\nPlease refresh the page."
       );
     } finally {
       setIsLoadingConfig(false);
     }
   };
 
+  // Photo handlers
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       if (file.size > 5 * 1024 * 1024) {
-        toast.error("File too large. Maximum size is 5MB.");
+        showAlert(
+          "error",
+          "File Too Large",
+          "Maximum file size is 5MB.\n\nPlease choose a smaller image."
+        );
         return;
       }
       setPhotoFile(file);
@@ -322,6 +342,7 @@ export default function AddMemberForm({
     }
   };
 
+  // Role handlers
   const toggleRole = (roleId: string) => {
     const newRoles = formData.roles.includes(roleId)
       ? formData.roles.filter((r) => r !== roleId)
@@ -348,9 +369,14 @@ export default function AddMemberForm({
     }
   };
 
+  // Emergency contact handlers
   const addEmergencyContact = () => {
     if (formData.emergencyContacts.length >= 3) {
-      toast.warning("Maximum 3 emergency contacts allowed");
+      showAlert(
+        "warning",
+        "Maximum Contacts Reached",
+        "You can add up to 3 emergency contacts."
+      );
       return;
     }
     setFormData({
@@ -388,6 +414,7 @@ export default function AddMemberForm({
     setFormData({ ...formData, emergencyContacts: updated });
   };
 
+  // Family relationship handlers
   const addFamilyRelationship = () => {
     setFormData({
       ...formData,
@@ -425,6 +452,7 @@ export default function AddMemberForm({
         updated[index].reverseRelation = relType.reverse;
       }
     }
+
     setFormData({ ...formData, familyRelationships: updated });
   };
 
@@ -433,39 +461,57 @@ export default function AddMemberForm({
     try {
       const res = await fetch(`/api/clubs/${clubId}/members/search?q=${query}`);
       const results = await res.json();
-      setSearchResults((prev: any) => ({ ...prev, [index]: results }));
+      setSearchResults((prev) => ({ ...prev, [index]: results }));
     } catch (error) {
       console.error("Error searching members:", error);
     }
   };
 
+  // Form submission
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    e.stopPropagation(); // ADDED: Stop event propagation
 
+    console.log("🔍 Form submitted - validating emergency contacts...");
+    console.log("Emergency contacts count:", formData.emergencyContacts.length);
+
+    // ⚠️ VALIDATION 1: Check if emergency contacts exist
     if (formData.emergencyContacts.length === 0) {
-      toast.error("Emergency Contact Required", {
-        description: "Please add at least one emergency contact before saving.",
-      });
+      console.error("❌ VALIDATION FAILED: No emergency contacts");
+      showAlert(
+        "warning",
+        "Emergency Contact Required",
+        'Please add at least one emergency contact before creating the member.\n\nGo to Step 5 and click "Add Emergency Contact".'
+      );
       setCurrentStep(5);
-      return;
+      return false; // EXPLICIT return false
     }
 
+    // ⚠️ VALIDATION 2: Check if emergency contacts are complete
     const invalidContacts = formData.emergencyContacts.filter(
       (c) => !c.name?.trim() || !c.relationship || !c.phone?.trim()
     );
 
     if (invalidContacts.length > 0) {
-      toast.error("Incomplete Contacts", {
-        description:
-          "Please fill out the Name, Relationship, and Phone for all emergency contacts.",
-      });
+      console.error(
+        "❌ VALIDATION FAILED: Incomplete contacts:",
+        invalidContacts.length
+      );
+      showAlert(
+        "warning",
+        "Incomplete Contact Information",
+        `Please complete all required fields for emergency contacts:\n\n• Name\n• Relationship\n• Phone\n\nMissing information in ${invalidContacts.length} contact(s).`
+      );
       setCurrentStep(5);
-      return;
+      return false; // EXPLICIT return false
     }
+
+    console.log("✅ VALIDATION PASSED: Emergency contacts are valid");
+    console.log("Proceeding with member creation...");
 
     setIsLoading(true);
 
-    const submissionPromise = (async () => {
+    try {
       let photoUrl = formData.personalInfo.photoUrl;
       if (photoFile) {
         const uploadFormData = new FormData();
@@ -491,10 +537,13 @@ export default function AddMemberForm({
         },
       };
 
+      console.log("📤 Sending member data to API...");
+
       const url =
         mode === "create"
           ? `/api/clubs/${clubId}/members`
           : `/api/clubs/${clubId}/members/${initialData.memberId}`;
+
       const method = mode === "create" ? "POST" : "PUT";
 
       const res = await fetch(url, {
@@ -508,24 +557,45 @@ export default function AddMemberForm({
         throw new Error(error.error || `Failed to ${mode} member`);
       }
 
-      return await res.json();
-    })();
+      const member = await res.json();
 
-    toast.promise(submissionPromise, {
-      loading: mode === "create" ? "Creating member..." : "Updating member...",
-      success: (member) => {
-        setIsLoading(false);
-        if (onSuccess) onSuccess(member);
-        else router.push(`/clubs/${clubId}/members`);
-        return mode === "create"
-          ? "Member created successfully!"
-          : "Member updated successfully!";
-      },
-      error: (err) => {
-        setIsLoading(false);
-        return err.message;
-      },
-    });
+      console.log("✅ Member saved successfully:", member.memberId);
+
+      // Success Alert
+      if (mode === "create") {
+        showAlert(
+          "success",
+          "Member Created Successfully!",
+          `Member ID: ${member.memberId}\n\n${member.personalInfo.firstName} ${member.personalInfo.lastName} has been added to the club.`
+        );
+      } else {
+        showAlert(
+          "success",
+          "Member Updated Successfully!",
+          `${member.personalInfo.firstName} ${member.personalInfo.lastName}'s information has been updated.`
+        );
+      }
+
+      // Delay navigation to show success message
+      setTimeout(() => {
+        if (onSuccess) {
+          onSuccess(member);
+        } else {
+          router.push(`/clubs/${clubId}/members`);
+        }
+      }, 2000);
+    } catch (error: any) {
+      console.error(`❌ Error ${mode}ing member:`, error);
+      showAlert(
+        "error",
+        mode === "create"
+          ? "Failed to Create Member"
+          : "Failed to Update Member",
+        `${error.message}\n\nPlease check your information and try again.`
+      );
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const totalSteps = 5;
@@ -539,7 +609,7 @@ export default function AddMemberForm({
   if (isLoadingConfig) {
     return (
       <div className="bg-white rounded-2xl shadow-xl border border-slate-100 p-12 text-center">
-        <Loader2 className="animate-spin h-16 w-16 text-[#06054e] mx-auto mb-4" />
+        <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-[#06054e] mx-auto mb-4"></div>
         <p className="text-lg font-bold text-slate-600">
           Loading form configuration...
         </p>
@@ -571,8 +641,11 @@ export default function AddMemberForm({
       {currentStep === 1 && (
         <div className="bg-white rounded-[2rem] shadow-xl border border-slate-100 p-6 sm:p-8">
           <h2 className="text-2xl font-black uppercase text-[#06054e] mb-6 flex items-center gap-2">
-            <User size={24} /> Personal Information
+            <User size={24} />
+            Personal Information
           </h2>
+
+          {/* Profile Picture */}
           <div className="mb-8">
             <label className="text-xs font-black uppercase text-slate-400 ml-2">
               Profile Picture (Optional)
@@ -582,13 +655,13 @@ export default function AddMemberForm({
                 <div className="relative">
                   <img
                     src={photoPreview}
-                    alt="Profile"
+                    alt="Profile preview"
                     className="w-32 h-32 rounded-2xl object-cover border-4 border-slate-200"
                   />
                   <button
                     type="button"
                     onClick={removePhoto}
-                    className="absolute -top-2 -right-2 p-1.5 bg-red-500 text-white rounded-full hover:bg-red-600 shadow-lg"
+                    className="absolute -top-2 -right-2 p-1.5 bg-red-500 text-white rounded-full hover:bg-red-600 transition-all shadow-lg"
                   >
                     <X size={16} />
                   </button>
@@ -598,6 +671,7 @@ export default function AddMemberForm({
                   <Camera size={32} className="text-slate-400" />
                 </div>
               )}
+
               <div>
                 <input
                   ref={fileInputRef}
@@ -611,7 +685,7 @@ export default function AddMemberForm({
                   onClick={() => fileInputRef.current?.click()}
                   className="flex items-center gap-2 px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-xl font-bold transition-all"
                 >
-                  <Upload size={18} />{" "}
+                  <Upload size={18} />
                   {photoPreview ? "Change Photo" : "Upload Photo"}
                 </button>
                 <p className="text-xs text-slate-500 mt-2">
@@ -620,22 +694,30 @@ export default function AddMemberForm({
               </div>
             </div>
           </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <TypeAheadSelect
-              label="Salutation"
-              options={salutations}
-              value={formData.personalInfo.salutation}
-              onChange={(val) =>
-                setFormData({
-                  ...formData,
-                  personalInfo: { ...formData.personalInfo, salutation: val },
-                })
-              }
-              displayField="name"
-              valueField="salutationId"
-              fullNameField="fullName"
-              placeholder="Mr, Mrs, Dr..."
-            />
+            {/* Salutation - Type Ahead */}
+            <div>
+              <TypeAheadSelect
+                label="Salutation"
+                options={salutations}
+                value={formData.personalInfo.salutation}
+                onChange={(value) =>
+                  setFormData({
+                    ...formData,
+                    personalInfo: {
+                      ...formData.personalInfo,
+                      salutation: value,
+                    },
+                  })
+                }
+                displayField="name"
+                valueField="salutationId"
+                fullNameField="fullName"
+                placeholder="Mr, Mrs, Dr..."
+              />
+            </div>
+
             <div>
               <label className="text-xs font-black uppercase text-slate-400 ml-2">
                 First Name *
@@ -657,6 +739,7 @@ export default function AddMemberForm({
                 placeholder="John"
               />
             </div>
+
             <div>
               <label className="text-xs font-black uppercase text-slate-400 ml-2">
                 Last Name *
@@ -678,6 +761,7 @@ export default function AddMemberForm({
                 placeholder="Smith"
               />
             </div>
+
             <div>
               <label className="text-xs font-black uppercase text-slate-400 ml-2">
                 Date of Birth *
@@ -698,6 +782,7 @@ export default function AddMemberForm({
                 className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none font-bold focus:ring-2 ring-yellow-400"
               />
             </div>
+
             <div className="md:col-span-2">
               <label className="text-xs font-black uppercase text-slate-400 ml-2">
                 Gender *
@@ -732,9 +817,12 @@ export default function AddMemberForm({
       {currentStep === 2 && (
         <div className="bg-white rounded-[2rem] shadow-xl border border-slate-100 p-6 sm:p-8">
           <h2 className="text-2xl font-black uppercase text-[#06054e] mb-6 flex items-center gap-2">
-            <Mail size={24} /> Contact & Address
+            <Mail size={24} />
+            Contact & Address
           </h2>
+
           <div className="space-y-6">
+            {/* Contact Section */}
             <div>
               <h3 className="text-lg font-black text-slate-700 mb-4">
                 Contact Details
@@ -761,6 +849,7 @@ export default function AddMemberForm({
                     placeholder="john.smith@example.com"
                   />
                 </div>
+
                 <div>
                   <label className="text-xs font-black uppercase text-slate-400 ml-2">
                     Email Ownership
@@ -783,6 +872,7 @@ export default function AddMemberForm({
                     <option value="Parent">Parent/Guardian</option>
                   </select>
                 </div>
+
                 <div>
                   <label className="text-xs font-black uppercase text-slate-400 ml-2">
                     Phone
@@ -800,6 +890,7 @@ export default function AddMemberForm({
                     placeholder="07 3123 4567"
                   />
                 </div>
+
                 <div className="md:col-span-2">
                   <label className="text-xs font-black uppercase text-slate-400 ml-2">
                     Mobile
@@ -822,6 +913,8 @@ export default function AddMemberForm({
                 </div>
               </div>
             </div>
+
+            {/* Address Section */}
             <div>
               <h3 className="text-lg font-black text-slate-700 mb-4">
                 Address
@@ -847,6 +940,7 @@ export default function AddMemberForm({
                     placeholder="123 Main Street"
                   />
                 </div>
+
                 <div>
                   <label className="text-xs font-black uppercase text-slate-400 ml-2">
                     Suburb
@@ -867,6 +961,7 @@ export default function AddMemberForm({
                     placeholder="Brisbane"
                   />
                 </div>
+
                 <div>
                   <label className="text-xs font-black uppercase text-slate-400 ml-2">
                     State
@@ -891,6 +986,7 @@ export default function AddMemberForm({
                     <option value="ACT">Australian Capital Territory</option>
                   </select>
                 </div>
+
                 <div>
                   <label className="text-xs font-black uppercase text-slate-400 ml-2">
                     Postcode
@@ -911,6 +1007,7 @@ export default function AddMemberForm({
                     placeholder="4000"
                   />
                 </div>
+
                 <div>
                   <label className="text-xs font-black uppercase text-slate-400 ml-2">
                     Country
@@ -941,9 +1038,12 @@ export default function AddMemberForm({
       {currentStep === 3 && (
         <div className="bg-white rounded-[2rem] shadow-xl border border-slate-100 p-6 sm:p-8">
           <h2 className="text-2xl font-black uppercase text-[#06054e] mb-6 flex items-center gap-2">
-            <Award size={24} /> Membership & Roles
+            <Award size={24} />
+            Membership & Roles
           </h2>
+
           <div className="space-y-6">
+            {/* Membership Type */}
             <div>
               <label className="text-xs font-black uppercase text-slate-400 ml-2">
                 Membership Type *
@@ -970,10 +1070,13 @@ export default function AddMemberForm({
                 ))}
               </select>
             </div>
+
+            {/* Member Roles */}
             <div>
               <label className="text-xs font-black uppercase text-slate-400 ml-2 mb-3 block">
                 Member Roles * (Select at least one)
               </label>
+
               {Object.entries(rolesByCategory).map(
                 ([category, categoryRoles]: [string, any]) => (
                   <div key={category} className="mb-6">
@@ -1026,6 +1129,8 @@ export default function AddMemberForm({
                 )
               )}
             </div>
+
+            {/* Player Info (conditional) */}
             {formData.playerInfo && (
               <div className="p-6 bg-blue-50 border-2 border-blue-200 rounded-2xl">
                 <h3 className="text-lg font-black text-blue-900 mb-4">
@@ -1079,6 +1184,8 @@ export default function AddMemberForm({
                 </div>
               </div>
             )}
+
+            {/* Status and Join Date */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <label className="text-xs font-black uppercase text-slate-400 ml-2">
@@ -1102,6 +1209,7 @@ export default function AddMemberForm({
                   <option value="Pending">Pending</option>
                 </select>
               </div>
+
               <div>
                 <label className="text-xs font-black uppercase text-slate-400 ml-2">
                   Join Date *
@@ -1131,9 +1239,12 @@ export default function AddMemberForm({
       {currentStep === 4 && (
         <div className="bg-white rounded-[2rem] shadow-xl border border-slate-100 p-6 sm:p-8">
           <h2 className="text-2xl font-black uppercase text-[#06054e] mb-6 flex items-center gap-2">
-            <Heart size={24} /> Healthcare & Medical
+            <Heart size={24} />
+            Healthcare & Medical
           </h2>
+
           <div className="space-y-6">
+            {/* Medicare */}
             <div>
               <div className="flex items-center gap-2 mb-4">
                 <input
@@ -1142,12 +1253,12 @@ export default function AddMemberForm({
                   checked={hasMedicare}
                   onChange={(e) => {
                     setHasMedicare(e.target.checked);
-                    if (!e.target.checked)
+                    if (!e.target.checked) {
                       setFormData({
                         ...formData,
                         healthcare: { ...formData.healthcare, medicare: null },
                       });
-                    else
+                    } else {
                       setFormData({
                         ...formData,
                         healthcare: {
@@ -1160,6 +1271,7 @@ export default function AddMemberForm({
                           },
                         },
                       });
+                    }
                   }}
                   className="w-4 h-4 rounded border-slate-300 text-[#06054e] focus:ring-yellow-400"
                 />
@@ -1170,6 +1282,7 @@ export default function AddMemberForm({
                   💳 I have Medicare
                 </label>
               </div>
+
               {hasMedicare && formData.healthcare.medicare && (
                 <div className="p-6 bg-green-50 border-2 border-green-200 rounded-2xl">
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -1289,6 +1402,8 @@ export default function AddMemberForm({
                 </div>
               )}
             </div>
+
+            {/* Private Health Insurance */}
             <div>
               <div className="flex items-center gap-2 mb-4">
                 <input
@@ -1297,7 +1412,7 @@ export default function AddMemberForm({
                   checked={hasPrivateHealth}
                   onChange={(e) => {
                     setHasPrivateHealth(e.target.checked);
-                    if (!e.target.checked)
+                    if (!e.target.checked) {
                       setFormData({
                         ...formData,
                         healthcare: {
@@ -1305,7 +1420,7 @@ export default function AddMemberForm({
                           privateHealth: null,
                         },
                       });
-                    else
+                    } else {
                       setFormData({
                         ...formData,
                         healthcare: {
@@ -1317,6 +1432,7 @@ export default function AddMemberForm({
                           },
                         },
                       });
+                    }
                   }}
                   className="w-4 h-4 rounded border-slate-300 text-[#06054e] focus:ring-yellow-400"
                 />
@@ -1327,6 +1443,7 @@ export default function AddMemberForm({
                   🏥 I have Private Health Insurance
                 </label>
               </div>
+
               {hasPrivateHealth && formData.healthcare.privateHealth && (
                 <div className="p-6 bg-blue-50 border-2 border-blue-200 rounded-2xl">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -1412,6 +1529,8 @@ export default function AddMemberForm({
                 </div>
               )}
             </div>
+
+            {/* Medical Information */}
             <div>
               <h3 className="text-lg font-black text-slate-700 mb-4">
                 Medical Information
@@ -1486,33 +1605,38 @@ export default function AddMemberForm({
       {/* STEP 5: Emergency Contacts & Family */}
       {currentStep === 5 && (
         <>
+          {/* WARNING BANNER - Shows if no emergency contacts */}
           {formData.emergencyContacts.length === 0 && (
-            <div className="bg-red-50 border-2 border-red-300 rounded-2xl p-6 mb-6 flex items-start gap-4">
-              <AlertCircle
-                size={24}
-                className="text-red-600 flex-shrink-0 mt-1"
-              />
-              <div>
-                <h3 className="text-lg font-black text-red-900 mb-2">
-                  ⚠️ Emergency Contact Required
-                </h3>
-                <p className="text-red-800 mb-3">
-                  You must add at least one emergency contact before you can
-                  create this member.
-                </p>
-                <p className="text-sm text-red-700">
-                  Click the "Add Emergency Contact" button below to get started.
-                </p>
+            <div className="bg-red-50 border-4 border-red-500 rounded-[2rem] p-6 mb-6 shadow-xl">
+              <div className="flex items-start gap-4">
+                <AlertCircle
+                  size={32}
+                  className="text-red-600 flex-shrink-0 mt-1"
+                />
+                <div className="flex-1">
+                  <h3 className="text-xl font-black text-red-900 mb-2">
+                    ⚠️ Emergency Contact Required
+                  </h3>
+                  <p className="text-red-800 font-bold mb-3">
+                    You must add at least one emergency contact before you can
+                    create this member.
+                  </p>
+                  <p className="text-sm text-red-700 font-bold">
+                    👇 Click the "Add Emergency Contact" button below to get
+                    started.
+                  </p>
+                </div>
               </div>
             </div>
           )}
+
+          {/* Emergency Contacts */}
           <div className="bg-white rounded-[2rem] shadow-xl border border-slate-100 p-6 sm:p-8">
             <h2 className="text-2xl font-black uppercase text-[#06054e] mb-6 flex items-center gap-2">
-              <Shield size={24} /> Emergency Contacts{" "}
-              <span className="text-sm font-normal text-red-600">
-                * Required
-              </span>
+              <Shield size={24} />
+              Emergency Contacts
             </h2>
+
             <div className="space-y-6">
               {formData.emergencyContacts.map((contact, index) => (
                 <div
@@ -1531,6 +1655,7 @@ export default function AddMemberForm({
                       <Trash2 size={20} />
                     </button>
                   </div>
+
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="md:col-span-2">
                       <label className="text-xs font-black uppercase text-slate-400 ml-2">
@@ -1547,6 +1672,7 @@ export default function AddMemberForm({
                         placeholder="Jane Smith"
                       />
                     </div>
+
                     <div className="md:col-span-2">
                       <label className="text-xs font-black uppercase text-slate-400 ml-2">
                         Relationship *
@@ -1574,6 +1700,7 @@ export default function AddMemberForm({
                         ))}
                       </select>
                     </div>
+
                     <div>
                       <label className="text-xs font-black uppercase text-slate-400 ml-2">
                         Phone *
@@ -1589,6 +1716,7 @@ export default function AddMemberForm({
                         placeholder="0411 111 111"
                       />
                     </div>
+
                     <div>
                       <label className="text-xs font-black uppercase text-slate-400 ml-2">
                         Mobile
@@ -1607,6 +1735,7 @@ export default function AddMemberForm({
                         placeholder="0422 222 222"
                       />
                     </div>
+
                     <div className="md:col-span-2">
                       <label className="text-xs font-black uppercase text-slate-400 ml-2">
                         Email
@@ -1624,13 +1753,15 @@ export default function AddMemberForm({
                   </div>
                 </div>
               ))}
+
               {formData.emergencyContacts.length < 3 && (
                 <button
                   type="button"
                   onClick={addEmergencyContact}
                   className="w-full p-4 border-2 border-dashed border-slate-300 rounded-2xl text-slate-600 hover:border-[#06054e] hover:text-[#06054e] hover:bg-slate-50 transition-all flex items-center justify-center gap-2 font-bold"
                 >
-                  <Plus size={20} /> Add Emergency Contact{" "}
+                  <Plus size={20} />
+                  Add Emergency Contact{" "}
                   {formData.emergencyContacts.length > 0
                     ? `(${formData.emergencyContacts.length}/3)`
                     : ""}
@@ -1638,6 +1769,8 @@ export default function AddMemberForm({
               )}
             </div>
           </div>
+
+          {/* Family Relationships */}
           <div className="bg-white rounded-[2rem] shadow-xl border border-slate-100 p-6 sm:p-8 mt-6">
             <div className="flex items-center gap-2 mb-4">
               <input
@@ -1654,6 +1787,7 @@ export default function AddMemberForm({
                 👥 This member has family in the club
               </label>
             </div>
+
             {hasFamilyMembers && (
               <div className="space-y-6 mt-6">
                 {formData.familyRelationships.map((rel, index) => (
@@ -1673,6 +1807,7 @@ export default function AddMemberForm({
                         <Trash2 size={20} />
                       </button>
                     </div>
+
                     <div className="space-y-4">
                       <div>
                         <label className="text-xs font-black uppercase text-slate-400 ml-2">
@@ -1692,6 +1827,7 @@ export default function AddMemberForm({
                           className="w-full p-3 bg-white border border-slate-200 rounded-xl outline-none font-bold focus:ring-2 ring-yellow-400"
                           placeholder="Type member name or ID..."
                         />
+
                         {searchResults[index] &&
                           searchResults[index].length > 0 && (
                             <div className="mt-2 bg-white border border-slate-200 rounded-xl shadow-lg max-h-48 overflow-y-auto">
@@ -1729,6 +1865,7 @@ export default function AddMemberForm({
                             </div>
                           )}
                       </div>
+
                       <div>
                         <label className="text-xs font-black uppercase text-slate-400 ml-2">
                           Relationship Type
@@ -1752,6 +1889,7 @@ export default function AddMemberForm({
                           ))}
                         </select>
                       </div>
+
                       {rel.relatedMemberId && rel.forwardRelation && (
                         <div className="p-4 bg-blue-50 border border-blue-200 rounded-xl">
                           <p className="text-sm text-blue-800">
@@ -1764,12 +1902,14 @@ export default function AddMemberForm({
                     </div>
                   </div>
                 ))}
+
                 <button
                   type="button"
                   onClick={addFamilyRelationship}
                   className="w-full p-4 border-2 border-dashed border-slate-300 rounded-2xl text-slate-600 hover:border-[#06054e] hover:text-[#06054e] hover:bg-slate-50 transition-all flex items-center justify-center gap-2 font-bold"
                 >
-                  <Plus size={20} /> Add Family Relationship
+                  <Plus size={20} />
+                  Add Family Relationship
                 </button>
               </div>
             )}
@@ -1786,7 +1926,8 @@ export default function AddMemberForm({
               onClick={() => setCurrentStep(currentStep - 1)}
               className="flex items-center gap-2 px-6 py-3 bg-slate-200 hover:bg-slate-300 rounded-xl font-bold transition-all"
             >
-              <ArrowLeft size={20} /> Previous
+              <ArrowLeft size={20} />
+              Previous
             </button>
           )}
           {currentStep === 1 && (
@@ -1794,49 +1935,71 @@ export default function AddMemberForm({
               href={`/clubs/${clubId}/members`}
               className="flex items-center gap-2 px-6 py-3 bg-slate-200 hover:bg-slate-300 rounded-xl font-bold transition-all"
             >
-              <ArrowLeft size={20} /> Cancel
+              <ArrowLeft size={20} />
+              Cancel
             </Link>
           )}
         </div>
+
         <div className="flex gap-3">
           {currentStep < totalSteps ? (
             <button
               type="button"
               onClick={() => {
                 if (currentStep === 3 && formData.roles.length === 0) {
-                  toast.warning("Selection Required", {
-                    description: "Please select at least one role.",
-                  });
+                  showAlert(
+                    "warning",
+                    "Role Required",
+                    "Please select at least one role."
+                  );
                   return;
                 }
                 setCurrentStep(currentStep + 1);
               }}
               className="flex items-center gap-2 px-6 py-3 bg-[#06054e] text-white rounded-xl font-bold hover:bg-yellow-400 hover:text-[#06054e] transition-all"
             >
-              Next <ArrowLeft size={20} className="rotate-180" />
+              Next
+              <ArrowLeft size={20} className="rotate-180" />
             </button>
           ) : (
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="flex items-center gap-2 px-6 py-3 bg-green-600 text-white rounded-xl font-bold hover:bg-green-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isLoading ? (
-                <Loader2 className="animate-spin" size={20} />
-              ) : (
-                <Save size={20} />
+            <div className="flex items-center gap-4">
+              {/* Warning text if no emergency contacts */}
+              {formData.emergencyContacts.length === 0 && (
+                <div className="text-red-600 text-sm font-bold">
+                  ⚠️ Add at least one emergency contact
+                </div>
               )}
-              {isLoading
-                ? mode === "create"
-                  ? "Creating..."
-                  : "Updating..."
-                : mode === "create"
-                ? "Create Member"
-                : "Update Member"}
-            </button>
+
+              <button
+                type="submit"
+                disabled={isLoading || formData.emergencyContacts.length === 0}
+                className={`flex items-center gap-2 px-6 py-3 rounded-xl font-black transition-all ${
+                  formData.emergencyContacts.length === 0
+                    ? "bg-slate-300 text-slate-500 cursor-not-allowed"
+                    : "bg-green-600 text-white hover:bg-green-700"
+                } ${isLoading ? "opacity-50 cursor-not-allowed" : ""}`}
+                title={
+                  formData.emergencyContacts.length === 0
+                    ? "Add at least one emergency contact first"
+                    : ""
+                }
+              >
+                <Save size={20} />
+                {isLoading
+                  ? mode === "create"
+                    ? "Creating..."
+                    : "Updating..."
+                  : formData.emergencyContacts.length === 0
+                  ? "⚠️ Add Emergency Contact First"
+                  : mode === "create"
+                  ? "Create Member"
+                  : "Update Member"}
+              </button>
+            </div>
           )}
         </div>
       </div>
+      {AlertComponent}
     </form>
   );
 }

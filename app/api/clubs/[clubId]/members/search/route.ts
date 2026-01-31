@@ -1,54 +1,56 @@
 // app/api/clubs/[clubId]/members/search/route.ts
-// Search members in a club for family relationship linking
+// Member search API (using club.id)
 
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 
+// GET - Search members in club
 export async function GET(
   request: NextRequest,
-  { params }: { params: { clubId: string } }
+  { params }: { params: Promise<{ clubId: string }> }
 ) {
   try {
+    const { clubId } = await params; // This is the slug
     const { searchParams } = new URL(request.url);
-    const query = searchParams.get("q") || "";
+    const query = searchParams.get("q");
+
+    if (!query || query.length < 2) {
+      return NextResponse.json(
+        { error: "Query must be at least 2 characters" },
+        { status: 400 }
+      );
+    }
 
     const client = await clientPromise;
-    const db = client.db(process.env.DB_NAME || "hockey-app");
+    const db = client.db("hockey-app");
 
     // Find club by slug
-    const club = await db.collection("clubs").findOne({ slug: params.clubId });
+    const club = await db.collection("clubs").findOne({ slug: clubId });
     if (!club) {
       return NextResponse.json({ error: "Club not found" }, { status: 404 });
     }
 
-    // Build search query
-    const searchQuery: any = {
-      clubId: club.clubId,
-    };
-
-    if (query) {
-      searchQuery.$or = [
-        { "personalInfo.firstName": { $regex: query, $options: "i" } },
-        { "personalInfo.lastName": { $regex: query, $options: "i" } },
-        { memberId: { $regex: query, $options: "i" } },
-      ];
-    }
-
-    // Get members
+    // ✅ Search members using club.id
     const members = await db
       .collection("members")
-      .find(searchQuery)
-      .project({
-        memberId: 1,
-        personalInfo: 1,
-        _id: 0,
+      .find({
+        clubId: club.id,
+        $or: [
+          { "personalInfo.firstName": { $regex: query, $options: "i" } },
+          { "personalInfo.lastName": { $regex: query, $options: "i" } },
+          { "personalInfo.displayName": { $regex: query, $options: "i" } },
+          { memberId: { $regex: query, $options: "i" } },
+        ],
       })
-      .limit(20)
+      .limit(10)
       .toArray();
 
     return NextResponse.json(members);
-  } catch (error: any) {
+  } catch (error) {
     console.error("Error searching members:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to search members" },
+      { status: 500 }
+    );
   }
 }

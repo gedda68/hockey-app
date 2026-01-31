@@ -90,7 +90,7 @@ export default function AdminSidebar() {
         <div className="p-6 border-t border-white/10">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center font-black">
-              A
+              Ab
             </div>
             <div className="flex-1 min-w-0">
               <div className="font-bold text-sm truncate">Admin User</div>

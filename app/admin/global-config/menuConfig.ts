@@ -1,4 +1,4 @@
-// app/admin/config/menuConfig.ts
+// app/admin/global-config/menuConfig.ts
 // Shared menu configuration for sidebar and dashboard
 // Adding items here automatically updates both!
 
@@ -36,7 +36,7 @@ export const menuConfig: MenuItem[] = [
       {
         label: "Nominations",
         href: "/admin/nominations",
-        icon: "👔",
+        icon: "🏆",
         description: "Player Nominations",
       },
       {
@@ -48,7 +48,7 @@ export const menuConfig: MenuItem[] = [
       {
         label: "Withdrawn",
         href: "/admin/withdrawn",
-        icon: "📥",
+        icon: "🔥",
         description: "Withdrawn players",
       },
     ],
@@ -90,7 +90,7 @@ export const menuConfig: MenuItem[] = [
   {
     label: "Staff",
     href: "/admin/staff",
-    icon: "👔",
+    icon: "🎓",
     description: "Coaches, managers, and officials",
     color: "from-green-500 to-green-600",
     subItems: [
@@ -150,6 +150,79 @@ export const menuConfig: MenuItem[] = [
         href: "/admin/clubs/stats",
         icon: "📊",
         description: "Performance metrics",
+      },
+    ],
+  },
+  {
+    label: "Associations",
+    href: "/admin/associations",
+    icon: "🏛️",
+    description: "Association hierarchy and management",
+    color: "from-teal-500 to-teal-600",
+    subItems: [
+      {
+        label: "All Associations",
+        href: "/admin/associations",
+        icon: "🏛️",
+        description: "Association directory",
+      },
+      {
+        label: "Create Association",
+        href: "/admin/associations/new",
+        icon: "➕",
+        description: "Add new association",
+      },
+      {
+        label: "Fee Configuration",
+        href: "/admin/associations/fees",
+        icon: "💰",
+        description: "Manage association fees",
+      },
+      {
+        label: "Positions",
+        href: "/admin/associations/positions",
+        icon: "👔",
+        description: "Association positions",
+      },
+      {
+        label: "Hierarchy View",
+        href: "/admin/associations/hierarchy",
+        icon: "🌳",
+        description: "View full hierarchy",
+      },
+    ],
+  },
+  {
+    label: "Registration",
+    href: "/admin/registrations",
+    icon: "📝",
+    description: "Player registrations and payments",
+    color: "from-cyan-500 to-cyan-600",
+    subItems: [
+      {
+        label: "All Registrations",
+        href: "/admin/registrations",
+        icon: "📝",
+        description: "View all registrations",
+      },
+      {
+        label: "Pending Approval",
+        href: "/admin/registrations/pending",
+        icon: "⏳",
+        badge: "12",
+        description: "Awaiting approval",
+      },
+      {
+        label: "Payments",
+        href: "/admin/registrations/payments",
+        icon: "💳",
+        description: "Payment tracking",
+      },
+      {
+        label: "Season Management",
+        href: "/admin/registrations/seasons",
+        icon: "📅",
+        description: "Manage seasons",
       },
     ],
   },
@@ -233,6 +306,18 @@ export const menuConfig: MenuItem[] = [
         description: "Player statistics",
       },
       {
+        label: "Registration Reports",
+        href: "/admin/reports/registrations",
+        icon: "📝",
+        description: "Registration analytics",
+      },
+      {
+        label: "Financial Reports",
+        href: "/admin/reports/financial",
+        icon: "💰",
+        description: "Payment and fee reports",
+      },
+      {
         label: "Selection Reports",
         href: "/admin/reports/selection",
         icon: "✅",
@@ -280,7 +365,7 @@ export const menuConfig: MenuItem[] = [
       {
         label: "Relationship Types",
         href: "/admin/global-config/relationships",
-        icon: "💑",
+        icon: "👫",
         description: "Manage Relationship types",
       },
       {
@@ -289,7 +374,6 @@ export const menuConfig: MenuItem[] = [
         icon: "🏳️‍🌈",
         description: "Manage gender types",
       },
-      ,
       {
         label: "Role Types",
         href: "/admin/global-config/roles",
@@ -308,7 +392,7 @@ export const menuConfig: MenuItem[] = [
 
 // Helper function to get main menu items (for dashboard tiles)
 export const getMainMenuItems = () => {
-  return menuConfig.filter((item) => item.href !== "/admin/dashboard"); // Exclude dashboard from showing on itself
+  return menuConfig.filter((item) => item.href !== "/admin/dashboard");
 };
 
 // Helper function to get all sub-items

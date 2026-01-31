@@ -1,0 +1,374 @@
+// components/AssociationRegistrationForm.tsx
+// Form for registering with hockey association
+
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import {
+  Shield,
+  Check,
+  AlertCircle,
+  Calendar,
+  DollarSign,
+  FileText,
+  Award,
+} from "lucide-react";
+
+interface Association {
+  id: string;
+  code: string;
+  name: string;
+  fullName: string;
+  registrationFee: number;
+}
+
+interface AssociationRegistrationFormProps {
+  memberId: string;
+  association: Association;
+  currentSeasonYear: string;
+}
+
+export default function AssociationRegistrationForm({
+  memberId,
+  association,
+  currentSeasonYear,
+}: AssociationRegistrationFormProps) {
+  const router = useRouter();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+
+  // Form state
+  const [playerClassification, setPlayerClassification] = useState("");
+  const [requiresClearance, setRequiresClearance] = useState(false);
+  const [clearanceFrom, setClearanceFrom] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState<string>("card");
+  const [notes, setNotes] = useState("");
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    setError("");
+    setSuccess("");
+
+    if (!agreedToTerms) {
+      setError("You must agree to the terms and conditions");
+      setIsSubmitting(false);
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/associations/${association.id}/register`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          memberId,
+          associationId: association.id,
+          seasonYear: currentSeasonYear,
+          playerClassification: playerClassification || undefined,
+          requiresClearance,
+          clearanceFrom: requiresClearance ? clearanceFrom : undefined,
+          paymentMethod,
+          registrationNotes: notes || undefined,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to submit registration");
+      }
+
+      setSuccess("Registration submitted successfully!");
+
+      // Redirect to dashboard after delay
+      setTimeout(() => {
+        router.push("/dashboard");
+      }, 2000);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="max-w-3xl mx-auto">
+      {/* Header */}
+      <div className="bg-white rounded-[2rem] shadow-xl border border-slate-100 p-8 mb-6">
+        <div className="flex items-start gap-4 mb-6">
+          <div className="w-16 h-16 rounded-2xl bg-[#06054e] text-white flex items-center justify-center">
+            <Shield size={32} />
+          </div>
+          <div>
+            <h1 className="text-3xl font-black text-[#06054e]">
+              Association Registration
+            </h1>
+            <p className="text-lg text-slate-600 font-bold mt-1">
+              {association.fullName}
+            </p>
+          </div>
+        </div>
+
+        {/* Info Banner */}
+        <div className="p-4 bg-blue-50 border-2 border-blue-200 rounded-xl">
+          <div className="flex items-start gap-3">
+            <Award size={20} className="text-blue-600 flex-shrink-0 mt-1" />
+            <div>
+              <h3 className="font-black text-blue-800 mb-1">
+                Why Register with the Association?
+              </h3>
+              <p className="text-sm font-bold text-blue-700">
+                Association registration is required to participate in official competitions
+                and ensures you're covered by insurance. This registration is valid for the{" "}
+                {currentSeasonYear} season.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Messages */}
+      {error && (
+        <div className="bg-red-50 border-4 border-red-500 rounded-2xl p-6 mb-6">
+          <div className="flex items-start gap-3">
+            <AlertCircle size={24} className="text-red-600 flex-shrink-0 mt-1" />
+            <div>
+              <h3 className="text-lg font-black text-red-800 mb-1">
+                Registration Error
+              </h3>
+              <p className="text-red-700 font-bold">{error}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {success && (
+        <div className="bg-green-50 border-4 border-green-500 rounded-2xl p-6 mb-6">
+          <div className="flex items-start gap-3">
+            <Check size={24} className="text-green-600 flex-shrink-0 mt-1" />
+            <div>
+              <h3 className="text-lg font-black text-green-800 mb-1">
+                Registration Submitted
+              </h3>
+              <p className="text-green-700 font-bold">{success}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Form */}
+      <form onSubmit={handleSubmit} className="space-y-6">
+        {/* Season & Fee Info */}
+        <div className="bg-white rounded-[2rem] shadow-xl border border-slate-100 p-6">
+          <h2 className="text-2xl font-black text-[#06054e] mb-4 flex items-center gap-2">
+            <Calendar size={24} />
+            Registration Details
+          </h2>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label className="block text-sm font-black uppercase text-slate-600 mb-2">
+                Season Year
+              </label>
+              <div className="px-4 py-3 bg-slate-100 border-2 border-slate-200 rounded-xl font-bold text-slate-800">
+                {currentSeasonYear}
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-black uppercase text-slate-600 mb-2">
+                Registration Fee
+              </label>
+              <div className="px-4 py-3 bg-green-50 border-2 border-green-200 rounded-xl font-bold text-green-800 flex items-center gap-2">
+                <DollarSign size={20} />
+                ${association.registrationFee.toFixed(2)}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Player Classification */}
+        <div className="bg-white rounded-[2rem] shadow-xl border border-slate-100 p-6">
+          <h2 className="text-2xl font-black text-[#06054e] mb-4">
+            Player Classification
+          </h2>
+          <p className="text-sm font-bold text-slate-600 mb-4">Optional</p>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            {['Junior', 'Senior', 'Masters'].map((classification) => (
+              <button
+                key={classification}
+                type="button"
+                onClick={() => setPlayerClassification(classification)}
+                className={`px-6 py-4 rounded-xl font-bold transition-all ${
+                  playerClassification === classification
+                    ? 'bg-[#06054e] text-white'
+                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                }`}
+              >
+                {classification}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Clearance */}
+        <div className="bg-white rounded-[2rem] shadow-xl border border-slate-100 p-6">
+          <h2 className="text-2xl font-black text-[#06054e] mb-4">
+            Transfer Clearance
+          </h2>
+          <p className="text-sm font-bold text-slate-600 mb-4">
+            Only required if transferring from another association
+          </p>
+
+          <label className="flex items-center gap-3 p-4 bg-slate-50 rounded-xl border-2 border-slate-200 cursor-pointer hover:border-slate-300 transition-all mb-4">
+            <input
+              type="checkbox"
+              checked={requiresClearance}
+              onChange={(e) => setRequiresClearance(e.target.checked)}
+              className="w-5 h-5 rounded border-2 border-slate-300"
+            />
+            <span className="font-bold text-slate-800">
+              I am transferring from another association
+            </span>
+          </label>
+
+          {requiresClearance && (
+            <div>
+              <label className="block text-sm font-black uppercase text-slate-600 mb-2">
+                Previous Association
+              </label>
+              <input
+                type="text"
+                value={clearanceFrom}
+                onChange={(e) => setClearanceFrom(e.target.value)}
+                placeholder="e.g., Gold Coast Hockey Association"
+                className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-200 rounded-xl outline-none font-bold focus:ring-2 ring-yellow-400 focus:border-yellow-400"
+                required={requiresClearance}
+              />
+            </div>
+          )}
+        </div>
+
+        {/* Payment Method */}
+        <div className="bg-white rounded-[2rem] shadow-xl border border-slate-100 p-6">
+          <h2 className="text-2xl font-black text-[#06054e] mb-4 flex items-center gap-2">
+            <DollarSign size={24} />
+            Payment Method
+          </h2>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {[
+              { value: 'card', label: 'Credit/Debit Card' },
+              { value: 'bank_transfer', label: 'Bank Transfer' },
+              { value: 'cash', label: 'Cash (at club)' },
+            ].map((method) => (
+              <button
+                key={method.value}
+                type="button"
+                onClick={() => setPaymentMethod(method.value)}
+                className={`px-6 py-4 rounded-xl font-bold transition-all ${
+                  paymentMethod === method.value
+                    ? 'bg-green-500 text-white'
+                    : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                }`}
+              >
+                {method.label}
+              </button>
+            ))}
+          </div>
+
+          <div className="mt-4 p-4 bg-blue-50 rounded-xl border border-blue-200">
+            <p className="text-sm font-bold text-blue-700">
+              💳 Payment will be processed after your registration is approved
+            </p>
+          </div>
+        </div>
+
+        {/* Additional Notes */}
+        <div className="bg-white rounded-[2rem] shadow-xl border border-slate-100 p-6">
+          <h2 className="text-2xl font-black text-[#06054e] mb-4 flex items-center gap-2">
+            <FileText size={24} />
+            Additional Information
+          </h2>
+          <textarea
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            placeholder="Any additional information (optional)"
+            rows={4}
+            className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-200 rounded-xl outline-none font-bold focus:ring-2 ring-yellow-400 focus:border-yellow-400 resize-none"
+          />
+        </div>
+
+        {/* Terms & Conditions */}
+        <div className="bg-white rounded-[2rem] shadow-xl border border-slate-100 p-6">
+          <label className="flex items-start gap-3 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={agreedToTerms}
+              onChange={(e) => setAgreedToTerms(e.target.checked)}
+              className="w-5 h-5 rounded border-2 border-slate-300 mt-1 flex-shrink-0"
+            />
+            <span className="text-sm font-bold text-slate-700">
+              I agree to the{" "}
+              <a
+                href="/terms"
+                target="_blank"
+                className="text-[#06054e] hover:underline font-black"
+              >
+                Terms and Conditions
+              </a>{" "}
+              and{" "}
+              <a
+                href="/code-of-conduct"
+                target="_blank"
+                className="text-[#06054e] hover:underline font-black"
+              >
+                Code of Conduct
+              </a>{" "}
+              of {association.name}. I understand that my registration is subject to
+              approval and payment.
+            </span>
+          </label>
+        </div>
+
+        {/* Submit */}
+        <div className="bg-white rounded-[2rem] shadow-xl border border-slate-100 p-6">
+          <div className="flex gap-4">
+            <button
+              type="button"
+              onClick={() => router.back()}
+              className="flex-1 px-6 py-4 bg-slate-100 text-slate-700 rounded-xl font-bold hover:bg-slate-200 transition-all"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={isSubmitting || !agreedToTerms}
+              className="flex-1 flex items-center justify-center gap-2 px-6 py-4 bg-[#06054e] text-white rounded-xl font-black hover:bg-yellow-400 hover:text-[#06054e] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isSubmitting ? (
+                <>
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                  Submitting...
+                </>
+              ) : (
+                <>
+                  <Shield size={20} />
+                  Submit Registration
+                </>
+              )}
+            </button>
+          </div>
+
+          <p className="text-xs text-slate-500 font-bold text-center mt-4">
+            Your registration will be reviewed by the association
+          </p>
+        </div>
+      </form>
+    </div>
+  );
+}

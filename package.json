@@ -1,5 +1,5 @@
 {
-  "name": "calorie-tracker",
+  "name": "Sports-Management-App",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -25,7 +25,8 @@
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.4.0",
     "uuid": "^13.0.0",
-    "xlsx": "^0.18.5"
+    "xlsx": "^0.18.5",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.1.18",

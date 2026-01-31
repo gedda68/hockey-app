@@ -2,7 +2,14 @@
 // Shared layout for all club pages
 
 import Link from "next/link";
-import { Home, Users, Shield, Calendar, Settings } from "lucide-react";
+import {
+  Home,
+  Users,
+  Shield,
+  Calendar,
+  Settings,
+  UserRoundPlus,
+} from "lucide-react";
 
 async function getClub(clubId: string) {
   // Try slug first, then ID
@@ -114,6 +121,12 @@ export default async function ClubLayout({
               icon={<Calendar size={18} />}
             >
               Fixtures
+            </NavLink>
+            <NavLink
+              href={`/clubs/${clubId}/register`}
+              icon={<UserRoundPlus size={18} />}
+            >
+              Register
             </NavLink>
             <NavLink
               href={`/clubs/${clubId}/settings`}
