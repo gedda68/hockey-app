@@ -7,6 +7,8 @@ module.exports = {
   ],
   plugins: [require("daisyui")],
   daisyui: {
-    base: false, // 🔑 fixes your build warning
+    base: false,
   },
+
+  THIS_WILL_THROW,
 };
