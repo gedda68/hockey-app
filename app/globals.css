@@ -1,5 +1,4 @@
 @import "tailwindcss";
-@plugin "daisyui";
 
 /* Optional: Define your default daisyUI theme */
 :root {
