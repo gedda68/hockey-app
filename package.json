@@ -13,6 +13,7 @@
     "@lexical/react": "^0.39.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "daisyui": "^5.5.14",
     "DaisyUI": "npm:daisyui@^5.5.14",
     "lexical": "^0.39.0",
     "lucide-react": "^0.562.0",
