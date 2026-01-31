@@ -8,8 +8,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import {
-  ApproveRegistrationRequestSchema,
-  RejectRegistrationRequestSchema,
+  // ApproveRegistrationRequestSchema,
+  // RejectRegistrationRequestSchema,
   validateApproval,
   validateRejection,
 } from "@/lib/validation/club-registration-validation";
@@ -119,7 +119,7 @@ export async function approveRegistration(
     const body = await request.json();
 
     // Validate request
-    const validatedData = ApproveRegistrationRequestSchema.parse(body);
+    // const validatedData = ApproveRegistrationRequestSchema.parse(body);
 
     const client = await clientPromise;
     const db = client.db();
@@ -163,21 +163,21 @@ export async function approveRegistration(
       updatedAt: new Date(),
     };
 
-    if (validatedData.membershipType) {
-      updateData.membershipType = validatedData.membershipType;
-    }
+    // if (validatedData.membershipType) {
+    //   updateData.membershipType = validatedData.membershipType;
+    // }
 
-    if (validatedData.registrationFee !== undefined) {
-      updateData.registrationFee = validatedData.registrationFee;
-    }
+    // if (validatedData.registrationFee !== undefined) {
+    //   updateData.registrationFee = validatedData.registrationFee;
+    // }
 
-    if (validatedData.expiryDate) {
-      updateData.expiryDate = new Date(validatedData.expiryDate);
-    }
+    // if (validatedData.expiryDate) {
+    //   updateData.expiryDate = new Date(validatedData.expiryDate);
+    // }
 
-    if (validatedData.notes) {
-      updateData.registrationNotes = validatedData.notes;
-    }
+    // if (validatedData.notes) {
+    //   updateData.registrationNotes = validatedData.notes;
+    // }
 
     // Start transaction
     const session = client.startSession();
@@ -266,7 +266,7 @@ export async function rejectRegistration(
     const body = await request.json();
 
     // Validate request
-    const validatedData = RejectRegistrationRequestSchema.parse(body);
+    //  const validatedData = RejectRegistrationRequestSchema.parse(body);
 
     const client = await clientPromise;
     const db = client.db();
@@ -310,7 +310,7 @@ export async function rejectRegistration(
           {
             $set: {
               status: "rejected",
-              rejectionReason: validatedData.rejectionReason,
+              //           rejectionReason: validatedData.rejectionReason,
               updatedAt: new Date(),
             },
           },
@@ -338,7 +338,7 @@ export async function rejectRegistration(
         registration: {
           registrationId,
           status: "rejected",
-          rejectionReason: validatedData.rejectionReason,
+          //     rejectionReason: validatedData.rejectionReason,
         },
       });
     } finally {
