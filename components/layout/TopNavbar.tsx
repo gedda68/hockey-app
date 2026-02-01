@@ -1,21 +1,25 @@
+// components/layout/TopNavbar.tsx
 "use client";
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   Calendar,
   Shield,
   Users,
-  Settings,
+  LogOut,
   Menu,
   X,
   ChevronDown,
   Phone,
   Play,
   ShieldUser,
+  LogIn,
 } from "lucide-react";
+import { useAuth } from "@/lib/auth/AuthContext";
+import { toast } from "sonner";
 
 const navItems = [
   {
@@ -35,14 +39,15 @@ const navItems = [
   { name: "Contact", href: "/contact", icon: Phone },
   { name: "Clubs", href: "/clubs", icon: Shield },
   { name: "Officials", href: "/officials", icon: Users },
-  { name: "Admin", href: "/admin/dashboard", icon: Settings, isGold: true },
 ];
 
-export default function Topnavbar() {
+export default function TopNavbar() {
   const [isOpen, setIsOpen] = useState(false);
   const [openSubMenu, setOpenSubMenu] = useState<string | null>(null);
   const [scrolled, setScrolled] = useState(false);
   const pathname = usePathname();
+  const router = useRouter();
+  const { isAuthenticated, logout } = useAuth();
 
   // Lock vertical scroll only when menu is open
   useEffect(() => {
@@ -55,7 +60,7 @@ export default function Topnavbar() {
     setOpenSubMenu(null);
   }, [pathname]);
 
-  // Scroll listener for shrinking effects (optional)
+  // Scroll listener for shrinking effects
   useEffect(() => {
     const handleScroll = () => {
       setScrolled(window.scrollY > 50);
@@ -64,19 +69,23 @@ export default function Topnavbar() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
+  const handleLogout = async () => {
+    try {
+      await logout();
+      toast.success("Logged out successfully");
+      router.push("/"); // Return to public home page
+    } catch (error) {
+      toast.error("Logout failed");
+    }
+  };
+
   return (
     <>
       {/* NAVBAR */}
-      <nav
-        className={`sticky top-0 z-[200] w-full bg-gradient-to-r from-green-500 via-yellow-400 to-[#06054e] transition-all duration-300 ease-out`}
-      >
+      <nav className="sticky top-0 z-[200] w-full bg-gradient-to-r from-green-500 via-yellow-400 to-[#06054e] transition-all duration-300 ease-out">
         <div className="flex items-center justify-between h-16 px-6 relative">
           {/* LEFT LOGO */}
-          <Link
-            href="/"
-            aria-label="Home"
-            className="flex items-center mt-18   "
-          >
+          <Link href="/" aria-label="Home" className="flex items-center mt-18">
             <Image
               src="/icons/BHA.png"
               alt="Brisbane Hockey"
@@ -147,6 +156,25 @@ export default function Topnavbar() {
                   </Link>
                 );
               })}
+
+              {/* Admin Login / Logout Button */}
+              {isAuthenticated ? (
+                <button
+                  onClick={handleLogout}
+                  className="flex items-center gap-2 px-4 py-2 bg-yellow-400 text-[#06054e] rounded-md text-sm font-bold uppercase tracking-wider hover:bg-yellow-300 transition-colors shadow-lg"
+                >
+                  <LogOut className="h-5 w-5" />
+                  Logout
+                </button>
+              ) : (
+                <Link
+                  href="/login"
+                  className="flex items-center gap-2 px-4 py-2 bg-yellow-400 text-[#06054e] rounded-md text-sm font-bold uppercase tracking-wider hover:bg-yellow-300 transition-colors shadow-lg"
+                >
+                  <LogIn className="h-5 w-5" />
+                  Admin Login
+                </Link>
+              )}
             </div>
           </div>
         </div>
@@ -154,9 +182,9 @@ export default function Topnavbar() {
 
       {/* BOTTOM TEXT */}
       <div className="w-full py-4 bg-gradient-to-r from-green-500 via-yellow-400 to-[#06054e] text-center">
-        <span className="text-3xl md:text-4xl font-extrabold text-white uppercase tracking-wide">
+        <h1 className="text-3xl md:text-4xl font-extrabold text-white uppercase tracking-wide">
           Brisbane Hockey Association
-        </span>
+        </h1>
       </div>
 
       {/* MOBILE BACKDROP */}
@@ -205,7 +233,7 @@ export default function Topnavbar() {
                   <div
                     className="overflow-hidden transition-all duration-300"
                     style={{
-                      maxHeight: isSubOpen ? "150px" : "0px",
+                      maxHeight: isSubOpen ? "300px" : "0px",
                     }}
                   >
                     <div className="ml-6 border-l border-white/20">
@@ -241,6 +269,35 @@ export default function Topnavbar() {
               </Link>
             );
           })}
+
+          {/* Mobile Admin Login/Logout Button */}
+          <div className="mt-4 px-2">
+            {isAuthenticated ? (
+              <button
+                onClick={() => {
+                  setIsOpen(false);
+                  handleLogout();
+                }}
+                className="flex w-full items-center gap-4 px-6 py-4 rounded-2xl bg-yellow-400 text-[#06054e] hover:bg-yellow-300"
+              >
+                <LogOut className="h-5 w-5" />
+                <span className="uppercase text-[11px] font-bold tracking-widest">
+                  Logout
+                </span>
+              </button>
+            ) : (
+              <Link
+                href="/login"
+                onClick={() => setIsOpen(false)}
+                className="flex items-center gap-4 px-6 py-4 rounded-2xl bg-yellow-400 text-[#06054e] hover:bg-yellow-300"
+              >
+                <LogIn className="h-5 w-5" />
+                <span className="uppercase text-[11px] font-bold tracking-widest">
+                  Admin Login
+                </span>
+              </Link>
+            )}
+          </div>
         </div>
       </aside>
     </>

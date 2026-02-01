@@ -2,7 +2,7 @@
 // Admin layout with sidebar navigation
 
 import { Metadata } from "next";
-import AdminSidebar from "./components/AdminSidebar";
+import AdminSidebar from "../../components/admin/AdminSidebar";
 import TopNavbar from "../../components/layout/TopNavbar";
 
 export const metadata: Metadata = {
@@ -17,7 +17,6 @@ export default function AdminLayout({
 }) {
   return (
     <div>
-      <TopNavbar />
       <div className="flex min-h-screen bg-slate-50">
         {/* Sidebar */}
         <AdminSidebar />

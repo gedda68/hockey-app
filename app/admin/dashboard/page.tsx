@@ -12,6 +12,7 @@ import {
   FileText,
   TrendingUp,
 } from "lucide-react";
+import StatCard from "@/components/ui/StatCard";
 
 // Import menu config
 let menuConfig: any[] = [];
@@ -138,61 +139,41 @@ export default function DashboardPage() {
       <div className="max-w-7xl mx-auto px-6 py-8">
         {/* Quick Stats - Row 1: Core Stats */}
         <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-6">
-          <div className="bg-white rounded-2xl shadow-lg p-6 border-2 border-purple-200">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-bold text-slate-500 uppercase">
-                  Divisions
-                </p>
-                <p className="text-3xl font-black text-[#06054e] mt-1">
-                  {stats.rosters}
-                </p>
-              </div>
-              <div className="text-4xl">📋</div>
-            </div>
-          </div>
+          {/* Card 1: Standard Size, Indigo Border */}
+          <StatCard
+            label="Divisions"
+            value={stats.rosters}
+            icon="📋"
+            borderColor="border-purple-200"
+            size="md"
+          />
 
-          <div className="bg-white rounded-2xl shadow-lg p-6 border-2 border-yellow-200">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-bold text-slate-500 uppercase">
-                  Players
-                </p>
-                <p className="text-3xl font-black text-[#06054e] mt-1">
-                  {stats.players}
-                </p>
-              </div>
-              <div className="text-4xl">⭐</div>
-            </div>
-          </div>
+          {/* Card 2: Standard Size, Yellow Border */}
+          <StatCard
+            label="Players"
+            value={stats.players}
+            icon="⭐"
+            borderColor="border-yellow-200"
+            size="md"
+          />
 
-          <div className="bg-white rounded-2xl shadow-lg p-6 border-2 border-green-200">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-bold text-slate-500 uppercase">
-                  Staff
-                </p>
-                <p className="text-3xl font-black text-[#06054e] mt-1">
-                  {stats.staff}
-                </p>
-              </div>
-              <div className="text-4xl">🎓</div>
-            </div>
-          </div>
+          {/* Card 3: Standard Size, Indigo Border */}
+          <StatCard
+            label="Staff"
+            value={stats.staff}
+            icon="🎓"
+            borderColor="border-green-200"
+            size="md"
+          />
 
-          <div className="bg-white rounded-2xl shadow-lg p-6 border-2 border-indigo-200">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-bold text-slate-500 uppercase">
-                  Clubs
-                </p>
-                <p className="text-3xl font-black text-[#06054e] mt-1">
-                  {stats.clubs}
-                </p>
-              </div>
-              <div className="text-4xl">🏢</div>
-            </div>
-          </div>
+          {/* Card 4: Standard Size, Indigo Border */}
+          <StatCard
+            label="Clubs"
+            value={stats.clubs}
+            icon="🏢"
+            borderColor="border-indigo-200"
+            size="md"
+          />
 
           <div className="bg-white rounded-2xl shadow-lg p-6 border-2 border-teal-200">
             <div className="flex items-center justify-between">

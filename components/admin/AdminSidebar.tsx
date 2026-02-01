@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { usePathname } from "next/navigation";
-import SidebarItem from "./SidebarItem";
-import { menuConfig } from "../global-config/menuConfig";
+import SidebarItem from "../../app/admin/components/SidebarItem";
+import { menuConfig } from "../../app/admin/global-config/menuConfig";
 
 export default function AdminSidebar() {
   const pathname = usePathname();
