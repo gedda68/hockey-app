@@ -7,8 +7,8 @@ export async function GET() {
     const db = client.db("hockey-app");
 
     const [roles, genders, relTypes, clubs] = await Promise.all([
-      db.collection("config_roles").find().toArray(),
-      db.collection("config_genders").find().toArray(),
+      db.collection("config").find().toArray(),
+      //  db.collection("config_genders").find().toArray(),
       db.collection("config_relationships").find().toArray(),
       db.collection("clubs").find().project({ name: 1, id: 1 }).toArray(),
     ]);

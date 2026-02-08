@@ -304,7 +304,7 @@ export default function AddMemberForm({
       showAlert(
         "error",
         "Loading Error",
-        "Failed to load form configuration.\n\nPlease refresh the page."
+        "Failed to load form configuration.\n\nPlease refresh the page.",
       );
     } finally {
       setIsLoadingConfig(false);
@@ -319,7 +319,7 @@ export default function AddMemberForm({
         showAlert(
           "error",
           "File Too Large",
-          "Maximum file size is 5MB.\n\nPlease choose a smaller image."
+          "Maximum file size is 5MB.\n\nPlease choose a smaller image.",
         );
         return;
       }
@@ -375,7 +375,7 @@ export default function AddMemberForm({
       showAlert(
         "warning",
         "Maximum Contacts Reached",
-        "You can add up to 3 emergency contacts."
+        "You can add up to 3 emergency contacts.",
       );
       return;
     }
@@ -407,7 +407,7 @@ export default function AddMemberForm({
   const updateEmergencyContact = (
     index: number,
     field: string,
-    value: string
+    value: string,
   ) => {
     const updated = [...formData.emergencyContacts];
     updated[index] = { ...updated[index], [field]: value };
@@ -440,7 +440,7 @@ export default function AddMemberForm({
   const updateFamilyRelationship = (
     index: number,
     field: string,
-    value: any
+    value: any,
   ) => {
     const updated = [...formData.familyRelationships];
     updated[index] = { ...updated[index], [field]: value };
@@ -481,7 +481,7 @@ export default function AddMemberForm({
       showAlert(
         "warning",
         "Emergency Contact Required",
-        'Please add at least one emergency contact before creating the member.\n\nGo to Step 5 and click "Add Emergency Contact".'
+        'Please add at least one emergency contact before creating the member.\n\nGo to Step 5 and click "Add Emergency Contact".',
       );
       setCurrentStep(5);
       return false; // EXPLICIT return false
@@ -489,18 +489,18 @@ export default function AddMemberForm({
 
     // ⚠️ VALIDATION 2: Check if emergency contacts are complete
     const invalidContacts = formData.emergencyContacts.filter(
-      (c) => !c.name?.trim() || !c.relationship || !c.phone?.trim()
+      (c) => !c.name?.trim() || !c.relationship || !c.phone?.trim(),
     );
 
     if (invalidContacts.length > 0) {
       console.error(
         "❌ VALIDATION FAILED: Incomplete contacts:",
-        invalidContacts.length
+        invalidContacts.length,
       );
       showAlert(
         "warning",
         "Incomplete Contact Information",
-        `Please complete all required fields for emergency contacts:\n\n• Name\n• Relationship\n• Phone\n\nMissing information in ${invalidContacts.length} contact(s).`
+        `Please complete all required fields for emergency contacts:\n\n• Name\n• Relationship\n• Phone\n\nMissing information in ${invalidContacts.length} contact(s).`,
       );
       setCurrentStep(5);
       return false; // EXPLICIT return false
@@ -566,13 +566,13 @@ export default function AddMemberForm({
         showAlert(
           "success",
           "Member Created Successfully!",
-          `Member ID: ${member.memberId}\n\n${member.personalInfo.firstName} ${member.personalInfo.lastName} has been added to the club.`
+          `Member ID: ${member.memberId}\n\n${member.personalInfo.firstName} ${member.personalInfo.lastName} has been added to the club.`,
         );
       } else {
         showAlert(
           "success",
           "Member Updated Successfully!",
-          `${member.personalInfo.firstName} ${member.personalInfo.lastName}'s information has been updated.`
+          `${member.personalInfo.firstName} ${member.personalInfo.lastName}'s information has been updated.`,
         );
       }
 
@@ -591,7 +591,7 @@ export default function AddMemberForm({
         mode === "create"
           ? "Failed to Create Member"
           : "Failed to Update Member",
-        `${error.message}\n\nPlease check your information and try again.`
+        `${error.message}\n\nPlease check your information and try again.`,
       );
     } finally {
       setIsLoading(false);
@@ -803,7 +803,7 @@ export default function AddMemberForm({
               >
                 <option value="">Select gender</option>
                 {genders.map((g: any) => (
-                  <option key={g.genderId} value={g.genderId}>
+                  <option key={g.id} value={g.id}>
                     {g.name}
                   </option>
                 ))}
@@ -1126,7 +1126,7 @@ export default function AddMemberForm({
                       ))}
                     </div>
                   </div>
-                )
+                ),
               )}
             </div>
 
@@ -1363,7 +1363,7 @@ export default function AddMemberForm({
                             >
                               {m.toString().padStart(2, "0")}
                             </option>
-                          )
+                          ),
                         )}
                       </select>
                     </div>
@@ -1390,7 +1390,7 @@ export default function AddMemberForm({
                         <option value="">Year</option>
                         {Array.from(
                           { length: 10 },
-                          (_, i) => new Date().getFullYear() + i
+                          (_, i) => new Date().getFullYear() + i,
                         ).map((y) => (
                           <option key={y} value={y}>
                             {y}
@@ -1684,7 +1684,7 @@ export default function AddMemberForm({
                           updateEmergencyContact(
                             index,
                             "relationship",
-                            e.target.value
+                            e.target.value,
                           )
                         }
                         className="w-full p-3 bg-white border border-slate-200 rounded-xl outline-none font-bold focus:ring-2 ring-yellow-400"
@@ -1728,7 +1728,7 @@ export default function AddMemberForm({
                           updateEmergencyContact(
                             index,
                             "mobile",
-                            e.target.value
+                            e.target.value,
                           )
                         }
                         className="w-full p-3 bg-white border border-slate-200 rounded-xl outline-none font-bold focus:ring-2 ring-yellow-400"
@@ -1820,7 +1820,7 @@ export default function AddMemberForm({
                             updateFamilyRelationship(
                               index,
                               "searchQuery",
-                              e.target.value
+                              e.target.value,
                             );
                             searchMembers(e.target.value, index);
                           }}
@@ -1839,12 +1839,12 @@ export default function AddMemberForm({
                                     updateFamilyRelationship(
                                       index,
                                       "relatedMemberId",
-                                      member.memberId
+                                      member.memberId,
                                     );
                                     updateFamilyRelationship(
                                       index,
                                       "searchQuery",
-                                      `${member.personalInfo.firstName} ${member.personalInfo.lastName} (${member.memberId})`
+                                      `${member.personalInfo.firstName} ${member.personalInfo.lastName} (${member.memberId})`,
                                     );
                                     setSearchResults((prev) => ({
                                       ...prev,
@@ -1876,7 +1876,7 @@ export default function AddMemberForm({
                             updateFamilyRelationship(
                               index,
                               "relationshipType",
-                              e.target.value
+                              e.target.value,
                             )
                           }
                           className="w-full p-3 bg-white border border-slate-200 rounded-xl outline-none font-bold focus:ring-2 ring-yellow-400"
@@ -1950,7 +1950,7 @@ export default function AddMemberForm({
                   showAlert(
                     "warning",
                     "Role Required",
-                    "Please select at least one role."
+                    "Please select at least one role.",
                   );
                   return;
                 }
@@ -1990,10 +1990,10 @@ export default function AddMemberForm({
                     ? "Creating..."
                     : "Updating..."
                   : formData.emergencyContacts.length === 0
-                  ? "⚠️ Add Emergency Contact First"
-                  : mode === "create"
-                  ? "Create Member"
-                  : "Update Member"}
+                    ? "⚠️ Add Emergency Contact First"
+                    : mode === "create"
+                      ? "Create Member"
+                      : "Update Member"}
               </button>
             </div>
           )}

@@ -57,18 +57,27 @@ export default function AssociationsList() {
 
     try {
       const params = new URLSearchParams();
-      if (statusFilter) params.append("status", statusFilter);
+      if (statusFilter && statusFilter !== "all")
+        params.append("status", statusFilter);
       if (levelFilter !== null) params.append("level", levelFilter.toString());
 
       const res = await fetch(`/api/admin/associations?${params}`);
-
       if (!res.ok) throw new Error("Failed to fetch associations");
 
       const data = await res.json();
-      setAssociations(data);
-      setFilteredAssociations(data);
+
+      // VITAL CHECK: Ensure data is an array before setting state
+      const associationsArray = Array.isArray(data)
+        ? data
+        : data.associations || [];
+
+      setAssociations(associationsArray);
+      setFilteredAssociations(associationsArray);
     } catch (err: any) {
       setError(err.message || "Failed to load associations");
+      // Reset to empty array on error to prevent .filter crashes
+      setAssociations([]);
+      setFilteredAssociations([]);
     } finally {
       setIsLoading(false);
     }
@@ -83,7 +92,7 @@ export default function AssociationsList() {
     const filtered = associations.filter(
       (assoc) =>
         assoc.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        assoc.code.toLowerCase().includes(searchTerm.toLowerCase())
+        assoc.code.toLowerCase().includes(searchTerm.toLowerCase()),
     );
 
     setFilteredAssociations(filtered);
@@ -237,7 +246,7 @@ export default function AssociationsList() {
               value={levelFilter === null ? "" : levelFilter}
               onChange={(e) =>
                 setLevelFilter(
-                  e.target.value === "" ? null : parseInt(e.target.value)
+                  e.target.value === "" ? null : parseInt(e.target.value),
                 )
               }
               className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-200 rounded-xl outline-none font-bold focus:ring-2 ring-yellow-400"

@@ -1,12 +1,11 @@
 // app/api/admin/associations/route.ts
-// Fixed: Auto-calculate level and hierarchy, make them optional in validation
+// Associations API with hierarchical filtering + comprehensive validation
 
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import { z } from "zod";
 
 // Schema for creating/updating associations
-// level and hierarchy are OPTIONAL - they're auto-calculated
 const AssociationSchema = z.object({
   associationId: z.string().min(1),
   code: z.string().min(1).max(10),
@@ -77,7 +76,7 @@ const AssociationSchema = z.object({
 // Helper: Calculate hierarchy and level
 async function calculateHierarchy(
   db: any,
-  parentAssociationId?: string
+  parentAssociationId?: string,
 ): Promise<{ level: number; hierarchy: string[] }> {
   if (!parentAssociationId) {
     // Root level (National)
@@ -101,37 +100,116 @@ async function calculateHierarchy(
   };
 }
 
-// GET /api/admin/associations - List all associations
-export async function GET(request: Request) {
+// Helper: Map numeric level to string level for backwards compatibility
+function getLevelString(numericLevel: number): string {
+  const levelMap: Record<number, string> = {
+    0: "National",
+    1: "State",
+    2: "City",
+    3: "Region",
+  };
+  return levelMap[numericLevel] || "Other";
+}
+
+// GET /api/admin/associations - List associations with hierarchical filtering
+export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
+
+    // Filters
     const status = searchParams.get("status");
-    const level = searchParams.get("level");
+    const level = searchParams.get("level"); // Can be numeric (0,1,2,3) or string (National, State, City)
     const parentId = searchParams.get("parentId");
     const search = searchParams.get("search");
+    const page = parseInt(searchParams.get("page") || "1");
+    const limit = parseInt(searchParams.get("limit") || "100");
+    const skip = (page - 1) * limit;
 
     const client = await clientPromise;
     const db = client.db();
 
     // Build query
     const query: any = {};
-    if (status) query.status = status;
-    if (level) query.level = parseInt(level);
-    if (parentId) query.parentAssociationId = parentId;
+
+    if (status) {
+      query.status = status;
+    } else {
+      // Default to active only
+      query.status = "active";
+    }
+
+    // Handle level filtering (support both string and numeric)
+    if (level) {
+      // Try parsing as number first
+      const numericLevel = parseInt(level);
+
+      if (!isNaN(numericLevel)) {
+        // It's a number: 0, 1, 2, 3
+        query.level = numericLevel;
+      } else {
+        // It's a string: 'National', 'State', 'City', 'Region'
+        const levelMap: Record<string, number> = {
+          National: 0,
+          State: 2, // Note: State is level 2, not 1!
+          City: 3, // City is level 3
+          Region: 3,
+        };
+        query.level = levelMap[level] ?? 0;
+      }
+    }
+
+    // Support both 'parentId' and 'parentAssociationId' for backwards compatibility
+    if (parentId) {
+      query.parentAssociationId = parentId;
+    }
+
     if (search) {
       query.$or = [
         { name: { $regex: search, $options: "i" } },
         { code: { $regex: search, $options: "i" } },
+        { fullName: { $regex: search, $options: "i" } },
       ];
     }
 
+    console.log("🏛️ GET associations - Query:", JSON.stringify(query, null, 2));
+
+    // Get total count
+    const total = await db.collection("associations").countDocuments(query);
+
+    // Get associations
     const associations = await db
       .collection("associations")
       .find(query)
       .sort({ level: 1, name: 1 })
+      .skip(skip)
+      .limit(limit)
       .toArray();
 
-    // Enrich with parent info and counts
+    console.log(
+      `✅ Found ${associations.length} associations (${total} total)`,
+    );
+
+    // For simple list (used by wizard), return minimal data
+    if (searchParams.get("simple") === "true") {
+      const simple = associations.map((a) => ({
+        id: a.associationId,
+        name: a.name,
+        level: getLevelString(a.level),
+        parentId: a.parentAssociationId,
+      }));
+
+      return NextResponse.json({
+        associations: simple,
+        pagination: {
+          page,
+          limit,
+          total,
+          totalPages: Math.ceil(total / limit),
+        },
+      });
+    }
+
+    // For full admin view, enrich with parent info and counts
     const enriched = await Promise.all(
       associations.map(async (assoc) => {
         // Get parent
@@ -141,7 +219,7 @@ export async function GET(request: Request) {
             .collection("associations")
             .findOne(
               { associationId: assoc.parentAssociationId },
-              { projection: { name: 1, code: 1 } }
+              { projection: { name: 1, code: 1 } },
             );
         }
 
@@ -156,34 +234,39 @@ export async function GET(request: Request) {
           .countDocuments({ parentAssociationId: assoc.associationId });
 
         return {
-          associationId: assoc.associationId,
-          code: assoc.code,
-          name: assoc.name,
-          level: assoc.level,
-          status: assoc.status,
+          ...assoc,
+          levelString: getLevelString(assoc.level),
           parent: parent ? { name: parent.name, code: parent.code } : null,
           childrenCount,
           clubsCount,
         };
-      })
+      }),
     );
 
-    return NextResponse.json(enriched);
+    return NextResponse.json({
+      associations: enriched,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    });
   } catch (error: any) {
-    console.error("Error fetching associations:", error);
+    console.error("💥 Error fetching associations:", error);
     return NextResponse.json(
       { error: error.message || "Failed to fetch associations" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
 
 // POST /api/admin/associations - Create new association
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
 
-    // Validate with Zod (level and hierarchy are optional)
+    // Validate with Zod (level and hierarchy are optional - auto-calculated)
     const validated = AssociationSchema.parse(body);
 
     const client = await clientPromise;
@@ -197,7 +280,7 @@ export async function POST(request: Request) {
     if (existing) {
       return NextResponse.json(
         { error: "Association ID already exists" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -209,14 +292,14 @@ export async function POST(request: Request) {
     if (existingCode) {
       return NextResponse.json(
         { error: "Association code already exists" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     // ✅ AUTO-CALCULATE level and hierarchy
     const { level, hierarchy } = await calculateHierarchy(
       db,
-      validated.parentAssociationId
+      validated.parentAssociationId,
     );
 
     // Create association document
@@ -249,6 +332,8 @@ export async function POST(request: Request) {
     // Insert
     await db.collection("associations").insertOne(association);
 
+    console.log(`✅ Created association: ${association.name} (Level ${level})`);
+
     return NextResponse.json(
       {
         message: "Association created successfully",
@@ -257,12 +342,13 @@ export async function POST(request: Request) {
           code: association.code,
           name: association.name,
           level: association.level,
+          levelString: getLevelString(association.level),
         },
       },
-      { status: 201 }
+      { status: 201 },
     );
   } catch (error: any) {
-    console.error("Error creating association:", error);
+    console.error("💥 Error creating association:", error);
 
     // Handle Zod validation errors
     if (error.name === "ZodError") {
@@ -271,13 +357,13 @@ export async function POST(request: Request) {
           error: "Validation failed",
           details: error.errors,
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     return NextResponse.json(
       { error: error.message || "Failed to create association" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

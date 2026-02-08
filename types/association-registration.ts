@@ -82,8 +82,11 @@ export interface Association {
   // Contact
   email: string;
   phone: string;
-  website?: string;
-
+  website: string;
+  facebook: string;
+  instagram: string;
+  twitter: string;
+  type: string; // "National", "State", "City"
   // Address
   address?: {
     street: string;

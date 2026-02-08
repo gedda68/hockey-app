@@ -1,174 +1,271 @@
-// types/members.ts
-// Complete member type definitions
+// types/member.ts - Updated with Middle Name and Related Members
 
-export interface Salutation {
-  salutationId: string;
-  name: string;
-  fullName: string;
-  category: string;
-  isActive: boolean;
-  displayOrder: number;
+export interface RelatedMember {
+  id: string; // Internal ID for managing in UI
+  memberId?: string; // If linked to existing member (e.g., "CHC-0000123")
+  name: string; // Name of related member
+  relationshipType: string; // Config ID (e.g., "relationship-parent", "relationship-sibling")
 }
 
-export interface Gender {
-  genderId: string;
-  name: string;
-  abbreviation: string;
-  isActive: boolean;
-}
-
-export interface MembershipType {
-  typeId: string;
-  name: string;
-  description: string;
-  basePrice: number;
-  isActive: boolean;
-}
-
-export interface Role {
-  roleId: string;
-  name: string;
-  description: string;
-  category: string;
-  icon: string;
-  color: string;
-  isActive: boolean;
-}
-
-export interface Relationship {
-  relationshipId: string;
-  name: string;
-  category: string;
-  isActive: boolean;
-}
-
-export interface HealthProvider {
-  providerId: string;
-  name: string;
-  shortName: string;
-  category: string;
-  isActive: boolean;
-}
-
-export interface RelationshipType {
-  typeId: string;
-  forward: string;
-  reverse: string;
-  category: string;
-  isActive: boolean;
-}
-
-export interface PersonalInfo {
-  salutation: string;
+export interface PersonalInformation {
+  salutation?: string; // Config ID (e.g., "salutation-mr")
   firstName: string;
+  middleName?: string; // NEW: Middle name (optional)
   lastName: string;
   displayName: string;
   dateOfBirth: string;
-  gender: string;
-  photoUrl: string | null;
-}
-
-export interface ContactInfo {
-  primaryEmail: string;
-  emailOwnership: string;
-  phone: string;
-  mobile: string;
-}
-
-export interface Address {
-  street: string;
-  suburb: string;
-  state: string;
-  postcode: string;
-  country: string;
-}
-
-export interface Medicare {
-  number: string;
-  position: string;
-  expiryMonth: string;
-  expiryYear: string;
-}
-
-export interface PrivateHealth {
-  provider: string;
-  membershipNumber: string;
-  expiryDate: string;
-}
-
-export interface Healthcare {
-  medicare: Medicare | null;
-  privateHealth: PrivateHealth | null;
-}
-
-export interface Medical {
-  conditions: string;
-  medications: string;
-  allergies: string;
-}
-
-export interface EmergencyContact {
-  contactId: string;
-  priority: number;
-  name: string;
-  relationship: string;
-  phone: string;
-  mobile: string;
-  email: string;
-}
-
-export interface Membership {
-  membershipType: string;
-  status: string;
-  joinDate: string;
-}
-
-export interface PlayerInfo {
-  jerseyNumber: string;
-  position: string;
-}
-
-export interface FamilyRelationship {
-  relationshipId: string;
-  relatedMemberId: string;
-  relationshipType: string;
-  forwardRelation: string;
-  reverseRelation: string;
-  searchQuery?: string;
-  createdAt?: string;
-  createdBy?: string;
-}
-
-export interface MemberFormData {
-  personalInfo: PersonalInfo;
-  contact: ContactInfo;
-  address: Address;
-  healthcare: Healthcare;
-  emergencyContacts: EmergencyContact[];
-  membership: Membership;
-  roles: string[];
-  playerInfo: PlayerInfo | null;
-  medical: Medical;
-  familyRelationships: FamilyRelationship[];
+  gender: string; // Config ID (e.g., "gender-male")
+  photoUrl?: string;
+  relatedMembers?: RelatedMember[]; // NEW: Related family members
 }
 
 export interface Member {
-  _id?: string;
-  memberId: string;
+  memberId: string; // Auto-generated (e.g., "CHC-0000001")
   clubId: string;
-  personalInfo: PersonalInfo;
-  contact: ContactInfo;
-  address: Address;
-  healthcare: Healthcare;
-  emergencyContacts: EmergencyContact[];
-  membership: Membership;
+  associationId?: string;
+
+  personalInfo: PersonalInformation;
+
+  contact: {
+    email: string;
+    phone?: string;
+    mobile?: string;
+    emergencyContact: {
+      name: string;
+      relationship: string; // Config ID
+      phone: string;
+      email?: string;
+    };
+  };
+
+  address: {
+    street: string;
+    suburb: string;
+    state: string;
+    postcode: string;
+    country: string;
+  };
+
+  membership: {
+    joinDate: string;
+    membershipTypes: string[];
+    status: "Active" | "Inactive" | "Suspended" | "Life";
+    expiryDate?: string;
+    renewalDate?: string;
+  };
+
   roles: string[];
-  playerInfo: PlayerInfo | null;
-  medical: Medical;
-  familyRelationships: FamilyRelationship[];
-  status: string;
+  teams: any[];
+  userId?: string;
+
+  medical?: {
+    conditions?: string;
+    medications?: string;
+    allergies?: string;
+    doctorName?: string;
+    doctorPhone?: string;
+
+    medicare?: {
+      number?: string;
+      referenceNumber?: string;
+      expiryDate?: string;
+      cardColor?: "green" | "blue" | "yellow";
+    };
+
+    privateHealth?: {
+      hasInsurance: boolean;
+      provider?: string;
+      membershipNumber?: string;
+      policyType?: "hospital-only" | "extras-only" | "combined";
+      coverLevel?: "basic" | "bronze" | "silver" | "gold";
+      expiryDate?: string;
+      ambulanceCover?: boolean;
+      emergencyNumber?: string;
+      notes?: string;
+    };
+
+    additionalNotes?: string;
+  };
+
+  notes?: string;
   createdAt: string;
-  createdBy: string;
   updatedAt: string;
-  updatedBy: string;
 }
+
+// Example Member with Related Members
+export const exampleMemberWithFamily = {
+  memberId: "CHC-0000001",
+  clubId: "club-commercial-hc",
+  associationId: "assoc-brisbane-hockey",
+
+  personalInfo: {
+    salutation: "salutation-mr",
+    firstName: "John",
+    middleName: "David", // ← Middle name
+    lastName: "Smith",
+    displayName: "John David Smith",
+    dateOfBirth: "1990-05-15",
+    gender: "gender-male",
+
+    // Related family members
+    relatedMembers: [
+      {
+        id: "rel-1",
+        memberId: "CHC-0000002", // Jane is also a member
+        name: "Jane Smith",
+        relationshipType: "relationship-spouse",
+      },
+      {
+        id: "rel-2",
+        memberId: "CHC-0000015", // Tommy is also a member
+        name: "Tommy Smith",
+        relationshipType: "relationship-child",
+      },
+      {
+        id: "rel-3",
+        // Sarah is not a member yet, but we track the relationship
+        name: "Sarah Smith",
+        relationshipType: "relationship-child",
+      },
+    ],
+  },
+
+  contact: {
+    email: "john.smith@example.com",
+    mobile: "0400 123 456",
+    emergencyContact: {
+      name: "Jane Smith",
+      relationship: "relationship-spouse",
+      phone: "0400 987 654",
+      email: "jane.smith@example.com",
+    },
+  },
+
+  address: {
+    street: "123 Main Street",
+    suburb: "Newmarket",
+    state: "QLD",
+    postcode: "4051",
+    country: "Australia",
+  },
+
+  membership: {
+    joinDate: "2024-01-01",
+    membershipTypes: ["type-senior-playing"],
+    status: "Active",
+  },
+
+  roles: ["role-player"],
+  teams: [],
+
+  medical: {
+    conditions: "None",
+    medicare: {
+      number: "2345 67890 1",
+      referenceNumber: "1",
+      expiryDate: "2026-12",
+      cardColor: "green",
+    },
+    privateHealth: {
+      hasInsurance: true,
+      provider: "BUPA",
+      membershipNumber: "123456789",
+      policyType: "combined",
+      coverLevel: "silver",
+      expiryDate: "2026-06-30",
+      ambulanceCover: true,
+    },
+  },
+
+  createdAt: "2024-01-01T00:00:00.000Z",
+  updatedAt: "2024-01-01T00:00:00.000Z",
+};
+
+// Database Schema
+export const memberSchemaUpdated = {
+  memberId: String,
+  clubId: String,
+  associationId: String,
+
+  personalInfo: {
+    salutation: String,
+    firstName: String,
+    middleName: String, // ← NEW
+    lastName: String,
+    displayName: String,
+    dateOfBirth: String,
+    gender: String,
+    photoUrl: String,
+
+    relatedMembers: [
+      // ← NEW
+      {
+        id: String,
+        memberId: String, // Optional - if linked to existing member
+        name: String,
+        relationshipType: String,
+      },
+    ],
+  },
+
+  contact: {
+    email: String,
+    phone: String,
+    mobile: String,
+    emergencyContact: {
+      name: String,
+      relationship: String,
+      phone: String,
+      email: String,
+    },
+  },
+
+  address: {
+    street: String,
+    suburb: String,
+    state: String,
+    postcode: String,
+    country: String,
+  },
+
+  membership: {
+    joinDate: String,
+    membershipTypes: [String],
+    status: String,
+    expiryDate: String,
+    renewalDate: String,
+  },
+
+  roles: [String],
+  teams: [Object],
+  userId: String,
+
+  medical: {
+    conditions: String,
+    medications: String,
+    allergies: String,
+    doctorName: String,
+    doctorPhone: String,
+
+    medicare: {
+      number: String,
+      referenceNumber: String,
+      expiryDate: String,
+    },
+
+    privateHealth: {
+      hasInsurance: Boolean,
+      provider: String,
+      membershipNumber: String,
+      expiryDate: String,
+
+      notes: String,
+    },
+
+    additionalNotes: String,
+  },
+
+  notes: String,
+  createdAt: Date,
+  updatedAt: Date,
+};

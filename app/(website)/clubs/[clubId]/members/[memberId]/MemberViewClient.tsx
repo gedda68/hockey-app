@@ -33,6 +33,15 @@ interface Role {
   category: string;
 }
 
+interface ConfigItem {
+  configId: string;
+  configType: string;
+  configKey: string;
+  configValue: string;
+  displayOrder: number;
+  isActive: boolean;
+}
+
 interface Member {
   memberId: string;
   personalInfo: {
@@ -57,7 +66,7 @@ interface Member {
     postcode: string;
     country: string;
   };
-  healthcare: {
+  healthcare?: {
     medicare: {
       number: string;
       position: string;
@@ -131,6 +140,17 @@ function getRoleColor(roleId: string, roles: Role[]): string {
   return ROLE_CATEGORY_COLORS[category] || ROLE_CATEGORY_COLORS.Other;
 }
 
+function getConfigDisplayName(
+  configKey: string,
+  configType: string,
+  configItems: ConfigItem[],
+): string {
+  const config = configItems.find(
+    (c) => c.configType === configType && c.configKey === configKey,
+  );
+  return config?.configValue || configKey;
+}
+
 export default function MemberViewClient({
   clubId,
   memberId,
@@ -138,6 +158,7 @@ export default function MemberViewClient({
   const router = useRouter();
   const [member, setMember] = useState<Member | null>(null);
   const [roles, setRoles] = useState<Role[]>([]);
+  const [configItems, setConfigItems] = useState<ConfigItem[]>([]);
   const [relatedMembers, setRelatedMembers] = useState<Record<string, any>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
@@ -149,7 +170,7 @@ export default function MemberViewClient({
   const fetchData = async () => {
     setIsLoading(true);
     try {
-      // Fetch member and roles in parallel
+      // Fetch member and roles (required)
       const [memberRes, rolesRes] = await Promise.all([
         fetch(`/api/clubs/${clubId}/members/${memberId}`),
         fetch(`/api/admin/club-roles?activeOnly=true`),
@@ -166,10 +187,28 @@ export default function MemberViewClient({
       setMember(memberData);
       setRoles(rolesData);
 
+      // Try to fetch config items (optional - gracefully handle if not available)
+      try {
+        const configRes = await fetch(`/api/admin/config?activeOnly=true`);
+        if (configRes.ok) {
+          const configData = await configRes.json();
+          setConfigItems(configData);
+        } else {
+          console.warn("Config API not available, will display raw values");
+          setConfigItems([]);
+        }
+      } catch (configError) {
+        console.warn(
+          "Config API not available, will display raw values",
+          configError,
+        );
+        setConfigItems([]);
+      }
+
       // Fetch related members if any
       if (memberData.familyRelationships?.length > 0) {
         const relatedIds = memberData.familyRelationships.map(
-          (r: any) => r.relatedMemberId
+          (r: any) => r.relatedMemberId,
         );
         const uniqueIds = [...new Set(relatedIds)];
 
@@ -199,7 +238,7 @@ export default function MemberViewClient({
       !confirm(
         `Are you sure you want to delete ${
           member?.personalInfo.displayName || member?.personalInfo.firstName
-        }? This action cannot be undone.`
+        }? This action cannot be undone.`,
       )
     ) {
       return;
@@ -227,7 +266,7 @@ export default function MemberViewClient({
 
     if (
       !confirm(
-        `Are you sure you want to make this member ${newStatus.toLowerCase()}?`
+        `Are you sure you want to make this member ${newStatus.toLowerCase()}?`,
       )
     ) {
       return;
@@ -249,53 +288,45 @@ export default function MemberViewClient({
 
       const updatedMember = await res.json();
       setMember(updatedMember);
-      alert(`Member marked as ${newStatus.toLowerCase()}`);
     } catch (err: any) {
       alert(`Error: ${err.message}`);
     }
   };
 
-  const calculateAge = (dob: string) => {
-    const birthDate = new Date(dob);
-    const today = new Date();
-    let age = today.getFullYear() - birthDate.getFullYear();
-    const monthDiff = today.getMonth() - birthDate.getMonth();
-    if (
-      monthDiff < 0 ||
-      (monthDiff === 0 && today.getDate() < birthDate.getDate())
-    ) {
-      age--;
-    }
-    return age;
-  };
-
   const formatDate = (dateString: string) => {
-    if (!dateString) return "Not specified";
+    if (!dateString) return "N/A";
     return new Date(dateString).toLocaleDateString("en-AU", {
-      day: "numeric",
-      month: "long",
       year: "numeric",
+      month: "long",
+      day: "numeric",
     });
   };
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-[#06054e]"></div>
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-[#06054e] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-slate-600 font-bold">Loading member...</p>
+        </div>
       </div>
     );
   }
 
   if (error || !member) {
     return (
-      <div className="container mx-auto px-4 py-8">
-        <div className="bg-red-50 border-4 border-red-500 rounded-2xl p-6">
-          <p className="text-red-800 font-bold">
-            Error: {error || "Member not found"}
-          </p>
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center p-4">
+        <div className="bg-white rounded-[2rem] shadow-xl border border-slate-100 p-8 max-w-md w-full text-center">
+          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <AlertCircle className="w-8 h-8 text-red-600" />
+          </div>
+          <h2 className="text-2xl font-black text-slate-800 mb-2">
+            Error Loading Member
+          </h2>
+          <p className="text-slate-600 mb-6">{error || "Member not found"}</p>
           <Link
             href={`/clubs/${clubId}/members`}
-            className="inline-flex items-center gap-2 mt-4 text-red-700 font-bold hover:text-red-900"
+            className="inline-flex items-center gap-2 px-6 py-3 bg-[#06054e] text-white font-bold rounded-xl hover:bg-[#0a0866] transition-all"
           >
             <ArrowLeft size={20} />
             Back to Members
@@ -306,164 +337,171 @@ export default function MemberViewClient({
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      {/* Header with Actions */}
-      <div className="mb-6">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-4 md:p-6">
+      {/* Header */}
+      <div className="max-w-6xl mx-auto mb-6">
         <Link
           href={`/clubs/${clubId}/members`}
-          className="inline-flex items-center gap-2 text-slate-600 font-bold hover:text-[#06054e] mb-4"
+          className="inline-flex items-center gap-2 text-slate-600 hover:text-[#06054e] font-bold mb-4 transition-colors"
         >
           <ArrowLeft size={20} />
           Back to Members
         </Link>
 
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div>
-            <h1 className="text-4xl font-black text-[#06054e]">
-              {member.personalInfo.displayName ||
-                `${member.personalInfo.firstName} ${member.personalInfo.lastName}`}
-            </h1>
-            <p className="text-lg text-slate-600 font-bold mt-1">
-              {member.memberId}
-            </p>
-          </div>
+        <div className="bg-white rounded-[2rem] shadow-xl border border-slate-100 p-6">
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div className="relative">
+                {member.personalInfo.photoUrl ? (
+                  <img
+                    src={member.personalInfo.photoUrl}
+                    alt={member.personalInfo.displayName}
+                    className="w-20 h-20 rounded-full object-cover border-4 border-slate-100"
+                  />
+                ) : (
+                  <div className="w-20 h-20 rounded-full bg-gradient-to-br from-[#06054e] to-[#0a0866] flex items-center justify-center border-4 border-slate-100">
+                    <User className="w-10 h-10 text-white" />
+                  </div>
+                )}
+                <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-white rounded-full flex items-center justify-center shadow-lg">
+                  <Camera className="w-3 h-3 text-slate-400" />
+                </div>
+              </div>
 
-          <div className="flex flex-wrap gap-3">
-            <Link
-              href={`/clubs/${clubId}/members/${memberId}/edit`}
-              className="flex items-center gap-2 px-6 py-3 bg-yellow-400 text-[#06054e] rounded-xl font-black hover:bg-yellow-500 transition-all"
-            >
-              <Edit size={20} />
-              Edit Member
-            </Link>
+              <div>
+                <h1 className="text-3xl font-black text-[#06054e]">
+                  {member.personalInfo.displayName ||
+                    `${member.personalInfo.firstName} ${member.personalInfo.lastName}`}
+                </h1>
+                <p className="text-slate-500 font-bold">
+                  Member ID: {member.memberId}
+                </p>
+                <div className="flex items-center gap-2 mt-2">
+                  <span
+                    className={`px-3 py-1 rounded-lg text-xs font-black ${
+                      member.membership.status === "Active"
+                        ? "bg-green-100 text-green-700"
+                        : "bg-red-100 text-red-700"
+                    }`}
+                  >
+                    {member.membership.status}
+                  </span>
+                </div>
+              </div>
+            </div>
 
-            <button
-              onClick={handleToggleStatus}
-              className={`flex items-center gap-2 px-6 py-3 rounded-xl font-black transition-all ${
-                member.membership.status === "Active"
-                  ? "bg-orange-500 text-white hover:bg-orange-600"
-                  : "bg-green-500 text-white hover:bg-green-600"
-              }`}
-            >
-              <Ban size={20} />
-              {member.membership.status === "Active"
-                ? "Make Inactive"
-                : "Make Active"}
-            </button>
+            <div className="flex gap-2">
+              <button
+                onClick={handleToggleStatus}
+                className="px-4 py-2 bg-orange-500 text-white font-bold rounded-xl hover:bg-orange-600 transition-all flex items-center gap-2"
+              >
+                {member.membership.status === "Active" ? (
+                  <>
+                    <Ban size={16} />
+                    Deactivate
+                  </>
+                ) : (
+                  <>
+                    <Check size={16} />
+                    Activate
+                  </>
+                )}
+              </button>
 
-            <button
-              onClick={handleDelete}
-              className="flex items-center gap-2 px-6 py-3 bg-red-500 text-white rounded-xl font-black hover:bg-red-600 transition-all"
-            >
-              <Trash2 size={20} />
-              Delete
-            </button>
+              <Link
+                href={`/clubs/${clubId}/members/${memberId}/edit`}
+                className="px-4 py-2 bg-blue-500 text-white font-bold rounded-xl hover:bg-blue-600 transition-all flex items-center gap-2"
+              >
+                <Edit size={16} />
+                Edit
+              </Link>
+
+              <button
+                onClick={handleDelete}
+                className="px-4 py-2 bg-red-500 text-white font-bold rounded-xl hover:bg-red-600 transition-all flex items-center gap-2"
+              >
+                <Trash2 size={16} />
+                Delete
+              </button>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Personal Info Section */}
-      <div className="bg-white rounded-[2rem] shadow-xl border border-slate-100 p-6 mb-6">
+      {/* Personal Information */}
+      <div className="max-w-6xl mx-auto bg-white rounded-[2rem] shadow-xl border border-slate-100 p-6 mb-6">
         <h2 className="text-2xl font-black text-[#06054e] mb-6 flex items-center gap-2">
           <User size={24} />
           Personal Information
         </h2>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* Photo */}
-          <div className="md:col-span-1">
-            <div className="relative w-48 h-48 mx-auto">
-              {member.personalInfo.photoUrl ? (
-                <img
-                  src={member.personalInfo.photoUrl}
-                  alt={member.personalInfo.displayName}
-                  className="w-full h-full rounded-2xl object-cover border-4 border-slate-200"
-                />
-              ) : (
-                <div className="w-full h-full rounded-2xl bg-slate-100 flex items-center justify-center border-4 border-slate-200">
-                  <User size={64} className="text-slate-400" />
-                </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div>
+            <label className="text-xs font-black uppercase text-slate-400">
+              Salutation
+            </label>
+            <p className="text-lg font-bold text-slate-800 mt-1">
+              {getConfigDisplayName(
+                member.personalInfo.salutation,
+                "salutation",
+                configItems,
               )}
-            </div>
-
-            {/* Status Badge */}
-            <div className="mt-4 text-center">
-              <span
-                className={`inline-block px-4 py-2 rounded-xl text-sm font-black ${
-                  member.membership.status === "Active"
-                    ? "bg-green-100 text-green-700"
-                    : "bg-slate-100 text-slate-600"
-                }`}
-              >
-                {member.membership.status}
-              </span>
-            </div>
+            </p>
           </div>
 
-          {/* Details */}
-          <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="text-xs font-black uppercase text-slate-400">
-                Salutation
-              </label>
-              <p className="text-lg font-bold text-slate-800 mt-1">
-                {member.personalInfo.salutation || "—"}
-              </p>
-            </div>
+          <div>
+            <label className="text-xs font-black uppercase text-slate-400">
+              First Name
+            </label>
+            <p className="text-lg font-bold text-slate-800 mt-1">
+              {member.personalInfo.firstName}
+            </p>
+          </div>
 
-            <div>
-              <label className="text-xs font-black uppercase text-slate-400">
-                Display Name
-              </label>
-              <p className="text-lg font-bold text-slate-800 mt-1">
-                {member.personalInfo.displayName || "—"}
-              </p>
-            </div>
+          <div>
+            <label className="text-xs font-black uppercase text-slate-400">
+              Last Name
+            </label>
+            <p className="text-lg font-bold text-slate-800 mt-1">
+              {member.personalInfo.lastName}
+            </p>
+          </div>
 
-            <div>
-              <label className="text-xs font-black uppercase text-slate-400">
-                First Name
-              </label>
-              <p className="text-lg font-bold text-slate-800 mt-1">
-                {member.personalInfo.firstName}
-              </p>
-            </div>
+          <div>
+            <label className="text-xs font-black uppercase text-slate-400">
+              Display Name
+            </label>
+            <p className="text-lg font-bold text-slate-800 mt-1">
+              {member.personalInfo.displayName || "N/A"}
+            </p>
+          </div>
 
-            <div>
-              <label className="text-xs font-black uppercase text-slate-400">
-                Last Name
-              </label>
-              <p className="text-lg font-bold text-slate-800 mt-1">
-                {member.personalInfo.lastName}
-              </p>
-            </div>
+          <div>
+            <label className="text-xs font-black uppercase text-slate-400">
+              Gender
+            </label>
+            <p className="text-lg font-bold text-slate-800 mt-1">
+              {getConfigDisplayName(
+                member.personalInfo.gender,
+                "gender",
+                configItems,
+              )}
+            </p>
+          </div>
 
-            <div>
-              <label className="text-xs font-black uppercase text-slate-400">
-                Date of Birth
-              </label>
-              <p className="text-lg font-bold text-slate-800 mt-1">
-                {formatDate(member.personalInfo.dateOfBirth)}
-                <span className="text-sm text-slate-500 ml-2">
-                  ({calculateAge(member.personalInfo.dateOfBirth)} years old)
-                </span>
-              </p>
-            </div>
-
-            <div>
-              <label className="text-xs font-black uppercase text-slate-400">
-                Gender
-              </label>
-              <p className="text-lg font-bold text-slate-800 mt-1">
-                {member.personalInfo.gender || "—"}
-              </p>
-            </div>
+          <div>
+            <label className="text-xs font-black uppercase text-slate-400">
+              Date of Birth
+            </label>
+            <p className="text-lg font-bold text-slate-800 mt-1">
+              {formatDate(member.personalInfo.dateOfBirth)}
+            </p>
           </div>
         </div>
       </div>
 
       {/* Contact Information */}
-      <div className="bg-white rounded-[2rem] shadow-xl border border-slate-100 p-6 mb-6">
+      <div className="max-w-6xl mx-auto bg-white rounded-[2rem] shadow-xl border border-slate-100 p-6 mb-6">
         <h2 className="text-2xl font-black text-[#06054e] mb-6 flex items-center gap-2">
           <Mail size={24} />
           Contact Information
@@ -471,56 +509,57 @@ export default function MemberViewClient({
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div>
-            <label className="text-xs font-black uppercase text-slate-400 flex items-center gap-2">
-              <Mail size={14} />
+            <label className="text-xs font-black uppercase text-slate-400">
               Primary Email
             </label>
             <p className="text-lg font-bold text-slate-800 mt-1">
-              {member.contact.primaryEmail || "—"}
+              {member.contact.primaryEmail}
             </p>
-            {member.contact.emailOwnership && (
-              <p className="text-sm text-slate-500 mt-1">
-                Ownership: {member.contact.emailOwnership}
-              </p>
-            )}
           </div>
 
           <div>
-            <label className="text-xs font-black uppercase text-slate-400 flex items-center gap-2">
-              <Phone size={14} />
-              Phone
+            <label className="text-xs font-black uppercase text-slate-400">
+              Email Ownership
             </label>
             <p className="text-lg font-bold text-slate-800 mt-1">
-              {member.contact.phone || "—"}
+              {member.contact.emailOwnership}
             </p>
           </div>
 
-          <div className="md:col-span-2">
-            <label className="text-xs font-black uppercase text-slate-400 flex items-center gap-2">
-              <Phone size={14} />
+          <div>
+            <label className="text-xs font-black uppercase text-slate-400">
+              Phone
+            </label>
+            <p className="text-lg font-bold text-slate-800 mt-1">
+              {member.contact.phone || "N/A"}
+            </p>
+          </div>
+
+          <div>
+            <label className="text-xs font-black uppercase text-slate-400">
               Mobile
             </label>
             <p className="text-lg font-bold text-slate-800 mt-1">
-              {member.contact.mobile || "—"}
+              {member.contact.mobile || "N/A"}
             </p>
           </div>
         </div>
       </div>
 
       {/* Address */}
-      <div className="bg-white rounded-[2rem] shadow-xl border border-slate-100 p-6 mb-6">
+      <div className="max-w-6xl mx-auto bg-white rounded-[2rem] shadow-xl border border-slate-100 p-6 mb-6">
         <h2 className="text-2xl font-black text-[#06054e] mb-6 flex items-center gap-2">
-          <MapPin size={24} />
+          <Home size={24} />
           Address
         </h2>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <div className="md:col-span-2">
             <label className="text-xs font-black uppercase text-slate-400">
-              Street Address
+              Street
             </label>
             <p className="text-lg font-bold text-slate-800 mt-1">
-              {member.address.street || "—"}
+              {member.address.street}
             </p>
           </div>
 
@@ -529,7 +568,7 @@ export default function MemberViewClient({
               Suburb
             </label>
             <p className="text-lg font-bold text-slate-800 mt-1">
-              {member.address.suburb || "—"}
+              {member.address.suburb}
             </p>
           </div>
 
@@ -538,7 +577,7 @@ export default function MemberViewClient({
               State
             </label>
             <p className="text-lg font-bold text-slate-800 mt-1">
-              {member.address.state || "—"}
+              {member.address.state}
             </p>
           </div>
 
@@ -547,7 +586,7 @@ export default function MemberViewClient({
               Postcode
             </label>
             <p className="text-lg font-bold text-slate-800 mt-1">
-              {member.address.postcode || "—"}
+              {member.address.postcode}
             </p>
           </div>
 
@@ -556,14 +595,14 @@ export default function MemberViewClient({
               Country
             </label>
             <p className="text-lg font-bold text-slate-800 mt-1">
-              {member.address.country || "—"}
+              {member.address.country}
             </p>
           </div>
         </div>
       </div>
 
       {/* Membership & Roles */}
-      <div className="bg-white rounded-[2rem] shadow-xl border border-slate-100 p-6 mb-6">
+      <div className="max-w-6xl mx-auto bg-white rounded-[2rem] shadow-xl border border-slate-100 p-6 mb-6">
         <h2 className="text-2xl font-black text-[#06054e] mb-6 flex items-center gap-2">
           <Award size={24} />
           Membership & Roles
@@ -575,7 +614,11 @@ export default function MemberViewClient({
               Membership Type
             </label>
             <p className="text-lg font-bold text-slate-800 mt-1">
-              {member.membership.membershipType || "—"}
+              {getConfigDisplayName(
+                member.membership.membershipType,
+                "membershipType",
+                configItems,
+              )}
             </p>
           </div>
 
@@ -589,62 +632,52 @@ export default function MemberViewClient({
           </div>
         </div>
 
-        <div>
-          <label className="text-xs font-black uppercase text-slate-400 mb-3 block">
-            Roles
-          </label>
-          {member.roles && member.roles.length > 0 ? (
+        {member.roles && member.roles.length > 0 && (
+          <div>
+            <label className="text-xs font-black uppercase text-slate-400 mb-3 block">
+              Roles
+            </label>
             <div className="flex flex-wrap gap-2">
-              {member.roles.map((roleId, idx) => {
-                const displayName = getRoleDisplayName(roleId, roles);
-                const colorClass = getRoleColor(roleId, roles);
-
-                return (
-                  <span
-                    key={idx}
-                    className={`px-3 py-2 rounded-xl text-sm font-bold ${colorClass}`}
-                  >
-                    {displayName}
-                  </span>
-                );
-              })}
+              {member.roles.map((roleId) => (
+                <span
+                  key={roleId}
+                  className={`px-4 py-2 rounded-lg font-black text-sm ${getRoleColor(
+                    roleId,
+                    roles,
+                  )}`}
+                >
+                  {getRoleDisplayName(roleId, roles)}
+                </span>
+              ))}
             </div>
-          ) : (
-            <p className="text-slate-500 italic">No roles assigned</p>
-          )}
-        </div>
+          </div>
+        )}
 
-        {/* Player Info */}
         {member.playerInfo && (
-          <div className="mt-6 pt-6 border-t border-slate-100">
-            <h3 className="text-lg font-black text-slate-700 mb-4">
-              Player Information
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="text-xs font-black uppercase text-slate-400">
-                  Jersey Number
-                </label>
-                <p className="text-lg font-bold text-slate-800 mt-1">
-                  {member.playerInfo.jerseyNumber || "—"}
-                </p>
-              </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6 pt-6 border-t border-slate-100">
+            <div>
+              <label className="text-xs font-black uppercase text-slate-400">
+                Jersey Number
+              </label>
+              <p className="text-lg font-bold text-slate-800 mt-1">
+                {member.playerInfo.jerseyNumber || "N/A"}
+              </p>
+            </div>
 
-              <div>
-                <label className="text-xs font-black uppercase text-slate-400">
-                  Position
-                </label>
-                <p className="text-lg font-bold text-slate-800 mt-1">
-                  {member.playerInfo.position || "—"}
-                </p>
-              </div>
+            <div>
+              <label className="text-xs font-black uppercase text-slate-400">
+                Position
+              </label>
+              <p className="text-lg font-bold text-slate-800 mt-1">
+                {member.playerInfo.position || "N/A"}
+              </p>
             </div>
           </div>
         )}
       </div>
 
       {/* Healthcare */}
-      <div className="bg-white rounded-[2rem] shadow-xl border border-slate-100 p-6 mb-6">
+      <div className="max-w-6xl mx-auto bg-white rounded-[2rem] shadow-xl border border-slate-100 p-6 mb-6">
         <h2 className="text-2xl font-black text-[#06054e] mb-6 flex items-center gap-2">
           <Heart size={24} />
           Healthcare Information
@@ -653,11 +686,11 @@ export default function MemberViewClient({
         {/* Medicare */}
         <div className="mb-6">
           <h3 className="text-lg font-black text-slate-700 mb-4">Medicare</h3>
-          {member.healthcare.medicare ? (
+          {member.healthcare?.medicare ? (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <label className="text-xs font-black uppercase text-slate-400">
-                  Card Number
+                  Medicare Number
                 </label>
                 <p className="text-lg font-bold text-slate-800 mt-1">
                   {member.healthcare.medicare.number}
@@ -695,14 +728,18 @@ export default function MemberViewClient({
           <h3 className="text-lg font-black text-slate-700 mb-4">
             Private Health Insurance
           </h3>
-          {member.healthcare.privateHealth ? (
+          {member.healthcare?.privateHealth ? (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <label className="text-xs font-black uppercase text-slate-400">
                   Provider
                 </label>
                 <p className="text-lg font-bold text-slate-800 mt-1">
-                  {member.healthcare.privateHealth.provider}
+                  {getConfigDisplayName(
+                    member.healthcare.privateHealth.provider,
+                    "privateHealthProvider",
+                    configItems,
+                  )}
                 </p>
               </div>
 
@@ -733,7 +770,7 @@ export default function MemberViewClient({
       </div>
 
       {/* Emergency Contacts */}
-      <div className="bg-white rounded-[2rem] shadow-xl border border-slate-100 p-6 mb-6">
+      <div className="max-w-6xl mx-auto bg-white rounded-[2rem] shadow-xl border border-slate-100 p-6 mb-6">
         <h2 className="text-2xl font-black text-[#06054e] mb-6 flex items-center gap-2">
           <AlertCircle size={24} />
           Emergency Contacts
@@ -801,7 +838,7 @@ export default function MemberViewClient({
       </div>
 
       {/* Medical Information */}
-      <div className="bg-white rounded-[2rem] shadow-xl border border-slate-100 p-6 mb-6">
+      <div className="max-w-6xl mx-auto bg-white rounded-[2rem] shadow-xl border border-slate-100 p-6 mb-6">
         <h2 className="text-2xl font-black text-[#06054e] mb-6 flex items-center gap-2">
           <Shield size={24} />
           Medical Information
@@ -813,7 +850,7 @@ export default function MemberViewClient({
               Medical Conditions
             </label>
             <p className="text-base font-bold text-slate-800 mt-2 whitespace-pre-wrap">
-              {member.medical.conditions || "None reported"}
+              {member.medical?.conditions || "None reported"}
             </p>
           </div>
 
@@ -822,7 +859,7 @@ export default function MemberViewClient({
               Medications
             </label>
             <p className="text-base font-bold text-slate-800 mt-2 whitespace-pre-wrap">
-              {member.medical.medications || "None reported"}
+              {member.medical?.medications || "None reported"}
             </p>
           </div>
 
@@ -831,7 +868,7 @@ export default function MemberViewClient({
               Allergies
             </label>
             <p className="text-base font-bold text-slate-800 mt-2 whitespace-pre-wrap">
-              {member.medical.allergies || "None reported"}
+              {member.medical?.allergies || "None reported"}
             </p>
           </div>
         </div>
@@ -839,7 +876,7 @@ export default function MemberViewClient({
 
       {/* Family Relationships */}
       {member.familyRelationships && member.familyRelationships.length > 0 && (
-        <div className="bg-white rounded-[2rem] shadow-xl border border-slate-100 p-6 mb-6">
+        <div className="max-w-6xl mx-auto bg-white rounded-[2rem] shadow-xl border border-slate-100 p-6 mb-6">
           <h2 className="text-2xl font-black text-[#06054e] mb-6 flex items-center gap-2">
             <Users size={24} />
             Family Relationships
@@ -889,7 +926,7 @@ export default function MemberViewClient({
       )}
 
       {/* Metadata */}
-      <div className="bg-white rounded-[2rem] shadow-xl border border-slate-100 p-6">
+      <div className="max-w-6xl mx-auto bg-white rounded-[2rem] shadow-xl border border-slate-100 p-6">
         <h2 className="text-2xl font-black text-[#06054e] mb-6 flex items-center gap-2">
           <Calendar size={24} />
           Record Information

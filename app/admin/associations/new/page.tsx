@@ -1,7 +1,7 @@
 // app/(admin)/admin/associations/new/page.tsx
 // Complete new association page with proper serialization
 
-import AssociationForm from "@/components/admin/AssociationForm";
+import AssociationForm from "@/components/admin/associations/AssociationForm";
 import clientPromise from "@/lib/mongodb";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";

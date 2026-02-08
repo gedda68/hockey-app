@@ -1,133 +1,93 @@
 // lib/auth/AuthContext.tsx
 "use client";
 
-import React, { createContext, useContext, useState, useEffect } from "react";
-import type { UserSession } from "@/lib/db/schemas/user";
-import type { Permission } from "@/lib/types/roles";
-import { hasPermission } from "@/lib/types/roles";
+import {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  ReactNode,
+} from "react";
+import { useRouter } from "next/navigation";
+
+export interface User {
+  userId: string;
+  username: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  role: string;
+  associationId?: string;
+  clubId?: string;
+  status: string;
+}
 
 interface AuthContextType {
-  user: UserSession | null;
+  user: User | null;
+  setUser: (user: User | null) => void; // ← Export setUser
+  logout: () => void;
   isLoading: boolean;
-  isAuthenticated: boolean;
-  login: (email: string, password: string) => Promise<UserSession>;
-  logout: () => Promise<void>;
-  hasPermission: (permission: Permission) => boolean;
-  canAccessResource: (
-    resourceType: "association" | "club",
-    resourceId: string
-  ) => boolean;
-  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<UserSession | null>(null);
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const router = useRouter();
 
+  // Load user from localStorage on mount
   useEffect(() => {
+    const loadUser = async () => {
+      try {
+        // Check if user is in localStorage
+        const storedUser = localStorage.getItem("user");
+        if (storedUser) {
+          setUser(JSON.parse(storedUser));
+        }
+      } catch (error) {
+        console.error("Error loading user:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
     loadUser();
   }, []);
 
-  const loadUser = async () => {
-    try {
-      const response = await fetch("/api/auth/session");
-      if (response.ok) {
-        const session = await response.json();
-        if (session.user) {
-          setUser(session.user);
-        }
-      }
-    } catch (error) {
-      console.error("Failed to load user session:", error);
-    } finally {
-      setIsLoading(false);
+  // Save user to localStorage when it changes
+  useEffect(() => {
+    if (user) {
+      localStorage.setItem("user", JSON.stringify(user));
+    } else {
+      localStorage.removeItem("user");
     }
-  };
-
-  const login = async (
-    email: string,
-    password: string
-  ): Promise<UserSession> => {
-    const response = await fetch("/api/auth/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
-    });
-
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || "Login failed");
-    }
-
-    const data = await response.json();
-    setUser(data.user);
-
-    // Return user data for role-based redirect
-    return data.user;
-  };
+  }, [user]);
 
   const logout = async () => {
-    await fetch("/api/auth/logout", { method: "POST" });
-    setUser(null);
-  };
+    try {
+      // Call logout API
+      await fetch("/api/auth/logout", { method: "POST" });
+    } catch (error) {
+      console.error("Logout error:", error);
+    } finally {
+      // Clear user state and localStorage
+      setUser(null);
+      localStorage.removeItem("user");
 
-  const checkPermission = (permission: Permission): boolean => {
-    if (!user) return false;
-    return hasPermission(user.role, permission);
-  };
-
-  const canAccessResource = (
-    resourceType: "association" | "club",
-    resourceId: string
-  ): boolean => {
-    if (!user) return false;
-
-    // Super admin can access everything
-    if (user.role === "super-admin") return true;
-
-    // Association admin can access their association
-    if (resourceType === "association") {
-      if (user.role === "association-admin") {
-        return user.associationId === resourceId;
-      }
+      // Redirect to login
+      router.push("/login");
     }
-
-    // Club admin can access their club
-    if (resourceType === "club") {
-      if (
-        user.role === "club-admin" ||
-        user.role === "coach" ||
-        user.role === "manager"
-      ) {
-        return user.clubId === resourceId;
-      }
-    }
-
-    return false;
   };
 
-  const refreshUser = async () => {
-    await loadUser();
+  const value = {
+    user,
+    setUser, // ← Export setUser
+    logout,
+    isLoading,
   };
 
-  return (
-    <AuthContext.Provider
-      value={{
-        user,
-        isLoading,
-        isAuthenticated: !!user,
-        login,
-        logout,
-        hasPermission: checkPermission,
-        canAccessResource,
-        refreshUser,
-      }}
-    >
-      {children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {

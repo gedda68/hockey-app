@@ -161,6 +161,7 @@ export default function AssociationForm({
       "street",
       "suburb",
       "postcode",
+      "state",
     ];
 
     requiredFields.forEach((field) => {
@@ -443,6 +444,17 @@ export default function AssociationForm({
                   type="text"
                   value={formData.postcode}
                   onChange={(e) => handleChange("postcode", e.target.value)}
+                  className="w-full px-5 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl font-bold"
+                />
+              </div>
+              <div>
+                <label className="text-xs font-black uppercase text-slate-400 mb-2 block">
+                  State *
+                </label>
+                <input
+                  type="text"
+                  value={formData.state}
+                  onChange={(e) => handleChange("state", e.target.value)}
                   className="w-full px-5 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl font-bold"
                 />
               </div>

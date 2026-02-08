@@ -6,8 +6,6 @@ import { useAuth } from "@/lib/auth/AuthContext";
 import { ROLE_DEFINITIONS, type UserRole } from "@/lib/types/roles";
 import CreateUserModal from "./CreateUserModal";
 import EditUserModal from "./EditUserModal";
-import StatCard from "@/components/ui/StatCard";
-
 import {
   Plus,
   Search,
@@ -25,11 +23,13 @@ import {
   ChevronRight,
   UserCheck,
   UserX,
+  User,
 } from "lucide-react";
 import { toast } from "sonner";
 
 interface User {
   userId: string;
+  username: string;
   email: string;
   firstName: string;
   lastName: string;
@@ -280,50 +280,75 @@ export default function UsersManagementContent() {
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
-          <StatCard
-            label="Total Users"
-            value={stats.total}
-            icon={<UsersIcon size={32} className="text-slate-300" />}
-            borderColor="border-slate-200"
-            valueClassName="text-3xl text-slate-700" // Custom size and color
-            labelClassName="text-sm text-slate-800" // Custom size and color
-          />
+          <div className="bg-white rounded-2xl shadow-xl border border-slate-100 p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-bold text-slate-500 uppercase">
+                  Total Users
+                </p>
+                <p className="text-3xl font-black text-[#06054e] mt-1">
+                  {stats.total}
+                </p>
+              </div>
+              <UsersIcon size={32} className="text-slate-300" />
+            </div>
+          </div>
 
-          <StatCard
-            label="Total Users"
-            value={stats.active}
-            icon={<UsersIcon size={32} className="text-green-300" />}
-            borderColor="border-green-200"
-            valueClassName="text-3xl text-green-300" // Custom size and color
-            labelClassName="text-sm text-green-800" // Custom size and color
-          />
+          <div className="bg-white rounded-2xl shadow-xl border border-slate-100 p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-bold text-slate-500 uppercase">
+                  Active
+                </p>
+                <p className="text-3xl font-black text-green-600 mt-1">
+                  {stats.active}
+                </p>
+              </div>
+              <CheckCircle size={32} className="text-green-300" />
+            </div>
+          </div>
 
-          <StatCard
-            label="Inactive"
-            value={stats.inactive}
-            icon={<UsersIcon size={32} className="text-blue-400" />}
-            borderColor="border-blue-200"
-            valueClassName="text-3xl text-blue-400" // Custom size and color
-            labelClassName="text-sm text-blue-800" // Custom size and color
-          />
+          <div className="bg-white rounded-2xl shadow-xl border border-slate-100 p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-bold text-slate-500 uppercase">
+                  Inactive
+                </p>
+                <p className="text-3xl font-black text-slate-600 mt-1">
+                  {stats.inactive}
+                </p>
+              </div>
+              <XCircle size={32} className="text-slate-300" />
+            </div>
+          </div>
 
-          <StatCard
-            label="Suspended"
-            value={stats.suspended}
-            icon={<UsersIcon size={32} className="text-red-400" />}
-            borderColor="border-red-200"
-            valueClassName="text-3xl text-red-400" // Custom size and color
-            labelClassName="text-sm text-red-800" // Custom size and color
-          />
+          <div className="bg-white rounded-2xl shadow-xl border border-slate-100 p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-bold text-slate-500 uppercase">
+                  Suspended
+                </p>
+                <p className="text-3xl font-black text-red-600 mt-1">
+                  {stats.suspended}
+                </p>
+              </div>
+              <Ban size={32} className="text-red-300" />
+            </div>
+          </div>
 
-          <StatCard
-            label="Unverified"
-            value={stats.unverified}
-            icon={<UsersIcon size={32} className="text-yellow-400" />}
-            borderColor="border-yellow-200"
-            valueClassName="text-3xl text-yellow-600" // Custom size and color
-            labelClassName="text-sm text-yellow-800" // Custom size and color
-          />
+          <div className="bg-white rounded-2xl shadow-xl border border-slate-100 p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-bold text-slate-500 uppercase">
+                  Unverified
+                </p>
+                <p className="text-3xl font-black text-yellow-600 mt-1">
+                  {stats.unverified}
+                </p>
+              </div>
+              <AlertCircle size={32} className="text-yellow-300" />
+            </div>
+          </div>
         </div>
       </div>
 
@@ -421,7 +446,11 @@ export default function UsersManagementContent() {
                       <p className="font-bold text-slate-900">
                         {user.firstName} {user.lastName}
                       </p>
-                      <div className="flex items-center gap-2 text-sm text-slate-500 mt-1">
+                      <div className="flex items-center gap-2 text-sm font-bold text-[#06054e] mt-1">
+                        <User size={14} />
+                        <span>@{user.username}</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-sm text-slate-500">
                         <Mail size={14} />
                         <span>{user.email}</span>
                       </div>

@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
     const query = activeOnly ? { isActive: true } : {};
 
     const genders = await db
-      .collection("config_genders")
+      .collection("config")
       .find(query)
       .sort({ displayOrder: 1, name: 1 })
       .toArray();
@@ -41,23 +41,24 @@ export async function POST(request: NextRequest) {
     }
 
     // Check for duplicate
-    const existing = await db.collection("config_gender").findOne({
+    const existing = await db.collection("config").findOne({
       name: { $regex: new RegExp(`^${body.name}$`, "i") },
+      configType: "gender",
     });
 
     if (existing) {
       return NextResponse.json(
         { error: "This gender option already exists" },
-        { status: 409 }
+        { status: 409 },
       );
     }
 
-    const genderId = `gender-${Date.now()}-${Math.random()
+    const Id = `gender-${Date.now()}-${Math.random()
       .toString(36)
       .substr(2, 9)}`;
 
     const lastGender = await db
-      .collection("config_gender")
+      .collection("config")
       .find()
       .sort({ displayOrder: -1 })
       .limit(1)
@@ -67,7 +68,7 @@ export async function POST(request: NextRequest) {
       lastGender.length > 0 ? lastGender[0].displayOrder + 1 : 1;
 
     const gender = {
-      genderId,
+      Id,
       name: body.name,
       isActive: body.isActive !== false,
       displayOrder: body.displayOrder || nextOrder,
@@ -78,7 +79,9 @@ export async function POST(request: NextRequest) {
       createdBy: body.createdBy || "admin",
     };
 
-    await db.collection("config_gender").insertOne(gender);
+    await db
+      .collection("config")
+      .insertOne({ ...gender, configType: "gender" });
 
     console.log(`✅ Created gender option: ${gender.name}`);
 
@@ -100,7 +103,7 @@ export async function PUT(request: NextRequest) {
     if (!body.genderId) {
       return NextResponse.json(
         { error: "genderId is required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -114,21 +117,21 @@ export async function PUT(request: NextRequest) {
       updateData.displayOrder = body.displayOrder;
 
     const result = await db
-      .collection("config_gender")
-      .updateOne({ genderId: body.genderId }, { $set: updateData });
+      .collection("config")
+      .updateOne({ Id: body.Id, configType: "gender" }, { $set: updateData });
 
     if (result.matchedCount === 0) {
       return NextResponse.json(
         { error: "Gender option not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
     const updated = await db
-      .collection("config_gender")
-      .findOne({ genderId: body.genderId });
+      .collection("config")
+      .findOne({ Id: body.Id, configType: "gender" });
 
-    console.log(`✅ Updated gender: ${body.genderId}`);
+    console.log(`✅ Updated gender: ${body.Id}`);
 
     return NextResponse.json(updated);
   } catch (error: any) {
@@ -147,10 +150,7 @@ export async function DELETE(request: NextRequest) {
     const genderId = searchParams.get("id");
 
     if (!genderId) {
-      return NextResponse.json(
-        { error: "genderId is required" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Id is required" }, { status: 400 });
     }
 
     // Check if in use
@@ -164,20 +164,21 @@ export async function DELETE(request: NextRequest) {
           error: `Cannot delete: This gender option is used by ${usageCount} member(s)`,
           usageCount,
         },
-        { status: 409 }
+        { status: 409 },
       );
     }
 
-    const result = await db.collection("config_gender").deleteOne({ genderId });
-
+    const result = await db
+      .collection("config")
+      .deleteOne({ Id: Id, configType: "gender" });
     if (result.deletedCount === 0) {
       return NextResponse.json(
         { error: "Gender option not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
-    console.log(`✅ Deleted gender: ${genderId}`);
+    console.log(`✅ Deleted gender: ${Id}`);
 
     return NextResponse.json({
       success: true,

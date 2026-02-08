@@ -1,10 +1,55 @@
 // app/api/admin/users/route.ts
-// User management API - saves to 'users' collection in MongoDB
+// User management API with username generation
 
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import { requirePermission } from "@/lib/auth/middleware";
 import bcrypt from "bcryptjs";
+
+/**
+ * Generate username from first and last name
+ * Format: {firstInitial}{lastName5chars}
+ * Example: John Smith → jsmith
+ * Example: Jane Anderson → jander
+ */
+async function generateUsername(
+  firstName: string,
+  lastName: string,
+  db: any
+): Promise<string> {
+  // Get first initial (lowercase)
+  const firstInitial = firstName.charAt(0).toLowerCase();
+
+  // Get up to 5 characters of last name (lowercase)
+  const lastNamePart = lastName.substring(0, 5).toLowerCase();
+
+  // Combine
+  let baseUsername = firstInitial + lastNamePart;
+
+  // Remove any non-alphanumeric characters
+  baseUsername = baseUsername.replace(/[^a-z0-9]/g, "");
+
+  // Check if username exists
+  const existing = await db
+    .collection("users")
+    .findOne({ username: baseUsername });
+
+  if (!existing) {
+    // Username is available
+    return baseUsername;
+  }
+
+  // Username exists, find next available number
+  let counter = 1;
+  let username = `${baseUsername}${counter}`;
+
+  while (await db.collection("users").findOne({ username })) {
+    counter++;
+    username = `${baseUsername}${counter}`;
+  }
+
+  return username;
+}
 
 // GET all users
 export async function GET(request: NextRequest) {
@@ -25,7 +70,7 @@ export async function GET(request: NextRequest) {
     }
 
     const users = await db
-      .collection("users") // ← TABLE NAME: users
+      .collection("users")
       .find(query)
       .project({ passwordHash: 0 })
       .sort({ createdAt: -1 })
@@ -62,17 +107,21 @@ export async function POST(request: NextRequest) {
     const client = await clientPromise;
     const db = client.db();
 
-    // Check if email already exists
-    const existing = await db
-      .collection("users") // ← TABLE NAME: users
-      .findOne({ email: body.email.toLowerCase() });
+    // Generate unique username
+    const username = await generateUsername(body.firstName, body.lastName, db);
+    console.log(`Generated username: ${username}`);
 
-    if (existing) {
+    // Check if username already exists (shouldn't happen with our logic, but double-check)
+    const existingUsername = await db.collection("users").findOne({ username });
+    if (existingUsername) {
       return NextResponse.json(
-        { error: "Email already in use" },
+        { error: "Username generation failed - please try again" },
         { status: 400 }
       );
     }
+
+    // Note: We allow duplicate emails as users may have same email
+    // but different usernames (e.g., family members)
 
     // Hash password
     const passwordHash = await bcrypt.hash(body.password, 10);
@@ -80,6 +129,7 @@ export async function POST(request: NextRequest) {
     // Create user object
     const newUser = {
       userId: `user-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      username, // ← Generated username for login
       email: body.email.toLowerCase(),
       firstName: body.firstName,
       lastName: body.lastName,
@@ -91,7 +141,9 @@ export async function POST(request: NextRequest) {
       linkedMembers: body.linkedMembers || [],
       passwordHash,
       status: "active",
-      emailVerified: false,
+      emailVerified: body.emailVerified || false,
+      emailVerifiedAt: body.emailVerifiedAt || null,
+      emailVerifiedBy: body.emailVerifiedBy || null,
       loginAttempts: 0,
       lastLogin: null,
       lockedUntil: null,
@@ -101,12 +153,12 @@ export async function POST(request: NextRequest) {
     };
 
     // Insert into users collection
-    await db.collection("users").insertOne(newUser); // ← TABLE NAME: users
+    await db.collection("users").insertOne(newUser);
 
     // Return user without password hash
     const { passwordHash: _, ...userResponse } = newUser;
 
-    console.log(`Created user: ${newUser.userId} in 'users' collection`);
+    console.log(`Created user: ${newUser.userId} with username: ${username}`);
     return NextResponse.json({
       message: "User created successfully",
       user: userResponse,

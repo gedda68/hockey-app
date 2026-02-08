@@ -1,7 +1,7 @@
 // app/(admin)/admin/associations/[associationId]/edit/page.tsx
 // Fixed: Removed conflicting notFound function
 
-import AssociationForm from "@/components/admin/AssociationForm";
+import AssociationForm from "@/components/admin/associations/AssociationForm";
 import clientPromise from "@/lib/mongodb";
 import Link from "next/link";
 import { ArrowLeft, AlertCircle } from "lucide-react";

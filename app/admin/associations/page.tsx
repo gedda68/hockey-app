@@ -1,4 +1,4 @@
-import AssociationsList from "@/components/admin/AssociationsList";
+import AssociationsList from "@/components/admin/associations/AssociationsList";
 
 export default function AssociationsPage() {
   return (

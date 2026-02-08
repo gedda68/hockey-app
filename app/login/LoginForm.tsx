@@ -5,183 +5,180 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { getRoleDashboard, getRoleDisplayName } from "@/lib/auth/roleRedirects";
-import { Mail, Lock, LogIn, AlertCircle, Home } from "lucide-react";
 import { toast } from "sonner";
-import Link from "next/link";
+import { Loader, Lock, User } from "lucide-react";
 
 export default function LoginForm() {
   const router = useRouter();
-  const { login } = useAuth();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const { setUser } = useAuth(); // ← Use setUser instead of login
+  const [formData, setFormData] = useState({
+    username: "",
+    password: "",
+  });
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError("");
-    setLoading(true);
+    setIsLoading(true);
 
     try {
-      // Login and get user data
-      const userData = await login(email, password);
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        toast.error(data.error || "Login failed");
+        setIsLoading(false);
+        return;
+      }
+
+      // Set user directly in context
+      setUser(data.user);
 
       // Get role-based dashboard
-      const dashboard = getRoleDashboard(
-        userData.role,
-        userData.clubId,
-        userData.associationId
+      const dashboardUrl = getRoleDashboard(
+        data.user.role,
+        data.user.clubId,
+        data.user.associationId,
       );
 
-      // Show personalized welcome
-      const roleName = getRoleDisplayName(userData.role);
+      const roleDisplayName = getRoleDisplayName(data.user.role);
+
       toast.success(
-        `Welcome back, ${userData.firstName}! Logged in as ${roleName}`
+        `Welcome back, ${data.user.firstName}! Logged in as ${roleDisplayName}`,
       );
 
       // Redirect to appropriate dashboard
-      router.push(dashboard);
-    } catch (err: any) {
-      const msg = err.message || "Login failed";
-      setError(msg);
-      toast.error(msg);
-    } finally {
-      setLoading(false);
+      router.push(dashboardUrl);
+    } catch (error: any) {
+      console.error("Login error:", error);
+      toast.error("An error occurred during login");
+      setIsLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#06054e] to-slate-900 p-6">
-      <div className="max-w-md w-full">
-        {/* Back to Home Link */}
+    <div className="min-h-screen bg-gradient-to-br from-[#06054e] via-[#0a0970] to-[#06054e] flex items-center justify-center p-4">
+      <div className="w-full max-w-md">
+        {/* Back to Home */}
         <div className="mb-6">
-          <Link
+          <a
             href="/"
-            className="inline-flex items-center gap-2 text-slate-300 hover:text-white font-bold transition-colors"
+            className="text-yellow-400 hover:text-yellow-300 font-bold text-sm flex items-center gap-2"
           >
-            <Home size={18} />
-            Back to Home
-          </Link>
+            ← Back to Home
+          </a>
         </div>
 
-        {/* Header */}
-        <div className="text-center mb-8">
-          <div className="w-20 h-20 bg-yellow-400 rounded-2xl flex items-center justify-center mx-auto mb-4">
-            <span className="text-4xl">🏑</span>
-          </div>
-          <h1 className="text-4xl font-black text-white uppercase mb-2">
-            Hockey Admin
-          </h1>
-          <p className="text-slate-300 font-bold">Management System Login</p>
-        </div>
-
-        {/* Form */}
+        {/* Login Card */}
         <div className="bg-white rounded-[2rem] shadow-2xl p-8">
-          <h2 className="text-2xl font-black text-[#06054e] uppercase mb-6">
-            Admin Sign In
-          </h2>
-
-          {error && (
-            <div className="bg-red-50 border-2 border-red-500 rounded-xl p-4 mb-6">
-              <div className="flex items-start gap-3">
-                <AlertCircle
-                  className="text-red-600 flex-shrink-0 mt-0.5"
-                  size={20}
-                />
-                <p className="text-sm font-bold text-red-700">{error}</p>
-              </div>
-            </div>
-          )}
+          <div className="text-center mb-8">
+            <h1 className="text-3xl font-black text-[#06054e] uppercase mb-2">
+              Admin Login
+            </h1>
+            <p className="text-slate-600 font-bold">
+              Enter your username and password
+            </p>
+          </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Username Field */}
             <div>
               <label className="block text-sm font-black uppercase text-slate-600 mb-2">
-                Email Address
+                Username
               </label>
               <div className="relative">
-                <Mail
-                  className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
+                <User
                   size={20}
+                  className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
                 />
                 <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  type="text"
+                  value={formData.username}
+                  onChange={(e) =>
+                    setFormData({ ...formData, username: e.target.value })
+                  }
                   required
-                  autoComplete="email"
-                  className="w-full pl-12 pr-4 py-3 bg-slate-50 border-2 border-slate-200 rounded-xl font-bold focus:ring-2 ring-yellow-400 outline-none"
-                  placeholder="admin@example.com"
+                  className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-bold focus:ring-2 ring-yellow-400 outline-none"
+                  placeholder="jsmith"
+                  autoComplete="username"
                 />
               </div>
+              <p className="text-xs text-slate-500 mt-2">
+                Your username is your first initial + last name (e.g., jsmith)
+              </p>
             </div>
 
+            {/* Password Field */}
             <div>
               <label className="block text-sm font-black uppercase text-slate-600 mb-2">
                 Password
               </label>
               <div className="relative">
                 <Lock
-                  className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
                   size={20}
+                  className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
                 />
                 <input
                   type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  value={formData.password}
+                  onChange={(e) =>
+                    setFormData({ ...formData, password: e.target.value })
+                  }
                   required
-                  autoComplete="current-password"
-                  className="w-full pl-12 pr-4 py-3 bg-slate-50 border-2 border-slate-200 rounded-xl font-bold focus:ring-2 ring-yellow-400 outline-none"
+                  className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl font-bold focus:ring-2 ring-yellow-400 outline-none"
                   placeholder="••••••••"
+                  autoComplete="current-password"
                 />
               </div>
             </div>
 
+            {/* Submit Button */}
             <button
               type="submit"
-              disabled={loading}
-              className="w-full px-6 py-4 bg-[#06054e] text-white rounded-xl font-black uppercase flex items-center justify-center gap-2 hover:bg-yellow-400 hover:text-[#06054e] transition-all shadow-lg active:scale-95 disabled:opacity-50"
+              disabled={isLoading}
+              className="w-full px-6 py-3 bg-[#06054e] text-white rounded-xl font-bold hover:bg-yellow-400 hover:text-[#06054e] transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
             >
-              <LogIn size={20} />
-              {loading ? "Signing In..." : "Sign In"}
+              {isLoading ? (
+                <>
+                  <Loader size={20} className="animate-spin" />
+                  Logging in...
+                </>
+              ) : (
+                "Login"
+              )}
             </button>
           </form>
 
+          {/* Dev Credentials */}
+          {process.env.NODE_ENV === "development" && (
+            <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-xl">
+              <p className="text-xs font-black uppercase text-blue-800 mb-2">
+                Dev Credentials:
+              </p>
+              <p className="text-sm text-blue-700">
+                <strong>Username:</strong> jsmith (or your generated username)
+              </p>
+              <p className="text-sm text-blue-700">
+                <strong>Password:</strong> Password1!
+              </p>
+            </div>
+          )}
+
+          {/* Return to Homepage */}
           <div className="mt-6 text-center">
             <a
-              href="#"
+              href="/"
               className="text-sm text-slate-600 hover:text-[#06054e] font-bold"
             >
-              Forgot password?
+              Return to homepage
             </a>
           </div>
         </div>
-
-        {/* Help Section */}
-        <div className="mt-6 text-center">
-          <p className="text-sm text-slate-300 font-bold mb-2">
-            Need help? Contact your administrator
-          </p>
-          <Link
-            href="/"
-            className="text-sm text-yellow-400 hover:text-yellow-300 font-bold"
-          >
-            Return to homepage →
-          </Link>
-        </div>
-
-        {/* Dev Info - Remove in production */}
-        {process.env.NODE_ENV === "development" && (
-          <div className="mt-8 p-4 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl">
-            <p className="text-xs text-slate-400 font-bold mb-2">
-              🔐 Development Credentials:
-            </p>
-            <p className="text-xs text-slate-300 font-mono">
-              Email: admin@example.com
-              <br />
-              Password: Admin123!
-            </p>
-          </div>
-        )}
       </div>
     </div>
   );

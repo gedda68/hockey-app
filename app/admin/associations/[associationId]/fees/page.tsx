@@ -3,7 +3,7 @@
 import Link from "next/link";
 import clientPromise from "@/lib/mongodb";
 import { ArrowLeft, AlertCircle } from "lucide-react";
-import AssociationFeeManager from "@/components/admin/AssociationFeeManager";
+import AssociationFeeManager from "@/components/admin/associations/AssociationFeeManager";
 
 async function getAssociation(associationId: string) {
   const client = await clientPromise;
