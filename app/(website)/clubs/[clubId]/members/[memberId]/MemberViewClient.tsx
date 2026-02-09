@@ -27,19 +27,31 @@ import {
   X as XIcon,
 } from "lucide-react";
 
-interface Role {
-  id: string;
-  name: string;
-  category: string;
-}
-
 interface ConfigItem {
-  configId: string;
+  _id?: string;
   configType: string;
-  configKey: string;
-  configValue: string;
-  displayOrder: number;
+  id: string; // This is the key/identifier
+  name: string; // This is the display value
+  code?: string;
+  description?: string | null;
   isActive: boolean;
+  displayOrder: number;
+  usageCount?: number;
+  lastUsed?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  createdBy?: string;
+  updatedBy?: string | null;
+  // Flexible attributes - different config types can have different fields
+  icon?: string;
+  color?: string;
+  category?: string;
+  defaultPermissions?: string[];
+  clubId?: string | null;
+  phone?: string;
+  website?: string;
+  shortName?: string;
+  [key: string]: any;
 }
 
 interface Member {
@@ -98,7 +110,7 @@ interface Member {
     jerseyNumber: string;
     position: string;
   } | null;
-  medical: {
+  medical?: {
     conditions: string;
     medications: string;
     allergies: string;
@@ -119,36 +131,128 @@ interface MemberViewClientProps {
   memberId: string;
 }
 
-// Role category colors
-const ROLE_CATEGORY_COLORS: Record<string, string> = {
-  Playing: "bg-blue-100 text-blue-700",
-  Coaching: "bg-purple-100 text-purple-700",
-  Administration: "bg-green-100 text-green-700",
-  Official: "bg-orange-100 text-orange-700",
-  Volunteer: "bg-pink-100 text-pink-700",
-  Other: "bg-slate-100 text-slate-700",
-};
-
-function getRoleDisplayName(roleId: string, roles: Role[]): string {
-  const role = roles.find((r) => r.id === roleId);
-  return role?.name || roleId;
-}
-
-function getRoleColor(roleId: string, roles: Role[]): string {
-  const role = roles.find((r) => r.id === roleId);
-  const category = role?.category || "Other";
-  return ROLE_CATEGORY_COLORS[category] || ROLE_CATEGORY_COLORS.Other;
-}
-
 function getConfigDisplayName(
-  configKey: string,
+  configId: string,
   configType: string,
   configItems: ConfigItem[],
 ): string {
-  const config = configItems.find(
-    (c) => c.configType === configType && c.configKey === configKey,
+  if (!configId) {
+    console.warn(
+      `getConfigDisplayName called with empty configId for type: ${configType}`,
+    );
+    return "";
+  }
+
+  // Handle prefixed IDs - strip common prefixes
+  let lookupId = configId;
+  const prefixes = ["provider-", "mtype-", "sal-", "gender-", "role-"];
+  for (const prefix of prefixes) {
+    if (configId.startsWith(prefix)) {
+      lookupId = configId.substring(prefix.length);
+      break;
+    }
+  }
+
+  // Try to find config with the processed ID
+  let config = configItems.find(
+    (c) => c.configType === configType && c.id === lookupId,
   );
-  return config?.configValue || configKey;
+
+  // If not found with stripped prefix, try with original ID
+  if (!config) {
+    config = configItems.find(
+      (c) => c.configType === configType && c.id === configId,
+    );
+  }
+
+  if (!config && configItems.length > 0) {
+    console.warn(
+      `Config not found for id: "${configId}" (looked up as: "${lookupId}"), type: "${configType}"`,
+      `Available IDs:`,
+      configItems.filter((c) => c.configType === configType).map((c) => c.id),
+    );
+  }
+
+  return config?.name || configId;
+}
+
+function getConfigColor(
+  configId: string,
+  configType: string,
+  configItems: ConfigItem[],
+): string {
+  if (!configId) return "bg-slate-100 text-slate-700";
+
+  // Handle prefixed IDs - strip common prefixes
+  let lookupId = configId;
+  const prefixes = ["provider-", "mtype-", "sal-", "gender-", "role-"];
+  for (const prefix of prefixes) {
+    if (configId.startsWith(prefix)) {
+      lookupId = configId.substring(prefix.length);
+      break;
+    }
+  }
+
+  // Try to find config with the processed ID
+  let config = configItems.find(
+    (c) => c.configType === configType && c.id === lookupId,
+  );
+
+  // If not found with stripped prefix, try with original ID
+  if (!config) {
+    config = configItems.find(
+      (c) => c.configType === configType && c.id === configId,
+    );
+  }
+
+  // Fallback to category-based colors for role
+  if (configType === "role" && config?.category) {
+    const ROLE_CATEGORY_COLORS: Record<string, string> = {
+      Playing: "bg-blue-100 text-blue-700",
+      Coaching: "bg-purple-100 text-purple-700",
+      Administration: "bg-green-100 text-green-700",
+      Official: "bg-orange-100 text-orange-700",
+      Support: "bg-pink-100 text-pink-700",
+      Other: "bg-slate-100 text-slate-700",
+      Participant: "bg-yellow-100 text-yellow-700",
+      Administrator: "bg-green-100 text-green-700",
+    };
+    return ROLE_CATEGORY_COLORS[config.category] || ROLE_CATEGORY_COLORS.Other;
+  }
+
+  return "bg-slate-100 text-slate-700";
+}
+
+function getSalutationDisplay(
+  configId: string,
+  configItems: ConfigItem[],
+): string {
+  if (!configId) return "";
+
+  // Handle prefixed IDs - strip common prefixes
+  let lookupId = configId;
+  const prefixes = ["sal-", "salutation-"];
+  for (const prefix of prefixes) {
+    if (configId.startsWith(prefix)) {
+      lookupId = configId.substring(prefix.length);
+      break;
+    }
+  }
+
+  // Try to find config with the processed ID
+  let config = configItems.find(
+    (c) => c.configType === "salutation" && c.id === lookupId,
+  );
+
+  // If not found with stripped prefix, try with original ID
+  if (!config) {
+    config = configItems.find(
+      (c) => c.configType === "salutation" && c.id === configId,
+    );
+  }
+
+  // Return the code field for salutation, fallback to name, then to the ID
+  return config?.code || config?.name || configId;
 }
 
 export default function MemberViewClient({
@@ -157,7 +261,6 @@ export default function MemberViewClient({
 }: MemberViewClientProps) {
   const router = useRouter();
   const [member, setMember] = useState<Member | null>(null);
-  const [roles, setRoles] = useState<Role[]>([]);
   const [configItems, setConfigItems] = useState<ConfigItem[]>([]);
   const [relatedMembers, setRelatedMembers] = useState<Record<string, any>>({});
   const [isLoading, setIsLoading] = useState(true);
@@ -170,28 +273,30 @@ export default function MemberViewClient({
   const fetchData = async () => {
     setIsLoading(true);
     try {
-      // Fetch member and roles (required)
-      const [memberRes, rolesRes] = await Promise.all([
-        fetch(`/api/clubs/${clubId}/members/${memberId}`),
-        fetch(`/api/admin/club-roles?activeOnly=true`),
-      ]);
+      // Fetch member (required)
+      const memberRes = await fetch(`/api/clubs/${clubId}/members/${memberId}`);
 
       if (!memberRes.ok) throw new Error("Member not found");
-      if (!rolesRes.ok) throw new Error("Failed to fetch roles");
 
-      const [memberData, rolesData] = await Promise.all([
-        memberRes.json(),
-        rolesRes.json(),
-      ]);
-
+      const memberData = await memberRes.json();
+      console.log(
+        "Member loaded, provider value:",
+        memberData.healthcare?.privateHealth?.provider,
+      );
       setMember(memberData);
-      setRoles(rolesData);
 
       // Try to fetch config items (optional - gracefully handle if not available)
       try {
         const configRes = await fetch(`/api/admin/config?activeOnly=true`);
         if (configRes.ok) {
           const configData = await configRes.json();
+          console.log("Config items loaded:", configData.length);
+          console.log(
+            "Private health providers:",
+            configData.filter(
+              (c: any) => c.configType === "privateHealthProvider",
+            ),
+          );
           setConfigItems(configData);
         } else {
           console.warn("Config API not available, will display raw values");
@@ -441,9 +546,8 @@ export default function MemberViewClient({
               Salutation
             </label>
             <p className="text-lg font-bold text-slate-800 mt-1">
-              {getConfigDisplayName(
+              {getSalutationDisplay(
                 member.personalInfo.salutation,
-                "salutation",
                 configItems,
               )}
             </p>
@@ -641,12 +745,13 @@ export default function MemberViewClient({
               {member.roles.map((roleId) => (
                 <span
                   key={roleId}
-                  className={`px-4 py-2 rounded-lg font-black text-sm ${getRoleColor(
+                  className={`px-4 py-2 rounded-lg font-black text-sm ${getConfigColor(
                     roleId,
-                    roles,
+                    "role",
+                    configItems,
                   )}`}
                 >
-                  {getRoleDisplayName(roleId, roles)}
+                  {getConfigDisplayName(roleId, "role", configItems)}
                 </span>
               ))}
             </div>
@@ -739,6 +844,12 @@ export default function MemberViewClient({
                     member.healthcare.privateHealth.provider,
                     "privateHealthProvider",
                     configItems,
+                  )}
+                  {/* Debug: Show raw value if config lookup fails */}
+                  {configItems.length === 0 && (
+                    <span className="text-xs text-slate-400 ml-2">
+                      (Config not loaded)
+                    </span>
                   )}
                 </p>
               </div>

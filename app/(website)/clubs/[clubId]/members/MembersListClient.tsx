@@ -1,5 +1,5 @@
 // app/(website)/clubs/[clubId]/members/MembersList.tsx
-// FINAL FIX: Compact search bar with sort beside it, proper role display
+// Updated to use config system for roles
 
 "use client";
 
@@ -20,11 +20,19 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 
-interface Role {
+interface ConfigItem {
+  _id?: string;
+  configType: string;
   id: string;
   name: string;
-  category: string;
-  description?: string;
+  code?: string;
+  description?: string | null;
+  isActive: boolean;
+  displayOrder: number;
+  category?: string;
+  icon?: string;
+  color?: string;
+  [key: string]: any;
 }
 
 interface Member {
@@ -67,26 +75,87 @@ const ROLE_CATEGORY_COLORS: Record<string, string> = {
   Coaching: "bg-purple-100 text-purple-700",
   Administration: "bg-green-100 text-green-700",
   Official: "bg-orange-100 text-orange-700",
+  Support: "bg-pink-100 text-pink-700",
   Volunteer: "bg-pink-100 text-pink-700",
   Other: "bg-slate-100 text-slate-700",
+  Participant: "bg-yellow-100 text-yellow-700",
+  Administrator: "bg-green-100 text-green-700",
 };
 
-// Get role display name from ID
-function getRoleDisplayName(roleId: string, roles: Role[]): string {
-  const role = roles.find((r) => r.id === roleId);
-  return role?.name || roleId;
+// Get config display name from ID
+function getConfigDisplayName(
+  configId: string,
+  configType: string,
+  configItems: ConfigItem[],
+): string {
+  if (!configId) return "";
+
+  // Handle prefixed IDs - strip common prefixes
+  let lookupId = configId;
+  const prefixes = ["provider-", "mtype-", "sal-", "gender-", "role-"];
+  for (const prefix of prefixes) {
+    if (configId.startsWith(prefix)) {
+      lookupId = configId.substring(prefix.length);
+      break;
+    }
+  }
+
+  // Try to find config with the processed ID
+  let config = configItems.find(
+    (c) => c.configType === configType && c.id === lookupId,
+  );
+
+  // If not found with stripped prefix, try with original ID
+  if (!config) {
+    config = configItems.find(
+      (c) => c.configType === configType && c.id === configId,
+    );
+  }
+
+  return config?.name || configId;
 }
 
-// Get role color from ID
-function getRoleColor(roleId: string, roles: Role[]): string {
-  const role = roles.find((r) => r.id === roleId);
-  const category = role?.category || "Other";
-  return ROLE_CATEGORY_COLORS[category] || ROLE_CATEGORY_COLORS.Other;
+// Get config color from ID and category
+function getConfigColor(
+  configId: string,
+  configType: string,
+  configItems: ConfigItem[],
+): string {
+  if (!configId) return "bg-slate-100 text-slate-700";
+
+  // Handle prefixed IDs - strip common prefixes
+  let lookupId = configId;
+  const prefixes = ["provider-", "mtype-", "sal-", "gender-", "role-"];
+  for (const prefix of prefixes) {
+    if (configId.startsWith(prefix)) {
+      lookupId = configId.substring(prefix.length);
+      break;
+    }
+  }
+
+  // Try to find config with the processed ID
+  let config = configItems.find(
+    (c) => c.configType === configType && c.id === lookupId,
+  );
+
+  // If not found with stripped prefix, try with original ID
+  if (!config) {
+    config = configItems.find(
+      (c) => c.configType === configType && c.id === configId,
+    );
+  }
+
+  // Fallback to category-based colors for role
+  if (configType === "role" && config?.category) {
+    return ROLE_CATEGORY_COLORS[config.category] || ROLE_CATEGORY_COLORS.Other;
+  }
+
+  return "bg-slate-100 text-slate-700";
 }
 
 export default function MembersList({ clubId }: MembersListProps) {
   const [members, setMembers] = useState<Member[]>([]);
-  const [roles, setRoles] = useState<Role[]>([]);
+  const [configItems, setConfigItems] = useState<ConfigItem[]>([]);
   const [filteredMembers, setFilteredMembers] = useState<Member[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -166,9 +235,11 @@ export default function MembersList({ clubId }: MembersListProps) {
       const membershipType =
         member.membership.membershipType?.toLowerCase() || "";
 
-      // Search in role names
+      // Search in role names from config
       const memberRoleNames = member.roles
-        .map((roleId) => getRoleDisplayName(roleId, roles).toLowerCase())
+        .map((roleId) =>
+          getConfigDisplayName(roleId, "role", configItems).toLowerCase(),
+        )
         .join(" ");
 
       return (
@@ -184,27 +255,36 @@ export default function MembersList({ clubId }: MembersListProps) {
 
     setFilteredMembers(filtered);
     setCurrentPage(1);
-  }, [searchQuery, members, roles]);
+  }, [searchQuery, members, configItems]);
 
   const fetchData = async () => {
     setIsLoading(true);
     try {
-      const [membersRes, rolesRes] = await Promise.all([
-        fetch(`/api/clubs/${clubId}/members`),
-        fetch(`/api/admin/club-roles?activeOnly=true`),
-      ]);
-
+      // Fetch members
+      const membersRes = await fetch(`/api/clubs/${clubId}/members`);
       if (!membersRes.ok) throw new Error("Failed to fetch members");
-      if (!rolesRes.ok) throw new Error("Failed to fetch roles");
-
-      const [membersData, rolesData] = await Promise.all([
-        membersRes.json(),
-        rolesRes.json(),
-      ]);
+      const membersData = await membersRes.json();
 
       setMembers(membersData);
       setFilteredMembers(membersData);
-      setRoles(rolesData);
+
+      // Try to fetch config items (optional - gracefully handle if not available)
+      try {
+        const configRes = await fetch(`/api/admin/config?activeOnly=true`);
+        if (configRes.ok) {
+          const configData = await configRes.json();
+          setConfigItems(configData);
+        } else {
+          console.warn("Config API not available, will display raw values");
+          setConfigItems([]);
+        }
+      } catch (configError) {
+        console.warn(
+          "Config API not available, will display raw values",
+          configError,
+        );
+        setConfigItems([]);
+      }
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -513,7 +593,11 @@ export default function MembersList({ clubId }: MembersListProps) {
                       </span>
                       {member.membership.membershipType && (
                         <span className="inline-block px-2 py-1 rounded-lg text-xs font-black bg-blue-100 text-blue-700">
-                          {member.membership.membershipType}
+                          {getConfigDisplayName(
+                            member.membership.membershipType,
+                            "membershipType",
+                            configItems,
+                          )}
                         </span>
                       )}
                     </div>
@@ -546,12 +630,20 @@ export default function MembersList({ clubId }: MembersListProps) {
                   )}
                 </div>
 
-                {/* Roles - Display names with category colors */}
+                {/* Roles - Display names with category colors from config */}
                 {member.roles && member.roles.length > 0 && (
                   <div className="flex flex-wrap gap-2 mb-4">
                     {member.roles.slice(0, 3).map((roleId, idx) => {
-                      const displayName = getRoleDisplayName(roleId, roles);
-                      const colorClass = getRoleColor(roleId, roles);
+                      const displayName = getConfigDisplayName(
+                        roleId,
+                        "role",
+                        configItems,
+                      );
+                      const colorClass = getConfigColor(
+                        roleId,
+                        "role",
+                        configItems,
+                      );
 
                       return (
                         <span
@@ -643,8 +735,8 @@ export default function MembersList({ clubId }: MembersListProps) {
                           page === currentPage
                             ? "bg-[#06054e] text-white"
                             : page === "..."
-                            ? "bg-transparent text-slate-400 cursor-default"
-                            : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                              ? "bg-transparent text-slate-400 cursor-default"
+                              : "bg-slate-100 text-slate-700 hover:bg-slate-200"
                         }`}
                       >
                         {page}
