@@ -1,14 +1,9 @@
 // app/api/auth/logout/route.ts
-// User logout endpoint
+// Logout endpoint
 
-import { NextRequest, NextResponse } from "next/server";
-import { clearAuthCookie } from "@/lib/auth/middleware";
+import { NextRequest } from "next/server";
+import { clearSessionResponse } from "@/lib/auth";
 
 export async function POST(request: NextRequest) {
-  const response = NextResponse.json({
-    message: "Logged out successfully",
-  });
-
-  clearAuthCookie(response);
-  return response;
+  return clearSessionResponse();
 }

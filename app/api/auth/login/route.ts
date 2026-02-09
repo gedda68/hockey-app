@@ -1,126 +1,116 @@
 // app/api/auth/login/route.ts
-// Login API - accepts username (not email)
+// Fixed login endpoint with better error handling
 
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
-import jwt from "jsonwebtoken";
 import clientPromise from "@/lib/mongodb";
-
-const JWT_SECRET =
-  process.env.JWT_SECRET || "your-secret-key-change-in-production";
+import { createSession, createSessionResponse } from "@/lib/auth";
 
 export async function POST(request: NextRequest) {
   try {
-    const { username, password } = await request.json();
+    console.log("🔐 Login attempt started");
 
-    if (!username || !password) {
+    // Try to parse body
+    let body;
+    try {
+      const text = await request.text();
+      console.log("📨 Raw body:", text);
+      body = JSON.parse(text);
+      console.log("📨 Parsed body:", body);
+    } catch (parseError) {
+      console.error("❌ Failed to parse request body:", parseError);
       return NextResponse.json(
-        { error: "Username and password are required" },
+        { error: "Invalid request format" },
         { status: 400 },
       );
     }
 
-    const client = await clientPromise;
-    const db = client.db();
+    const { email, password, username } = body;
+    const emailToUse = email || username; // Support both 'email' and 'username' fields
 
-    // Find user by USERNAME (not email)
-    const user = await db.collection("users").findOne({
-      username: username.toLowerCase(),
+    console.log("📧 Email/Username:", emailToUse);
+    console.log("🔑 Password:", password ? "***" : "missing");
+
+    if (!emailToUse || !password) {
+      console.log("❌ Missing email/username or password");
+      return NextResponse.json(
+        { error: "Email and password are required" },
+        { status: 400 },
+      );
+    }
+
+    // Get user from database
+    console.log("🔍 Connecting to database...");
+    const client = await clientPromise;
+    const db = client.db("hockey-app");
+    const usersCollection = db.collection("users");
+
+    console.log("🔍 Looking for user:", emailToUse.toLowerCase());
+
+    // Search by userId, email, or username
+    const user = await usersCollection.findOne({
+      $or: [
+        { userid: emailToUse }, // Matches your log: user.userid
+        { userId: emailToUse }, // Common camelCase variant
+        { username: emailToUse.toLowerCase() }, // The actual 'username' field
+        { email: emailToUse.toLowerCase() }, // The email field
+      ],
     });
 
     if (!user) {
+      console.log("❌ User not found:", emailToUse);
       return NextResponse.json(
-        { error: "Invalid username or password" },
+        { error: "Invalid email or password" },
         { status: 401 },
       );
     }
 
-    // Check if account is active
-    if (user.status !== "active") {
-      return NextResponse.json(
-        { error: "Account is not active. Please contact an administrator." },
-        { status: 403 },
-      );
-    }
-
-    // Check if account is locked
-    if (user.lockedUntil && new Date(user.lockedUntil) > new Date()) {
-      return NextResponse.json(
-        { error: "Account is temporarily locked. Please try again later." },
-        { status: 403 },
-      );
-    }
+    console.log("✅ User found:", {
+      id: user.userid,
+      email: user.email,
+      role: user.role,
+    });
 
     // Verify password
-    const passwordMatch = await bcrypt.compare(password, user.passwordHash);
+    console.log("🔐 Verifying password...");
+    const isValid = await bcrypt.compare(password, user.password);
 
-    if (!passwordMatch) {
-      // Increment failed login attempts
-      const loginAttempts = (user.loginAttempts || 0) + 1;
-      const updateData: any = { loginAttempts };
-
-      // Lock account after 5 failed attempts
-      if (loginAttempts >= 5) {
-        updateData.lockedUntil = new Date(Date.now() + 30 * 60 * 1000); // 30 minutes
-      }
-
-      await db
-        .collection("users")
-        .updateOne({ _id: user._id }, { $set: updateData });
-
+    if (!isValid) {
+      console.log("❌ Invalid password");
       return NextResponse.json(
-        { error: "Invalid username or password" },
+        { error: "Invalid email or password" },
         { status: 401 },
       );
     }
 
-    // Successful login - reset login attempts and update last login
-    await db.collection("users").updateOne(
-      { _id: user._id },
-      {
-        $set: {
-          loginAttempts: 0,
-          lockedUntil: null,
-          lastLogin: new Date(),
-        },
-      },
-    );
+    console.log("✅ Password valid");
 
-    // Create JWT token
-    const token = jwt.sign(
-      {
-        userId: user.userId,
-        username: user.username,
-        email: user.email,
-        role: user.role,
-        associationId: user.associationId,
-        clubId: user.clubId,
-      },
-      JWT_SECRET,
-      { expiresIn: "7d" },
-    );
+    // Create session
+    const sessionUser = {
+      userId: user.userid.toString(),
+      email: user.email,
+      name: user.name,
+      role: user.role,
+      clubId: user.clubId || undefined,
+      memberId: user.memberId || undefined,
+    };
 
-    // Return user data without password
-    const { passwordHash, ...userWithoutPassword } = user;
+    console.log("🎫 Creating session for:", sessionUser);
 
-    const response = NextResponse.json({
-      message: "Login successful",
-      user: userWithoutPassword,
+    const token = await createSession(sessionUser);
+    console.log("✅ Session token created");
+
+    // Return response with session cookie
+    return createSessionResponse(token, {
+      success: true,
+      user: sessionUser,
     });
-
-    // Set HTTP-only cookie
-    response.cookies.set("auth-token", token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      maxAge: 7 * 24 * 60 * 60, // 7 days
-    });
-
-    return response;
   } catch (error: any) {
-    console.error("Login error:", error);
+    console.error("❌ Login error:", error);
+    console.error("Error message:", error.message);
+    console.error("Error stack:", error.stack);
     return NextResponse.json(
-      { error: "Internal server error" },
+      { error: "Authentication failed", details: error.message },
       { status: 500 },
     );
   }

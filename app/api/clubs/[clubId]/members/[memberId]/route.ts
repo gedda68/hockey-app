@@ -1,32 +1,47 @@
 // app/api/clubs/[clubId]/members/[memberId]/route.ts
-// UPDATED: Uses clubs.id field to match members.clubId
+// Member API routes with authorization and audit logging
 
 import { NextRequest, NextResponse } from "next/server";
+import { ObjectId } from "mongodb";
 import clientPromise from "@/lib/mongodb";
+import { getSessionUser } from "@/lib/get-session-user";
+import {
+  canViewMember,
+  canEditMember,
+  canDeleteMember,
+  getEditableFields,
+  validateLimitedEdit,
+  unauthorizedResponse,
+  forbiddenResponse,
+} from "@/lib/auth-utils";
+import { logMemberChange, detectChanges } from "@/lib/audit-log";
 
-// GET - Fetch single member by memberId
+// GET - View a member
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ clubId: string; memberId: string }> }
+  { params }: { params: { clubId: string; memberId: string } },
 ) {
   try {
-    const { clubId, memberId } = await params;
+    const { clubId, memberId } = params;
+    const user = await getSessionUser();
 
-    const client = await clientPromise;
-    const db = client.db("hockey-app");
-
-    // Find club by slug
-    const club = await db.collection("clubs").findOne({ slug: clubId });
-    if (!club) {
-      return NextResponse.json({ error: "Club not found" }, { status: 404 });
+    if (!user) {
+      return NextResponse.json(unauthorizedResponse(), { status: 401 });
     }
 
-    // ✅ Use club.id to match members.clubId
-    // This assumes your club has an "id" field and members have matching "clubId"
-    const member = await db.collection("members").findOne({
-      memberId: memberId,
-      clubId: club.id, // Uses club.id field
-    });
+    // Check authorization
+    if (!canViewMember(user, clubId, memberId)) {
+      return NextResponse.json(
+        forbiddenResponse("You do not have permission to view this member"),
+        { status: 403 },
+      );
+    }
+
+    const client = await clientPromise;
+    const db = client.db("hockey");
+    const collection = db.collection("members");
+
+    const member = await collection.findOne({ memberId, clubId });
 
     if (!member) {
       return NextResponse.json({ error: "Member not found" }, { status: 404 });
@@ -37,170 +52,170 @@ export async function GET(
     console.error("Error fetching member:", error);
     return NextResponse.json(
       { error: "Failed to fetch member" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
 
-// PUT - Update member
+// PUT - Update a member
 export async function PUT(
   request: NextRequest,
-  { params }: { params: Promise<{ clubId: string; memberId: string }> }
+  { params }: { params: { clubId: string; memberId: string } },
 ) {
   try {
-    const { clubId, memberId } = await params;
+    const { clubId, memberId } = params;
+    const user = await getSessionUser();
 
-    const client = await clientPromise;
-    const db = client.db("hockey-app");
-
-    // Find club by slug
-    const club = await db.collection("clubs").findOne({ slug: clubId });
-    if (!club) {
-      return NextResponse.json({ error: "Club not found" }, { status: 404 });
+    if (!user) {
+      return NextResponse.json(unauthorizedResponse(), { status: 401 });
     }
 
-    // Get update data from request
-    const updateData = await request.json();
+    // Check authorization
+    const { canEdit, isLimitedEdit } = canEditMember(user, clubId, memberId);
 
-    // ✅ Use club.id to match members.clubId
-    const result = await db.collection("members").findOneAndUpdate(
-      {
-        memberId: memberId,
-        clubId: club.id,
-      },
-      {
-        $set: {
-          ...updateData,
-          updatedAt: new Date(),
-        },
-      },
-      {
-        returnDocument: "after",
+    if (!canEdit) {
+      return NextResponse.json(
+        forbiddenResponse("You do not have permission to edit this member"),
+        { status: 403 },
+      );
+    }
+
+    const updates = await request.json();
+
+    // Validate limited edit permissions
+    if (isLimitedEdit) {
+      const allowedFields = getEditableFields(user, isLimitedEdit);
+      const validation = validateLimitedEdit(updates, allowedFields);
+
+      if (!validation.isValid) {
+        return NextResponse.json(
+          {
+            error: "Invalid fields for limited edit",
+            invalidFields: validation.invalidFields,
+            message: `You can only edit: ${allowedFields.join(", ")}`,
+          },
+          { status: 403 },
+        );
       }
-    );
+    }
 
-    if (!result) {
+    const client = await clientPromise;
+    const db = client.db("hockey");
+    const collection = db.collection("members");
+
+    // Get current member for audit log
+    const currentMember = await collection.findOne({ memberId, clubId });
+
+    if (!currentMember) {
       return NextResponse.json({ error: "Member not found" }, { status: 404 });
     }
 
-    // Handle family relationships - remove old reverse relationships
-    if (updateData.familyRelationships) {
-      // Get old member data to find relationships to remove
-      const oldMember = await db.collection("members").findOne({
-        memberId: memberId,
-        clubId: club.id,
-      });
+    // Add metadata
+    updates.updatedAt = new Date().toISOString();
+    updates.updatedBy = user.userId;
 
-      if (oldMember?.familyRelationships) {
-        // Remove old reverse relationships
-        for (const oldRel of oldMember.familyRelationships) {
-          await db.collection("members").updateOne(
-            { memberId: oldRel.relatedMemberId },
-            {
-              $pull: {
-                familyRelationships: {
-                  relatedMemberId: memberId,
-                },
-              },
-            }
-          );
-        }
-      }
+    // Update member
+    const result = await collection.updateOne(
+      { memberId, clubId },
+      { $set: updates },
+    );
 
-      // Add new reverse relationships
-      for (const rel of updateData.familyRelationships) {
-        if (rel.relatedMemberId) {
-          await db.collection("members").updateOne(
-            { memberId: rel.relatedMemberId },
-            {
-              $push: {
-                familyRelationships: {
-                  relationshipId: `famrel-${Date.now()}-reverse`,
-                  relatedMemberId: memberId,
-                  relationshipType: rel.relationshipType,
-                  forwardRelation: rel.reverseRelation,
-                  reverseRelation: rel.forwardRelation,
-                },
-              },
-            }
-          );
-        }
-      }
+    if (result.matchedCount === 0) {
+      return NextResponse.json({ error: "Member not found" }, { status: 404 });
     }
 
-    return NextResponse.json(result);
+    // Get updated member for audit log
+    const updatedMember = await collection.findOne({ memberId, clubId });
+
+    // Log the change
+    const changes = detectChanges(currentMember, updatedMember);
+
+    await logMemberChange({
+      userId: user.userId,
+      userName: user.name,
+      memberId,
+      clubId,
+      action: "update",
+      changes,
+      before: currentMember,
+      after: updatedMember,
+      metadata: {
+        isLimitedEdit,
+        userRole: user.role,
+      },
+    });
+
+    return NextResponse.json(updatedMember);
   } catch (error) {
     console.error("Error updating member:", error);
     return NextResponse.json(
       { error: "Failed to update member" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
 
-// DELETE - Remove member
+// DELETE - Delete a member
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<{ clubId: string; memberId: string }> }
+  { params }: { params: { clubId: string; memberId: string } },
 ) {
   try {
-    const { clubId, memberId } = await params;
+    const { clubId, memberId } = params;
+    const user = await getSessionUser();
 
-    const client = await clientPromise;
-    const db = client.db("hockey-app");
-
-    // Find club by slug
-    const club = await db.collection("clubs").findOne({ slug: clubId });
-    if (!club) {
-      return NextResponse.json({ error: "Club not found" }, { status: 404 });
+    if (!user) {
+      return NextResponse.json(unauthorizedResponse(), { status: 401 });
     }
 
-    // ✅ Use club.id to match members.clubId
-    // Get member to find family relationships
-    const member = await db.collection("members").findOne({
-      memberId: memberId,
-      clubId: club.id,
-    });
+    // Check authorization
+    if (!canDeleteMember(user, clubId, memberId)) {
+      return NextResponse.json(
+        forbiddenResponse("You do not have permission to delete this member"),
+        { status: 403 },
+      );
+    }
+
+    const client = await clientPromise;
+    const db = client.db("hockey");
+    const collection = db.collection("members");
+
+    // Get member before deletion for audit log
+    const member = await collection.findOne({ memberId, clubId });
 
     if (!member) {
       return NextResponse.json({ error: "Member not found" }, { status: 404 });
     }
 
-    // Remove reverse relationships from related members
-    if (member.familyRelationships) {
-      for (const rel of member.familyRelationships) {
-        await db.collection("members").updateOne(
-          { memberId: rel.relatedMemberId },
-          {
-            $pull: {
-              familyRelationships: {
-                relatedMemberId: memberId,
-              },
-            },
-          }
-        );
-      }
-    }
-
-    // Delete the member
-    const result = await db.collection("members").deleteOne({
-      memberId: memberId,
-      clubId: club.id,
-    });
+    // Delete member
+    const result = await collection.deleteOne({ memberId, clubId });
 
     if (result.deletedCount === 0) {
-      return NextResponse.json({ error: "Member not found" }, { status: 404 });
+      return NextResponse.json(
+        { error: "Failed to delete member" },
+        { status: 500 },
+      );
     }
 
-    return NextResponse.json({
-      success: true,
-      message: "Member deleted successfully",
+    // Log the deletion
+    await logMemberChange({
+      userId: user.userId,
+      userName: user.name,
+      memberId,
+      clubId,
+      action: "delete",
+      before: member,
+      metadata: {
+        userRole: user.role,
+      },
     });
+
+    return NextResponse.json({ success: true, message: "Member deleted" });
   } catch (error) {
     console.error("Error deleting member:", error);
     return NextResponse.json(
       { error: "Failed to delete member" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
