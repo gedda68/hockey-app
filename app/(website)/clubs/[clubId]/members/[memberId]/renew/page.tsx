@@ -1,9 +1,9 @@
 // app/(website)/clubs/[clubId]/members/[memberId]/renew/page.tsx
-// Membership renewal page
+// Comprehensive membership renewal with full member edit
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, use } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -12,69 +12,152 @@ import {
   Calendar,
   AlertCircle,
   User,
-  CreditCard,
-  FileText,
+  Mail,
+  Phone,
+  MapPin,
+  Heart,
+  Shield,
+  Award,
+  Save,
+  RotateCcw,
 } from "lucide-react";
+import SocialMediaEditor from "@/components/member-sections/SocialMediaEditor";
+import MemberHeader from "@/components/member-sections/MemberHeader";
 
-interface RenewalPreview {
-  currentPeriod: {
-    start: string;
-    end: string;
-  };
-  newPeriod: {
-    start: string;
-    end: string;
-  };
-  membershipType: string;
-  member: {
-    name: string;
-    memberId: string;
-    email: string;
-  };
-  renewalHistory: any[];
+interface SocialMediaLink {
+  platform: string;
+  username?: string;
+  url: string;
+  isPrivate: boolean;
+  displayOrder: number;
 }
 
-interface MemberRenewalPageProps {
-  params: {
+interface Member {
+  memberId: string;
+  personalInfo: {
+    salutation: string;
+    firstName: string;
+    lastName: string;
+    displayName?: string;
+    dateOfBirth: string;
+    gender: string;
+    photoUrl?: string | null;
+  };
+  contact: {
+    primaryEmail: string;
+    emailOwnership: string;
+    phone?: string;
+    mobile?: string;
+  };
+  address: {
+    street: string;
+    suburb: string;
+    state: string;
+    postcode: string;
+    country: string;
+  };
+  socialMedia?: SocialMediaLink[];
+  healthcare?: {
+    medicare?: {
+      number: string;
+      position: string;
+      expiryMonth: string;
+      expiryYear: string;
+    } | null;
+    privateHealth?: {
+      provider: string;
+      membershipNumber: string;
+      expiryDate: string;
+    } | null;
+  };
+  emergencyContacts?: Array<{
+    contactId: string;
+    priority: number;
+    name: string;
+    relationship: string;
+    phone?: string;
+    mobile?: string;
+    email?: string;
+  }>;
+  membership: {
+    membershipType: string;
+    status: string;
+    joinDate: string;
+    currentPeriodStart: string;
+    currentPeriodEnd: string;
+  };
+  roles: string[];
+  medical?: {
+    conditions?: string;
+    medications?: string;
+    allergies?: string;
+  };
+}
+
+interface RenewalPageProps {
+  params: Promise<{
     clubId: string;
     memberId: string;
-  };
+  }>;
 }
 
-export default function MemberRenewalPage({ params }: MemberRenewalPageProps) {
-  const { clubId, memberId } = params;
+export default function ComprehensiveRenewalPage({ params }: RenewalPageProps) {
+  const { clubId, memberId } = use(params);
   const router = useRouter();
 
-  const [preview, setPreview] = useState<RenewalPreview | null>(null);
+  const [member, setMember] = useState<Member | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState("");
+  const [currentStep, setCurrentStep] = useState(1);
 
-  // Form state
-  const [membershipType, setMembershipType] = useState("");
-  const [fee, setFee] = useState("");
-  const [notes, setNotes] = useState("");
-  const [configItems, setConfigItems] = useState<any[]>([]);
+  // Form state - all member fields editable
+  const [personalInfo, setPersonalInfo] = useState<any>({});
+  const [contact, setContact] = useState<any>({});
+  const [address, setAddress] = useState<any>({});
+  const [socialMedia, setSocialMedia] = useState<SocialMediaLink[]>([]);
+  const [healthcare, setHealthcare] = useState<any>({});
+  const [emergencyContacts, setEmergencyContacts] = useState<any[]>([]);
+  const [membership, setMembership] = useState<any>({});
+  const [medical, setMedical] = useState<any>({});
+  const [roles, setRoles] = useState<string[]>([]);
+
+  // New renewal period
+  const [newPeriodStart, setNewPeriodStart] = useState("");
+  const [newPeriodEnd, setNewPeriodEnd] = useState("");
+  const [renewalNotes, setRenewalNotes] = useState("");
 
   useEffect(() => {
-    fetchRenewalPreview();
-    fetchConfigItems();
+    fetchMember();
   }, [clubId, memberId]);
 
-  const fetchRenewalPreview = async () => {
+  const fetchMember = async () => {
+    setIsLoading(true);
     try {
-      const res = await fetch(`/api/clubs/${clubId}/members/${memberId}/renew`);
+      const res = await fetch(`/api/clubs/${clubId}/members/${memberId}`);
 
       if (!res.ok) {
-        if (res.status === 403) {
-          throw new Error("You do not have permission to renew memberships");
-        }
-        throw new Error("Failed to fetch renewal information");
+        throw new Error("Failed to fetch member");
       }
 
       const data = await res.json();
-      setPreview(data);
-      setMembershipType(data.membershipType);
+      setMember(data);
+
+      // Pre-fill all form fields
+      setPersonalInfo(data.personalInfo || {});
+      setContact(data.contact || {});
+      setAddress(data.address || {});
+      setSocialMedia(data.socialMedia || []);
+      setHealthcare(data.healthcare || {});
+      setEmergencyContacts(data.emergencyContacts || []);
+      setMembership(data.membership || {});
+      setMedical(data.medical || {});
+      setRoles(data.roles || []);
+
+      // Calculate next renewal period
+      const nextYear = new Date().getFullYear() + 1;
+      setNewPeriodStart(`${nextYear}-01-01`);
+      setNewPeriodEnd(`${nextYear}-12-31`);
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -82,56 +165,53 @@ export default function MemberRenewalPage({ params }: MemberRenewalPageProps) {
     }
   };
 
-  const fetchConfigItems = async () => {
-    try {
-      const res = await fetch(
-        `/api/admin/config?configType=membershipType&activeOnly=true`,
-      );
-      if (res.ok) {
-        const data = await res.json();
-        setConfigItems(data);
-      }
-    } catch (err) {
-      console.error("Failed to fetch membership types:", err);
-    }
-  };
-
   const handleRenewal = async () => {
-    if (!membershipType) {
-      setError("Please select a membership type");
-      return;
-    }
-
     setIsProcessing(true);
     setError("");
 
     try {
-      const res = await fetch(
+      // First update member details
+      const updateRes = await fetch(
+        `/api/clubs/${clubId}/members/${memberId}`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            personalInfo,
+            contact,
+            address,
+            socialMedia,
+            healthcare,
+            emergencyContacts,
+            medical,
+            roles,
+          }),
+        },
+      );
+
+      if (!updateRes.ok) {
+        throw new Error("Failed to update member details");
+      }
+
+      // Then process renewal
+      const renewRes = await fetch(
         `/api/clubs/${clubId}/members/${memberId}/renew`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            membershipType,
-            fee: fee ? parseFloat(fee) : 0,
-            notes,
+            membershipType: membership.membershipType,
+            targetYear: new Date(newPeriodStart).getFullYear(),
+            notes: renewalNotes,
           }),
         },
       );
 
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || "Failed to renew membership");
+      if (!renewRes.ok) {
+        throw new Error("Failed to process renewal");
       }
 
-      const data = await res.json();
-
-      // Show success message
-      alert(
-        `✅ Membership renewed successfully for ${data.renewal.periodStart} - ${data.renewal.periodEnd}`,
-      );
-
-      // Redirect back to member view
+      alert("✅ Membership renewed and details updated successfully!");
       router.push(`/clubs/${clubId}/members/${memberId}`);
     } catch (err: any) {
       setError(err.message);
@@ -140,44 +220,27 @@ export default function MemberRenewalPage({ params }: MemberRenewalPageProps) {
     }
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString("en-AU", {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    });
-  };
-
-  const getMembershipTypeName = (id: string) => {
-    const config = configItems.find((c) => c.id === id);
-    return config?.name || id;
-  };
-
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center">
         <div className="text-center">
-          <div className="w-16 h-16 border-4 border-[#06054e] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-slate-600 font-bold">
-            Loading renewal information...
-          </p>
+          <div className="w-16 h-16 border-4 border-purple-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-slate-600 font-bold">Loading member...</p>
         </div>
       </div>
     );
   }
 
-  if (error && !preview) {
+  if (error && !member) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center p-4">
-        <div className="bg-white rounded-[2rem] shadow-xl border border-slate-100 p-8 max-w-md w-full text-center">
-          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <AlertCircle className="w-8 h-8 text-red-600" />
-          </div>
+        <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md text-center">
+          <AlertCircle className="w-16 h-16 text-red-600 mx-auto mb-4" />
           <h2 className="text-2xl font-black text-slate-800 mb-2">Error</h2>
           <p className="text-slate-600 mb-6">{error}</p>
           <Link
             href={`/clubs/${clubId}/members/${memberId}`}
-            className="inline-flex items-center gap-2 px-6 py-3 bg-[#06054e] text-white font-bold rounded-xl hover:bg-[#0a0866] transition-all"
+            className="inline-flex items-center gap-2 px-6 py-3 bg-purple-600 text-white font-bold rounded-xl hover:bg-purple-700"
           >
             <ArrowLeft size={20} />
             Back to Member
@@ -187,196 +250,507 @@ export default function MemberRenewalPage({ params }: MemberRenewalPageProps) {
     );
   }
 
+  const steps = [
+    { num: 1, title: "Renewal Period", icon: Calendar },
+    { num: 2, title: "Personal & Contact", icon: User },
+    { num: 3, title: "Address", icon: MapPin },
+    { num: 4, title: "Healthcare & Emergency", icon: Heart },
+    { num: 5, title: "Review & Confirm", icon: Check },
+  ];
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-4 md:p-6">
-      <div className="max-w-4xl mx-auto">
-        {/* Header */}
+      <div className="max-w-5xl mx-auto">
+        {/* Back Link */}
         <Link
           href={`/clubs/${clubId}/members/${memberId}`}
-          className="inline-flex items-center gap-2 text-slate-600 hover:text-[#06054e] font-bold mb-6 transition-colors"
+          className="inline-flex items-center gap-2 text-slate-600 hover:text-purple-600 font-bold mb-6 transition-colors"
         >
           <ArrowLeft size={20} />
           Back to Member
         </Link>
 
-        {/* Main Card */}
-        <div className="bg-white rounded-[2rem] shadow-xl border border-slate-100 p-8">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
-              <Calendar className="w-6 h-6 text-blue-600" />
+        {/* Member Header */}
+        {member && (
+          <MemberHeader
+            clubId={clubId}
+            memberId={memberId}
+            member={member}
+            currentPage="renew"
+            showActions={{
+              deactivate: false,
+              edit: true,
+              renew: false, // Don't show renew button on renew page
+              history: true,
+              delete: false,
+            }}
+          />
+        )}
+
+        {/* Renewal Title Card */}
+        <div className="bg-white rounded-2xl shadow-xl border border-slate-100 p-6 mb-6">
+          <div className="flex items-center gap-4">
+            <div className="w-16 h-16 bg-gradient-to-br from-purple-600 to-purple-700 rounded-full flex items-center justify-center">
+              <RotateCcw className="w-8 h-8 text-white" />
             </div>
             <div>
-              <h1 className="text-3xl font-black text-[#06054e]">
+              <h1 className="text-3xl font-black text-slate-800">
                 Renew Membership
               </h1>
-              <p className="text-slate-500 font-bold">
-                {preview?.member.name} ({preview?.member.memberId})
+              <p className="text-slate-600 font-bold">
+                Update details and extend membership period
               </p>
             </div>
           </div>
+        </div>
 
-          {/* Current Period Info */}
-          <div className="bg-slate-50 rounded-xl p-6 mb-6">
-            <h2 className="text-lg font-black text-slate-700 mb-4 flex items-center gap-2">
-              <User size={20} />
-              Current Membership
-            </h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <label className="text-xs font-black uppercase text-slate-400">
-                  Period Start
-                </label>
-                <p className="text-lg font-bold text-slate-800 mt-1">
-                  {formatDate(preview?.currentPeriod.start || "")}
-                </p>
-              </div>
-              <div>
-                <label className="text-xs font-black uppercase text-slate-400">
-                  Period End
-                </label>
-                <p className="text-lg font-bold text-slate-800 mt-1">
-                  {formatDate(preview?.currentPeriod.end || "")}
-                </p>
-              </div>
-              <div>
-                <label className="text-xs font-black uppercase text-slate-400">
-                  Type
-                </label>
-                <p className="text-lg font-bold text-slate-800 mt-1">
-                  {getMembershipTypeName(preview?.membershipType || "")}
-                </p>
-              </div>
+        {/* Step Progress */}
+        <div className="bg-white rounded-2xl shadow-xl border border-slate-100 p-6 mb-6">
+          <div className="flex justify-between">
+            {steps.map((step) => {
+              const Icon = step.icon;
+              const isActive = currentStep === step.num;
+              const isComplete = currentStep > step.num;
+
+              return (
+                <div key={step.num} className="flex-1 text-center">
+                  <div
+                    className={`w-12 h-12 rounded-full mx-auto mb-2 flex items-center justify-center font-black ${
+                      isActive
+                        ? "bg-purple-600 text-white"
+                        : isComplete
+                          ? "bg-green-500 text-white"
+                          : "bg-slate-200 text-slate-400"
+                    }`}
+                  >
+                    {isComplete ? <Check size={20} /> : <Icon size={20} />}
+                  </div>
+                  <p
+                    className={`text-xs font-bold ${
+                      isActive
+                        ? "text-purple-600"
+                        : isComplete
+                          ? "text-green-600"
+                          : "text-slate-400"
+                    }`}
+                  >
+                    {step.title}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {error && (
+          <div className="bg-red-50 border-2 border-red-200 rounded-xl p-4 mb-6">
+            <div className="flex items-center gap-2 text-red-700">
+              <AlertCircle size={20} />
+              <p className="font-bold">{error}</p>
             </div>
           </div>
+        )}
 
-          {/* New Period Info */}
-          <div className="bg-green-50 border-2 border-green-200 rounded-xl p-6 mb-6">
-            <h2 className="text-lg font-black text-green-700 mb-4 flex items-center gap-2">
-              <Calendar size={20} />
-              New Membership Period
-            </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="text-xs font-black uppercase text-green-600">
-                  Period Start
-                </label>
-                <p className="text-xl font-black text-green-800 mt-1">
-                  {formatDate(preview?.newPeriod.start || "")}
+        {/* Step Content */}
+        <div className="bg-white rounded-2xl shadow-xl border border-slate-100 p-6 mb-6">
+          {/* Step 1: Renewal Period */}
+          {currentStep === 1 && (
+            <div className="space-y-6">
+              <h2 className="text-2xl font-black text-slate-800 mb-4">
+                Renewal Period
+              </h2>
+
+              <div className="bg-blue-50 border-2 border-blue-200 rounded-xl p-4 mb-6">
+                <h3 className="font-black text-blue-800 mb-2">
+                  Current Period
+                </h3>
+                <p className="text-blue-700 font-bold">
+                  {membership.currentPeriodStart} to{" "}
+                  {membership.currentPeriodEnd}
                 </p>
               </div>
-              <div>
-                <label className="text-xs font-black uppercase text-green-600">
-                  Period End
-                </label>
-                <p className="text-xl font-black text-green-800 mt-1">
-                  {formatDate(preview?.newPeriod.end || "")}
-                </p>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-black text-slate-700 mb-2">
+                    New Period Start *
+                  </label>
+                  <input
+                    type="date"
+                    value={newPeriodStart}
+                    onChange={(e) => setNewPeriodStart(e.target.value)}
+                    className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl font-bold focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-black text-slate-700 mb-2">
+                    New Period End *
+                  </label>
+                  <input
+                    type="date"
+                    value={newPeriodEnd}
+                    onChange={(e) => setNewPeriodEnd(e.target.value)}
+                    className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl font-bold focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  />
+                </div>
               </div>
-            </div>
-          </div>
 
-          {/* Renewal Form */}
-          <div className="space-y-6 mb-6">
-            <div>
-              <label className="block text-sm font-black text-slate-700 mb-2">
-                Membership Type
-              </label>
-              <select
-                value={membershipType}
-                onChange={(e) => setMembershipType(e.target.value)}
-                className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl font-bold focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              >
-                <option value="">Select membership type</option>
-                {configItems.map((type) => (
-                  <option key={type.id} value={type.id}>
-                    {type.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-black text-slate-700 mb-2">
-                Fee (Optional)
-              </label>
-              <div className="relative">
-                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">
-                  $
-                </span>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={fee}
-                  onChange={(e) => setFee(e.target.value)}
-                  placeholder="0.00"
-                  className="w-full pl-8 pr-4 py-3 border-2 border-slate-200 rounded-xl font-bold focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              <div>
+                <label className="block text-sm font-black text-slate-700 mb-2">
+                  Renewal Notes
+                </label>
+                <textarea
+                  value={renewalNotes}
+                  onChange={(e) => setRenewalNotes(e.target.value)}
+                  rows={3}
+                  placeholder="Any notes about this renewal..."
+                  className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl font-bold focus:outline-none focus:ring-2 focus:ring-purple-500"
                 />
               </div>
             </div>
-
-            <div>
-              <label className="block text-sm font-black text-slate-700 mb-2">
-                Notes (Optional)
-              </label>
-              <textarea
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                placeholder="Add any notes about this renewal..."
-                rows={3}
-                className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl font-bold focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
-              />
-            </div>
-          </div>
-
-          {/* Error Message */}
-          {error && (
-            <div className="bg-red-50 border-2 border-red-200 rounded-xl p-4 mb-6">
-              <div className="flex items-center gap-2 text-red-700">
-                <AlertCircle size={20} />
-                <p className="font-bold">{error}</p>
-              </div>
-            </div>
           )}
 
-          {/* Renewal History */}
-          {preview?.renewalHistory && preview.renewalHistory.length > 0 && (
-            <div className="mb-6 pt-6 border-t border-slate-200">
-              <h2 className="text-lg font-black text-slate-700 mb-4 flex items-center gap-2">
-                <FileText size={20} />
-                Renewal History
+          {/* Step 2: Personal & Contact */}
+          {currentStep === 2 && (
+            <div className="space-y-6">
+              <h2 className="text-2xl font-black text-slate-800 mb-4">
+                Personal & Contact Information
               </h2>
-              <div className="space-y-2">
-                {preview.renewalHistory.slice(0, 5).map((renewal: any) => (
-                  <div
-                    key={renewal.renewalId}
-                    className="flex justify-between items-center p-3 bg-slate-50 rounded-lg"
-                  >
-                    <div>
-                      <p className="text-sm font-bold text-slate-800">
-                        {formatDate(renewal.periodStart)} -{" "}
-                        {formatDate(renewal.periodEnd)}
-                      </p>
-                      <p className="text-xs text-slate-500">
-                        Renewed: {formatDate(renewal.renewalDate)}
-                      </p>
-                    </div>
-                    {renewal.fee && (
-                      <span className="text-sm font-black text-green-600">
-                        ${renewal.fee.toFixed(2)}
-                      </span>
-                    )}
-                  </div>
-                ))}
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-black text-slate-700 mb-2">
+                    First Name *
+                  </label>
+                  <input
+                    type="text"
+                    value={personalInfo.firstName || ""}
+                    onChange={(e) =>
+                      setPersonalInfo({
+                        ...personalInfo,
+                        firstName: e.target.value,
+                      })
+                    }
+                    className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl font-bold focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-black text-slate-700 mb-2">
+                    Last Name *
+                  </label>
+                  <input
+                    type="text"
+                    value={personalInfo.lastName || ""}
+                    onChange={(e) =>
+                      setPersonalInfo({
+                        ...personalInfo,
+                        lastName: e.target.value,
+                      })
+                    }
+                    className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl font-bold focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  />
+                </div>
+
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-black text-slate-700 mb-2">
+                    Primary Email *
+                  </label>
+                  <input
+                    type="email"
+                    value={contact.primaryEmail || ""}
+                    onChange={(e) =>
+                      setContact({ ...contact, primaryEmail: e.target.value })
+                    }
+                    className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl font-bold focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-black text-slate-700 mb-2">
+                    Phone
+                  </label>
+                  <input
+                    type="tel"
+                    value={contact.phone || ""}
+                    onChange={(e) =>
+                      setContact({ ...contact, phone: e.target.value })
+                    }
+                    className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl font-bold focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-black text-slate-700 mb-2">
+                    Mobile
+                  </label>
+                  <input
+                    type="tel"
+                    value={contact.mobile || ""}
+                    onChange={(e) =>
+                      setContact({ ...contact, mobile: e.target.value })
+                    }
+                    className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl font-bold focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  />
+                </div>
+              </div>
+
+              {/* Social Media */}
+              <div className="pt-6 border-t border-slate-200">
+                <SocialMediaEditor
+                  socialMedia={socialMedia}
+                  onChange={setSocialMedia}
+                  readOnly={false}
+                />
               </div>
             </div>
           )}
 
-          {/* Actions */}
-          <div className="flex gap-3">
+          {/* Step 3: Address */}
+          {currentStep === 3 && (
+            <div className="space-y-6">
+              <h2 className="text-2xl font-black text-slate-800 mb-4">
+                Address
+              </h2>
+
+              <div className="bg-amber-50 border-2 border-amber-200 rounded-xl p-4 mb-4">
+                <p className="text-amber-800 font-bold flex items-center gap-2">
+                  <AlertCircle size={16} />
+                  Update address if member has moved to a new location or club
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-black text-slate-700 mb-2">
+                    Street Address
+                  </label>
+                  <input
+                    type="text"
+                    value={address.street || ""}
+                    onChange={(e) =>
+                      setAddress({ ...address, street: e.target.value })
+                    }
+                    className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl font-bold focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-black text-slate-700 mb-2">
+                    Suburb
+                  </label>
+                  <input
+                    type="text"
+                    value={address.suburb || ""}
+                    onChange={(e) =>
+                      setAddress({ ...address, suburb: e.target.value })
+                    }
+                    className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl font-bold focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-black text-slate-700 mb-2">
+                    State
+                  </label>
+                  <select
+                    value={address.state || "QLD"}
+                    onChange={(e) =>
+                      setAddress({ ...address, state: e.target.value })
+                    }
+                    className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl font-bold focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  >
+                    <option value="QLD">Queensland</option>
+                    <option value="NSW">New South Wales</option>
+                    <option value="VIC">Victoria</option>
+                    <option value="SA">South Australia</option>
+                    <option value="WA">Western Australia</option>
+                    <option value="TAS">Tasmania</option>
+                    <option value="NT">Northern Territory</option>
+                    <option value="ACT">Australian Capital Territory</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-black text-slate-700 mb-2">
+                    Postcode
+                  </label>
+                  <input
+                    type="text"
+                    value={address.postcode || ""}
+                    onChange={(e) =>
+                      setAddress({ ...address, postcode: e.target.value })
+                    }
+                    className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl font-bold focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-black text-slate-700 mb-2">
+                    Country
+                  </label>
+                  <input
+                    type="text"
+                    value={address.country || ""}
+                    onChange={(e) =>
+                      setAddress({ ...address, country: e.target.value })
+                    }
+                    className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl font-bold focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Step 4: Healthcare & Emergency */}
+          {currentStep === 4 && (
+            <div className="space-y-6">
+              <h2 className="text-2xl font-black text-slate-800 mb-4">
+                Healthcare & Emergency Contacts
+              </h2>
+
+              <div className="bg-green-50 border-2 border-green-200 rounded-xl p-4 mb-4">
+                <p className="text-green-800 font-bold flex items-center gap-2">
+                  <Check size={16} />
+                  Verify emergency contacts are still current
+                </p>
+              </div>
+
+              {/* Emergency Contacts Display */}
+              {emergencyContacts && emergencyContacts.length > 0 ? (
+                <div className="space-y-3">
+                  {emergencyContacts.map((contact, index) => (
+                    <div
+                      key={index}
+                      className="bg-slate-50 border-2 border-slate-200 rounded-xl p-4"
+                    >
+                      <div className="font-black text-slate-800 mb-1">
+                        {contact.name}
+                      </div>
+                      <div className="text-sm text-slate-600 font-bold">
+                        {contact.relationship} • Priority {contact.priority}
+                      </div>
+                      <div className="text-sm text-slate-600 font-bold">
+                        {contact.mobile || contact.phone}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-slate-500 italic">No emergency contacts</p>
+              )}
+
+              <div className="pt-4">
+                <Link
+                  href={`/clubs/${clubId}/members/${memberId}/edit`}
+                  className="text-purple-600 hover:text-purple-700 font-bold underline"
+                >
+                  → Edit emergency contacts & healthcare details
+                </Link>
+              </div>
+            </div>
+          )}
+
+          {/* Step 5: Review & Confirm */}
+          {currentStep === 5 && (
+            <div className="space-y-6">
+              <h2 className="text-2xl font-black text-slate-800 mb-4">
+                Review & Confirm Renewal
+              </h2>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Renewal Period */}
+                <div className="bg-purple-50 border-2 border-purple-200 rounded-xl p-4">
+                  <h3 className="font-black text-purple-800 mb-2 flex items-center gap-2">
+                    <Calendar size={16} />
+                    New Membership Period
+                  </h3>
+                  <p className="text-purple-700 font-bold">
+                    {newPeriodStart} to {newPeriodEnd}
+                  </p>
+                  {renewalNotes && (
+                    <p className="text-sm text-purple-600 mt-2">
+                      {renewalNotes}
+                    </p>
+                  )}
+                </div>
+
+                {/* Member Info */}
+                <div className="bg-blue-50 border-2 border-blue-200 rounded-xl p-4">
+                  <h3 className="font-black text-blue-800 mb-2 flex items-center gap-2">
+                    <User size={16} />
+                    Member Details
+                  </h3>
+                  <p className="text-blue-700 font-bold">
+                    {personalInfo.firstName} {personalInfo.lastName}
+                  </p>
+                  <p className="text-sm text-blue-600">
+                    {contact.primaryEmail}
+                  </p>
+                  <p className="text-sm text-blue-600">{contact.mobile}</p>
+                </div>
+
+                {/* Address */}
+                <div className="bg-green-50 border-2 border-green-200 rounded-xl p-4">
+                  <h3 className="font-black text-green-800 mb-2 flex items-center gap-2">
+                    <MapPin size={16} />
+                    Address
+                  </h3>
+                  <p className="text-green-700 font-bold text-sm">
+                    {address.street}
+                  </p>
+                  <p className="text-sm text-green-600">
+                    {address.suburb}, {address.state} {address.postcode}
+                  </p>
+                </div>
+
+                {/* Social Media */}
+                {socialMedia && socialMedia.length > 0 && (
+                  <div className="bg-amber-50 border-2 border-amber-200 rounded-xl p-4">
+                    <h3 className="font-black text-amber-800 mb-2">
+                      Social Media Links
+                    </h3>
+                    <p className="text-amber-700 font-bold">
+                      {socialMedia.length} platform(s) added
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              <div className="bg-red-50 border-2 border-red-200 rounded-xl p-4">
+                <p className="text-red-800 font-bold flex items-center gap-2">
+                  <AlertCircle size={16} />
+                  Please confirm all details are correct before renewing
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Navigation Buttons */}
+        <div className="flex gap-3">
+          {currentStep > 1 && (
+            <button
+              onClick={() => setCurrentStep(currentStep - 1)}
+              className="px-6 py-4 bg-slate-200 text-slate-700 font-bold rounded-xl hover:bg-slate-300 transition-all"
+            >
+              Previous
+            </button>
+          )}
+
+          {currentStep < 5 ? (
+            <button
+              onClick={() => setCurrentStep(currentStep + 1)}
+              className="flex-1 px-6 py-4 bg-purple-600 text-white font-bold rounded-xl hover:bg-purple-700 transition-all"
+            >
+              Next Step
+            </button>
+          ) : (
             <button
               onClick={handleRenewal}
               disabled={isProcessing}
-              className="flex-1 px-6 py-4 bg-green-500 text-white font-black rounded-xl hover:bg-green-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              className="flex-1 px-6 py-4 bg-green-600 text-white font-bold rounded-xl hover:bg-green-700 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
             >
               {isProcessing ? (
                 <>
@@ -386,17 +760,11 @@ export default function MemberRenewalPage({ params }: MemberRenewalPageProps) {
               ) : (
                 <>
                   <Check size={20} />
-                  Renew Membership
+                  Confirm & Renew Membership
                 </>
               )}
             </button>
-            <Link
-              href={`/clubs/${clubId}/members/${memberId}`}
-              className="px-6 py-4 bg-slate-200 text-slate-700 font-bold rounded-xl hover:bg-slate-300 transition-all"
-            >
-              Cancel
-            </Link>
-          </div>
+          )}
         </div>
       </div>
     </div>

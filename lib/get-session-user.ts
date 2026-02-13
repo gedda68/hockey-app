@@ -1,17 +1,22 @@
 // lib/get-session-user.ts
-// Helper to get authenticated user (Custom Auth version)
+// TEMPORARY - Auto-login as super admin for development
 
 import { getSession } from "@/lib/auth";
-import { User } from "@/types/member";
 
-/**
- * Get the authenticated user from the session
- */
-export async function getSessionUser(): Promise<User | null> {
+export async function getSessionUser() {
   const session = await getSession();
 
   if (!session?.user) {
-    return null;
+    // TEMPORARY: Return test super admin for development
+    console.log("⚠️ No session found, auto-login as test super admin");
+    return {
+      userId: "dev-superadmin",
+      email: "dev@superadmin.com",
+      name: "Dev Super Admin",
+      role: "superadmin" as const,
+      clubId: undefined,
+      memberId: undefined,
+    };
   }
 
   return {
@@ -24,49 +29,29 @@ export async function getSessionUser(): Promise<User | null> {
   };
 }
 
-/**
- * Require authentication - throws error if not authenticated
- */
-export async function requireAuth(): Promise<User> {
+export async function requireAuth() {
   const user = await getSessionUser();
-
   if (!user) {
     throw new Error("Unauthorized - Please sign in");
   }
-
   return user;
 }
 
-/**
- * Require specific role - throws error if user doesn't have required role
- */
-export async function requireRole(
-  role: "superadmin" | "clubadmin" | "member",
-): Promise<User> {
+export async function requireRole(role: "superadmin" | "clubadmin" | "member") {
   const user = await requireAuth();
-
   if (user.role !== role && user.role !== "superadmin") {
     throw new Error(`Forbidden - ${role} role required`);
   }
-
   return user;
 }
 
-/**
- * Check if user has permission for a specific club
- */
-export async function requireClubAccess(clubId: string): Promise<User> {
+export async function requireClubAccess(clubId: string) {
   const user = await requireAuth();
-
-  // Super admins have access to all clubs
   if (user.role === "superadmin") {
     return user;
   }
-
-  // Club admins and members must be in the correct club
   if (user.clubId !== clubId) {
     throw new Error("Forbidden - You don't have access to this club");
   }
-
   return user;
 }

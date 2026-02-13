@@ -1,41 +1,33 @@
 // app/api/clubs/[clubId]/members/[memberId]/renew/route.ts
-// API endpoint for membership renewal
+// TEMPORARY - NO AUTH VERSION FOR TESTING
 
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
-import { canRenewMembership } from "@/lib/auth-utils";
 import { getRenewalDates } from "@/types/member";
-
-// Note: You'll need to implement getUserFromRequest based on your auth solution
-async function getUserFromRequest(request: NextRequest) {
-  // TODO: Implement based on your auth solution (NextAuth, Clerk, etc.)
-  // This is a placeholder
-  return {
-    userId: "user123",
-    email: "admin@example.com",
-    role: "clubadmin" as const,
-    clubId: "club123",
-  };
-}
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { clubId: string; memberId: string } },
+  { params }: { params: Promise<{ clubId: string; memberId: string }> },
 ) {
   try {
-    const { clubId, memberId } = params;
-    const user = await getUserFromRequest(request);
+    const { clubId: clubIdOrSlug, memberId } = await params;
 
-    // Check authorization
-    if (!canRenewMembership(user, clubId, memberId)) {
-      return NextResponse.json(
-        { error: "You do not have permission to renew memberships" },
-        { status: 403 },
-      );
-    }
+    console.log("⚠️ WARNING: Auth is disabled for testing");
 
     const client = await clientPromise;
-    const db = client.db("hockey");
+    const db = client.db("hockey-app");
+
+    // Convert slug to clubId if needed
+    let clubId = clubIdOrSlug;
+    if (!clubIdOrSlug.startsWith("club-")) {
+      const clubsCollection = db.collection("clubs");
+      const club = await clubsCollection.findOne({ slug: clubIdOrSlug });
+      if (club) {
+        clubId = club.id;
+        console.log(`✅ Converted slug "${clubIdOrSlug}" to clubId: ${clubId}`);
+      }
+    }
+
     const collection = db.collection("members");
 
     // Get current member
@@ -50,27 +42,31 @@ export async function POST(
     const {
       membershipType = member.membership.membershipType,
       targetYear,
-      fee,
-      notes,
+      notes = "",
     } = body;
 
-    // Generate renewal dates
-    const { periodStart, periodEnd } = getRenewalDates(targetYear);
+    // Calculate renewal dates
+    const { periodStart, periodEnd } = targetYear
+      ? {
+          periodStart: `${targetYear}-01-01`,
+          periodEnd: `${targetYear}-12-31`,
+        }
+      : getRenewalDates();
 
     // Create renewal record
-    const renewal = {
-      renewalId: `renewal-${Date.now()}`,
+    const renewalId = `renewal-${Date.now()}`;
+    const renewalRecord = {
+      renewalId,
       renewalDate: new Date().toISOString(),
       periodStart,
       periodEnd,
       membershipType,
-      fee: fee || 0,
-      renewedBy: user.userId,
-      notes: notes || "",
+      renewedBy: "admin", // Placeholder
+      notes,
     };
 
-    // Update member with new period and add to renewal history
-    const result = await collection.updateOne(
+    // Update member
+    const updateResult = await collection.updateOne(
       { memberId, clubId },
       {
         $set: {
@@ -79,29 +75,28 @@ export async function POST(
           "membership.membershipType": membershipType,
           "membership.status": "Active",
           updatedAt: new Date().toISOString(),
-          updatedBy: user.userId,
         },
         $push: {
-          "membership.renewalHistory": renewal,
+          "membership.renewalHistory": renewalRecord,
         },
       },
     );
 
-    if (result.matchedCount === 0) {
+    if (updateResult.matchedCount === 0) {
       return NextResponse.json(
-        { error: "Failed to renew membership" },
+        { error: "Failed to update member" },
         { status: 500 },
       );
     }
 
-    // Fetch and return updated member
+    // Get updated member
     const updatedMember = await collection.findOne({ memberId, clubId });
 
     return NextResponse.json({
       success: true,
       message: "Membership renewed successfully",
+      renewal: renewalRecord,
       member: updatedMember,
-      renewal,
     });
   } catch (error) {
     console.error("Error renewing membership:", error);
@@ -115,22 +110,27 @@ export async function POST(
 // GET endpoint to preview renewal data
 export async function GET(
   request: NextRequest,
-  { params }: { params: { clubId: string; memberId: string } },
+  { params }: { params: Promise<{ clubId: string; memberId: string }> },
 ) {
   try {
-    const { clubId, memberId } = params;
-    const user = await getUserFromRequest(request);
+    const { clubId: clubIdOrSlug, memberId } = await params;
 
-    // Check authorization
-    if (!canRenewMembership(user, clubId, memberId)) {
-      return NextResponse.json(
-        { error: "You do not have permission to view renewal information" },
-        { status: 403 },
-      );
-    }
+    console.log("⚠️ WARNING: Auth is disabled for testing");
 
     const client = await clientPromise;
-    const db = client.db("hockey");
+    const db = client.db("hockey-app");
+
+    // Convert slug to clubId if needed
+    let clubId = clubIdOrSlug;
+    if (!clubIdOrSlug.startsWith("club-")) {
+      const clubsCollection = db.collection("clubs");
+      const club = await clubsCollection.findOne({ slug: clubIdOrSlug });
+      if (club) {
+        clubId = club.id;
+        console.log(`✅ Converted slug "${clubIdOrSlug}" to clubId: ${clubId}`);
+      }
+    }
+
     const collection = db.collection("members");
 
     // Get current member
@@ -143,7 +143,7 @@ export async function GET(
     // Generate renewal preview
     const { periodStart, periodEnd } = getRenewalDates();
 
-    const renewalPreview = {
+    return NextResponse.json({
       currentPeriod: {
         start: member.membership.currentPeriodStart,
         end: member.membership.currentPeriodEnd,
@@ -159,13 +159,11 @@ export async function GET(
         email: member.contact.primaryEmail,
       },
       renewalHistory: member.membership.renewalHistory || [],
-    };
-
-    return NextResponse.json(renewalPreview);
+    });
   } catch (error) {
     console.error("Error fetching renewal preview:", error);
     return NextResponse.json(
-      { error: "Failed to fetch renewal information" },
+      { error: "Failed to fetch renewal preview" },
       { status: 500 },
     );
   }

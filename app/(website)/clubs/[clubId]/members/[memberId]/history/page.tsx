@@ -3,7 +3,7 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, use } from "react";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -14,6 +14,7 @@ import {
   RotateCcw,
   AlertCircle,
 } from "lucide-react";
+import MemberHeader from "@/components/member-sections/MemberHeader";
 
 interface AuditLogEntry {
   auditId: string;
@@ -32,24 +33,39 @@ interface AuditLogEntry {
 }
 
 interface MemberHistoryPageProps {
-  params: {
+  params: Promise<{
     clubId: string;
     memberId: string;
-  };
+  }>;
 }
 
 export default function MemberHistoryPage({ params }: MemberHistoryPageProps) {
-  const { clubId, memberId } = params;
+  const { clubId, memberId } = use(params);
   const [logs, setLogs] = useState<AuditLogEntry[]>([]);
+  const [member, setMember] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
   const [filter, setFilter] = useState<string>("all");
 
   useEffect(() => {
+    fetchMember();
     fetchAuditLogs();
   }, [clubId, memberId, filter]);
 
+  const fetchMember = async () => {
+    try {
+      const res = await fetch(`/api/clubs/${clubId}/members/${memberId}`);
+      if (res.ok) {
+        const data = await res.json();
+        setMember(data);
+      }
+    } catch (err) {
+      console.error("Error fetching member:", err);
+    }
+  };
+
   const fetchAuditLogs = async () => {
+    setIsLoading(true);
     try {
       const url =
         filter === "all"
@@ -63,9 +79,13 @@ export default function MemberHistoryPage({ params }: MemberHistoryPageProps) {
       }
 
       const data = await res.json();
-      setLogs(data);
+
+      // API returns { logs: [...], total: X }
+      setLogs(data.logs || []);
     } catch (err: any) {
+      console.error("Error fetching audit logs:", err);
       setError(err.message);
+      setLogs([]); // Set empty array on error
     } finally {
       setIsLoading(false);
     }
@@ -156,7 +176,7 @@ export default function MemberHistoryPage({ params }: MemberHistoryPageProps) {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-4 md:p-6">
       <div className="max-w-6xl mx-auto">
-        {/* Header */}
+        {/* Back Link */}
         <Link
           href={`/clubs/${clubId}/members/${memberId}`}
           className="inline-flex items-center gap-2 text-slate-600 hover:text-[#06054e] font-bold mb-6 transition-colors"
@@ -165,6 +185,24 @@ export default function MemberHistoryPage({ params }: MemberHistoryPageProps) {
           Back to Member
         </Link>
 
+        {/* Member Header */}
+        {member && (
+          <MemberHeader
+            clubId={clubId}
+            memberId={memberId}
+            member={member}
+            currentPage="history"
+            showActions={{
+              deactivate: false,
+              edit: true,
+              renew: true,
+              history: false, // Don't show history button on history page
+              delete: false,
+            }}
+          />
+        )}
+
+        {/* Change History Section */}
         <div className="bg-white rounded-[2rem] shadow-xl border border-slate-100 p-6 mb-6">
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-3">
@@ -172,11 +210,11 @@ export default function MemberHistoryPage({ params }: MemberHistoryPageProps) {
                 <Clock className="w-6 h-6 text-blue-600" />
               </div>
               <div>
-                <h1 className="text-3xl font-black text-[#06054e]">
+                <h2 className="text-2xl font-black text-[#06054e]">
                   Change History
-                </h1>
+                </h2>
                 <p className="text-slate-500 font-bold">
-                  Member ID: {memberId}
+                  All changes and updates
                 </p>
               </div>
             </div>

@@ -92,7 +92,7 @@ export default function TypeAheadSelect({
       case "ArrowDown":
         e.preventDefault();
         setHighlightedIndex((prev) =>
-          prev < filteredOptions.length - 1 ? prev + 1 : prev
+          prev < filteredOptions.length - 1 ? prev + 1 : prev,
         );
         break;
       case "ArrowUp":
@@ -175,7 +175,7 @@ export default function TypeAheadSelect({
             {filteredOptions.length > 0 ? (
               filteredOptions.map((option, index) => (
                 <button
-                  key={option[valueField]}
+                  key={`${option[valueField]}-${index}`}
                   type="button"
                   onClick={() => handleSelect(option[valueField])}
                   onMouseEnter={() => setHighlightedIndex(index)}

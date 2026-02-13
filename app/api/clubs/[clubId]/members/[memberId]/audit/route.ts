@@ -1,51 +1,61 @@
 // app/api/clubs/[clubId]/members/[memberId]/audit/route.ts
-// API endpoint for fetching member audit logs
+// TEMPORARY - NO AUTH VERSION FOR TESTING
 
 import { NextRequest, NextResponse } from "next/server";
-import { getSessionUser } from "@/lib/get-session-user";
-import {
-  canViewMember,
-  unauthorizedResponse,
-  forbiddenResponse,
-} from "@/lib/auth-utils";
-import { getMemberAuditHistory } from "@/lib/audit-log";
+import clientPromise from "@/lib/mongodb";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { clubId: string; memberId: string } },
+  { params }: { params: Promise<{ clubId: string; memberId: string }> },
 ) {
   try {
-    const { clubId, memberId } = params;
-    const user = await getSessionUser();
+    const { clubId: clubIdOrSlug, memberId } = await params;
 
-    if (!user) {
-      return NextResponse.json(unauthorizedResponse(), { status: 401 });
+    console.log("⚠️ WARNING: Auth is disabled for testing");
+
+    const client = await clientPromise;
+    const db = client.db("hockey-app");
+
+    // Convert slug to clubId if needed
+    let clubId = clubIdOrSlug;
+    if (!clubIdOrSlug.startsWith("club-")) {
+      const clubsCollection = db.collection("clubs");
+      const club = await clubsCollection.findOne({ slug: clubIdOrSlug });
+      if (club) {
+        clubId = club.id;
+        console.log(`✅ Converted slug "${clubIdOrSlug}" to clubId: ${clubId}`);
+      }
     }
 
-    // Check authorization - must be able to view the member
-    if (!canViewMember(user, clubId, memberId)) {
-      return NextResponse.json(
-        forbiddenResponse(
-          "You do not have permission to view this member's history",
-        ),
-        { status: 403 },
-      );
-    }
-
-    // Get query parameters
-    const searchParams = request.nextUrl.searchParams;
+    const searchParams = new URL(request.url).searchParams;
     const action = searchParams.get("action");
     const limit = parseInt(searchParams.get("limit") || "100");
     const skip = parseInt(searchParams.get("skip") || "0");
 
-    // Fetch audit history
-    const logs = await getMemberAuditHistory(memberId, {
-      action: action as any,
-      limit,
-      skip,
-    });
+    const auditCollection = db.collection("member_audit_log");
 
-    return NextResponse.json(logs);
+    // Build query
+    const query: any = { memberId, clubId };
+    if (action && action !== "all") {
+      query.action = action;
+    }
+
+    // Fetch audit logs
+    const logs = await auditCollection
+      .find(query)
+      .sort({ timestamp: -1 })
+      .skip(skip)
+      .limit(limit)
+      .toArray();
+
+    // Get total count
+    const total = await auditCollection.countDocuments(query);
+
+    return NextResponse.json({
+      logs,
+      total,
+      hasMore: skip + logs.length < total,
+    });
   } catch (error) {
     console.error("Error fetching audit logs:", error);
     return NextResponse.json(

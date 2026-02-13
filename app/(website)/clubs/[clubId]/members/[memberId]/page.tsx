@@ -1,7 +1,6 @@
 // app/(website)/clubs/[clubId]/members/[memberId]/page.tsx
-// Member view page - displays all member information
+// Server component for member view page
 
-import { notFound } from "next/navigation";
 import MemberViewClient from "./MemberViewClient";
 
 interface PageProps {

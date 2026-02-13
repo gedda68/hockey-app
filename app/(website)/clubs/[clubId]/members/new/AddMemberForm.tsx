@@ -26,6 +26,16 @@ import {
 import Link from "next/link";
 import TypeAheadSelect from "@/components/admin/TypeAheadSelect";
 import { useCustomAlert } from "@/components/ui/CustomAlert";
+import SocialMediaEditor from "@/components/member-sections/SocialMediaEditor";
+import StepProgress, { Step } from "@/components/member-sections/StepProgress";
+
+interface SocialMediaLink {
+  platform: string;
+  username?: string;
+  url: string;
+  isPrivate: boolean;
+  displayOrder: number;
+}
 
 interface AddMemberFormProps {
   clubId: string;
@@ -102,6 +112,7 @@ interface FormData {
     reverseRelation: string;
     searchQuery: string;
   }>;
+  socialMedia: SocialMediaLink[];
 }
 
 export default function AddMemberForm({
@@ -177,6 +188,7 @@ export default function AddMemberForm({
           allergies: "",
         },
         familyRelationships: initialData.familyRelationships || [],
+        socialMedia: initialData.socialMedia || [],
       };
     }
 
@@ -225,6 +237,9 @@ export default function AddMemberForm({
   };
 
   const [formData, setFormData] = useState<FormData>(getInitialFormData());
+  const [socialMedia, setSocialMedia] = useState<SocialMediaLink[]>(
+    initialData?.socialMedia || [],
+  );
 
   // Load initial data for edit mode
   useEffect(() => {
@@ -534,6 +549,7 @@ export default function AddMemberForm({
             formData.personalInfo.displayName ||
             `${formData.personalInfo.firstName} ${formData.personalInfo.lastName}`,
           photoUrl,
+          socialMedia,
         },
       };
 
@@ -599,6 +615,22 @@ export default function AddMemberForm({
   };
 
   const totalSteps = 5;
+
+  const steps: Step[] = [
+    { num: 1, title: "Personal Info", icon: User },
+    { num: 2, title: "Contact & Address", icon: MapPin },
+    { num: 3, title: "Membership & Roles", icon: Award },
+    { num: 4, title: "Healthcare", icon: Heart },
+    { num: 5, title: "Emergency & Family", icon: Users },
+  ];
+
+  const handleStepClick = (stepNum: number) => {
+    // Only allow navigation in edit mode
+    if (mode === "edit") {
+      setCurrentStep(stepNum);
+    }
+  };
+
   const rolesByCategory = roles.reduce((acc: any, role: any) => {
     const category = role.category || "Other";
     if (!acc[category]) acc[category] = [];
@@ -619,23 +651,13 @@ export default function AddMemberForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      {/* Progress Bar */}
-      <div className="bg-white rounded-2xl shadow-xl border border-slate-100 p-6">
-        <div className="flex items-center justify-between mb-4">
-          <span className="text-sm font-bold text-slate-600">
-            Step {currentStep} of {totalSteps}
-          </span>
-          <span className="text-sm font-bold text-slate-600">
-            {Math.round((currentStep / totalSteps) * 100)}% Complete
-          </span>
-        </div>
-        <div className="w-full bg-slate-200 rounded-full h-2">
-          <div
-            className="bg-[#06054e] h-2 rounded-full transition-all duration-300"
-            style={{ width: `${(currentStep / totalSteps) * 100}%` }}
-          />
-        </div>
-      </div>
+      {/* Step Progress */}
+      <StepProgress
+        steps={steps}
+        currentStep={currentStep}
+        onStepClick={handleStepClick}
+        mode={mode}
+      />
 
       {/* STEP 1: Personal Information */}
       {currentStep === 1 && (
@@ -712,7 +734,7 @@ export default function AddMemberForm({
                   })
                 }
                 displayField="name"
-                valueField="salutationId"
+                valueField="id"
                 fullNameField="fullName"
                 placeholder="Mr, Mrs, Dr..."
               />
@@ -994,17 +1016,22 @@ export default function AddMemberForm({
                   <input
                     type="text"
                     value={formData.address.postcode}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        address: {
-                          ...formData.address,
-                          postcode: e.target.value,
-                        },
-                      })
-                    }
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      // Only allow 4 digits for Australian postcodes
+                      if (value === "" || /^\d{0,4}$/.test(value)) {
+                        setFormData({
+                          ...formData,
+                          address: {
+                            ...formData.address,
+                            postcode: value,
+                          },
+                        });
+                      }
+                    }}
                     className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none font-bold focus:ring-2 ring-yellow-400"
                     placeholder="4000"
+                    maxLength={4}
                   />
                 </div>
 
@@ -1031,6 +1058,17 @@ export default function AddMemberForm({
               </div>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Social Media Section */}
+      {currentStep === 2 && (
+        <div className="bg-white rounded-[2rem] shadow-lg border border-slate-100 p-6 mt-6">
+          <SocialMediaEditor
+            socialMedia={socialMedia}
+            onChange={setSocialMedia}
+            readOnly={false}
+          />
         </div>
       )}
 
@@ -1143,18 +1181,23 @@ export default function AddMemberForm({
                     </label>
                     <input
                       type="text"
-                      value={formData.playerInfo.jerseyNumber}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          playerInfo: {
-                            ...formData.playerInfo!,
-                            jerseyNumber: e.target.value,
-                          },
-                        })
-                      }
+                      value={formData.playerInfo.jerseyNumber || ""}
+                      onChange={(e) => {
+                        // Only allow integers (0-99)
+                        const value = e.target.value;
+                        if (value === "" || /^\d{1,2}$/.test(value)) {
+                          setFormData({
+                            ...formData,
+                            playerInfo: {
+                              ...formData.playerInfo!,
+                              jerseyNumber: value,
+                            },
+                          });
+                        }
+                      }}
                       className="w-full p-3 bg-white border border-blue-200 rounded-xl outline-none font-bold focus:ring-2 ring-blue-400"
                       placeholder="7"
+                      maxLength={2}
                     />
                   </div>
                   <div>
@@ -1162,7 +1205,7 @@ export default function AddMemberForm({
                       Position
                     </label>
                     <select
-                      value={formData.playerInfo.position}
+                      value={formData.playerInfo.position || ""}
                       onChange={(e) =>
                         setFormData({
                           ...formData,
@@ -1294,18 +1337,22 @@ export default function AddMemberForm({
                         type="text"
                         maxLength={10}
                         value={formData.healthcare.medicare.number}
-                        onChange={(e) =>
-                          setFormData({
-                            ...formData,
-                            healthcare: {
-                              ...formData.healthcare,
-                              medicare: {
-                                ...formData.healthcare.medicare!,
-                                number: e.target.value,
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          // Only allow digits
+                          if (value === "" || /^\d{0,10}$/.test(value)) {
+                            setFormData({
+                              ...formData,
+                              healthcare: {
+                                ...formData.healthcare,
+                                medicare: {
+                                  ...formData.healthcare.medicare!,
+                                  number: value,
+                                },
                               },
-                            },
-                          })
-                        }
+                            });
+                          }
+                        }}
                         className="w-full p-3 bg-white border border-green-200 rounded-xl outline-none font-bold focus:ring-2 ring-green-400"
                         placeholder="1234567890"
                       />
@@ -1318,18 +1365,22 @@ export default function AddMemberForm({
                         type="text"
                         maxLength={1}
                         value={formData.healthcare.medicare.position}
-                        onChange={(e) =>
-                          setFormData({
-                            ...formData,
-                            healthcare: {
-                              ...formData.healthcare,
-                              medicare: {
-                                ...formData.healthcare.medicare!,
-                                position: e.target.value,
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          // Only allow single digit 1-9
+                          if (value === "" || /^[1-9]$/.test(value)) {
+                            setFormData({
+                              ...formData,
+                              healthcare: {
+                                ...formData.healthcare,
+                                medicare: {
+                                  ...formData.healthcare.medicare!,
+                                  position: value,
+                                },
                               },
-                            },
-                          })
-                        }
+                            });
+                          }
+                        }}
                         className="w-full p-3 bg-white border border-green-200 rounded-xl outline-none font-bold focus:ring-2 ring-green-400"
                         placeholder="1"
                       />
@@ -1541,7 +1592,7 @@ export default function AddMemberForm({
                     Medical Conditions
                   </label>
                   <textarea
-                    value={formData.medical.conditions}
+                    value={formData.medical?.conditions || ""}
                     onChange={(e) =>
                       setFormData({
                         ...formData,
@@ -1561,7 +1612,7 @@ export default function AddMemberForm({
                     Medications
                   </label>
                   <textarea
-                    value={formData.medical.medications}
+                    value={formData.medical?.medications || ""}
                     onChange={(e) =>
                       setFormData({
                         ...formData,
@@ -1581,7 +1632,7 @@ export default function AddMemberForm({
                     Allergies
                   </label>
                   <textarea
-                    value={formData.medical.allergies}
+                    value={formData.medical?.allergies || ""}
                     onChange={(e) =>
                       setFormData({
                         ...formData,
@@ -1962,7 +2013,7 @@ export default function AddMemberForm({
               <ArrowLeft size={20} className="rotate-180" />
             </button>
           ) : (
-            <div className="flex items-center gap-4">
+            <div className="flex items-center justify-between gap-4">
               {/* Warning text if no emergency contacts */}
               {formData.emergencyContacts.length === 0 && (
                 <div className="text-red-600 text-sm font-bold">
@@ -1970,31 +2021,45 @@ export default function AddMemberForm({
                 </div>
               )}
 
-              <button
-                type="submit"
-                disabled={isLoading || formData.emergencyContacts.length === 0}
-                className={`flex items-center gap-2 px-6 py-3 rounded-xl font-black transition-all ${
-                  formData.emergencyContacts.length === 0
-                    ? "bg-slate-300 text-slate-500 cursor-not-allowed"
-                    : "bg-green-600 text-white hover:bg-green-700"
-                } ${isLoading ? "opacity-50 cursor-not-allowed" : ""}`}
-                title={
-                  formData.emergencyContacts.length === 0
-                    ? "Add at least one emergency contact first"
-                    : ""
-                }
-              >
-                <Save size={20} />
-                {isLoading
-                  ? mode === "create"
-                    ? "Creating..."
-                    : "Updating..."
-                  : formData.emergencyContacts.length === 0
-                    ? "⚠️ Add Emergency Contact First"
-                    : mode === "create"
-                      ? "Create Member"
-                      : "Update Member"}
-              </button>
+              <div className="flex items-center gap-4 ml-auto">
+                {/* Cancel Button (only in edit mode) */}
+                {mode === "edit" && (
+                  <Link
+                    href={`/clubs/${clubId}/members/${initialData?.memberId}`}
+                    className="px-6 py-3 bg-slate-200 text-slate-700 font-black rounded-xl hover:bg-slate-300 transition-all"
+                  >
+                    Cancel
+                  </Link>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={
+                    isLoading || formData.emergencyContacts.length === 0
+                  }
+                  className={`flex items-center gap-2 px-6 py-3 rounded-xl font-black transition-all ${
+                    formData.emergencyContacts.length === 0
+                      ? "bg-slate-300 text-slate-500 cursor-not-allowed"
+                      : "bg-green-600 text-white hover:bg-green-700"
+                  } ${isLoading ? "opacity-50 cursor-not-allowed" : ""}`}
+                  title={
+                    formData.emergencyContacts.length === 0
+                      ? "Add at least one emergency contact first"
+                      : ""
+                  }
+                >
+                  <Save size={20} />
+                  {isLoading
+                    ? mode === "create"
+                      ? "Creating..."
+                      : "Updating..."
+                    : formData.emergencyContacts.length === 0
+                      ? "⚠️ Add Emergency Contact First"
+                      : mode === "create"
+                        ? "Create Member"
+                        : "Update Member"}
+                </button>
+              </div>
             </div>
           )}
         </div>
