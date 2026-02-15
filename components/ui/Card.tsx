@@ -1,50 +1,31 @@
-import { cva, type VariantProps } from "class-variance-authority";
-import { cn } from "../..//lib/utils";
+"use client";
 
-const cardVariants = cva("bg-white transition-all", {
-  variants: {
-    variant: {
-      default:
-        "shadow-sm hover:shadow-xl border-2 border-transparent hover:border-[#06054e]",
-      elevated: "shadow-2xl border-4 border-[#06054e]",
-      outline: "border-2 border-slate-200",
-      ghost: "shadow-none",
-    },
-    rounded: {
-      default: "rounded-[32px]",
-      lg: "rounded-[40px]",
-      sm: "rounded-2xl",
-      none: "rounded-none",
-    },
-    interactive: {
-      true: "cursor-pointer",
-      false: "",
-    },
-  },
-  defaultVariants: {
-    variant: "default",
-    rounded: "default",
-    interactive: false,
-  },
-});
+import { ReactNode } from "react";
 
-export interface CardProps
-  extends React.HTMLAttributes<HTMLDivElement>,
-    VariantProps<typeof cardVariants> {}
-
-export default function Card({
-  className,
-  variant,
-  rounded,
-  interactive,
-  ...props
-}: CardProps) {
-  return (
-    <div
-      className={cn(cardVariants({ variant, rounded, interactive }), className)}
-      {...props}
-    />
-  );
+interface FeatureCardProps {
+  icon: ReactNode;
+  title: string;
+  description: string;
+  accentColor?: string; // default yellow
 }
 
-export { cardVariants };
+export default function FeatureCard({
+  icon,
+  title,
+  description,
+  accentColor = "bg-yellow-400",
+}: FeatureCardProps) {
+  return (
+    <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-[2rem] p-8 hover:bg-white/15 transition-all">
+      <div
+        className={`w-16 h-16 ${accentColor} rounded-2xl flex items-center justify-center mb-4`}
+      >
+        {icon}
+      </div>
+
+      <h3 className="text-2xl font-black text-white uppercase mb-3">{title}</h3>
+
+      <p className="text-slate-300 font-bold">{description}</p>
+    </div>
+  );
+}

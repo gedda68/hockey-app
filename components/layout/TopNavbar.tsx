@@ -20,6 +20,10 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { toast } from "sonner";
+import { LinkButton } from "@/components/ui/LinkButton";
+import ClubsDrawer from "@/components/ui/ClubsDrawer";
+
+import LogoTile from "@/components/ui/LogoTile";
 
 const navItems = [
   {
@@ -41,13 +45,14 @@ const navItems = [
   { name: "Officials", href: "/officials", icon: Users },
 ];
 
-export default function TopNavbar() {
+export default function TopNavbar(clubs) {
   const [isOpen, setIsOpen] = useState(false);
   const [openSubMenu, setOpenSubMenu] = useState<string | null>(null);
   const [scrolled, setScrolled] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
   const { isAuthenticated, logout } = useAuth();
+  const [open, setOpen] = useState(false);
 
   // Lock vertical scroll only when menu is open
   useEffect(() => {
@@ -85,9 +90,10 @@ export default function TopNavbar() {
       <nav className="sticky top-0 z-[200] w-full bg-gradient-to-r from-green-500 via-yellow-400 to-[#06054e] transition-all duration-300 ease-out">
         <div className="flex items-center justify-between h-16 px-6 relative">
           {/* LEFT LOGO */}
+
           <Link href="/" aria-label="Home" className="flex items-center mt-18">
             <Image
-              src="/icons/BHA.png"
+              src="/icons/BHA-bg.png"
               alt="Brisbane Hockey"
               width={scrolled ? 100 : 120}
               height={scrolled ? 20 : 32}
@@ -109,6 +115,13 @@ export default function TopNavbar() {
               ) : (
                 <Menu className="h-7 w-7 text-white" />
               )}
+            </button>
+
+            <button
+              onClick={() => setOpen(true)}
+              className="text-slate-700 font-medium hover:text-slate-900 transition"
+            >
+              Clubs
             </button>
 
             {/* Desktop Links */}
@@ -167,18 +180,23 @@ export default function TopNavbar() {
                   Logout
                 </button>
               ) : (
-                <Link
+                <LinkButton
                   href="/login"
-                  className="flex items-center gap-2 px-4 py-2 bg-yellow-400 text-[#06054e] rounded-md text-sm font-bold uppercase tracking-wider hover:bg-yellow-300 transition-colors shadow-lg"
+                  bgColor="bg-yellow-400"
+                  textColor="text-[#06054e] "
+                  hoverBgColor="hover:bg-yellow-300"
+                  hoverTextColor="hover:text-slate-800"
                 >
                   <LogIn className="h-5 w-5" />
                   Admin Login
-                </Link>
+                </LinkButton>
               )}
             </div>
           </div>
         </div>
       </nav>
+
+      <ClubsDrawer open={open} onClose={() => setOpen(false)} clubs={clubs} />
 
       {/* BOTTOM TEXT */}
       <div className="w-full py-4 bg-gradient-to-r from-green-500 via-yellow-400 to-[#06054e] text-center">

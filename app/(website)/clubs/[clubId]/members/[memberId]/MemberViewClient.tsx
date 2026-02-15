@@ -7,7 +7,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
-import MemberHeader from "@/components/member-sections/MemberHeader";
+import MemberHeader from "@/components/MemberHeader";
 import PersonalInfoSection from "@/components/member-sections/PersonalInfoSection";
 import AddressSection from "@/components/member-sections/AddressSection";
 import HealthcareSection from "@/components/member-sections/HealthcareSection";

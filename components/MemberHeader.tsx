@@ -15,6 +15,9 @@ import {
   User,
 } from "lucide-react";
 
+import { Button } from "@/components/ui/Button";
+import { LinkButton } from "@/components/ui/LinkButton";
+
 interface MemberHeaderProps {
   clubId: string;
   memberId: string;
@@ -114,46 +117,66 @@ export default function MemberHeader({
         <div className="flex flex-wrap gap-2">
           {/* Deactivate/Activate Button */}
           {actions.deactivate && currentPage === "view" && onToggleStatus && (
-            <button
+            <Button
               onClick={onToggleStatus}
-              className="px-5 py-2.5 bg-orange-500 text-white font-bold rounded-xl hover:bg-orange-600 transition-all flex items-center gap-2 shadow-sm"
-            >
-              <Ban size={18} />
-              Deactivate
-            </button>
+              bgColor="bg-pink-100"
+              textColor="text-pink-700"
+              borderColor="border border-pink-300"
+              shadowColor="shadow-sm shadow-pink-200"
+              hoverBgColor={
+                isActive ? "hover:bg-pink-200" : "hover:bg-green-200"
+              }
+              hoverTextColor={
+                isActive ? "hover:text-pink-800" : "hover:text-green-800"
+              }
+              icon={isActive ? Ban : Check}
+              toggleText={{
+                on: "Deactivate",
+                off: "Activate",
+                initial: "off",
+              }}
+            />
           )}
 
           {/* Edit Button */}
           {actions.edit && currentPage !== "edit" && (
-            <Link
+            <LinkButton
               href={`/clubs/${clubId}/members/${memberId}/edit`}
-              className="px-5 py-2.5 bg-blue-500 text-white font-bold rounded-xl hover:bg-blue-600 transition-all flex items-center gap-2 shadow-sm"
+              icon={Edit}
+              bgColor="bg-blue-600"
+              textColor="text-white"
+              hoverBgColor="hover:bg-blue-500"
+              hoverTextColor="hover:text-slate-800"
             >
-              <Edit size={18} />
-              Edit
-            </Link>
+              Edit Member
+            </LinkButton>
           )}
 
           {/* Renew Button */}
           {actions.renew && currentPage !== "renew" && (
-            <Link
+            <LinkButton
               href={`/clubs/${clubId}/members/${memberId}/renew`}
-              className="px-5 py-2.5 bg-white text-slate-700 font-bold rounded-xl hover:bg-slate-50 transition-all flex items-center gap-2 shadow-sm border border-slate-200"
+              icon={RotateCcw}
+              bgColor="bg-slate-600"
+              textColor="text-white"
+              hoverBgColor="hover:bg-slate-400"
             >
-              <RotateCcw size={18} />
               Renew
-            </Link>
+            </LinkButton>
           )}
 
           {/* History Button */}
           {actions.history && currentPage !== "history" && (
-            <Link
+            <LinkButton
               href={`/clubs/${clubId}/members/${memberId}/history`}
-              className="px-5 py-2.5 bg-slate-700 text-white font-bold rounded-xl hover:bg-slate-800 transition-all flex items-center gap-2 shadow-sm"
+              icon={Edit}
+              bgColor="bg-green-600"
+              textColor="text-white"
+              hoverBgColor="hover:bg-green-500"
+              hoverTextColor="hover:text-slate-800"
             >
-              <Clock size={18} />
               History
-            </Link>
+            </LinkButton>
           )}
 
           {/* Delete Button */}

@@ -26,8 +26,8 @@ import {
 import Link from "next/link";
 import TypeAheadSelect from "@/components/admin/TypeAheadSelect";
 import { useCustomAlert } from "@/components/ui/CustomAlert";
-import SocialMediaEditor from "@/components/member-sections/SocialMediaEditor";
-import StepProgress, { Step } from "@/components/member-sections/StepProgress";
+import SocialMediaEditor from "@/components/SocialMediaEditor";
+import StepProgress, { Step } from "@/components/StepProgress";
 
 interface SocialMediaLink {
   platform: string;

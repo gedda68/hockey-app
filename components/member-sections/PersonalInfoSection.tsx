@@ -1,33 +1,22 @@
 // components/member-sections/PersonalInfoSection.tsx
-// Personal information and contact details section
+// Personal information and contact details section - TYPE SAFE
 
 "use client";
 
-import { User, Mail, Phone, Camera } from "lucide-react";
-import SocialMediaDisplay from "@/components/member-sections/SocialMediaDisplay";
+import { User, Mail } from "lucide-react";
+import SocialMediaDisplay from "@/components/SocialMediaDisplay";
+import { Member } from "@/types/member";
+import { ConfigItem } from "@/types/config";
+import {
+  getConfigDisplayName,
+  getSalutationDisplay,
+  formatDate,
+} from "@/lib/config-utils";
 
 interface PersonalInfoSectionProps {
-  member: any;
-  configItems: any[];
+  member: Member;
+  configItems: ConfigItem[];
   canViewPrivate: boolean;
-}
-
-function getConfigDisplayName(
-  configId: string,
-  configItems: any[],
-  configType: string,
-): string {
-  const config = configItems.find(
-    (item) => item.id === configId && item.configType === configType,
-  );
-  return config?.name || configId;
-}
-
-function getSalutationDisplay(configId: string, configItems: any[]): string {
-  const config = configItems.find(
-    (item) => item.id === configId && item.configType === "salutation",
-  );
-  return config?.code || config?.name || configId;
 }
 
 export default function PersonalInfoSection({
@@ -89,9 +78,7 @@ export default function PersonalInfoSection({
             Date of Birth
           </label>
           <p className="text-lg font-bold text-slate-800 mt-1">
-            {new Date(member.personalInfo.dateOfBirth).toLocaleDateString(
-              "en-AU",
-            )}
+            {formatDate(member.personalInfo.dateOfBirth)}
           </p>
         </div>
 

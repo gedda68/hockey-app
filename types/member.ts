@@ -1,5 +1,5 @@
 // types/member.ts
-// Complete member types with social media and renewal functions
+// Central type definitions for Member entity
 
 export interface SocialMediaLink {
   platform: string;
@@ -9,195 +9,135 @@ export interface SocialMediaLink {
   displayOrder: number;
 }
 
+export interface PersonalInfo {
+  salutation: string;
+  firstName: string;
+  lastName: string;
+  displayName?: string;
+  dateOfBirth: string;
+  gender: string;
+  photoUrl?: string | null;
+}
+
+export interface Contact {
+  primaryEmail: string;
+  emailOwnership: string;
+  phone?: string;
+  mobile?: string;
+}
+
+export interface Address {
+  street: string;
+  suburb: string;
+  state: string;
+  postcode: string;
+  country: string;
+}
+
+export interface Medicare {
+  number: string;
+  position: string;
+  expiryMonth: string;
+  expiryYear: string;
+}
+
+export interface PrivateHealth {
+  provider: string;
+  membershipNumber: string;
+  expiryDate: string;
+}
+
+export interface Healthcare {
+  medicare?: Medicare | null;
+  privateHealth?: PrivateHealth | null;
+}
+
+export interface EmergencyContact {
+  contactId: string;
+  priority: number;
+  name: string;
+  relationship: string;
+  phone: string;
+  mobile?: string;
+  email?: string;
+}
+
+export interface MedicalInfo {
+  conditions?: string;
+  medications?: string;
+  allergies?: string;
+}
+
+export interface PlayerInfo {
+  jerseyNumber?: string;
+  position?: string;
+}
+
+export interface RenewalRecord {
+  renewedAt: string;
+  renewedBy: string;
+  periodStart: string;
+  periodEnd: string;
+  membershipType: string;
+  notes?: string;
+}
+
+export interface Membership {
+  membershipType: string;
+  status: "Active" | "Inactive";
+  joinDate: string;
+  currentPeriodStart: string;
+  currentPeriodEnd: string;
+  renewalHistory?: RenewalRecord[];
+}
+
+export interface FamilyRelationship {
+  relationshipId: string;
+  relatedMemberId: string;
+  relationshipType: string;
+  forwardRelation: string;
+  reverseRelation: string;
+}
+
 export interface Member {
+  _id?: string;
   memberId: string;
-  personalInfo: {
-    salutation: string;
-    firstName: string;
-    lastName: string;
-    displayName?: string;
-    dateOfBirth: string;
-    gender: string;
-    photoUrl?: string | null;
-  };
-  contact: {
-    primaryEmail: string;
-    emailOwnership: string;
-    phone?: string;
-    mobile?: string;
-  };
-  address: {
-    street: string;
-    suburb: string;
-    state: string;
-    postcode: string;
-    country: string;
-  };
-
+  clubId: string;
+  personalInfo: PersonalInfo;
+  contact: Contact;
+  address: Address;
   socialMedia?: SocialMediaLink[];
-
-  healthcare?: {
-    medicare?: {
-      number: string;
-      position: string;
-      expiryMonth: string;
-      expiryYear: string;
-    } | null;
-    privateHealth?: {
-      provider: string;
-      membershipNumber: string;
-      expiryDate: string;
-    } | null;
-  };
-  emergencyContacts?: Array<{
-    contactId: string;
-    priority: number;
-    name: string;
-    relationship: string;
-    phone?: string;
-    mobile?: string;
-    email?: string;
-  }>;
-  membership: {
-    membershipType: string;
-    status: "Active" | "Inactive" | "Expired" | "Pending";
-    joinDate: string;
-    currentPeriodStart: string;
-    currentPeriodEnd: string;
-    renewalHistory?: Array<{
-      renewalId: string;
-      renewalDate: string;
-      periodStart: string;
-      periodEnd: string;
-      membershipType: string;
-      fee?: number;
-      renewedBy?: string;
-      notes?: string;
-    }>;
-  };
+  healthcare?: Healthcare;
+  emergencyContacts: EmergencyContact[];
+  medical?: MedicalInfo;
+  playerInfo?: PlayerInfo | null;
+  membership: Membership;
   roles: string[];
-  playerInfo?: {
-    jerseyNumber?: string;
-    position?: string;
-  } | null;
-  medical?: {
-    conditions?: string;
-    medications?: string;
-    allergies?: string;
-  };
-  familyRelationships?: Array<{
-    relationshipId: string;
-    relatedMemberId: string;
-    relationshipType: string;
-    forwardRelation: string;
-    reverseRelation: string;
-  }>;
-  createdAt: string;
-  updatedAt: string;
+  familyRelationships?: FamilyRelationship[];
+  createdAt?: string;
+  updatedAt?: string;
   createdBy?: string;
   updatedBy?: string;
 }
 
-// User type for authentication
-export interface User {
-  userId: string;
-  email: string;
-  name?: string;
-  role: "superadmin" | "clubadmin" | "member";
-  clubId?: string;
-  memberId?: string;
+// Utility type for partial member updates
+export type MemberUpdate = Partial<Omit<Member, "_id" | "memberId" | "clubId">>;
+
+// Type for member creation (without generated fields)
+export type MemberCreate = Omit<
+  Member,
+  "_id" | "memberId" | "createdAt" | "updatedAt" | "createdBy" | "updatedBy"
+>;
+
+// Type guards
+export function isMemberWithHealthcare(
+  member: Member,
+): member is Member & { healthcare: Healthcare } {
+  return member.healthcare !== undefined && member.healthcare !== null;
 }
 
-// Social media platform configurations
-export const SOCIAL_PLATFORMS = {
-  facebook: {
-    name: "Facebook",
-    icon: "Facebook",
-    color: "#1877F2",
-    baseUrl: "https://facebook.com/",
-    placeholder: "username or profile URL",
-  },
-  instagram: {
-    name: "Instagram",
-    icon: "Instagram",
-    color: "#E4405F",
-    baseUrl: "https://instagram.com/",
-    placeholder: "@username or profile URL",
-  },
-  twitter: {
-    name: "Twitter/X",
-    icon: "Twitter",
-    color: "#1DA1F2",
-    baseUrl: "https://twitter.com/",
-    placeholder: "@username or profile URL",
-  },
-  linkedin: {
-    name: "LinkedIn",
-    icon: "Linkedin",
-    color: "#0A66C2",
-    baseUrl: "https://linkedin.com/in/",
-    placeholder: "username or profile URL",
-  },
-  youtube: {
-    name: "YouTube",
-    icon: "Youtube",
-    color: "#FF0000",
-    baseUrl: "https://youtube.com/@",
-    placeholder: "@channel or URL",
-  },
-  tiktok: {
-    name: "TikTok",
-    icon: "Music",
-    color: "#000000",
-    baseUrl: "https://tiktok.com/@",
-    placeholder: "@username or URL",
-  },
-  snapchat: {
-    name: "Snapchat",
-    icon: "Camera",
-    color: "#FFFC00",
-    baseUrl: "https://snapchat.com/add/",
-    placeholder: "username",
-  },
-  discord: {
-    name: "Discord",
-    icon: "MessageCircle",
-    color: "#5865F2",
-    baseUrl: "",
-    placeholder: "username#0000",
-  },
-  website: {
-    name: "Website",
-    icon: "Globe",
-    color: "#6B7280",
-    baseUrl: "",
-    placeholder: "https://yourwebsite.com",
-  },
-} as const;
-
-export type SocialPlatform = keyof typeof SOCIAL_PLATFORMS;
-
-// Renewal helper functions
-export function getDefaultMembershipDates() {
-  const now = new Date();
-  const year = now.getFullYear();
-  return {
-    currentPeriodStart: `${year}-01-01`,
-    currentPeriodEnd: `${year}-12-31`,
-  };
-}
-
-export function getRenewalDates() {
-  const now = new Date();
-  const nextYear = now.getFullYear() + 1;
-  return {
-    periodStart: `${nextYear}-01-01`,
-    periodEnd: `${nextYear}-12-31`,
-  };
-}
-
-export function isMembershipExpired(member: Member): boolean {
-  if (!member.membership?.currentPeriodEnd) return false;
-  const endDate = new Date(member.membership.currentPeriodEnd);
-  return endDate < new Date();
+export function isMemberWithPlayerInfo(
+  member: Member,
+): member is Member & { playerInfo: PlayerInfo } {
+  return member.playerInfo !== undefined && member.playerInfo !== null;
 }

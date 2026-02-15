@@ -3,13 +3,13 @@
 import Image from "next/image";
 import { cva } from "class-variance-authority";
 import { cn } from "../../lib/utils";
-import Card from "../ui/Card";
-import Badge from "../ui/Badge";
-import Text from "../ui/Text";
+import Card from "@/components/ui/Card";
+import { Badge } from "@/components/ui/Badge";
+import Text from "@/components/ui/Text";
 import type { Match, UmpireDetails } from "../../types";
 
 const matchMetaVariants = cva(
-  "flex flex-col items-center md:items-start min-w-[120px]"
+  "flex flex-col items-center md:items-start min-w-[120px]",
 );
 
 const scoreVariants = cva(
@@ -26,7 +26,7 @@ const scoreVariants = cva(
     defaultVariants: {
       result: "pending",
     },
-  }
+  },
 );
 
 interface MatchCardProps {

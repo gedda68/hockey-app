@@ -14,7 +14,7 @@ import {
   RotateCcw,
   AlertCircle,
 } from "lucide-react";
-import MemberHeader from "@/components/member-sections/MemberHeader";
+import MemberHeader from "@/components/MemberHeader";
 
 interface AuditLogEntry {
   auditId: string;

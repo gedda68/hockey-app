@@ -21,8 +21,8 @@ import {
   Save,
   RotateCcw,
 } from "lucide-react";
-import SocialMediaEditor from "@/components/member-sections/SocialMediaEditor";
-import MemberHeader from "@/components/member-sections/MemberHeader";
+import SocialMediaEditor from "@/components/SocialMediaEditor";
+import MemberHeader from "@/components/MemberHeader";
 
 interface SocialMediaLink {
   platform: string;

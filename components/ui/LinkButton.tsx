@@ -1,31 +1,45 @@
 "use client";
 
-import React, { useState } from "react";
+import Link from "next/link";
+import { useState } from "react";
 import { LucideIcon } from "lucide-react";
 import { buttonStyles } from "./buttonStyles";
 
-export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+interface LinkButtonProps {
+  href: string;
+  children?: React.ReactNode;
+
   bgColor?: string;
   textColor?: string;
   borderColor?: string;
   shadowColor?: string;
+
   hoverBgColor?: string;
   hoverTextColor?: string;
+
   size?: "sm" | "md" | "lg";
+  fullWidth?: boolean;
+
   icon?: LucideIcon;
   iconPosition?: "left" | "right";
-  fullWidth?: boolean;
-  loading?: boolean;
 
-  /** NEW: toggle text on click */
+  /** NEW: toggle text + icon */
   toggleText?: {
     on: string;
     off: string;
     initial?: "on" | "off";
   };
+
+  toggleIcon?: {
+    on: LucideIcon;
+    off: LucideIcon;
+  };
+
+  className?: string;
 }
 
-export function Button({
+export function LinkButton({
+  href,
   children,
   bgColor,
   textColor,
@@ -34,16 +48,13 @@ export function Button({
   hoverBgColor,
   hoverTextColor,
   size = "md",
+  fullWidth = false,
   icon: Icon,
   iconPosition = "left",
-  fullWidth = false,
-  loading = false,
   toggleText,
+  toggleIcon,
   className = "",
-  disabled,
-  onClick,
-  ...props
-}: ButtonProps) {
+}: LinkButtonProps) {
   const [state, setState] = useState(toggleText?.initial || "off");
 
   const classes = buttonStyles({
@@ -58,32 +69,29 @@ export function Button({
     className,
   });
 
-  const handleClick = (e: React.MouseEvent<HTMLButtonElement>) => {
-    if (toggleText) {
-      setState((prev) => (prev === "on" ? "off" : "on"));
-    }
-    onClick?.(e);
-  };
-
   const label = toggleText
     ? state === "on"
       ? toggleText.on
       : toggleText.off
     : children;
 
+  const ActiveIcon = toggleIcon
+    ? state === "on"
+      ? toggleIcon.on
+      : toggleIcon.off
+    : Icon;
+
+  const handleToggle = () => {
+    if (toggleText || toggleIcon) {
+      setState((prev) => (prev === "on" ? "off" : "on"));
+    }
+  };
+
   return (
-    <button
-      className={`${classes} ${disabled || loading ? "opacity-50 cursor-not-allowed" : ""}`}
-      disabled={disabled || loading}
-      onClick={handleClick}
-      {...props}
-    >
-      {loading && (
-        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-      )}
-      {!loading && Icon && iconPosition === "left" && <Icon size={20} />}
+    <Link href={href} onClick={handleToggle} className={classes}>
+      {ActiveIcon && iconPosition === "left" && <ActiveIcon size={18} />}
       {label}
-      {!loading && Icon && iconPosition === "right" && <Icon size={20} />}
-    </button>
+      {ActiveIcon && iconPosition === "right" && <ActiveIcon size={18} />}
+    </Link>
   );
 }

@@ -4,16 +4,16 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { cva } from "class-variance-authority";
 import { cn } from "../../lib/utils";
 import StandingsRow from "./StandingsRow";
-import Button from "../ui/Button";
+import { Button } from "@/components/ui/Button";
 import Text from "../ui/Text";
 import type { Division } from "../../types";
 
 const standingsContainerVariants = cva(
-  "sticky top-8 bg-[#06054e] rounded-3xl p-6 shadow-2xl text-white"
+  "sticky top-8 bg-[#06054e] rounded-3xl p-6 shadow-2xl text-white",
 );
 
 const tableHeaderVariants = cva(
-  "grid grid-cols-12 items-center px-2 pb-2 border-b border-white/20 text-[8px] font-black uppercase text-slate-400"
+  "grid grid-cols-12 items-center px-2 pb-2 border-b border-white/20 text-[8px] font-black uppercase text-slate-400",
 );
 
 const emptyStateVariants = cva("text-center py-8");
@@ -81,7 +81,7 @@ export default function StandingsTableClient({
                   "text-[9px] transition-all",
                   currentYear === year
                     ? "bg-white text-[#06054e] border-white hover:bg-white/90"
-                    : "bg-transparent text-white border-white/30 hover:bg-white/10 hover:border-white/50"
+                    : "bg-transparent text-white border-white/30 hover:bg-white/10 hover:border-white/50",
                 )}
               >
                 {year}
@@ -129,7 +129,7 @@ export default function StandingsTableClient({
                 <Text className="text-xl font-black text-white">
                   {division.teams.reduce(
                     (sum, t) => sum + (t.p || t.played || 0),
-                    0
+                    0,
                   )}
                 </Text>
               </div>
@@ -141,10 +141,10 @@ export default function StandingsTableClient({
                   {Math.round(
                     (division.teams.reduce(
                       (sum, t) => sum + (t.gd || t.goalDifference || 0),
-                      0
+                      0,
                     ) /
                       division.teams.length) *
-                      10
+                      10,
                   ) / 10}
                 </Text>
               </div>

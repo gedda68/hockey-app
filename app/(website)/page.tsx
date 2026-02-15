@@ -19,7 +19,7 @@ export default async function HomePage() {
   const topTeams = topDivision?.teams.slice(0, 5) || [];
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-gradient-to-br from-[#06054e] via-slate-900 to-slate-800">
       {/* Hero Section - Feature Match */}
       {featureMatch && (
         <section className="relative bg-gradient-to-br from-[#06054e] to-[#0a0870] text-white overflow-hidden">
@@ -75,7 +75,7 @@ export default async function HomePage() {
                         {
                           hour: "2-digit",
                           minute: "2-digit",
-                        }
+                        },
                       )}
                     </div>
                     <div className="text-xs opacity-60 mt-1">

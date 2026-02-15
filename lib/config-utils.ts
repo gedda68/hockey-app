@@ -1,216 +1,168 @@
 // lib/config-utils.ts
-// Utility functions for working with config items
+// Centralized utility functions for config item lookups
 
-export interface ConfigItem {
-  _id?: string;
-  configType: string;
-  id: string; // This is the key/identifier
-  name: string; // This is the display value
-  code?: string;
-  description?: string | null;
-  isActive: boolean;
-  displayOrder: number;
-  usageCount?: number;
-  lastUsed?: string | null;
-  createdAt: string;
-  updatedAt: string;
-  createdBy?: string;
-  updatedBy?: string | null;
-  // Type-specific flexible attributes
-  icon?: string;
-  color?: string;
-  category?: string;
-  defaultPermissions?: string[];
-  clubId?: string | null;
-  phone?: string;
-  website?: string;
-  shortName?: string;
-  [key: string]: any;
-}
+import { ConfigItem } from "@/types/config";
 
 /**
- * Get display name for a config id
+ * Get the display name for a config item
+ * @param configId - The ID of the config item
+ * @param configItems - Array of all config items
+ * @param configType - The type of config (e.g., 'gender', 'role')
+ * @returns The name of the config item, or the configId if not found
  */
 export function getConfigDisplayName(
   configId: string,
-  configType: string,
   configItems: ConfigItem[],
+  configType: string,
 ): string {
   const config = configItems.find(
-    (c) => c.configType === configType && c.id === configId,
+    (item) => item.id === configId && item.configType === configType,
   );
   return config?.name || configId;
 }
 
 /**
- * Get a specific attribute from a config item
- */
-export function getConfigAttribute<T = any>(
-  configId: string,
-  configType: string,
-  attributeName: string,
-  configItems: ConfigItem[],
-  defaultValue?: T,
-): T | undefined {
-  const config = configItems.find(
-    (c) => c.configType === configType && c.id === configId,
-  );
-  return config?.[attributeName] ?? defaultValue;
-}
-
-/**
- * Get entire config object for an id
+ * Get the full config item
+ * @param configId - The ID of the config item
+ * @param configItems - Array of all config items
+ * @param configType - The type of config
+ * @returns The config item or undefined if not found
  */
 export function getConfigItem(
   configId: string,
-  configType: string,
   configItems: ConfigItem[],
+  configType: string,
 ): ConfigItem | undefined {
   return configItems.find(
-    (c) => c.configType === configType && c.id === configId,
+    (item) => item.id === configId && item.configType === configType,
   );
 }
 
 /**
- * Get all config items of a specific type
+ * Get the code field for salutation (e.g., "Mr", "Mrs", "Dr")
+ * Salutations use the code field for display, not the name
+ * @param configId - The salutation ID
+ * @param configItems - Array of all config items
+ * @returns The code, name, or configId as fallback
  */
-export function getConfigsByType(
-  configType: string,
-  configItems: ConfigItem[],
-  activeOnly: boolean = true,
-): ConfigItem[] {
-  return configItems
-    .filter((c) => c.configType === configType && (!activeOnly || c.isActive))
-    .sort((a, b) => a.displayOrder - b.displayOrder);
-}
-
-/**
- * Convert config items to dropdown options
- */
-export function configToOptions(
-  configType: string,
-  configItems: ConfigItem[],
-): Array<{ value: string; label: string; [key: string]: any }> {
-  return getConfigsByType(configType, configItems).map((config) => ({
-    value: config.id,
-    label: config.name,
-    ...config, // Include all other attributes
-  }));
-}
-
-/**
- * Get member role details with icon and color
- */
-export function getMemberRoleDetails(
-  roleId: string,
-  configItems: ConfigItem[],
-): {
-  name: string;
-  icon?: string;
-  color?: string;
-  category?: string;
-  permissions?: string[];
-} {
-  const config = getConfigItem(roleId, "role", configItems);
-  return {
-    name: config?.name || roleId,
-    icon: config?.icon,
-    color: config?.color,
-    category: config?.category,
-    permissions: config?.defaultPermissions,
-  };
-}
-
-/**
- * Get health provider contact info
- */
-export function getProviderContactInfo(
-  providerId: string,
-  configItems: ConfigItem[],
-): {
-  name: string;
-  phone?: string;
-  website?: string;
-  category?: string;
-} {
-  const config = getConfigItem(
-    providerId,
-    "privateHealthProvider",
-    configItems,
-  );
-  return {
-    name: config?.name || providerId,
-    phone: config?.phone,
-    website: config?.website,
-    category: config?.category,
-  };
-}
-
-/**
- * Get membership type details
- */
-export function getMembershipTypeDetails(
-  membershipId: string,
-  configItems: ConfigItem[],
-): {
-  name: string;
-  description?: string;
-  icon?: string;
-  color?: string;
-} {
-  const config = getConfigItem(membershipId, "membershipType", configItems);
-  return {
-    name: config?.name || membershipId,
-    description: config?.description,
-    icon: config?.icon,
-    color: config?.color,
-  };
-}
-
-/**
- * Get salutation details
- */
-export function getSalutationDetails(
-  salutationId: string,
-  configItems: ConfigItem[],
-): {
-  name: string;
-  code?: string;
-} {
-  const config = getConfigItem(salutationId, "salutation", configItems);
-  return {
-    name: config?.name || salutationId,
-    code: config?.code,
-  };
-}
-
-/**
- * Validate if a config id exists for a type
- */
-export function isValidConfigId(
+export function getSalutationDisplay(
   configId: string,
-  configType: string,
   configItems: ConfigItem[],
-): boolean {
-  return configItems.some(
-    (c) => c.configType === configType && c.id === configId && c.isActive,
+): string {
+  const config = configItems.find(
+    (item) => item.id === configId && item.configType === "salutation",
+  );
+  // Return the code field for salutation, fallback to name, then to the ID
+  return config?.code || config?.name || configId;
+}
+
+/**
+ * Get multiple config items by type
+ * @param configItems - Array of all config items
+ * @param configType - The type to filter by
+ * @returns Array of config items of that type
+ */
+export function getConfigItemsByType(
+  configItems: ConfigItem[],
+  configType: string,
+): ConfigItem[] {
+  return configItems.filter((item) => item.configType === configType);
+}
+
+/**
+ * Get config item color (for roles, teams, etc.)
+ * @param configId - The ID of the config item
+ * @param configItems - Array of all config items
+ * @param configType - The type of config
+ * @returns The color string or undefined
+ */
+export function getConfigColor(
+  configId: string,
+  configItems: ConfigItem[],
+  configType: string,
+): string | undefined {
+  const config = getConfigItem(configId, configItems, configType);
+  return config?.color;
+}
+
+/**
+ * Get config item icon
+ * @param configId - The ID of the config item
+ * @param configItems - Array of all config items
+ * @param configType - The type of config
+ * @returns The icon string or undefined
+ */
+export function getConfigIcon(
+  configId: string,
+  configItems: ConfigItem[],
+  configType: string,
+): string | undefined {
+  const config = getConfigItem(configId, configItems, configType);
+  return config?.icon;
+}
+
+/**
+ * Format a date string to Australian locale
+ * @param dateString - ISO date string
+ * @returns Formatted date string (e.g., "13/02/2026")
+ */
+export function formatDate(dateString: string): string {
+  return new Date(dateString).toLocaleDateString("en-AU");
+}
+
+/**
+ * Format a date string to long format
+ * @param dateString - ISO date string
+ * @returns Formatted date string (e.g., "13 February 2026")
+ */
+export function formatDateLong(dateString: string): string {
+  return new Date(dateString).toLocaleDateString("en-AU", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+}
+
+/**
+ * Get member's display name
+ * @param member - Member object
+ * @returns Display name or full name
+ */
+export function getMemberDisplayName(member: {
+  personalInfo: { displayName?: string; firstName: string; lastName: string };
+}): string {
+  return (
+    member.personalInfo.displayName ||
+    `${member.personalInfo.firstName} ${member.personalInfo.lastName}`
   );
 }
 
 /**
- * Get config items grouped by type
+ * Check if member has an active membership
+ * @param member - Member object
+ * @returns True if membership is active
  */
-export function getConfigsGroupedByType(
-  configItems: ConfigItem[],
-): Record<string, ConfigItem[]> {
-  return configItems.reduce(
-    (acc, config) => {
-      if (!acc[config.configType]) {
-        acc[config.configType] = [];
-      }
-      acc[config.configType].push(config);
-      return acc;
-    },
-    {} as Record<string, ConfigItem[]>,
-  );
+export function isMemberActive(member: {
+  membership: { status: string };
+}): boolean {
+  return member.membership.status === "Active";
+}
+
+/**
+ * Get member's age
+ * @param dateOfBirth - ISO date string
+ * @returns Age in years
+ */
+export function getMemberAge(dateOfBirth: string): number {
+  const today = new Date();
+  const birthDate = new Date(dateOfBirth);
+  let age = today.getFullYear() - birthDate.getFullYear();
+  const monthDiff = today.getMonth() - birthDate.getMonth();
+  if (
+    monthDiff < 0 ||
+    (monthDiff === 0 && today.getDate() < birthDate.getDate())
+  ) {
+    age--;
+  }
+  return age;
 }

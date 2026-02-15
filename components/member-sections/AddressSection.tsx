@@ -1,12 +1,13 @@
 // components/member-sections/AddressSection.tsx
-// Address information section
+// Address information section - TYPE SAFE
 
 "use client";
 
-import { Home, MapPin } from "lucide-react";
+import { Home } from "lucide-react";
+import { Member } from "@/types/member";
 
 interface AddressSectionProps {
-  member: any;
+  member: Member;
 }
 
 export default function AddressSection({ member }: AddressSectionProps) {

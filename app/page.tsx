@@ -11,6 +11,8 @@ import {
   BarChart3,
 } from "lucide-react";
 
+import FeatureCard from "@/components/ui/FeatureCard";
+
 export default function HomePage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#06054e] via-slate-900 to-slate-800">
@@ -28,47 +30,42 @@ export default function HomePage() {
             Complete management system for hockey associations, clubs, players,
             and staff. Streamline your operations with powerful tools.
           </p>
-
-          <Link
-            href="/login"
-            className="inline-flex items-center gap-3 px-8 py-4 bg-yellow-400 text-[#06054e] rounded-2xl font-black uppercase text-lg hover:bg-yellow-300 transition-all shadow-2xl active:scale-95"
-          >
-            <Shield size={24} />
-            Access Admin Portal
-          </Link>
         </div>
 
         {/* Features Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-20">
           {/* Feature 1 */}
-          <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-[2rem] p-8 hover:bg-white/15 transition-all">
-            <div className="w-16 h-16 bg-yellow-400 rounded-2xl flex items-center justify-center mb-4">
-              <Users size={32} className="text-[#06054e]" />
-            </div>
-            <h3 className="text-2xl font-black text-white uppercase mb-3">
-              Player Management
-            </h3>
-            <p className="text-slate-300 font-bold">
-              Complete player profiles, registration, nominations, and transfer
-              history tracking.
-            </p>
-          </div>
+
+          <FeatureCard
+            icon={<Trophy size={32} className="text-[#06054e]" />}
+            title="Fixtures"
+            description="Fixtures for all divisions and competitions."
+            href="/competitions/matches"
+          />
 
           {/* Feature 2 */}
-          <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-[2rem] p-8 hover:bg-white/15 transition-all">
-            <div className="w-16 h-16 bg-yellow-400 rounded-2xl flex items-center justify-center mb-4">
-              <Trophy size={32} className="text-[#06054e]" />
-            </div>
-            <h3 className="text-2xl font-black text-white uppercase mb-3">
-              Team Selection
-            </h3>
-            <p className="text-slate-300 font-bold">
-              Selection meetings, voting, representative teams, and roster
-              management.
-            </p>
-          </div>
+          <FeatureCard
+            icon={<Users size={32} className="text-[#06054e]" />}
+            title="Representative Teams"
+            description="View representative teams and their rosters."
+            href="/representative"
+          />
 
           {/* Feature 3 */}
+          <FeatureCard
+            icon={<Calendar size={32} className="text-[#06054e]" />}
+            title="Events"
+            description="Upcoming events, schedules, and calendar management."
+            href="/competitions/events"
+          />
+
+          {/* Feature 3 */}
+          <FeatureCard
+            icon={<Calendar size={32} className="text-[#06054e]" />}
+            title="Membership"
+            description="Club Membership."
+          />
+
           <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-[2rem] p-8 hover:bg-white/15 transition-all">
             <div className="w-16 h-16 bg-yellow-400 rounded-2xl flex items-center justify-center mb-4">
               <Calendar size={32} className="text-[#06054e]" />
@@ -83,6 +80,12 @@ export default function HomePage() {
           </div>
 
           {/* Feature 4 */}
+          <FeatureCard
+            icon={<Users size={32} className="text-[#06054e]" />}
+            title="Club Membership"
+            description="Register and manage club memberships."
+          />
+
           <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-[2rem] p-8 hover:bg-white/15 transition-all">
             <div className="w-16 h-16 bg-yellow-400 rounded-2xl flex items-center justify-center mb-4">
               <Shield size={32} className="text-[#06054e]" />
