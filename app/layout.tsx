@@ -29,9 +29,7 @@ export default function RootLayout({
 
           {/* Body content wrapper with MORE padding for fixed header */}
           {/* Increased to 180px to ensure "HOCKEY MANAGEMENT" is fully visible */}
-          <div>
-            <main className="pt-16">{children}</main>
-          </div>
+          <div className="pt-16"> {children}</div>
 
           {/* Toast Notifications */}
           <Toaster position="top-right" />

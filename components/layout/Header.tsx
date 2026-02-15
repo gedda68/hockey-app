@@ -5,7 +5,7 @@ import TopNavbarWrapper from "./TopNavbarWrapper";
 
 export default function Header() {
   return (
-    <header className="sticky top-0 left-0 right-0 z-[1000]">
+    <header className="fixed top-0 left-0 right-0 z-[1000]">
       <TopNavbarWrapper />
     </header>
   );

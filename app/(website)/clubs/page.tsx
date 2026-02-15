@@ -34,11 +34,8 @@ export default async function ClubsPage() {
       {/* Page Header */}
       <div className="mb-8">
         <h1 className="text-4xl font-black uppercase italic text-[#06054e] mb-2">
-          Clubs
+          All Brisbane Clubs
         </h1>
-        <p className="text-sm font-bold text-slate-600">
-          Explore all Brisbane Hockey League clubs
-        </p>
       </div>
 
       {/* Clubs Grid (Client Component with Modals) */}
@@ -73,7 +70,7 @@ export default async function ClubsPage() {
               <div className="text-4xl font-black text-[#06054e] mb-2">
                 {
                   activeClubs.filter(
-                    (c) => c.committee && c.committee.length > 0
+                    (c) => c.committee && c.committee.length > 0,
                   ).length
                 }
               </div>

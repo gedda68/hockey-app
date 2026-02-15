@@ -1,5 +1,5 @@
 // app/clubs/[clubId]/layout.tsx
-// Shared layout for all club pages
+// Shared layout for all club pages - with padding for fixed main header
 
 import Link from "next/link";
 import {
@@ -41,7 +41,7 @@ export default async function ClubLayout({
 
   if (!club) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center pt-[180px]">
         <div className="text-center">
           <h1 className="text-4xl font-black text-red-600">Club Not Found</h1>
           <p className="mt-4 text-slate-600">
@@ -63,9 +63,9 @@ export default async function ClubLayout({
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
-      {/* Club Header */}
+      {/* Club Header - Now positioned correctly below main header */}
       <header
-        className="shadow-lg"
+        className="shadow-lg mt-12"
         style={{
           background: `linear-gradient(135deg, ${primaryColor} 0%, ${secondaryColor} 100%)`,
         }}
@@ -91,16 +91,16 @@ export default async function ClubLayout({
             </div>
 
             <Link
-              href="/"
-              className="p-3 bg-white/10 hover:bg-white/20 rounded-xl transition-all"
-              title="Home"
+              href="/clubs"
+              className="p-1 bg-white/10 hover:bg-white/20 rounded-xl transition-all"
+              title="Back to Clubs List"
             >
               <Home className="text-white" size={24} />
             </Link>
           </div>
 
           {/* Navigation */}
-          <nav className="mt-6 flex gap-2 overflow-x-auto pb-2">
+          <nav className="mt-3 flex gap-2 overflow-x-auto pb-1">
             <NavLink href={`/clubs/${clubId}`} icon={<Shield size={18} />}>
               Dashboard
             </NavLink>
@@ -139,7 +139,7 @@ export default async function ClubLayout({
       </header>
 
       {/* Page Content */}
-      <main className="pt-16">{children}</main>
+      <main>{children}</main>
     </div>
   );
 }

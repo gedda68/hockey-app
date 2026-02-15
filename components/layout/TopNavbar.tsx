@@ -99,10 +99,10 @@ export default function TopNavbar({ clubs }: TopNavbarProps) {
   return (
     <>
       {/* NAVBAR - Entire header section */}
-      <div className="w-full fixed">
+      <div className="w-full">
         {/* Combined Navigation Bar */}
         <nav className="w-full bg-gradient-to-r from-green-500 via-yellow-400 to-[#06054e] transition-all duration-300 ease-out">
-          <div className="relative px-6 pt-3 pb-10">
+          <div className="relative px-6 pt-3 pb-16">
             {/* LEFT LOGO - Spans full header height, vertically centered */}
             <div className="absolute left-6 top-1/2 -translate-y-1/2">
               <Link href="/" aria-label="Home" className="block">
@@ -111,6 +111,7 @@ export default function TopNavbar({ clubs }: TopNavbarProps) {
                   alt="Brisbane Hockey"
                   width={180}
                   height={90}
+                  className="transition-all duration-300 ease-out object-contain max-h-[100px] w-auto"
                   priority
                 />
               </Link>
@@ -132,7 +133,7 @@ export default function TopNavbar({ clubs }: TopNavbarProps) {
               </button>
 
               {/* Desktop Links */}
-              <div className="hidden md:flex items-center gap-3 relative">
+              <div className="hidden md:flex items-center gap-4 relative">
                 {navItems.map((item) => {
                   if (item.children) {
                     return (
@@ -210,7 +211,7 @@ export default function TopNavbar({ clubs }: TopNavbarProps) {
             </div>
 
             {/* Title text at bottom with padding */}
-            <div className="mt-6 pt-1 pb-2">
+            <div className="mt-3 pt-1 pb-4">
               <h1 className="text-3xl md:text-4xl font-extrabold text-white uppercase tracking-wide text-center">
                 Brisbane Hockey Association
               </h1>
