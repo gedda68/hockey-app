@@ -19,7 +19,7 @@ async function getClub(clubId: string) {
     }/api/clubs/${clubId}`,
     {
       cache: "no-store",
-    }
+    },
   );
 
   if (!res.ok) {
@@ -139,7 +139,7 @@ export default async function ClubLayout({
       </header>
 
       {/* Page Content */}
-      <main>{children}</main>
+      <main className="pt-16">{children}</main>
     </div>
   );
 }

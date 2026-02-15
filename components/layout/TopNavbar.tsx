@@ -23,8 +23,6 @@ import { toast } from "sonner";
 import { LinkButton } from "@/components/ui/LinkButton";
 import ClubsDrawer from "@/components/ui/ClubsDrawer";
 
-import LogoTile from "@/components/ui/LogoTile";
-
 const navItems = [
   {
     name: "Competitions",
@@ -41,18 +39,31 @@ const navItems = [
   { name: "Play Hockey", href: "/play", icon: Play },
   { name: "Representative", href: "/representative", icon: ShieldUser },
   { name: "Contact", href: "/contact", icon: Phone },
-  { name: "Clubs", href: "/clubs", icon: Shield },
   { name: "Officials", href: "/officials", icon: Users },
 ];
 
-export default function TopNavbar(clubs) {
+interface TopNavbarProps {
+  clubs: Array<{
+    name: string;
+    slug: string;
+    icon?: string;
+    iconSrc?: string;
+    logo?: string;
+    shortName?: string;
+    colors?: {
+      primary?: string;
+    };
+  }>;
+}
+
+export default function TopNavbar({ clubs }: TopNavbarProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [openSubMenu, setOpenSubMenu] = useState<string | null>(null);
+  const [clubsDrawerOpen, setClubsDrawerOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
   const { isAuthenticated, logout } = useAuth();
-  const [open, setOpen] = useState(false);
 
   // Lock vertical scroll only when menu is open
   useEffect(() => {
@@ -63,6 +74,7 @@ export default function TopNavbar(clubs) {
   useEffect(() => {
     setIsOpen(false);
     setOpenSubMenu(null);
+    setClubsDrawerOpen(false);
   }, [pathname]);
 
   // Scroll listener for shrinking effects
@@ -78,7 +90,7 @@ export default function TopNavbar(clubs) {
     try {
       await logout();
       toast.success("Logged out successfully");
-      router.push("/"); // Return to public home page
+      router.push("/");
     } catch (error) {
       toast.error("Logout failed");
     }
@@ -86,124 +98,133 @@ export default function TopNavbar(clubs) {
 
   return (
     <>
-      {/* NAVBAR */}
-      <nav className="sticky top-0 z-[200] w-full bg-gradient-to-r from-green-500 via-yellow-400 to-[#06054e] transition-all duration-300 ease-out">
-        <div className="flex items-center justify-between h-16 px-6 relative">
-          {/* LEFT LOGO */}
+      {/* NAVBAR - Entire header section */}
+      <div className="w-full fixed">
+        {/* Combined Navigation Bar */}
+        <nav className="w-full bg-gradient-to-r from-green-500 via-yellow-400 to-[#06054e] transition-all duration-300 ease-out">
+          <div className="relative px-6 pt-3 pb-10">
+            {/* LEFT LOGO - Spans full header height, vertically centered */}
+            <div className="absolute left-6 top-1/2 -translate-y-1/2">
+              <Link href="/" aria-label="Home" className="block">
+                <Image
+                  src="/icons/BHA-bg.png"
+                  alt="Brisbane Hockey"
+                  width={180}
+                  height={90}
+                  priority
+                />
+              </Link>
+            </div>
 
-          <Link href="/" aria-label="Home" className="flex items-center mt-18">
-            <Image
-              src="/icons/BHA-bg.png"
-              alt="Brisbane Hockey"
-              width={scrolled ? 100 : 120}
-              height={scrolled ? 20 : 32}
-              className="transition-all duration-300 ease-out"
-              priority
-            />
-          </Link>
+            {/* RIGHT SECTION - Menu items at top */}
+            <div className="flex items-center justify-end gap-4 pl-[260px]">
+              {/* Mobile Hamburger */}
+              <button
+                onClick={() => setIsOpen((v) => !v)}
+                className="p-2 rounded-lg hover:bg-white/20 md:hidden"
+                aria-label="Toggle menu"
+              >
+                {isOpen ? (
+                  <X className="h-7 w-7 text-white" />
+                ) : (
+                  <Menu className="h-7 w-7 text-white" />
+                )}
+              </button>
 
-          {/* RIGHT HAMBURGER / DESKTOP LINKS */}
-          <div className="ml-auto flex items-center gap-4">
-            {/* Mobile Hamburger */}
-            <button
-              onClick={() => setIsOpen((v) => !v)}
-              className="p-2 rounded-lg hover:bg-white/20 md:hidden"
-              aria-label="Toggle menu"
-            >
-              {isOpen ? (
-                <X className="h-7 w-7 text-white" />
-              ) : (
-                <Menu className="h-7 w-7 text-white" />
-              )}
-            </button>
+              {/* Desktop Links */}
+              <div className="hidden md:flex items-center gap-3 relative">
+                {navItems.map((item) => {
+                  if (item.children) {
+                    return (
+                      <div key={item.name} className="relative group">
+                        <button className="flex items-center gap-2 px-3 py-2 rounded-md text-sm font-bold uppercase tracking-wider text-white hover:text-yellow-200 hover:bg-white/10 transition-colors">
+                          <item.icon className="h-5 w-5" />
+                          {item.name}
+                          <ChevronDown className="h-3 w-3 mt-1" />
+                        </button>
 
-            <button
-              onClick={() => setOpen(true)}
-              className="text-slate-700 font-medium hover:text-slate-900 transition"
-            >
-              Clubs
-            </button>
-
-            {/* Desktop Links */}
-            <div className="hidden md:flex items-center gap-4 relative">
-              {navItems.map((item) => {
-                if (item.children) {
-                  return (
-                    <div key={item.name} className="relative group">
-                      <button className="flex items-center gap-2 px-3 py-2 rounded-md text-sm font-bold uppercase tracking-wider text-white hover:text-yellow-200 hover:bg-white/10">
-                        <item.icon className="h-5 w-5" />
-                        {item.name}
-                        <ChevronDown className="h-3 w-3 mt-1" />
-                      </button>
-
-                      {/* Dropdown menu */}
-                      <div className="absolute left-0 top-full mt-1 w-48 bg-white rounded-md shadow-lg opacity-0 group-hover:opacity-100 invisible group-hover:visible transition-opacity duration-200 z-50">
-                        {item.children.map((child) => (
-                          <Link
-                            key={child.name}
-                            href={child.href}
-                            className="block px-4 py-2 text-sm text-slate-600 hover:bg-slate-100 hover:text-[#06054e]"
-                          >
-                            {child.name}
-                          </Link>
-                        ))}
+                        {/* Dropdown menu */}
+                        <div className="absolute left-0 top-full mt-1 w-48 bg-white rounded-md shadow-lg opacity-0 group-hover:opacity-100 invisible group-hover:visible transition-opacity duration-200 z-50">
+                          {item.children.map((child) => (
+                            <Link
+                              key={child.name}
+                              href={child.href}
+                              className="block px-4 py-2 text-sm text-slate-600 hover:bg-slate-100 hover:text-[#06054e]"
+                            >
+                              {child.name}
+                            </Link>
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  );
-                }
+                    );
+                  }
 
-                // Regular desktop link with icon
-                return (
-                  <Link
-                    key={item.name}
-                    href={item.href!}
-                    className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm font-bold uppercase tracking-wider
+                  return (
+                    <Link
+                      key={item.name}
+                      href={item.href!}
+                      className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm font-bold uppercase tracking-wider transition-colors
                       ${
                         pathname === item.href
                           ? "text-white bg-white/20"
                           : "text-white hover:text-yellow-200 hover:bg-white/10"
                       }`}
-                  >
-                    <item.icon className="h-5 w-5" />
-                    {item.name}
-                  </Link>
-                );
-              })}
+                    >
+                      <item.icon className="h-5 w-5" />
+                      {item.name}
+                    </Link>
+                  );
+                })}
 
-              {/* Admin Login / Logout Button */}
-              {isAuthenticated ? (
+                {/* Clubs Button - Opens Drawer */}
                 <button
-                  onClick={handleLogout}
-                  className="flex items-center gap-2 px-4 py-2 bg-yellow-400 text-[#06054e] rounded-md text-sm font-bold uppercase tracking-wider hover:bg-yellow-300 transition-colors shadow-lg"
+                  onClick={() => setClubsDrawerOpen(true)}
+                  className="flex items-center gap-2 px-3 py-2 rounded-md text-sm font-bold uppercase tracking-wider text-white hover:text-yellow-200 hover:bg-white/10 transition-colors"
                 >
-                  <LogOut className="h-5 w-5" />
-                  Logout
+                  <Shield className="h-5 w-5" />
+                  Clubs
                 </button>
-              ) : (
-                <LinkButton
-                  href="/login"
-                  bgColor="bg-yellow-400"
-                  textColor="text-[#06054e] "
-                  hoverBgColor="hover:bg-yellow-300"
-                  hoverTextColor="hover:text-slate-800"
-                >
-                  <LogIn className="h-5 w-5" />
-                  Admin Login
-                </LinkButton>
-              )}
+
+                {/* Admin Login / Logout Button */}
+                {isAuthenticated ? (
+                  <button
+                    onClick={handleLogout}
+                    className="flex items-center gap-2 px-4 py-2 bg-yellow-400 text-[#06054e] rounded-md text-sm font-bold uppercase tracking-wider hover:bg-yellow-300 transition-colors shadow-lg"
+                  >
+                    <LogOut className="h-5 w-5" />
+                    Logout
+                  </button>
+                ) : (
+                  <LinkButton
+                    href="/login"
+                    bgColor="bg-yellow-400"
+                    textColor="text-[#06054e]"
+                    hoverBgColor="hover:bg-yellow-300"
+                    hoverTextColor="hover:text-slate-800"
+                  >
+                    <LogIn className="h-5 w-5" />
+                    Admin Login
+                  </LinkButton>
+                )}
+              </div>
+            </div>
+
+            {/* Title text at bottom with padding */}
+            <div className="mt-6 pt-1 pb-2">
+              <h1 className="text-3xl md:text-4xl font-extrabold text-white uppercase tracking-wide text-center">
+                Brisbane Hockey Association
+              </h1>
             </div>
           </div>
-        </div>
-      </nav>
-
-      <ClubsDrawer open={open} onClose={() => setOpen(false)} clubs={clubs} />
-
-      {/* BOTTOM TEXT */}
-      <div className="w-full py-4 bg-gradient-to-r from-green-500 via-yellow-400 to-[#06054e] text-center">
-        <h1 className="text-3xl md:text-4xl font-extrabold text-white uppercase tracking-wide">
-          Brisbane Hockey Association
-        </h1>
+        </nav>
       </div>
+
+      {/* Clubs Drawer */}
+      <ClubsDrawer
+        open={clubsDrawerOpen}
+        onClose={() => setClubsDrawerOpen(false)}
+        clubs={clubs}
+      />
 
       {/* MOBILE BACKDROP */}
       <div
@@ -275,7 +296,7 @@ export default function TopNavbar(clubs) {
             return (
               <Link
                 key={item.name}
-                href={item.href}
+                href={item.href!}
                 onClick={() => setIsOpen(false)}
                 className="flex items-center gap-4 px-6 py-4 rounded-2xl
                   text-slate-300 hover:text-white hover:bg-white/10"
@@ -287,6 +308,21 @@ export default function TopNavbar(clubs) {
               </Link>
             );
           })}
+
+          {/* Mobile Clubs Button */}
+          <button
+            onClick={() => {
+              setIsOpen(false);
+              setClubsDrawerOpen(true);
+            }}
+            className="flex items-center gap-4 px-6 py-4 rounded-2xl
+              text-slate-300 hover:text-white hover:bg-white/10"
+          >
+            <Shield className="h-5 w-5 text-white" />
+            <span className="uppercase text-[11px] font-bold tracking-widest">
+              Clubs
+            </span>
+          </button>
 
           {/* Mobile Admin Login/Logout Button */}
           <div className="mt-4 px-2">

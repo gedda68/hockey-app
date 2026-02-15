@@ -1,5 +1,5 @@
 // app/layout.tsx
-// Root layout with AuthProvider and public header
+// Root layout with proper padding for fixed header
 
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
@@ -24,11 +24,14 @@ export default function RootLayout({
     <html lang="en">
       <body className={inter.className}>
         <AuthProvider>
-          {/* Public Header (shows on all pages) */}
+          {/* Fixed Header - always at top */}
           <Header />
 
-          {/* Page Content */}
-          {children}
+          {/* Body content wrapper with MORE padding for fixed header */}
+          {/* Increased to 180px to ensure "HOCKEY MANAGEMENT" is fully visible */}
+          <div>
+            <main className="pt-16">{children}</main>
+          </div>
 
           {/* Toast Notifications */}
           <Toaster position="top-right" />
