@@ -2,14 +2,14 @@ import { cva } from "class-variance-authority";
 import { cn } from "../../lib/utils";
 
 const pageHeaderVariants = cva(
-  "flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8"
+  "flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8",
 );
 
 const titleVariants = cva(
-  "text-4xl font-black text-[#06054e] uppercase italic tracking-tighter"
+  "text-4xl font-black text-white uppercase italic tracking-tighter",
 );
 
-const highlightVariants = cva("text-red-600");
+const highlightVariants = cva("text-yellow-400");
 
 interface PageHeaderProps {
   title: string;

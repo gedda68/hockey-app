@@ -33,7 +33,7 @@ export default function EventDashboard() {
             return new Date(String(e.startDate)) >= today;
           })
           .sort((a, b) =>
-            String(a.startDate).localeCompare(String(b.startDate))
+            String(a.startDate).localeCompare(String(b.startDate)),
           )
           .slice(0, 5);
 
@@ -43,7 +43,7 @@ export default function EventDashboard() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-slate-50 pb-20 font-sans text-slate-900 px-4 md:px-8 lg:px-12 w-full">
+    <div className="min-h-screen bg-gradient-to-br from-[#06054e] via-slate-900 to-slate-800 px-4 md:px-8 lg:px-12 w-full ">
       {/* 1. WEATHER ALERT BAR */}
       <div className="w-full mt-4 mb-6">
         <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 flex items-center justify-between shadow-sm">
@@ -77,14 +77,12 @@ export default function EventDashboard() {
           Back
         </button>
 
-        <div className="w-full text-center bg-[#66667e] py-8 rounded-3xl shadow-inner relative overflow-hidden">
-          <h1 className="text-5xl font-extrabold text-yellow-200 uppercase tracking-tighter italic sm:text-4xl">
-            Match Day Central
-          </h1>
-          <p className="text-white/70 text-[10px] font-black uppercase tracking-[0.6em] mt-3">
-            Brisbane Hockey Association • Season 2026
-          </p>
-        </div>
+        <h1 className="text-center text-5xl font-extrabold text-yellow-200 uppercase tracking-tighter italic sm:text-4xl">
+          Match Day Central
+        </h1>
+        <p className="text-center text-white/70 text-[10px] font-black uppercase tracking-[0.6em] mt-3">
+          Brisbane Hockey Association • Season 2026
+        </p>
       </div>
 
       {/* 3. GRID CONTAINER (4 Wide on Desktop) */}

@@ -20,7 +20,7 @@ export default function UmpireAllocations() {
   const allocations: Allocation[] = [];
 
   return (
-    <div className="p-6">
+    <div className="min-h-screen bg-gradient-to-br from-[#06054e] via-slate-900 to-slate-800 px-4 md:px-8 lg:px-12 w-full ">
       <h1 className="text-2xl font-bold mb-4">Umpire Allocations</h1>
       <div className="overflow-x-auto">
         <table className="min-w-full bg-white border">

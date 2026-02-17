@@ -1,0 +1,358 @@
+{
+  "events": [
+    {
+      "id": "evt-001",
+      "name": "Season Opening Round",
+      "shortDescription": "First round of the 2026 BHA season across all divisions.",
+      "fullDescription": "<h2>Welcome to the 2026 Season!</h2><p>Join us for the exciting opening round featuring all divisions from Premier League to social grades.</p><p><strong>What to expect:</strong></p><ul><li>Full day of hockey action</li><li>BBQ and refreshments available</li><li>Club merchandise stalls</li><li>Kids activities and face painting</li></ul><p>Don't forget your mouthguard and sunscreen!</p>",
+      "startDate": "2026-03-07",
+      "endDate": "2026-03-08",
+      "startTime": "08:00",
+      "endTime": "18:00",
+      "isAllDay": false,
+      "location": "Brisbane Hockey Centre",
+      "venue": {
+        "name": "Brisbane Hockey Centre",
+        "address": "123 Hockey Road, Colmslie QLD 4170",
+        "fieldNumber": "Fields 1-4"
+      },
+      "category": "competition",
+      "scope": "city",
+      "organization": {
+        "type": "association",
+        "id": "bha",
+        "name": "Brisbane Hockey Association"
+      },
+      "visibility": "public",
+      "image": "/uploads/events/season-opening-2026.jpg",
+      "flyer": "/uploads/events/season-opening-flyer.pdf",
+      "documents": [
+        {
+          "name": "Season Draw 2026",
+          "url": "/uploads/events/season-draw-2026.pdf",
+          "type": "pdf"
+        },
+        {
+          "name": "Competition Rules",
+          "url": "/uploads/events/comp-rules.pdf",
+          "type": "pdf"
+        }
+      ],
+      "contactPerson": {
+        "name": "Sarah Johnson",
+        "email": "competitions@bha.org.au",
+        "phone": "07 3123 4567"
+      },
+      "tags": ["season-start", "all-divisions", "family-friendly"],
+      "weatherDependent": true,
+      "status": "scheduled",
+      "createdAt": "2025-12-01T10:00:00Z",
+      "updatedAt": "2026-01-15T14:30:00Z"
+    },
+    {
+      "id": "evt-002",
+      "name": "Junior Clinic - U12s Skills Development",
+      "shortDescription": "Development clinic for U12 players. Bring your stick and mouthguard.",
+      "fullDescription": "<h2>Skill Up This Season!</h2><p>Professional coaches will work with U12 players on:</p><ul><li>Stick skills and ball control</li><li>Passing and receiving</li><li>Defensive positioning</li><li>Game awareness</li></ul><p><strong>What to bring:</strong></p><ul><li>Hockey stick</li><li>Mouthguard (mandatory)</li><li>Water bottle</li><li>Shin guards recommended</li></ul>",
+      "startDate": "2026-03-14",
+      "startTime": "09:00",
+      "endTime": "11:00",
+      "location": "Brisbane Hockey Centre",
+      "venue": {
+        "name": "Brisbane Hockey Centre",
+        "address": "123 Hockey Road, Colmslie QLD 4170",
+        "fieldNumber": "Field 2"
+      },
+      "category": "clinic",
+      "scope": "city",
+      "organization": {
+        "type": "association",
+        "id": "bha",
+        "name": "Brisbane Hockey Association"
+      },
+      "visibility": "public",
+      "requiresRegistration": true,
+      "registrationDeadline": "2026-03-12",
+      "registrationUrl": "https://bha.org.au/register/u12-clinic",
+      "maxParticipants": 30,
+      "currentParticipants": 18,
+      "image": "/uploads/events/junior-clinic-u12.jpg",
+      "contactPerson": {
+        "name": "Mike Chen",
+        "email": "juniors@bha.org.au",
+        "phone": "07 3123 4568"
+      },
+      "tags": ["junior", "skill-development", "u12"],
+      "ageGroup": "U12",
+      "cost": {
+        "amount": 15,
+        "currency": "AUD",
+        "description": "Members: $15, Non-members: $25"
+      },
+      "status": "scheduled",
+      "createdAt": "2026-01-10T09:00:00Z",
+      "updatedAt": "2026-02-01T11:20:00Z"
+    },
+    {
+      "id": "evt-003",
+      "name": "Premier League Round 2",
+      "shortDescription": "Premier League matches across all venues.",
+      "fullDescription": "<h2>Premier League Action</h2><p>Week 2 of the Premier League season featuring Men's and Women's divisions.</p><p><strong>Featured Matches:</strong></p><ul><li>10:00 AM - Wests vs Norths (Men's PL1)</li><li>12:00 PM - Souths vs Valleys (Women's PL1)</li><li>2:00 PM - Ipswich vs Logan (Men's PL2)</li></ul><p>Live scoring available on LiveHockey app.</p>",
+      "startDate": "2026-03-21",
+      "endDate": "2026-03-22",
+      "startTime": "08:00",
+      "endTime": "17:00",
+      "location": "Multiple Venues",
+      "category": "competition",
+      "scope": "city",
+      "organization": {
+        "type": "association",
+        "id": "bha",
+        "name": "Brisbane Hockey Association"
+      },
+      "visibility": "public",
+      "image": "/uploads/events/premier-league-round2.jpg",
+      "externalLink": "https://www.livehockey.com.au",
+      "documents": [
+        {
+          "name": "Round 2 Draw",
+          "url": "/uploads/events/pl-round2-draw.pdf",
+          "type": "pdf"
+        }
+      ],
+      "tags": ["premier-league", "men", "women"],
+      "division": "Premier League",
+      "gender": "all",
+      "weatherDependent": true,
+      "status": "scheduled",
+      "createdAt": "2026-01-05T10:00:00Z",
+      "updatedAt": "2026-03-01T16:45:00Z"
+    },
+    {
+      "id": "evt-004",
+      "name": "Umpire Accreditation Course - Level 1",
+      "shortDescription": "Level 1 umpire accreditation. Register via the officials portal.",
+      "fullDescription": "<h2>Become a Certified Umpire</h2><p>Hockey Queensland Level 1 Umpire Accreditation Course.</p><p><strong>Course Content:</strong></p><ul><li>Rules of hockey</li><li>Umpire positioning and signals</li><li>Decision making</li><li>Managing game flow</li><li>Practical assessment</li></ul><p><strong>Requirements:</strong></p><ul><li>Minimum age: 14 years</li><li>Hockey background recommended</li><li>Attend all sessions</li></ul><p>Successful participants receive Hockey Queensland Level 1 certification.</p>",
+      "startDate": "2026-03-28",
+      "startTime": "09:00",
+      "endTime": "16:00",
+      "location": "BHA Clubhouse",
+      "venue": {
+        "name": "BHA Clubhouse",
+        "address": "123 Hockey Road, Colmslie QLD 4170"
+      },
+      "category": "officials",
+      "scope": "regional",
+      "organization": {
+        "type": "association",
+        "id": "bha",
+        "name": "Brisbane Hockey Association"
+      },
+      "visibility": "public",
+      "requiresRegistration": true,
+      "registrationDeadline": "2026-03-21",
+      "registrationUrl": "https://bha.org.au/officials/accreditation",
+      "maxParticipants": 20,
+      "currentParticipants": 12,
+      "image": "/uploads/events/umpire-course.jpg",
+      "flyer": "/uploads/events/umpire-course-flyer.pdf",
+      "contactPerson": {
+        "name": "David Williams",
+        "email": "officials@bha.org.au",
+        "phone": "07 3123 4569"
+      },
+      "cost": {
+        "amount": 80,
+        "currency": "AUD",
+        "description": "Course fee includes certification and resources"
+      },
+      "tags": ["umpire", "certification", "officials"],
+      "status": "scheduled",
+      "createdAt": "2025-12-15T14:00:00Z",
+      "updatedAt": "2026-02-10T09:30:00Z"
+    },
+    {
+      "id": "evt-005",
+      "name": "Club Training Session - Members Only",
+      "shortDescription": "Members only training session. Contact team manager for details.",
+      "fullDescription": "<h2>Ipswich Hornets Training</h2><p>Weekly training session for all Hornets teams.</p><p><strong>Session Focus:</strong></p><ul><li>Warm-up and conditioning</li><li>Skill drills</li><li>Set plays and tactics</li><li>Practice match</li></ul><p><strong>Important:</strong> This is a members-only event. Please bring your member card.</p>",
+      "startDate": "2026-04-15",
+      "startTime": "18:30",
+      "endTime": "20:30",
+      "location": "Ipswich Hockey Complex",
+      "venue": {
+        "name": "Ipswich Hockey Complex",
+        "address": "45 Sports Drive, Ipswich QLD 4305",
+        "fieldNumber": "Field 1"
+      },
+      "category": "training",
+      "scope": "city",
+      "organization": {
+        "type": "club",
+        "id": "ipswich-hornets",
+        "name": "Ipswich Hornets"
+      },
+      "visibility": "private",
+      "requiresRegistration": false,
+      "contactPerson": {
+        "name": "Emma Thompson",
+        "email": "training@ipswichhornets.com.au"
+      },
+      "tags": ["training", "club-members", "all-teams"],
+      "recurrence": {
+        "frequency": "weekly",
+        "interval": 1,
+        "daysOfWeek": [2],
+        "endDate": "2026-08-31"
+      },
+      "status": "scheduled",
+      "createdAt": "2026-02-01T10:00:00Z",
+      "updatedAt": "2026-03-01T15:00:00Z"
+    },
+    {
+      "id": "evt-006",
+      "name": "Representative Trials - Open Men",
+      "shortDescription": "Trials for the BHA Open Men's representative team.",
+      "fullDescription": "<h2>BHA Open Men's Representative Trials</h2><p>Trials for selection in the Brisbane Hockey Association Open Men's representative squad for state championships.</p><p><strong>Trial Format:</strong></p><ul><li>Warm-up and fitness testing</li><li>Skills assessment</li><li>Match play scenarios</li><li>Team selections announced within 48 hours</li></ul><p><strong>Eligibility:</strong></p><ul><li>Must be registered with a BHA club</li><li>Aged 18 and over</li><li>Available for all state championship dates</li></ul>",
+      "startDate": "2026-04-11",
+      "startTime": "09:00",
+      "endTime": "13:00",
+      "location": "Brisbane Hockey Centre",
+      "venue": {
+        "name": "Brisbane Hockey Centre",
+        "address": "123 Hockey Road, Colmslie QLD 4170",
+        "fieldNumber": "Fields 1-2"
+      },
+      "category": "representative",
+      "scope": "state",
+      "organization": {
+        "type": "association",
+        "id": "bha",
+        "name": "Brisbane Hockey Association"
+      },
+      "visibility": "public",
+      "requiresRegistration": true,
+      "registrationDeadline": "2026-04-09",
+      "registrationUrl": "https://bha.org.au/representative/trials",
+      "image": "/uploads/events/rep-trials-men.jpg",
+      "documents": [
+        {
+          "name": "Representative Program Information",
+          "url": "/uploads/events/rep-program-info.pdf",
+          "type": "pdf"
+        },
+        {
+          "name": "State Championships Schedule",
+          "url": "/uploads/events/state-champs-schedule.pdf",
+          "type": "pdf"
+        }
+      ],
+      "contactPerson": {
+        "name": "James Anderson",
+        "email": "representative@bha.org.au",
+        "phone": "07 3123 4570"
+      },
+      "tags": ["representative", "men", "state-level", "trials"],
+      "ageGroup": "Open",
+      "gender": "men",
+      "cost": {
+        "amount": 25,
+        "currency": "AUD",
+        "description": "Trial fee (non-refundable)"
+      },
+      "status": "scheduled",
+      "createdAt": "2025-11-20T10:00:00Z",
+      "updatedAt": "2026-03-05T14:00:00Z"
+    },
+    {
+      "id": "evt-007",
+      "name": "Grand Finals Day 2026",
+      "shortDescription": "2026 BHA Grand Finals - all divisions.",
+      "fullDescription": "<h2>The Biggest Day of the Year!</h2><p>Join us for Grand Finals Day featuring all division grand finals from U12s through to Premier League.</p><p><strong>Schedule:</strong></p><ul><li>8:00 AM - Junior Grand Finals (U12-U18)</li><li>12:00 PM - Division 1 & 2 Grand Finals</li><li>3:00 PM - Premier League Grand Finals</li><li>6:00 PM - Presentation Ceremony</li></ul><p><strong>Features:</strong></p><ul><li>Food trucks and refreshments</li><li>Live music</li><li>Kids entertainment zone</li><li>Club merchandise stalls</li><li>Photo opportunities with trophies</li></ul><p>Entry is free for spectators!</p>",
+      "startDate": "2026-08-22",
+      "startTime": "08:00",
+      "endTime": "19:00",
+      "location": "Brisbane Hockey Centre",
+      "venue": {
+        "name": "Brisbane Hockey Centre",
+        "address": "123 Hockey Road, Colmslie QLD 4170",
+        "fieldNumber": "All fields"
+      },
+      "category": "finals",
+      "scope": "city",
+      "organization": {
+        "type": "association",
+        "id": "bha",
+        "name": "Brisbane Hockey Association"
+      },
+      "visibility": "public",
+      "image": "/uploads/events/grand-finals-2026.jpg",
+      "flyer": "/uploads/events/grand-finals-flyer.pdf",
+      "externalLink": "https://www.livehockey.com.au",
+      "documents": [
+        {
+          "name": "Grand Finals Program",
+          "url": "/uploads/events/gf-program-2026.pdf",
+          "type": "pdf"
+        }
+      ],
+      "contactPerson": {
+        "name": "Sarah Johnson",
+        "email": "competitions@bha.org.au",
+        "phone": "07 3123 4567"
+      },
+      "tags": ["grand-finals", "season-finale", "all-ages", "family-event"],
+      "cost": {
+        "amount": 0,
+        "currency": "AUD",
+        "description": "Free entry for spectators"
+      },
+      "weatherDependent": true,
+      "status": "scheduled",
+      "createdAt": "2025-10-01T10:00:00Z",
+      "updatedAt": "2026-07-15T16:00:00Z"
+    },
+    {
+      "id": "evt-008",
+      "name": "International Friendly - AUS vs NZL",
+      "shortDescription": "Australia vs New Zealand - International Test Match.",
+      "fullDescription": "<h2>International Hockey Comes to Brisbane!</h2><p>Watch Australia's national team take on New Zealand in an exciting international test match.</p><p><strong>Match Details:</strong></p><ul><li>Women's match: 5:00 PM</li><li>Men's match: 7:30 PM</li></ul><p><strong>Tickets:</strong></p><ul><li>Adults: $25</li><li>Concession: $15</li><li>Family (2A + 2C): $60</li></ul><p>Book early - this is expected to sell out!</p>",
+      "startDate": "2026-08-15",
+      "startTime": "17:00",
+      "endTime": "21:00",
+      "location": "Brisbane Hockey Centre",
+      "venue": {
+        "name": "Brisbane Hockey Centre",
+        "address": "123 Hockey Road, Colmslie QLD 4170",
+        "fieldNumber": "Centre Field"
+      },
+      "category": "competition",
+      "scope": "international",
+      "organization": {
+        "type": "association",
+        "id": "hockey-australia",
+        "name": "Hockey Australia"
+      },
+      "visibility": "public",
+      "requiresRegistration": false,
+      "ticketingUrl": "https://tickets.hockeyaustralia.org.au/aus-nzl-brisbane",
+      "image": "/uploads/events/aus-nzl-international.jpg",
+      "flyer": "/uploads/events/international-match-flyer.pdf",
+      "contactPerson": {
+        "name": "Hockey Australia Events",
+        "email": "events@hockey.org.au",
+        "phone": "1300 HOCKEY"
+      },
+      "tags": ["international", "test-match", "hockeyroos", "kookaburras"],
+      "gender": "all",
+      "cost": {
+        "amount": 25,
+        "currency": "AUD",
+        "description": "Adults $25, Concession $15, Family $60"
+      },
+      "status": "scheduled",
+      "createdAt": "2025-09-01T10:00:00Z",
+      "updatedAt": "2026-06-30T14:00:00Z"
+    }
+  ]
+}

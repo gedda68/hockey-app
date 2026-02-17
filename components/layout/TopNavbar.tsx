@@ -1,7 +1,7 @@
 // components/layout/TopNavbar.tsx
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
@@ -59,29 +59,44 @@ interface TopNavbarProps {
 export default function TopNavbar({ clubs }: TopNavbarProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [openSubMenu, setOpenSubMenu] = useState<string | null>(null);
+  const [openDesktopMenu, setOpenDesktopMenu] = useState<string | null>(null);
   const [clubsDrawerOpen, setClubsDrawerOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
   const { isAuthenticated, logout } = useAuth();
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Lock vertical scroll only when menu is open
+  // Lock vertical scroll only when mobile menu is open
   useEffect(() => {
     document.body.style.overflowY = isOpen ? "hidden" : "auto";
   }, [isOpen]);
 
-  // Close menu/submenu on route change
+  // Close all menus on route change
   useEffect(() => {
     setIsOpen(false);
     setOpenSubMenu(null);
+    setOpenDesktopMenu(null);
     setClubsDrawerOpen(false);
   }, [pathname]);
 
-  // Scroll listener for shrinking effects
+  // Close desktop dropdown when clicking outside
   useEffect(() => {
-    const handleScroll = () => {
-      setScrolled(window.scrollY > 50);
+    const handleClickOutside = (e: MouseEvent) => {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(e.target as Node)
+      ) {
+        setOpenDesktopMenu(null);
+      }
     };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  // Scroll listener
+  useEffect(() => {
+    const handleScroll = () => setScrolled(window.scrollY > 50);
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
@@ -96,14 +111,17 @@ export default function TopNavbar({ clubs }: TopNavbarProps) {
     }
   };
 
+  const toggleDesktopMenu = (name: string) => {
+    setOpenDesktopMenu(openDesktopMenu === name ? null : name);
+  };
+
   return (
     <>
-      {/* NAVBAR - Entire header section */}
+      {/* NAVBAR */}
       <div className="w-full">
-        {/* Combined Navigation Bar */}
         <nav className="w-full bg-gradient-to-r from-green-500 via-yellow-400 to-[#06054e] transition-all duration-300 ease-out">
           <div className="relative px-6 pt-3 pb-16">
-            {/* LEFT LOGO - Spans full header height, vertically centered */}
+            {/* LEFT LOGO */}
             <div className="absolute left-6 top-1/2 -translate-y-1/2">
               <Link href="/" aria-label="Home" className="block">
                 <Image
@@ -117,8 +135,11 @@ export default function TopNavbar({ clubs }: TopNavbarProps) {
               </Link>
             </div>
 
-            {/* RIGHT SECTION - Menu items at top */}
-            <div className="flex items-center justify-end gap-4 pl-[260px]">
+            {/* RIGHT - Desktop Links */}
+            <div
+              className="flex items-center justify-end gap-4 pl-[260px]"
+              ref={dropdownRef}
+            >
               {/* Mobile Hamburger */}
               <button
                 onClick={() => setIsOpen((v) => !v)}
@@ -133,29 +154,51 @@ export default function TopNavbar({ clubs }: TopNavbarProps) {
               </button>
 
               {/* Desktop Links */}
-              <div className="hidden md:flex items-center gap-4 relative">
+              <div className="hidden md:flex items-center gap-1">
                 {navItems.map((item) => {
                   if (item.children) {
+                    const isDropdownOpen = openDesktopMenu === item.name;
                     return (
-                      <div key={item.name} className="relative group">
-                        <button className="flex items-center gap-2 px-3 py-2 rounded-md text-sm font-bold uppercase tracking-wider text-white hover:text-yellow-200 hover:bg-white/10 transition-colors">
-                          <item.icon className="h-5 w-5" />
+                      <div key={item.name} className="relative">
+                        <button
+                          onClick={() => toggleDesktopMenu(item.name)}
+                          className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm font-bold uppercase tracking-wider transition-colors ${
+                            isDropdownOpen
+                              ? "text-yellow-300 bg-white/20"
+                              : "text-white hover:text-yellow-200 hover:bg-white/10"
+                          }`}
+                        >
+                          <item.icon className="h-4 w-4" />
                           {item.name}
-                          <ChevronDown className="h-3 w-3 mt-1" />
+                          <ChevronDown
+                            className={`h-3 w-3 transition-transform duration-200 ${
+                              isDropdownOpen ? "rotate-180" : ""
+                            }`}
+                          />
                         </button>
 
-                        {/* Dropdown menu */}
-                        <div className="absolute left-0 top-full mt-1 w-48 bg-white rounded-md shadow-lg opacity-0 group-hover:opacity-100 invisible group-hover:visible transition-opacity duration-200 z-50">
-                          {item.children.map((child) => (
-                            <Link
-                              key={child.name}
-                              href={child.href}
-                              className="block px-4 py-2 text-sm text-slate-600 hover:bg-slate-100 hover:text-[#06054e]"
-                            >
-                              {child.name}
-                            </Link>
-                          ))}
-                        </div>
+                        {/* Dropdown - React state controlled, high z-index */}
+                        {isDropdownOpen && (
+                          <div
+                            className="absolute left-0 top-full mt-2 w-52 bg-white rounded-xl shadow-2xl border border-slate-100 overflow-hidden"
+                            style={{ zIndex: 99000 }}
+                          >
+                            {item.children.map((child, idx) => (
+                              <Link
+                                key={child.name}
+                                href={child.href}
+                                onClick={() => setOpenDesktopMenu(null)}
+                                className={`flex items-center px-4 py-3 text-sm font-semibold text-slate-700 hover:bg-yellow-50 hover:text-[#06054e] transition-colors ${
+                                  idx !== item.children!.length - 1
+                                    ? "border-b border-slate-100"
+                                    : ""
+                                }`}
+                              >
+                                {child.name}
+                              </Link>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     );
                   }
@@ -164,35 +207,34 @@ export default function TopNavbar({ clubs }: TopNavbarProps) {
                     <Link
                       key={item.name}
                       href={item.href!}
-                      className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm font-bold uppercase tracking-wider transition-colors
-                      ${
+                      className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm font-bold uppercase tracking-wider transition-colors ${
                         pathname === item.href
                           ? "text-white bg-white/20"
                           : "text-white hover:text-yellow-200 hover:bg-white/10"
                       }`}
                     >
-                      <item.icon className="h-5 w-5" />
+                      <item.icon className="h-4 w-4" />
                       {item.name}
                     </Link>
                   );
                 })}
 
-                {/* Clubs Button - Opens Drawer */}
+                {/* Clubs Button */}
                 <button
                   onClick={() => setClubsDrawerOpen(true)}
                   className="flex items-center gap-2 px-3 py-2 rounded-md text-sm font-bold uppercase tracking-wider text-white hover:text-yellow-200 hover:bg-white/10 transition-colors"
                 >
-                  <Shield className="h-5 w-5" />
+                  <Shield className="h-4 w-4" />
                   Clubs
                 </button>
 
-                {/* Admin Login / Logout Button */}
+                {/* Admin Login / Logout */}
                 {isAuthenticated ? (
                   <button
                     onClick={handleLogout}
-                    className="flex items-center gap-2 px-4 py-2 bg-yellow-400 text-[#06054e] rounded-md text-sm font-bold uppercase tracking-wider hover:bg-yellow-300 transition-colors shadow-lg"
+                    className="flex items-center gap-2 px-4 py-2 bg-yellow-400 text-[#06054e] rounded-md text-sm font-bold uppercase tracking-wider hover:bg-yellow-300 transition-colors shadow-lg ml-2"
                   >
-                    <LogOut className="h-5 w-5" />
+                    <LogOut className="h-4 w-4" />
                     Logout
                   </button>
                 ) : (
@@ -203,14 +245,14 @@ export default function TopNavbar({ clubs }: TopNavbarProps) {
                     hoverBgColor="hover:bg-yellow-300"
                     hoverTextColor="hover:text-slate-800"
                   >
-                    <LogIn className="h-5 w-5" />
+                    <LogIn className="h-4 w-4" />
                     Admin Login
                   </LinkButton>
                 )}
               </div>
             </div>
 
-            {/* Title text at bottom with padding */}
+            {/* Title text at bottom */}
             <div className="mt-3 pt-1 pb-4">
               <h1 className="text-3xl md:text-4xl font-extrabold text-white uppercase tracking-wide text-center">
                 Brisbane Hockey Association
@@ -230,19 +272,16 @@ export default function TopNavbar({ clubs }: TopNavbarProps) {
       {/* MOBILE BACKDROP */}
       <div
         onClick={() => setIsOpen(false)}
-        className={`fixed inset-0 bg-black/40 backdrop-blur-sm z-[9000]
-          transition-opacity duration-300
-          ${isOpen ? "opacity-100" : "opacity-0 pointer-events-none"}`}
+        className={`fixed inset-0 bg-black/40 backdrop-blur-sm z-[9000] transition-opacity duration-300 ${
+          isOpen ? "opacity-100" : "opacity-0 pointer-events-none"
+        }`}
       />
 
-      {/* MOBILE RIGHT DRAWER */}
+      {/* MOBILE DRAWER */}
       <aside
-        className={`fixed inset-y-0 right-0 left-auto
-          w-[280px] bg-[#06054e] z-[10000]
-          shadow-2xl rounded-bl-3xl
-          border-l border-b border-white/10
-          transform transition-transform duration-300 ease-out
-          ${isOpen ? "translate-x-0" : "translate-x-full"} md:hidden`}
+        className={`fixed inset-y-0 right-0 left-auto w-[280px] bg-[#06054e] z-[10000] shadow-2xl rounded-bl-3xl border-l border-b border-white/10 transform transition-transform duration-300 ease-out ${
+          isOpen ? "translate-x-0" : "translate-x-full"
+        } md:hidden`}
       >
         <div className="flex flex-col py-6 px-2 mt-16">
           {navItems.map((item) => {
@@ -253,8 +292,7 @@ export default function TopNavbar({ clubs }: TopNavbarProps) {
                 <div key={item.name}>
                   <button
                     onClick={() => setOpenSubMenu(isSubOpen ? null : item.name)}
-                    className="flex w-full items-center justify-between px-6 py-4 rounded-2xl
-                      text-slate-300 hover:text-white hover:bg-white/10"
+                    className="flex w-full items-center justify-between px-6 py-4 rounded-2xl text-slate-300 hover:text-white hover:bg-white/10"
                   >
                     <div className="flex items-center gap-4">
                       <item.icon className="h-5 w-5 text-white" />
@@ -269,12 +307,9 @@ export default function TopNavbar({ clubs }: TopNavbarProps) {
                     />
                   </button>
 
-                  {/* SUBMENU */}
                   <div
                     className="overflow-hidden transition-all duration-300"
-                    style={{
-                      maxHeight: isSubOpen ? "300px" : "0px",
-                    }}
+                    style={{ maxHeight: isSubOpen ? "300px" : "0px" }}
                   >
                     <div className="ml-6 border-l border-white/20">
                       {item.children.map((child) => (
@@ -282,8 +317,7 @@ export default function TopNavbar({ clubs }: TopNavbarProps) {
                           key={child.name}
                           href={child.href}
                           onClick={() => setIsOpen(false)}
-                          className="block px-6 py-3 text-[10px] uppercase font-bold tracking-wider
-                            text-slate-400 hover:text-white"
+                          className="block px-6 py-3 text-[10px] uppercase font-bold tracking-wider text-slate-400 hover:text-white"
                         >
                           {child.name}
                         </Link>
@@ -299,8 +333,7 @@ export default function TopNavbar({ clubs }: TopNavbarProps) {
                 key={item.name}
                 href={item.href!}
                 onClick={() => setIsOpen(false)}
-                className="flex items-center gap-4 px-6 py-4 rounded-2xl
-                  text-slate-300 hover:text-white hover:bg-white/10"
+                className="flex items-center gap-4 px-6 py-4 rounded-2xl text-slate-300 hover:text-white hover:bg-white/10"
               >
                 <item.icon className="h-5 w-5 text-white" />
                 <span className="uppercase text-[11px] font-bold tracking-widest">
@@ -310,14 +343,13 @@ export default function TopNavbar({ clubs }: TopNavbarProps) {
             );
           })}
 
-          {/* Mobile Clubs Button */}
+          {/* Mobile Clubs */}
           <button
             onClick={() => {
               setIsOpen(false);
               setClubsDrawerOpen(true);
             }}
-            className="flex items-center gap-4 px-6 py-4 rounded-2xl
-              text-slate-300 hover:text-white hover:bg-white/10"
+            className="flex items-center gap-4 px-6 py-4 rounded-2xl text-slate-300 hover:text-white hover:bg-white/10"
           >
             <Shield className="h-5 w-5 text-white" />
             <span className="uppercase text-[11px] font-bold tracking-widest">
@@ -325,7 +357,7 @@ export default function TopNavbar({ clubs }: TopNavbarProps) {
             </span>
           </button>
 
-          {/* Mobile Admin Login/Logout Button */}
+          {/* Mobile Login/Logout */}
           <div className="mt-4 px-2">
             {isAuthenticated ? (
               <button

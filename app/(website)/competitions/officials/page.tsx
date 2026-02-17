@@ -7,7 +7,7 @@ export default function OfficialsPage() {
   return (
     <section className="py-2 px-4">
       <Link href={ROUTES.UMPIRE_ALLOCATIONS}>
-        <div className="bg-white rounded-3xl p-8 shadow-lg hover:shadow-xl transition-shadow">
+        <div className="min-h-screen bg-gradient-to-br from-[#06054e] via-slate-900 to-slate-800 px-4 md:px-8 lg:px-12 w-full ">
           <h2 className="text-2xl font-black uppercase text-[#06054e]">
             Umpire Allocations
           </h2>

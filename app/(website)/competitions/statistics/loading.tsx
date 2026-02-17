@@ -2,7 +2,7 @@ import Link from "next/link";
 
 export default function StatisticsLoading() {
   return (
-    <div className="min-h-screen bg-slate-50 p-4 md:p-12 w-full font-sans text-slate-900">
+    <div className="min-h-screen bg-gradient-to-br from-[#06054e] via-slate-900 to-slate-800 px-4 md:px-8 lg:px-12 w-full ">
       {/* Back Button */}
       <div className="flex justify-between items-center mb-8">
         <Link

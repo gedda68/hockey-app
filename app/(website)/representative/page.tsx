@@ -151,7 +151,7 @@ const Modal = ({
         <div
           className={`sticky top-0 bg-white border-b-4 ${borderColor} px-8 py-6 flex justify-between items-start rounded-t-3xl z-10`}
         >
-          <h3 className="text-2xl md:text-3xl font-black uppercase text-[#06054e]">
+          <h3 className="text-2xl md:text-3xl font-black uppercase text-[#6e7c6b]">
             {title}
           </h3>
           <button
@@ -219,7 +219,7 @@ const ScheduleTable = ({ data }: { data?: ScheduleInfo }) => (
 export default function RepresentativePage() {
   const [seasons, setSeasons] = useState<string[]>([]);
   const [selectedYear, setSelectedYear] = useState<string>(
-    new Date().getFullYear().toString()
+    new Date().getFullYear().toString(),
   );
   const [allRosters, setAllRosters] = useState<Roster[]>([]); // typed
   const [activeAge, setActiveAge] = useState<string>("");
@@ -266,7 +266,7 @@ export default function RepresentativePage() {
 
   const toggleModal = (
     key: "trials" | "training" | "tournament",
-    val: boolean
+    val: boolean,
   ) => setModals((prev) => ({ ...prev, [key]: val }));
 
   if (loading && allRosters.length === 0)
@@ -277,7 +277,7 @@ export default function RepresentativePage() {
     );
 
   return (
-    <div className="min-h-screen bg-slate-50 pb-20 font-sans selection:bg-yellow-100">
+    <div className="min-h-screen bg-gradient-to-br from-[#06054e] via-slate-900 to-slate-800">
       {/* Header */}
       <div className="bg-[#06054e] text-white pt-8 pb-20 text-center">
         <div className="max-w-7xl mx-auto px-4">
@@ -376,7 +376,7 @@ export default function RepresentativePage() {
                   onClick={() =>
                     toggleModal(
                       btn.id as "trials" | "training" | "tournament",
-                      true
+                      true,
                     )
                   }
                   className="group flex flex-col items-center"
@@ -394,7 +394,7 @@ export default function RepresentativePage() {
                     {btn.label}
                   </span>
                 </button>
-              )
+              ),
           )}
         </div>
 
@@ -465,7 +465,7 @@ export default function RepresentativePage() {
                                     icon={person.icon}
                                   />
                                 </div>
-                              ) : null
+                              ) : null,
                           )}
                         </div>
                       )}
@@ -617,7 +617,7 @@ export default function RepresentativePage() {
                       )}
                     </td>
                   </tr>
-                )
+                ),
               )}
             </tbody>
           </table>

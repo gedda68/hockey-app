@@ -38,7 +38,7 @@ export default async function StandingsPage({
 
   // 6. Check if current division exists in selected year
   const currentDivision = divisionsForYear.find(
-    (d) => d.divisionName === currentDivName
+    (d) => d.divisionName === currentDivName,
   );
 
   // 7. If division doesn't exist in this year, use first available division
@@ -46,7 +46,7 @@ export default async function StandingsPage({
   const finalDivName = finalDivision?.divisionName || currentDivName;
 
   return (
-    <div className="min-h-screen bg-slate-50 p-4 md:p-12 w-full font-sans text-slate-900">
+    <div className="min-h-screen bg-gradient-to-br from-[#06054e] via-slate-900 to-slate-800 px-4 md:px-8 lg:px-12 w-full ">
       {/* Back Button */}
       <div className="flex justify-between items-center mb-8">
         <Link
