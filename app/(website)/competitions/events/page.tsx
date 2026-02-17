@@ -1,3 +1,4 @@
+// app/(website)/competitions/events/page.tsx
 "use client";
 
 import React, { useState, useEffect } from "react";
@@ -6,27 +7,14 @@ import {
   Calendar,
   MapPin,
   ChevronRight,
-  Globe,
-  Lock,
-  Building2,
+  List,
+  CalendarDays,
 } from "lucide-react";
+import { Event } from "@/types/event";
+import EventModal from "@/components/events/EventModal";
+import EventCalendar from "@/components/events/EventCalendar";
 
-type EventEntry = {
-  name: string;
-  startDate: string;
-  endDate?: string;
-  description?: string;
-  location?: string;
-  category?: string;
-  scope?: "city" | "regional" | "state" | "national" | "international";
-  organization?: {
-    type: "association" | "club" | "team";
-    id: string;
-    name: string;
-  };
-  visibility?: "public" | "private";
-  link?: string;
-};
+type EventEntry = Event;
 
 const CATEGORY_STYLES: Record<
   string,
@@ -49,7 +37,10 @@ const CATEGORY_STYLES: Record<
     text: "text-orange-400",
     label: "Officials",
   },
-  break: { bg: "bg-slate-500/20", text: "text-slate-400", label: "Break" },
+  social: { bg: "bg-pink-500/20", text: "text-pink-400", label: "Social" },
+  training: { bg: "bg-cyan-500/20", text: "text-cyan-400", label: "Training" },
+  meeting: { bg: "bg-slate-500/20", text: "text-slate-400", label: "Meeting" },
+  other: { bg: "bg-gray-500/20", text: "text-gray-400", label: "Other" },
 };
 
 const SCOPE_STYLES: Record<string, { bg: string; text: string; icon: string }> =
@@ -60,16 +51,6 @@ const SCOPE_STYLES: Record<string, { bg: string; text: string; icon: string }> =
     national: { bg: "bg-red-500/20", text: "text-red-400", icon: "🇦🇺" },
     international: { bg: "bg-pink-500/20", text: "text-pink-400", icon: "🌏" },
   };
-
-const ORG_STYLES: Record<string, { bg: string; text: string; icon: any }> = {
-  association: {
-    bg: "bg-violet-500/20",
-    text: "text-violet-400",
-    icon: Building2,
-  },
-  club: { bg: "bg-emerald-500/20", text: "text-emerald-400", icon: Building2 },
-  team: { bg: "bg-amber-500/20", text: "text-amber-400", icon: Building2 },
-};
 
 const FILTER_CATEGORIES = [
   { value: "all", label: "All Events" },
@@ -87,19 +68,6 @@ const FILTER_SCOPES = [
   { value: "state", label: "State" },
   { value: "national", label: "National" },
   { value: "international", label: "International" },
-];
-
-const FILTER_ORGS = [
-  { value: "all", label: "All Organizations" },
-  { value: "association", label: "Associations" },
-  { value: "club", label: "Clubs" },
-  { value: "team", label: "Teams" },
-];
-
-const FILTER_VISIBILITY = [
-  { value: "all", label: "All Events" },
-  { value: "public", label: "Public Only" },
-  { value: "private", label: "Private Only" },
 ];
 
 function formatDateRange(startDate: string, endDate?: string) {
@@ -135,20 +103,15 @@ export default function EventsPage() {
   const [error, setError] = useState<string | null>(null);
   const [filterCategory, setFilterCategory] = useState("all");
   const [filterScope, setFilterScope] = useState("all");
-  const [filterOrg, setFilterOrg] = useState("all");
-  const [filterVisibility, setFilterVisibility] = useState("public");
   const [showPast, setShowPast] = useState(false);
   const [showFilters, setShowFilters] = useState(true);
+  const [viewMode, setViewMode] = useState<"list" | "calendar">("list");
 
-  // Simulate user membership (in real app, get from auth context)
-  const [userMemberships] = useState({
-    clubs: ["ipswich-hornets"],
-    teams: ["souths-pl1"],
-    associations: ["bha"],
-  });
+  const [selectedEvent, setSelectedEvent] = useState<EventEntry | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   useEffect(() => {
-    fetch("/data/events.json")
+    fetch("/api/events?upcoming=true")
       .then((res) => {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         return res.json();
@@ -170,68 +133,30 @@ export default function EventsPage() {
   today.setHours(0, 0, 0, 0);
 
   const filteredEvents = events.filter((e) => {
-    // Date filter
     const eventDate = new Date(e.startDate);
     const isPast = eventDate < today;
     if (!showPast && isPast) return false;
-
-    // Category filter
     if (filterCategory !== "all" && e.category !== filterCategory) return false;
-
-    // Scope filter
     if (filterScope !== "all" && e.scope !== filterScope) return false;
-
-    // Organization type filter
-    if (filterOrg !== "all" && e.organization?.type !== filterOrg) return false;
-
-    // Visibility filter with membership check
-    if (e.visibility === "private") {
-      // Check if user has access to this private event
-      const orgType = e.organization?.type;
-      const orgId = e.organization?.id;
-
-      let hasAccess = false;
-      if (
-        orgType === "association" &&
-        userMemberships.associations.includes(orgId || "")
-      ) {
-        hasAccess = true;
-      } else if (
-        orgType === "club" &&
-        userMemberships.clubs.includes(orgId || "")
-      ) {
-        hasAccess = true;
-      } else if (
-        orgType === "team" &&
-        userMemberships.teams.includes(orgId || "")
-      ) {
-        hasAccess = true;
-      }
-
-      if (!hasAccess) return false;
-    }
-
-    // Visibility type filter
-    if (filterVisibility === "public" && e.visibility === "private")
-      return false;
-    if (filterVisibility === "private" && e.visibility !== "private")
-      return false;
-
     return true;
   });
 
-  const upcomingCount = events.filter((e) => {
-    const eventDate = new Date(e.startDate);
-    return eventDate >= today;
-  }).length;
-
-  const privateCount = filteredEvents.filter(
-    (e) => e.visibility === "private",
+  const upcomingCount = events.filter(
+    (e) => new Date(e.startDate) >= today,
   ).length;
+
+  const openEventModal = (event: EventEntry) => {
+    setSelectedEvent(event);
+    setIsModalOpen(true);
+  };
+
+  const closeEventModal = () => {
+    setIsModalOpen(false);
+    setTimeout(() => setSelectedEvent(null), 300);
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#06054e] via-slate-900 to-slate-800 px-4 md:px-8 lg:px-12 pb-20">
-      {/* Back button */}
       <div className="pt-6 mb-6">
         <button
           onClick={() => router.back()}
@@ -244,7 +169,6 @@ export default function EventsPage() {
         </button>
       </div>
 
-      {/* Header */}
       <div className="mb-10">
         <h1 className="text-5xl font-black text-white uppercase italic tracking-tighter mb-2">
           Events <span className="text-yellow-400">Calendar</span>
@@ -252,22 +176,45 @@ export default function EventsPage() {
         <p className="text-slate-400 text-sm">
           {upcomingCount} upcoming event{upcomingCount !== 1 ? "s" : ""} this
           season
-          {privateCount > 0 && ` • ${privateCount} member-only`}
         </p>
       </div>
 
-      {/* Filter Toggle */}
-      <button
-        onClick={() => setShowFilters(!showFilters)}
-        className="mb-4 px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg text-xs font-bold uppercase transition-colors"
-      >
-        {showFilters ? "Hide" : "Show"} Filters
-      </button>
+      <div className="flex gap-3 mb-6">
+        <button
+          onClick={() => setViewMode("list")}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-colors ${
+            viewMode === "list"
+              ? "bg-yellow-400 text-[#06054e]"
+              : "bg-white/10 text-white hover:bg-white/20"
+          }`}
+        >
+          <List size={18} />
+          List View
+        </button>
+        <button
+          onClick={() => setViewMode("calendar")}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-colors ${
+            viewMode === "calendar"
+              ? "bg-yellow-400 text-[#06054e]"
+              : "bg-white/10 text-white hover:bg-white/20"
+          }`}
+        >
+          <CalendarDays size={18} />
+          Calendar View
+        </button>
+      </div>
 
-      {/* Filters */}
-      {showFilters && (
+      {viewMode === "list" && (
+        <button
+          onClick={() => setShowFilters(!showFilters)}
+          className="mb-4 px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg text-xs font-bold uppercase transition-colors"
+        >
+          {showFilters ? "Hide" : "Show"} Filters
+        </button>
+      )}
+
+      {showFilters && viewMode === "list" && (
         <div className="space-y-4 mb-8 bg-white/5 rounded-2xl p-6 border border-white/10">
-          {/* Category Filter */}
           <div>
             <label className="block text-xs font-black uppercase text-slate-400 mb-2">
               Category
@@ -289,7 +236,6 @@ export default function EventsPage() {
             </div>
           </div>
 
-          {/* Scope Filter */}
           <div>
             <label className="block text-xs font-black uppercase text-slate-400 mb-2">
               Scope
@@ -311,51 +257,6 @@ export default function EventsPage() {
             </div>
           </div>
 
-          {/* Organization Filter */}
-          <div>
-            <label className="block text-xs font-black uppercase text-slate-400 mb-2">
-              Organization
-            </label>
-            <div className="flex flex-wrap gap-2">
-              {FILTER_ORGS.map((org) => (
-                <button
-                  key={org.value}
-                  onClick={() => setFilterOrg(org.value)}
-                  className={`px-3 py-1.5 rounded-full text-xs font-black uppercase tracking-wider transition-all ${
-                    filterOrg === org.value
-                      ? "bg-violet-400 text-[#06054e]"
-                      : "bg-white/10 text-white/70 hover:bg-white/20"
-                  }`}
-                >
-                  {org.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Visibility Filter */}
-          <div>
-            <label className="block text-xs font-black uppercase text-slate-400 mb-2">
-              Visibility
-            </label>
-            <div className="flex flex-wrap gap-2">
-              {FILTER_VISIBILITY.map((vis) => (
-                <button
-                  key={vis.value}
-                  onClick={() => setFilterVisibility(vis.value)}
-                  className={`px-3 py-1.5 rounded-full text-xs font-black uppercase tracking-wider transition-all ${
-                    filterVisibility === vis.value
-                      ? "bg-green-400 text-[#06054e]"
-                      : "bg-white/10 text-white/70 hover:bg-white/20"
-                  }`}
-                >
-                  {vis.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Show Past Toggle */}
           <div className="flex items-center justify-between pt-4 border-t border-white/10">
             <span className="text-xs font-black uppercase text-slate-400">
               Show Past Events
@@ -374,173 +275,151 @@ export default function EventsPage() {
         </div>
       )}
 
-      {/* Loading */}
       {loading && (
         <div className="flex items-center justify-center py-20">
           <div className="w-8 h-8 border-4 border-yellow-400 border-t-transparent rounded-full animate-spin" />
         </div>
       )}
 
-      {/* Error */}
       {error && (
         <div className="bg-red-500/20 border border-red-500/30 rounded-2xl p-6 text-center">
           <p className="text-red-400 font-bold">{error}</p>
         </div>
       )}
 
-      {/* No events */}
-      {!loading && !error && filteredEvents.length === 0 && (
-        <div className="bg-white/5 rounded-2xl p-12 text-center border border-white/10">
-          <Calendar size={48} className="text-white/20 mx-auto mb-4" />
-          <p className="text-white/50 font-bold text-lg">No events found</p>
-          <p className="text-white/30 text-sm mt-2">
-            Try changing the filters or showing past events
-          </p>
-        </div>
+      {!loading && !error && viewMode === "calendar" && (
+        <EventCalendar
+          events={filteredEvents}
+          onEventClick={openEventModal}
+          onDateClick={(date) => console.log("Date clicked:", date)}
+        />
       )}
 
-      {/* Events List */}
-      {!loading && !error && filteredEvents.length > 0 && (
-        <div className="space-y-3">
-          {filteredEvents.map((event, idx) => {
-            const eventDate = new Date(event.startDate);
-            const isPast = eventDate < today;
-            const daysUntil = getDaysUntil(event.startDate);
-            const catStyle = CATEGORY_STYLES[event.category || ""] || {
-              bg: "bg-slate-500/20",
-              text: "text-slate-400",
-              label: event.category || "Event",
-            };
-            const scopeStyle = event.scope ? SCOPE_STYLES[event.scope] : null;
-            const orgStyle = event.organization?.type
-              ? ORG_STYLES[event.organization.type]
-              : null;
-            const isPrivate = event.visibility === "private";
+      {!loading && !error && viewMode === "list" && (
+        <>
+          {filteredEvents.length === 0 && (
+            <div className="bg-white/5 rounded-2xl p-12 text-center border border-white/10">
+              <Calendar size={48} className="text-white/20 mx-auto mb-4" />
+              <p className="text-white/50 font-bold text-lg">No events found</p>
+              <p className="text-white/30 text-sm mt-2">
+                Try changing the filters or showing past events
+              </p>
+            </div>
+          )}
 
-            return (
-              <div
-                key={`${event.name}-${event.startDate}-${idx}`}
-                className={`group relative bg-white/5 hover:bg-white/10 border border-white/10 hover:border-yellow-400/30 rounded-2xl p-5 transition-all duration-200 ${
-                  isPast ? "opacity-50" : ""
-                } ${isPrivate ? "ring-2 ring-purple-500/30" : ""}`}
-              >
-                <div className="flex items-start gap-4">
-                  {/* Date block */}
-                  <div className="flex-shrink-0 w-14 text-center bg-white/5 rounded-xl py-2">
-                    <div className="text-2xl font-black text-white leading-none">
-                      {eventDate.getDate()}
-                    </div>
-                    <div className="text-xs font-bold text-yellow-400 uppercase">
-                      {eventDate.toLocaleDateString("en-AU", {
-                        month: "short",
-                      })}
-                    </div>
-                    <div className="text-[10px] text-slate-500">
-                      {eventDate.getFullYear()}
-                    </div>
-                  </div>
+          {filteredEvents.length > 0 && (
+            <div className="space-y-3">
+              {filteredEvents.map((event) => {
+                const eventDate = new Date(event.startDate);
+                const isPast = eventDate < today;
+                const daysUntil = getDaysUntil(event.startDate);
+                const catStyle =
+                  CATEGORY_STYLES[event.category] || CATEGORY_STYLES.other;
+                const scopeStyle = event.scope
+                  ? SCOPE_STYLES[event.scope]
+                  : null;
 
-                  {/* Divider */}
-                  <div className="w-px self-stretch bg-white/10 flex-shrink-0" />
-
-                  {/* Content */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex flex-wrap items-start gap-2 mb-2">
-                      <h3 className="font-black text-white text-base group-hover:text-yellow-400 transition-colors">
-                        {event.name}
-                      </h3>
-
-                      {/* Visibility badge */}
-                      {isPrivate && (
-                        <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-purple-500/20 text-purple-400 flex items-center gap-1">
-                          <Lock size={10} />
-                          Private
-                        </span>
-                      )}
-
-                      {/* Category badge */}
-                      <span
-                        className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase ${catStyle.bg} ${catStyle.text}`}
-                      >
-                        {catStyle.label}
-                      </span>
-
-                      {/* Scope badge */}
-                      {scopeStyle && (
-                        <span
-                          className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase ${scopeStyle.bg} ${scopeStyle.text}`}
-                        >
-                          {scopeStyle.icon} {event.scope}
-                        </span>
-                      )}
-
-                      {/* Days until badge */}
-                      {daysUntil && !isPast && (
-                        <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-yellow-400/20 text-yellow-400">
-                          {daysUntil}
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Organization */}
-                    {event.organization && orgStyle && (
-                      <div
-                        className={`flex items-center gap-1 text-xs mb-1 ${orgStyle.text}`}
-                      >
-                        <orgStyle.icon size={11} />
-                        <span className="font-bold">
-                          {event.organization.name}
-                        </span>
-                        <span
-                          className={`px-1.5 py-0.5 rounded text-[9px] font-black uppercase ${orgStyle.bg}`}
-                        >
-                          {event.organization.type}
-                        </span>
+                return (
+                  <button
+                    key={event.id}
+                    onClick={() => openEventModal(event)}
+                    className={`w-full text-left group relative bg-white/5 hover:bg-white/10 border border-white/10 hover:border-yellow-400/30 rounded-2xl p-5 transition-all duration-200 ${
+                      isPast ? "opacity-50" : ""
+                    }`}
+                  >
+                    <div className="flex items-start gap-4">
+                      <div className="flex-shrink-0 w-14 text-center bg-white/5 rounded-xl py-2">
+                        <div className="text-2xl font-black text-white leading-none">
+                          {eventDate.getDate()}
+                        </div>
+                        <div className="text-xs font-bold text-yellow-400 uppercase">
+                          {eventDate.toLocaleDateString("en-AU", {
+                            month: "short",
+                          })}
+                        </div>
+                        <div className="text-[10px] text-slate-500">
+                          {eventDate.getFullYear()}
+                        </div>
                       </div>
-                    )}
 
-                    <div className="flex items-center gap-1 text-xs text-slate-400 mb-1">
-                      <Calendar size={11} />
-                      <span>
-                        {formatDateRange(event.startDate, event.endDate)}
-                      </span>
-                    </div>
+                      <div className="w-px self-stretch bg-white/10 flex-shrink-0" />
 
-                    {event.location && (
-                      <div className="flex items-center gap-1 text-xs text-slate-400 mb-2">
-                        <MapPin size={11} />
-                        <span>{event.location}</span>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex flex-wrap items-start gap-2 mb-2">
+                          <h3 className="font-black text-white text-base group-hover:text-yellow-400 transition-colors">
+                            {event.name}
+                          </h3>
+
+                          <span
+                            className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase ${catStyle.bg} ${catStyle.text}`}
+                          >
+                            {catStyle.label}
+                          </span>
+
+                          {scopeStyle && (
+                            <span
+                              className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase ${scopeStyle.bg} ${scopeStyle.text}`}
+                            >
+                              {scopeStyle.icon} {event.scope}
+                            </span>
+                          )}
+
+                          {daysUntil && !isPast && (
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-yellow-400/20 text-yellow-400">
+                              {daysUntil}
+                            </span>
+                          )}
+                        </div>
+
+                        {event.organization && (
+                          <div className="flex items-center gap-1 text-xs mb-1 text-slate-300">
+                            <span className="font-bold">
+                              {event.organization.name}
+                            </span>
+                          </div>
+                        )}
+
+                        <div className="flex items-center gap-1 text-xs text-slate-400 mb-1">
+                          <Calendar size={11} />
+                          <span>
+                            {formatDateRange(event.startDate, event.endDate)}
+                          </span>
+                        </div>
+
+                        {event.location && (
+                          <div className="flex items-center gap-1 text-xs text-slate-400 mb-2">
+                            <MapPin size={11} />
+                            <span>{event.location}</span>
+                          </div>
+                        )}
+
+                        {event.shortDescription && (
+                          <p className="text-xs text-slate-500 leading-relaxed line-clamp-2">
+                            {event.shortDescription}
+                          </p>
+                        )}
                       </div>
-                    )}
 
-                    {event.description && (
-                      <p className="text-xs text-slate-500 leading-relaxed">
-                        {event.description}
-                      </p>
-                    )}
-                  </div>
-
-                  {/* External link */}
-                  {event.link && (
-                    <a
-                      href={event.link}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={(e) => e.stopPropagation()}
-                      className="flex-shrink-0 p-2 bg-yellow-400/20 hover:bg-yellow-400 rounded-lg transition-colors group/link"
-                    >
-                      <ChevronRight
-                        size={16}
-                        className="text-yellow-400 group-hover/link:text-[#06054e]"
-                      />
-                    </a>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
+                      <div className="flex-shrink-0 p-2 bg-yellow-400/20 hover:bg-yellow-400 rounded-lg transition-colors group/link">
+                        <ChevronRight
+                          size={16}
+                          className="text-yellow-400 group-hover/link:text-[#06054e]"
+                        />
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </>
       )}
+
+      <EventModal
+        event={selectedEvent}
+        isOpen={isModalOpen}
+        onClose={closeEventModal}
+      />
     </div>
   );
 }
