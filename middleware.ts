@@ -1,6 +1,6 @@
-// middleware-custom-auth.ts
-// Middleware using custom JWT auth (Next.js 16 compatible)
-// Use this version after setting up custom auth
+// middleware.ts
+// Next.js Edge Middleware — runs on every request before page/API handlers
+// Uses custom JWT auth (jose) stored in the "session" httpOnly cookie
 
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
@@ -12,9 +12,7 @@ export async function middleware(request: NextRequest) {
   // Public routes - no authentication needed
   const publicRoutes = [
     "/",
-    "/auth/signin",
-    "/auth/signup",
-    "/auth/login",
+    "/login",
     "/about",
     "/contact",
   ];
@@ -36,11 +34,11 @@ export async function middleware(request: NextRequest) {
   // Get session
   const session = await getSessionFromRequest(request);
 
-  // Not authenticated - redirect to signin
+  // Not authenticated - redirect to login
   if (!session) {
-    const signInUrl = new URL("/auth/signin", request.url);
-    signInUrl.searchParams.set("callbackUrl", request.url);
-    return NextResponse.redirect(signInUrl);
+    const loginUrl = new URL("/login", request.url);
+    loginUrl.searchParams.set("callbackUrl", request.url);
+    return NextResponse.redirect(loginUrl);
   }
 
   const { user } = session;
@@ -52,14 +50,19 @@ export async function middleware(request: NextRequest) {
   const memberId = memberMatch ? memberMatch[1] : null;
 
   // Super admins have access to everything
-  if (user.role === "superadmin") {
+  if (user.role === "super-admin") {
+    return NextResponse.next();
+  }
+
+  // Association admins have access to all clubs within their association
+  if (user.role === "association-admin") {
     return NextResponse.next();
   }
 
   // Check club access for club-specific routes
   if (clubId && clubId !== "new") {
     // Club admins must be in the correct club
-    if (user.role === "clubadmin" && user.clubId !== clubId) {
+    if (user.role === "club-admin" && user.clubId !== clubId) {
       return NextResponse.redirect(new URL("/unauthorized", request.url));
     }
 
@@ -82,22 +85,26 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(new URL("/unauthorized", request.url));
     }
 
-    // Club admins can access all members in their club
-    if (user.role === "clubadmin") {
+    // Club admins, coaches, and managers can access members in their club
+    if (
+      user.role === "club-admin" ||
+      user.role === "coach" ||
+      user.role === "manager"
+    ) {
       return NextResponse.next();
     }
   }
 
-  // Member list access - only admins
+  // Member list access - only admins and privileged roles
   if (path.includes("/members") && !memberId) {
-    if (user.role === "member") {
+    if (user.role === "member" || user.role === "parent") {
       return NextResponse.redirect(new URL("/unauthorized", request.url));
     }
   }
 
   // Renewal routes - only admins
   if (path.includes("/renew")) {
-    if (user.role === "member") {
+    if (user.role === "member" || user.role === "parent") {
       return NextResponse.redirect(new URL("/unauthorized", request.url));
     }
   }
