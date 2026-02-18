@@ -3,12 +3,10 @@
 
 import "next-auth";
 import "next-auth/jwt";
-import type { UserRole } from "@/lib/types/roles";
 
 declare module "next-auth" {
   interface User {
-    role: UserRole;
-    associationId?: string | null;
+    role: "superadmin" | "clubadmin" | "member";
     clubId?: string | null;
     memberId?: string | null;
   }
@@ -18,8 +16,7 @@ declare module "next-auth" {
       id: string;
       email: string;
       name?: string | null;
-      role: UserRole;
-      associationId?: string | null;
+      role: "superadmin" | "clubadmin" | "member";
       clubId?: string | null;
       memberId?: string | null;
     };
@@ -28,8 +25,7 @@ declare module "next-auth" {
 
 declare module "next-auth/jwt" {
   interface JWT {
-    role: UserRole;
-    associationId?: string | null;
+    role: string;
     clubId?: string | null;
     memberId?: string | null;
   }

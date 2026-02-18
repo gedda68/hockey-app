@@ -4,7 +4,6 @@
 import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
-import type { UserRole } from "@/lib/types/roles";
 
 const secret = new TextEncoder().encode(
   process.env.AUTH_SECRET || "your-secret-key-min-32-chars-long",
@@ -14,8 +13,7 @@ export interface User {
   userId: string;
   email: string;
   name?: string;
-  role: UserRole;
-  associationId?: string;
+  role: "superadmin" | "clubadmin" | "member";
   clubId?: string;
   memberId?: string;
 }

@@ -2,8 +2,7 @@
 // Helper to get authenticated user (Custom Auth version)
 
 import { getSession } from "@/lib/auth";
-import { User } from "@/lib/types/member";
-import type { UserRole } from "@/lib/types/roles";
+import { User } from "@/types/member";
 
 /**
  * Get the authenticated user from the session
@@ -41,10 +40,12 @@ export async function requireAuth(): Promise<User> {
 /**
  * Require specific role - throws error if user doesn't have required role
  */
-export async function requireRole(role: UserRole): Promise<User> {
+export async function requireRole(
+  role: "superadmin" | "clubadmin" | "member",
+): Promise<User> {
   const user = await requireAuth();
 
-  if (user.role !== role && user.role !== "super-admin") {
+  if (user.role !== role && user.role !== "superadmin") {
     throw new Error(`Forbidden - ${role} role required`);
   }
 
@@ -57,8 +58,8 @@ export async function requireRole(role: UserRole): Promise<User> {
 export async function requireClubAccess(clubId: string): Promise<User> {
   const user = await requireAuth();
 
-  // Super admins and association admins have access to all clubs
-  if (user.role === "super-admin" || user.role === "association-admin") {
+  // Super admins have access to all clubs
+  if (user.role === "superadmin") {
     return user;
   }
 

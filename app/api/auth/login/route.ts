@@ -71,10 +71,9 @@ export async function POST(request: NextRequest) {
       role: user.role,
     });
 
-    // Verify password (field is passwordHash per the user schema)
+    // Verify password
     console.log("🔐 Verifying password...");
-    const passwordField = user.passwordHash || user.password;
-    const isValid = await bcrypt.compare(password, passwordField);
+    const isValid = await bcrypt.compare(password, user.password);
 
     if (!isValid) {
       console.log("❌ Invalid password");
@@ -88,11 +87,10 @@ export async function POST(request: NextRequest) {
 
     // Create session
     const sessionUser = {
-      userId: (user.userId || user.userid || user._id).toString(),
+      userId: user.userid.toString(),
       email: user.email,
-      name: user.name || `${user.firstName ?? ""} ${user.lastName ?? ""}`.trim(),
+      name: user.name,
       role: user.role,
-      associationId: user.associationId || undefined,
       clubId: user.clubId || undefined,
       memberId: user.memberId || undefined,
     };

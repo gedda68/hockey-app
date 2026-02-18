@@ -2,7 +2,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { getRoleDashboard, getRoleDisplayName } from "@/lib/auth/roleRedirects";
 import { toast } from "sonner";
@@ -10,9 +10,7 @@ import { Loader, Lock, User } from "lucide-react";
 
 export default function LoginForm() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const callbackUrl = searchParams.get("callbackUrl");
-  const { setUser } = useAuth();
+  const { setUser } = useAuth(); // ← Use setUser instead of login
   const [formData, setFormData] = useState({
     username: "",
     password: "",
@@ -41,8 +39,8 @@ export default function LoginForm() {
       // Set user directly in context
       setUser(data.user);
 
-      // Redirect to callbackUrl if present, otherwise role-based dashboard
-      const dashboardUrl = callbackUrl || getRoleDashboard(
+      // Get role-based dashboard
+      const dashboardUrl = getRoleDashboard(
         data.user.role,
         data.user.clubId,
         data.user.associationId,
@@ -51,9 +49,10 @@ export default function LoginForm() {
       const roleDisplayName = getRoleDisplayName(data.user.role);
 
       toast.success(
-        `Welcome back! Logged in as ${roleDisplayName}`,
+        `Welcome back, ${data.user.firstName}! Logged in as ${roleDisplayName}`,
       );
 
+      // Redirect to appropriate dashboard
       router.push(dashboardUrl);
     } catch (error: any) {
       console.error("Login error:", error);

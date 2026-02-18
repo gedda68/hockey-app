@@ -1,13 +1,22 @@
 // lib/get-session-user.ts
+// TEMPORARY - Auto-login as super admin for development
 
 import { getSession } from "@/lib/auth";
-import type { UserRole } from "@/lib/types/roles";
 
 export async function getSessionUser() {
   const session = await getSession();
 
   if (!session?.user) {
-    return null;
+    // TEMPORARY: Return test super admin for development
+    console.log("⚠️ No session found, auto-login as test super admin");
+    return {
+      userId: "dev-superadmin",
+      email: "dev@superadmin.com",
+      name: "Dev Super Admin",
+      role: "superadmin" as const,
+      clubId: undefined,
+      memberId: undefined,
+    };
   }
 
   return {
@@ -15,7 +24,6 @@ export async function getSessionUser() {
     email: session.user.email,
     name: session.user.name,
     role: session.user.role,
-    associationId: session.user.associationId,
     clubId: session.user.clubId,
     memberId: session.user.memberId,
   };
@@ -29,9 +37,9 @@ export async function requireAuth() {
   return user;
 }
 
-export async function requireRole(role: UserRole) {
+export async function requireRole(role: "superadmin" | "clubadmin" | "member") {
   const user = await requireAuth();
-  if (user.role !== role && user.role !== "super-admin") {
+  if (user.role !== role && user.role !== "superadmin") {
     throw new Error(`Forbidden - ${role} role required`);
   }
   return user;
@@ -39,7 +47,7 @@ export async function requireRole(role: UserRole) {
 
 export async function requireClubAccess(clubId: string) {
   const user = await requireAuth();
-  if (user.role === "super-admin" || user.role === "association-admin") {
+  if (user.role === "superadmin") {
     return user;
   }
   if (user.clubId !== clubId) {
