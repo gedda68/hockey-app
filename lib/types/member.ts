@@ -92,11 +92,14 @@ export interface Member {
 }
 
 // User/Auth types for access control
+import type { UserRole } from "@/lib/types/roles";
+
 export interface User {
   userId: string;
   email: string;
-  role: "superadmin" | "clubadmin" | "member";
-  clubId?: string; // For club admins and members
+  role: UserRole;
+  associationId?: string; // For association-admins
+  clubId?: string; // For club-admins and members
   memberId?: string; // For members
   name?: string;
 }

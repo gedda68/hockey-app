@@ -2,22 +2,28 @@
 // Authorization utilities for member access control
 
 import { User, AccessControlContext } from "@/types/member";
+// Role helper: check if a user has elevated admin access
+function isSuperAdmin(user: User): boolean {
+  return user.role === "super-admin";
+}
+function isClubAdmin(user: User, clubId: string): boolean {
+  return user.role === "club-admin" && user.clubId === clubId;
+}
+function isAssociationAdmin(user: User): boolean {
+  return user.role === "association-admin";
+}
 
 /**
  * Check if user can view a member list for a club
  */
 export function canViewMemberList(user: User, clubId: string): boolean {
-  // Super admins can view all clubs
-  if (user.role === "superadmin") {
+  if (isSuperAdmin(user) || isAssociationAdmin(user)) return true;
+  if (isClubAdmin(user, clubId)) return true;
+  if (
+    (user.role === "coach" || user.role === "manager") &&
+    user.clubId === clubId
+  )
     return true;
-  }
-
-  // Club admins can view their own club
-  if (user.role === "clubadmin" && user.clubId === clubId) {
-    return true;
-  }
-
-  // Regular members cannot view member lists
   return false;
 }
 
@@ -29,21 +35,18 @@ export function canViewMember(
   clubId: string,
   memberId: string,
 ): boolean {
-  // Super admins can view all members
-  if (user.role === "superadmin") {
+  if (isSuperAdmin(user) || isAssociationAdmin(user)) return true;
+  if (isClubAdmin(user, clubId)) return true;
+  if (
+    (user.role === "coach" || user.role === "manager") &&
+    user.clubId === clubId
+  )
     return true;
-  }
-
-  // Club admins can view members in their club
-  if (user.role === "clubadmin" && user.clubId === clubId) {
+  if (
+    (user.role === "member" || user.role === "parent") &&
+    user.memberId === memberId
+  )
     return true;
-  }
-
-  // Members can view their own record
-  if (user.role === "member" && user.memberId === memberId) {
-    return true;
-  }
-
   return false;
 }
 
@@ -59,21 +62,14 @@ export function canEditMember(
   canEdit: boolean;
   isLimitedEdit: boolean; // If true, can only edit certain fields
 } {
-  // Super admins can fully edit all members
-  if (user.role === "superadmin") {
+  if (isSuperAdmin(user) || isAssociationAdmin(user))
     return { canEdit: true, isLimitedEdit: false };
-  }
-
-  // Club admins can fully edit members in their club
-  if (user.role === "clubadmin" && user.clubId === clubId) {
-    return { canEdit: true, isLimitedEdit: false };
-  }
-
-  // Members can edit limited fields in their own record
-  if (user.role === "member" && user.memberId === memberId) {
+  if (isClubAdmin(user, clubId)) return { canEdit: true, isLimitedEdit: false };
+  if (
+    (user.role === "member" || user.role === "parent") &&
+    user.memberId === memberId
+  )
     return { canEdit: true, isLimitedEdit: true };
-  }
-
   return { canEdit: false, isLimitedEdit: false };
 }
 
@@ -85,17 +81,8 @@ export function canDeleteMember(
   clubId: string,
   memberId: string,
 ): boolean {
-  // Super admins can delete all members
-  if (user.role === "superadmin") {
-    return true;
-  }
-
-  // Club admins can delete members in their club
-  if (user.role === "clubadmin" && user.clubId === clubId) {
-    return true;
-  }
-
-  // Members cannot delete themselves or others
+  if (isSuperAdmin(user) || isAssociationAdmin(user)) return true;
+  if (isClubAdmin(user, clubId)) return true;
   return false;
 }
 
@@ -107,18 +94,8 @@ export function canRenewMembership(
   clubId: string,
   memberId: string,
 ): boolean {
-  // Super admins can renew all memberships
-  if (user.role === "superadmin") {
-    return true;
-  }
-
-  // Club admins can renew memberships in their club
-  if (user.role === "clubadmin" && user.clubId === clubId) {
-    return true;
-  }
-
-  // Members cannot renew (must go through admin)
-  // Change this to true if you want members to self-renew
+  if (isSuperAdmin(user) || isAssociationAdmin(user)) return true;
+  if (isClubAdmin(user, clubId)) return true;
   return false;
 }
 
@@ -171,8 +148,12 @@ export function filterMemberData(member: any, user: User, clubId: string): any {
     return null;
   }
 
-  // Super admins and club admins get full data
-  if (user.role === "superadmin" || user.role === "clubadmin") {
+  // Super admins, association admins, and club admins get full data
+  if (
+    isSuperAdmin(user) ||
+    isAssociationAdmin(user) ||
+    isClubAdmin(user, clubId)
+  ) {
     return member;
   }
 
