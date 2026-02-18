@@ -19,20 +19,29 @@ import {
   FileText,
   Image as ImageIcon,
   Share2,
+  Edit,
+  Trash2,
 } from "lucide-react";
 import Image from "next/image";
 import { Event } from "@/types/event";
+import { User, getEventPermissions } from "@/lib/permissions/event-permissions";
 
 interface EventModalProps {
   event: Event | null;
   isOpen: boolean;
   onClose: () => void;
+  onEdit?: (event: Event) => void;
+  onDelete?: (event: Event) => void;
+  currentUser?: User | null;
 }
 
 export default function EventModal({
   event,
   isOpen,
   onClose,
+  onEdit,
+  onDelete,
+  currentUser,
 }: EventModalProps) {
   const [activeTab, setActiveTab] = useState<
     "details" | "documents" | "location"
@@ -40,6 +49,7 @@ export default function EventModal({
 
   if (!event) return null;
 
+  const permissions = getEventPermissions(currentUser || null, event);
   const startDate = new Date(event.startDate);
   const endDate = event.endDate ? new Date(event.endDate) : null;
 
@@ -105,7 +115,8 @@ export default function EventModal({
         <>
           {/* Backdrop */}
           <motion.div
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[999998]"
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm"
+            style={{ zIndex: 999998 }}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -113,10 +124,13 @@ export default function EventModal({
           />
 
           {/* Modal */}
-          <div className="fixed inset-0 overflow-y-auto z-[999999]">
-            <div className="min-h-screen px-4 py-8 flex items-start justify-center">
+          <div
+            className="fixed inset-0 overflow-y-auto pointer-events-none"
+            style={{ zIndex: 999999 }}
+          >
+            <div className="min-h-screen px-4 py-8 flex items-start justify-center pointer-events-none">
               <motion.div
-                className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl my-8 overflow-hidden"
+                className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl my-8 overflow-hidden pointer-events-auto"
                 initial={{ opacity: 0, y: 20, scale: 0.95 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: 20, scale: 0.95 }}
@@ -137,15 +151,49 @@ export default function EventModal({
                     {/* Close button */}
                     <button
                       onClick={onClose}
-                      className="absolute top-4 right-4 p-2 bg-white/90 hover:bg-white rounded-full transition-colors"
+                      className="absolute top-4 right-4 p-2 bg-white/90 hover:bg-white rounded-full transition-colors z-10"
                     >
                       <X size={20} className="text-slate-900" />
                     </button>
 
+                    {/* Edit button */}
+                    {permissions.canEdit && onEdit && (
+                      <button
+                        onClick={() => {
+                          onEdit(event);
+                          onClose();
+                        }}
+                        className="absolute top-4 right-16 p-2 bg-blue-600/90 hover:bg-blue-600 rounded-full transition-colors z-10"
+                        title="Edit event"
+                      >
+                        <Edit size={20} className="text-white" />
+                      </button>
+                    )}
+
+                    {/* Delete button */}
+                    {permissions.canDelete && onDelete && (
+                      <button
+                        onClick={() => {
+                          if (
+                            confirm(
+                              `Delete "${event.name}"? This action cannot be undone.`,
+                            )
+                          ) {
+                            onDelete(event);
+                            onClose();
+                          }
+                        }}
+                        className="absolute top-4 right-28 p-2 bg-red-600/90 hover:bg-red-600 rounded-full transition-colors z-10"
+                        title="Delete event"
+                      >
+                        <Trash2 size={20} className="text-white" />
+                      </button>
+                    )}
+
                     {/* Share button */}
                     <button
                       onClick={handleShare}
-                      className="absolute top-4 right-16 p-2 bg-white/90 hover:bg-white rounded-full transition-colors"
+                      className="absolute top-4 right-40 p-2 bg-white/90 hover:bg-white rounded-full transition-colors z-10"
                     >
                       <Share2 size={20} className="text-slate-900" />
                     </button>

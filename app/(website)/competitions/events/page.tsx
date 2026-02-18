@@ -9,12 +9,14 @@ import {
   ChevronRight,
   List,
   CalendarDays,
+  Plus,
+  Edit,
+  Trash2,
 } from "lucide-react";
 import { Event } from "@/types/event";
+import { User, getEventPermissions } from "@/lib/permissions/event-permissions";
 import EventModal from "@/components/events/EventModal";
 import EventCalendar from "@/components/events/EventCalendar";
-
-type EventEntry = Event;
 
 const CATEGORY_STYLES: Record<
   string,
@@ -98,7 +100,7 @@ function getDaysUntil(startDate: string) {
 
 export default function EventsPage() {
   const router = useRouter();
-  const [events, setEvents] = useState<EventEntry[]>([]);
+  const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filterCategory, setFilterCategory] = useState("all");
@@ -107,8 +109,15 @@ export default function EventsPage() {
   const [showFilters, setShowFilters] = useState(true);
   const [viewMode, setViewMode] = useState<"list" | "calendar">("list");
 
-  const [selectedEvent, setSelectedEvent] = useState<EventEntry | null>(null);
+  const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+
+  // Mock current user - replace with actual auth
+  const [currentUser] = useState<User>({
+    id: "user123",
+    role: "club_admin",
+    clubs: ["ipswich-hornets", "bha"],
+  });
 
   useEffect(() => {
     fetch("/api/events?upcoming=true")
@@ -116,7 +125,7 @@ export default function EventsPage() {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         return res.json();
       })
-      .then((data: { events?: EventEntry[] }) => {
+      .then((data: { events?: Event[] }) => {
         const evts = Array.isArray(data.events) ? data.events : [];
         evts.sort((a, b) => a.startDate.localeCompare(b.startDate));
         setEvents(evts);
@@ -145,7 +154,7 @@ export default function EventsPage() {
     (e) => new Date(e.startDate) >= today,
   ).length;
 
-  const openEventModal = (event: EventEntry) => {
+  const openEventModal = (event: Event) => {
     setSelectedEvent(event);
     setIsModalOpen(true);
   };
@@ -154,6 +163,41 @@ export default function EventsPage() {
     setIsModalOpen(false);
     setTimeout(() => setSelectedEvent(null), 300);
   };
+
+  const handleCreateEvent = (date?: Date) => {
+    console.log("Create event for date:", date);
+    // TODO: Open create event form/modal
+    alert(`Create event${date ? ` on ${date.toLocaleDateString()}` : ""}`);
+  };
+
+  const handleEditEvent = (event: Event) => {
+    console.log("Edit event:", event.name);
+    // TODO: Open edit event form/modal
+    alert(`Edit event: ${event.name}`);
+  };
+
+  const handleDeleteEvent = async (event: Event) => {
+    try {
+      const response = await fetch(`/api/admin/events/${event.id}`, {
+        method: "DELETE",
+      });
+
+      if (response.ok) {
+        setEvents(events.filter((e) => e.id !== event.id));
+        alert(`Event "${event.name}" deleted successfully`);
+      } else {
+        alert("Failed to delete event");
+      }
+    } catch (err) {
+      console.error("Delete error:", err);
+      alert("Error deleting event");
+    }
+  };
+
+  const canCreate =
+    currentUser &&
+    currentUser.role !== "public" &&
+    currentUser.role !== "member";
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#06054e] via-slate-900 to-slate-800 px-4 md:px-8 lg:px-12 pb-20">
@@ -169,14 +213,26 @@ export default function EventsPage() {
         </button>
       </div>
 
-      <div className="mb-10">
-        <h1 className="text-5xl font-black text-white uppercase italic tracking-tighter mb-2">
-          Events <span className="text-yellow-400">Calendar</span>
-        </h1>
-        <p className="text-slate-400 text-sm">
-          {upcomingCount} upcoming event{upcomingCount !== 1 ? "s" : ""} this
-          season
-        </p>
+      <div className="mb-10 flex items-end justify-between">
+        <div>
+          <h1 className="text-5xl font-black text-white uppercase italic tracking-tighter mb-2">
+            Events <span className="text-yellow-400">Calendar</span>
+          </h1>
+          <p className="text-slate-400 text-sm">
+            {upcomingCount} upcoming event{upcomingCount !== 1 ? "s" : ""} this
+            season
+          </p>
+        </div>
+
+        {canCreate && (
+          <button
+            onClick={() => handleCreateEvent()}
+            className="px-6 py-3 bg-yellow-400 text-[#06054e] rounded-xl font-black hover:bg-yellow-300 transition-colors flex items-center gap-2"
+          >
+            <Plus size={20} />
+            New Event
+          </button>
+        )}
       </div>
 
       <div className="flex gap-3 mb-6">
@@ -291,7 +347,10 @@ export default function EventsPage() {
         <EventCalendar
           events={filteredEvents}
           onEventClick={openEventModal}
-          onDateClick={(date) => console.log("Date clicked:", date)}
+          onCreateEvent={handleCreateEvent}
+          onEditEvent={handleEditEvent}
+          onDeleteEvent={handleDeleteEvent}
+          currentUser={currentUser}
         />
       )}
 
@@ -318,12 +377,12 @@ export default function EventsPage() {
                 const scopeStyle = event.scope
                   ? SCOPE_STYLES[event.scope]
                   : null;
+                const permissions = getEventPermissions(currentUser, event);
 
                 return (
-                  <button
+                  <div
                     key={event.id}
-                    onClick={() => openEventModal(event)}
-                    className={`w-full text-left group relative bg-white/5 hover:bg-white/10 border border-white/10 hover:border-yellow-400/30 rounded-2xl p-5 transition-all duration-200 ${
+                    className={`group relative bg-white/5 hover:bg-white/10 border border-white/10 hover:border-yellow-400/30 rounded-2xl p-5 transition-all duration-200 ${
                       isPast ? "opacity-50" : ""
                     }`}
                   >
@@ -344,7 +403,10 @@ export default function EventsPage() {
 
                       <div className="w-px self-stretch bg-white/10 flex-shrink-0" />
 
-                      <div className="flex-1 min-w-0">
+                      <button
+                        onClick={() => openEventModal(event)}
+                        className="flex-1 min-w-0 text-left"
+                      >
                         <div className="flex flex-wrap items-start gap-2 mb-2">
                           <h3 className="font-black text-white text-base group-hover:text-yellow-400 transition-colors">
                             {event.name}
@@ -398,16 +460,44 @@ export default function EventsPage() {
                             {event.shortDescription}
                           </p>
                         )}
-                      </div>
+                      </button>
 
-                      <div className="flex-shrink-0 p-2 bg-yellow-400/20 hover:bg-yellow-400 rounded-lg transition-colors group/link">
-                        <ChevronRight
-                          size={16}
-                          className="text-yellow-400 group-hover/link:text-[#06054e]"
-                        />
+                      <div className="flex gap-2">
+                        {permissions.canEdit && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleEditEvent(event);
+                            }}
+                            className="p-2 bg-blue-600/20 hover:bg-blue-600 text-blue-400 hover:text-white rounded-lg transition-all"
+                            title="Edit"
+                          >
+                            <Edit size={16} />
+                          </button>
+                        )}
+                        {permissions.canDelete && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (confirm(`Delete "${event.name}"?`)) {
+                                handleDeleteEvent(event);
+                              }
+                            }}
+                            className="p-2 bg-red-600/20 hover:bg-red-600 text-red-400 hover:text-white rounded-lg transition-all"
+                            title="Delete"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        )}
+                        <div className="flex-shrink-0 p-2 bg-yellow-400/20 hover:bg-yellow-400 rounded-lg transition-colors group/link">
+                          <ChevronRight
+                            size={16}
+                            className="text-yellow-400 group-hover/link:text-[#06054e]"
+                          />
+                        </div>
                       </div>
                     </div>
-                  </button>
+                  </div>
                 );
               })}
             </div>
@@ -419,6 +509,9 @@ export default function EventsPage() {
         event={selectedEvent}
         isOpen={isModalOpen}
         onClose={closeEventModal}
+        onEdit={handleEditEvent}
+        onDelete={handleDeleteEvent}
+        currentUser={currentUser}
       />
     </div>
   );
