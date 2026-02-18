@@ -1,3 +1,4 @@
+// app/(website)/competitions/events/page.tsx
 "use client";
 
 import React, { useState, useEffect } from "react";
@@ -111,18 +112,12 @@ export default function EventsPage() {
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  // Mock current user - SET TO ADMIN SO ALL BUTTONS SHOW
-  const currentUser: User = {
+  // Mock current user - replace with actual auth
+  const [currentUser] = useState<User>({
     id: "user123",
-    role: "admin", // CHANGED TO ADMIN - all buttons will show
+    role: "club_admin",
     clubs: ["ipswich-hornets", "bha"],
-    associations: ["bha"],
-  };
-
-  // Debug logging
-  useEffect(() => {
-    console.log("🔐 Current User:", currentUser);
-  }, []);
+  });
 
   useEffect(() => {
     fetch("/api/events?upcoming=true")
@@ -160,8 +155,6 @@ export default function EventsPage() {
   ).length;
 
   const openEventModal = (event: Event) => {
-    console.log("🔍 Opening modal for event:", event.name);
-    console.log("🔐 Passing currentUser to modal:", currentUser);
     setSelectedEvent(event);
     setIsModalOpen(true);
   };
@@ -172,17 +165,18 @@ export default function EventsPage() {
   };
 
   const handleCreateEvent = (date?: Date) => {
-    console.log("➕ Create event for date:", date);
+    console.log("Create event for date:", date);
+    // TODO: Open create event form/modal
     alert(`Create event${date ? ` on ${date.toLocaleDateString()}` : ""}`);
   };
 
   const handleEditEvent = (event: Event) => {
-    console.log("✏️ Edit event:", event.name);
+    console.log("Edit event:", event.name);
+    // TODO: Open edit event form/modal
     alert(`Edit event: ${event.name}`);
   };
 
   const handleDeleteEvent = async (event: Event) => {
-    console.log("🗑️ Delete event:", event.name);
     try {
       const response = await fetch(`/api/admin/events/${event.id}`, {
         method: "DELETE",
@@ -199,6 +193,11 @@ export default function EventsPage() {
       alert("Error deleting event");
     }
   };
+
+  const canCreate =
+    currentUser &&
+    currentUser.role !== "public" &&
+    currentUser.role !== "member";
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#06054e] via-slate-900 to-slate-800 px-4 md:px-8 lg:px-12 pb-20">
@@ -223,18 +222,17 @@ export default function EventsPage() {
             {upcomingCount} upcoming event{upcomingCount !== 1 ? "s" : ""} this
             season
           </p>
-          <p className="text-slate-500 text-xs mt-1">
-            User: {currentUser.role} (all buttons visible for testing)
-          </p>
         </div>
 
-        <button
-          onClick={() => handleCreateEvent()}
-          className="px-6 py-3 bg-yellow-400 text-[#06054e] rounded-xl font-black hover:bg-yellow-300 transition-colors flex items-center gap-2 shadow-lg"
-        >
-          <Plus size={20} />
-          New Event
-        </button>
+        {canCreate && (
+          <button
+            onClick={() => handleCreateEvent()}
+            className="px-6 py-3 bg-yellow-400 text-[#06054e] rounded-xl font-black hover:bg-yellow-300 transition-colors flex items-center gap-2"
+          >
+            <Plus size={20} />
+            New Event
+          </button>
+        )}
       </div>
 
       <div className="flex gap-3 mb-6">
@@ -381,9 +379,6 @@ export default function EventsPage() {
                   : null;
                 const permissions = getEventPermissions(currentUser, event);
 
-                // Debug log
-                console.log(`Event: ${event.name}, Permissions:`, permissions);
-
                 return (
                   <div
                     key={event.id}
@@ -467,36 +462,37 @@ export default function EventsPage() {
                         )}
                       </button>
 
-                      {/* ACTION BUTTONS - ALWAYS VISIBLE FOR ADMIN */}
-                      <div className="flex flex-col gap-2">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleEditEvent(event);
-                          }}
-                          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold transition-all shadow-lg flex items-center gap-2"
-                          title="Edit Event"
-                        >
-                          <Edit size={16} />
-                          <span className="text-xs">EDIT</span>
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (confirm(`Delete "${event.name}"?`)) {
-                              handleDeleteEvent(event);
-                            }
-                          }}
-                          className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl font-bold transition-all shadow-lg flex items-center gap-2"
-                          title="Delete Event"
-                        >
-                          <Trash2 size={16} />
-                          <span className="text-xs">DELETE</span>
-                        </button>
-                        <div className="p-2 bg-yellow-400 hover:bg-yellow-300 rounded-xl transition-colors cursor-pointer text-center">
+                      <div className="flex gap-2">
+                        {permissions.canEdit && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleEditEvent(event);
+                            }}
+                            className="p-2 bg-blue-600/20 hover:bg-blue-600 text-blue-400 hover:text-white rounded-lg transition-all"
+                            title="Edit"
+                          >
+                            <Edit size={16} />
+                          </button>
+                        )}
+                        {permissions.canDelete && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (confirm(`Delete "${event.name}"?`)) {
+                                handleDeleteEvent(event);
+                              }
+                            }}
+                            className="p-2 bg-red-600/20 hover:bg-red-600 text-red-400 hover:text-white rounded-lg transition-all"
+                            title="Delete"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        )}
+                        <div className="flex-shrink-0 p-2 bg-yellow-400/20 hover:bg-yellow-400 rounded-lg transition-colors group/link">
                           <ChevronRight
-                            size={20}
-                            className="text-[#06054e] mx-auto"
+                            size={16}
+                            className="text-yellow-400 group-hover/link:text-[#06054e]"
                           />
                         </div>
                       </div>
