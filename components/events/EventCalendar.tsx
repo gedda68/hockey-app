@@ -1,8 +1,14 @@
-// components/events/EventCalendar.tsx
 "use client";
 
 import { useState, useMemo } from "react";
-import { ChevronLeft, ChevronRight, Plus, Edit, Trash2 } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  Plus,
+  Edit,
+  Trash2,
+  Calendar as CalendarIcon,
+} from "lucide-react";
 import { Event } from "@/types/event";
 import { User, getEventPermissions } from "@/lib/permissions/event-permissions";
 
@@ -18,16 +24,7 @@ interface EventCalendarProps {
 
 type ViewMode = "month" | "week" | "day";
 
-const DAYS_SHORT = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-const DAYS_FULL = [
-  "Sunday",
-  "Monday",
-  "Tuesday",
-  "Wednesday",
-  "Thursday",
-  "Friday",
-  "Saturday",
-];
+const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const MONTHS = [
   "January",
   "February",
@@ -44,15 +41,15 @@ const MONTHS = [
 ];
 
 const CATEGORY_COLORS: Record<string, string> = {
-  competition: "bg-blue-500 text-white",
-  finals: "bg-yellow-500 text-white",
-  representative: "bg-purple-500 text-white",
-  clinic: "bg-green-500 text-white",
-  officials: "bg-orange-500 text-white",
-  social: "bg-pink-500 text-white",
-  training: "bg-cyan-500 text-white",
-  meeting: "bg-slate-500 text-white",
-  other: "bg-gray-500 text-white",
+  competition: "bg-blue-500",
+  finals: "bg-yellow-500",
+  representative: "bg-purple-500",
+  clinic: "bg-green-500",
+  officials: "bg-orange-500",
+  social: "bg-pink-500",
+  training: "bg-cyan-500",
+  meeting: "bg-slate-500",
+  other: "bg-gray-500",
 };
 
 export default function EventCalendar({
@@ -76,6 +73,8 @@ export default function EventCalendar({
     });
     return grouped;
   }, [events]);
+
+  const goToToday = () => setCurrentDate(new Date());
 
   const navigatePrevious = () => {
     const newDate = new Date(currentDate);
@@ -101,10 +100,6 @@ export default function EventCalendar({
     setCurrentDate(newDate);
   };
 
-  const goToToday = () => {
-    setCurrentDate(new Date());
-  };
-
   const getMonthDays = () => {
     const year = currentDate.getFullYear();
     const month = currentDate.getMonth();
@@ -128,6 +123,19 @@ export default function EventCalendar({
     return days;
   };
 
+  const getWeekDays = () => {
+    const start = new Date(currentDate);
+    start.setDate(start.getDate() - start.getDay()); // Go to Sunday
+
+    const days: Date[] = [];
+    for (let i = 0; i < 7; i++) {
+      const day = new Date(start);
+      day.setDate(start.getDate() + i);
+      days.push(day);
+    }
+    return days;
+  };
+
   const isToday = (date: Date) => {
     const today = new Date();
     return date.toDateString() === today.toDateString();
@@ -146,53 +154,53 @@ export default function EventCalendar({
     currentUser.role !== "public" &&
     currentUser.role !== "member";
 
+  const weekDays = viewMode === "week" ? getWeekDays() : [];
+  const weekHasEvents = weekDays.some((date) => getDayEvents(date).length > 0);
+
   return (
-    <div className="bg-white rounded-2xl shadow-lg border border-slate-200 overflow-hidden">
+    <div className="bg-white rounded-3xl shadow-2xl border-2 border-slate-200 overflow-hidden">
       {/* Header */}
-      <div className="p-6 border-b border-slate-200 bg-gradient-to-r from-blue-50 to-purple-50">
+      <div className="bg-gradient-to-r from-blue-600 to-purple-600 p-6 text-white">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-2xl font-black text-slate-900">
+          <h2 className="text-3xl font-black">
             {viewMode === "month" &&
               `${MONTHS[currentDate.getMonth()]} ${currentDate.getFullYear()}`}
             {viewMode === "week" &&
-              `Week of ${currentDate.toLocaleDateString("en-AU", { month: "short", day: "numeric", year: "numeric" })}`}
-            {viewMode === "day" &&
-              currentDate.toLocaleDateString("en-AU", {
-                weekday: "long",
-                month: "long",
-                day: "numeric",
-                year: "numeric",
-              })}
+              (() => {
+                const start = weekDays[0];
+                const end = weekDays[6];
+                return `${start.toLocaleDateString("en-AU", { month: "short", day: "numeric" })} - ${end.toLocaleDateString("en-AU", { month: "short", day: "numeric", year: "numeric" })}`;
+              })()}
           </h2>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
             {canCreate && onCreateEvent && (
               <button
                 onClick={() => onCreateEvent()}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-bold hover:bg-blue-700 transition-colors flex items-center gap-2"
+                className="px-4 py-2 bg-white text-blue-600 rounded-xl font-bold hover:bg-blue-50 transition-all flex items-center gap-2 shadow-lg"
               >
-                <Plus size={18} />
+                <Plus size={20} />
                 New Event
               </button>
             )}
             <button
               onClick={goToToday}
-              className="px-3 py-2 text-sm font-bold text-slate-600 hover:text-slate-900 hover:bg-white rounded-lg transition-colors"
+              className="px-4 py-2 bg-white/20 hover:bg-white/30 rounded-xl font-bold transition-all"
             >
               Today
             </button>
-            <div className="flex border border-slate-300 rounded-lg overflow-hidden">
+            <div className="flex bg-white/20 rounded-xl overflow-hidden">
               <button
                 onClick={navigatePrevious}
-                className="p-2 hover:bg-slate-100 transition-colors"
+                className="p-2 hover:bg-white/30 transition-all"
               >
-                <ChevronLeft size={20} className="text-slate-600" />
+                <ChevronLeft size={24} />
               </button>
               <button
                 onClick={navigateNext}
-                className="p-2 hover:bg-slate-100 border-l border-slate-300 transition-colors"
+                className="p-2 hover:bg-white/30 border-l border-white/20 transition-all"
               >
-                <ChevronRight size={20} className="text-slate-600" />
+                <ChevronRight size={24} />
               </button>
             </div>
           </div>
@@ -200,40 +208,48 @@ export default function EventCalendar({
 
         {/* View Mode Selector */}
         <div className="flex gap-2">
-          {(["month", "week", "day"] as ViewMode[]).map((mode) => (
-            <button
-              key={mode}
-              onClick={() => setViewMode(mode)}
-              className={`px-4 py-2 rounded-lg text-sm font-bold transition-colors capitalize ${
-                viewMode === mode
-                  ? "bg-blue-600 text-white shadow-md"
-                  : "bg-white text-slate-600 hover:bg-slate-50 border border-slate-200"
-              }`}
-            >
-              {mode}
-            </button>
-          ))}
+          <button
+            onClick={() => setViewMode("month")}
+            className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${
+              viewMode === "month"
+                ? "bg-white text-blue-600 shadow-lg"
+                : "bg-white/20 text-white hover:bg-white/30"
+            }`}
+          >
+            Month
+          </button>
+          <button
+            onClick={() => setViewMode("week")}
+            className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${
+              viewMode === "week"
+                ? "bg-white text-blue-600 shadow-lg"
+                : "bg-white/20 text-white hover:bg-white/30"
+            }`}
+          >
+            Week
+          </button>
         </div>
       </div>
 
       {/* Calendar Grid */}
       <div className="p-6">
+        {/* MONTH VIEW */}
         {viewMode === "month" && (
           <div>
             {/* Day Headers */}
-            <div className="grid grid-cols-7 gap-1 mb-2">
-              {DAYS_SHORT.map((day) => (
+            <div className="grid grid-cols-7 gap-3 mb-3">
+              {DAYS.map((day) => (
                 <div
                   key={day}
-                  className="text-center text-xs font-black text-slate-600 uppercase py-3 bg-slate-50 rounded-lg"
+                  className="text-center font-black text-sm text-slate-600 uppercase tracking-wider py-3 bg-slate-100 rounded-xl"
                 >
                   {day}
                 </div>
               ))}
             </div>
 
-            {/* Calendar Days - PROPER GRID */}
-            <div className="grid grid-cols-7 gap-1">
+            {/* Calendar Days Grid */}
+            <div className="grid grid-cols-7 gap-3">
               {getMonthDays().map((date, idx) => {
                 const dayEvents = getDayEvents(date);
                 const isCurrentMonth = isSameMonth(date);
@@ -242,47 +258,47 @@ export default function EventCalendar({
                 return (
                   <div
                     key={idx}
-                    className={`min-h-[120px] p-2 rounded-lg border-2 transition-all relative group ${
+                    className={`min-h-[140px] p-3 rounded-2xl border-2 transition-all relative group ${
                       isTodayDate
-                        ? "border-blue-500 bg-blue-50 shadow-md"
+                        ? "border-blue-500 bg-blue-50 shadow-lg ring-4 ring-blue-200"
                         : isCurrentMonth
-                          ? "border-slate-200 bg-white hover:bg-slate-50 hover:shadow-sm"
-                          : "border-slate-100 bg-slate-50/50"
+                          ? "border-slate-200 bg-white hover:border-blue-300 hover:shadow-md"
+                          : "border-slate-100 bg-slate-50"
                     }`}
                   >
                     {/* Date Number */}
                     <div className="flex items-center justify-between mb-2">
                       <div
-                        className={`text-sm font-black ${
+                        className={`text-xl font-black ${
                           isTodayDate
-                            ? "text-blue-600 text-lg"
+                            ? "text-blue-600"
                             : isCurrentMonth
                               ? "text-slate-900"
-                              : "text-slate-400"
+                              : "text-slate-300"
                         }`}
                       >
                         {date.getDate()}
                       </div>
 
-                      {/* Quick Add Button - appears on hover */}
+                      {/* Quick Add Button */}
                       {canCreate && onCreateEvent && isCurrentMonth && (
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
                             onCreateEvent(date);
                           }}
-                          className="opacity-0 group-hover:opacity-100 p-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition-all"
+                          className="opacity-0 group-hover:opacity-100 p-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all shadow-md"
                           title="Add event"
                         >
-                          <Plus size={14} />
+                          <Plus size={16} />
                         </button>
                       )}
                     </div>
 
-                    {/* Event Pills */}
+                    {/* Events */}
                     {dayEvents.length > 0 && (
-                      <div className="space-y-1">
-                        {dayEvents.slice(0, 2).map((event) => {
+                      <div className="space-y-1.5">
+                        {dayEvents.slice(0, 3).map((event) => {
                           const permissions = getEventPermissions(
                             currentUser || null,
                             event,
@@ -298,35 +314,35 @@ export default function EventCalendar({
                                   e.stopPropagation();
                                   onEventClick(event);
                                 }}
-                                className={`w-full text-left text-[10px] font-bold px-2 py-1 rounded truncate hover:shadow-md transition-all ${
+                                className={`w-full text-left text-xs font-bold px-2 py-1.5 rounded-lg truncate transition-all shadow-sm hover:shadow-md ${
                                   CATEGORY_COLORS[event.category] ||
-                                  "bg-gray-500 text-white"
-                                }`}
+                                  "bg-gray-500"
+                                } text-white`}
                                 title={event.name}
                               >
                                 {event.startTime && (
-                                  <span className="opacity-90 mr-1">
+                                  <span className="opacity-90 mr-1 text-[10px]">
                                     {event.startTime}
                                   </span>
                                 )}
                                 {event.name}
                               </button>
 
-                              {/* Quick Actions on Hover */}
+                              {/* Quick Actions */}
                               {(permissions.canEdit ||
                                 permissions.canDelete) && (
-                                <div className="absolute top-0 right-0 opacity-0 group-hover/event:opacity-100 flex gap-0.5 bg-white rounded shadow-md p-0.5 transition-opacity">
+                                <div className="absolute -top-1 -right-1 opacity-0 group-hover/event:opacity-100 flex gap-0.5 transition-opacity z-10">
                                   {permissions.canEdit && onEditEvent && (
                                     <button
                                       onClick={(e) => {
                                         e.stopPropagation();
                                         onEditEvent(event);
                                       }}
-                                      className="p-0.5 hover:bg-blue-100 rounded"
+                                      className="p-1 bg-white hover:bg-blue-100 rounded-md shadow-lg border border-slate-200"
                                       title="Edit"
                                     >
                                       <Edit
-                                        size={12}
+                                        size={14}
                                         className="text-blue-600"
                                       />
                                     </button>
@@ -341,11 +357,11 @@ export default function EventCalendar({
                                           onDeleteEvent(event);
                                         }
                                       }}
-                                      className="p-0.5 hover:bg-red-100 rounded"
+                                      className="p-1 bg-white hover:bg-red-100 rounded-md shadow-lg border border-slate-200"
                                       title="Delete"
                                     >
                                       <Trash2
-                                        size={12}
+                                        size={14}
                                         className="text-red-600"
                                       />
                                     </button>
@@ -355,12 +371,12 @@ export default function EventCalendar({
                             </div>
                           );
                         })}
-                        {dayEvents.length > 2 && (
+                        {dayEvents.length > 3 && (
                           <button
                             onClick={() => onDateClick?.(date)}
-                            className="w-full text-[9px] font-bold text-slate-600 hover:text-blue-600 text-center py-0.5 hover:bg-blue-50 rounded transition-colors"
+                            className="w-full text-xs font-bold text-blue-600 hover:text-blue-700 text-center py-1 hover:bg-blue-50 rounded-lg transition-all"
                           >
-                            +{dayEvents.length - 2} more
+                            +{dayEvents.length - 3} more
                           </button>
                         )}
                       </div>
@@ -372,105 +388,196 @@ export default function EventCalendar({
           </div>
         )}
 
-        {viewMode === "day" && (
-          <div className="space-y-2">
-            {getDayEvents(currentDate).length === 0 ? (
-              <div className="text-center py-16">
-                <div className="text-slate-400 font-bold text-lg mb-4">
-                  No events on this day
+        {/* WEEK VIEW */}
+        {viewMode === "week" && (
+          <div>
+            {/* Day Headers */}
+            <div className="grid grid-cols-7 gap-3 mb-3">
+              {DAYS.map((day) => (
+                <div
+                  key={day}
+                  className="text-center font-black text-sm text-slate-600 uppercase tracking-wider py-3 bg-slate-100 rounded-xl"
+                >
+                  {day}
                 </div>
-                {canCreate && onCreateEvent && (
-                  <button
-                    onClick={() => onCreateEvent(currentDate)}
-                    className="px-6 py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-colors inline-flex items-center gap-2"
-                  >
-                    <Plus size={20} />
-                    Create Event
-                  </button>
-                )}
-              </div>
-            ) : (
-              getDayEvents(currentDate).map((event) => {
-                const permissions = getEventPermissions(
-                  currentUser || null,
-                  event,
-                );
+              ))}
+            </div>
+
+            {/* Week Days Grid */}
+            <div className="grid grid-cols-7 gap-3">
+              {weekDays.map((date, idx) => {
+                const dayEvents = getDayEvents(date);
+                const isTodayDate = isToday(date);
 
                 return (
                   <div
-                    key={event.id}
-                    className="group p-4 bg-slate-50 hover:bg-slate-100 rounded-xl border border-slate-200 transition-all"
+                    key={idx}
+                    className={`min-h-[200px] p-3 rounded-2xl border-2 transition-all relative group ${
+                      isTodayDate
+                        ? "border-blue-500 bg-blue-50 shadow-lg ring-4 ring-blue-200"
+                        : "border-slate-200 bg-white hover:border-blue-300 hover:shadow-md"
+                    }`}
                   >
-                    <div className="flex items-start justify-between gap-3">
-                      <button
-                        onClick={() => onEventClick(event)}
-                        className="flex-1 text-left"
-                      >
-                        <div className="flex items-center gap-2 mb-1">
-                          <span
-                            className={`px-2 py-1 ${CATEGORY_COLORS[event.category]} rounded text-xs font-bold uppercase`}
-                          >
-                            {event.category}
-                          </span>
-                          {event.startTime && (
-                            <span className="text-sm font-bold text-slate-600">
-                              {event.startTime}
-                            </span>
-                          )}
+                    {/* Date Number */}
+                    <div className="flex items-center justify-between mb-2">
+                      <div>
+                        <div
+                          className={`text-2xl font-black ${
+                            isTodayDate ? "text-blue-600" : "text-slate-900"
+                          }`}
+                        >
+                          {date.getDate()}
                         </div>
-                        <div className="font-black text-lg text-slate-900 mb-1">
-                          {event.name}
+                        <div className="text-xs font-bold text-slate-500 uppercase">
+                          {date.toLocaleDateString("en-AU", { month: "short" })}
                         </div>
-                        <div className="text-sm text-slate-600">
-                          {event.location && `${event.location} • `}
-                          {event.organization.name}
-                        </div>
-                      </button>
+                      </div>
 
-                      {/* Action Buttons */}
-                      {(permissions.canEdit || permissions.canDelete) && (
-                        <div className="flex gap-2">
-                          {permissions.canEdit && onEditEvent && (
-                            <button
-                              onClick={() => onEditEvent(event)}
-                              className="p-2 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-lg transition-colors"
-                            >
-                              <Edit size={16} />
-                            </button>
-                          )}
-                          {permissions.canDelete && onDeleteEvent && (
-                            <button
-                              onClick={() => {
-                                if (confirm(`Delete "${event.name}"?`)) {
-                                  onDeleteEvent(event);
-                                }
-                              }}
-                              className="p-2 bg-red-100 hover:bg-red-200 text-red-700 rounded-lg transition-colors"
-                            >
-                              <Trash2 size={16} />
-                            </button>
-                          )}
-                        </div>
+                      {/* Quick Add Button */}
+                      {canCreate && onCreateEvent && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onCreateEvent(date);
+                          }}
+                          className="opacity-0 group-hover:opacity-100 p-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all shadow-md"
+                          title="Add event"
+                        >
+                          <Plus size={16} />
+                        </button>
                       )}
                     </div>
+
+                    {/* Events */}
+                    {dayEvents.length > 0 && (
+                      <div className="space-y-1.5">
+                        {dayEvents.map((event) => {
+                          const permissions = getEventPermissions(
+                            currentUser || null,
+                            event,
+                          );
+
+                          return (
+                            <div
+                              key={event.id}
+                              className="group/event relative"
+                            >
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onEventClick(event);
+                                }}
+                                className={`w-full text-left text-xs font-bold px-2 py-1.5 rounded-lg truncate transition-all shadow-sm hover:shadow-md ${
+                                  CATEGORY_COLORS[event.category] ||
+                                  "bg-gray-500"
+                                } text-white`}
+                                title={event.name}
+                              >
+                                {event.startTime && (
+                                  <span className="opacity-90 mr-1 text-[10px]">
+                                    {event.startTime}
+                                  </span>
+                                )}
+                                {event.name}
+                              </button>
+
+                              {/* Quick Actions */}
+                              {(permissions.canEdit ||
+                                permissions.canDelete) && (
+                                <div className="absolute -top-1 -right-1 opacity-0 group-hover/event:opacity-100 flex gap-0.5 transition-opacity z-10">
+                                  {permissions.canEdit && onEditEvent && (
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        onEditEvent(event);
+                                      }}
+                                      className="p-1 bg-white hover:bg-blue-100 rounded-md shadow-lg border border-slate-200"
+                                      title="Edit"
+                                    >
+                                      <Edit
+                                        size={14}
+                                        className="text-blue-600"
+                                      />
+                                    </button>
+                                  )}
+                                  {permissions.canDelete && onDeleteEvent && (
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        if (
+                                          confirm(`Delete "${event.name}"?`)
+                                        ) {
+                                          onDeleteEvent(event);
+                                        }
+                                      }}
+                                      className="p-1 bg-white hover:bg-red-100 rounded-md shadow-lg border border-slate-200"
+                                      title="Delete"
+                                    >
+                                      <Trash2
+                                        size={14}
+                                        className="text-red-600"
+                                      />
+                                    </button>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
                 );
-              })
+              })}
+            </div>
+
+            {/* No events message for week */}
+            {!weekHasEvents && (
+              <div className="mt-8 text-center py-16 bg-slate-50 rounded-2xl border-2 border-slate-200">
+                <CalendarIcon
+                  size={64}
+                  className="text-slate-300 mx-auto mb-4"
+                />
+                <p className="text-slate-600 font-black text-2xl mb-2">
+                  No events this week
+                </p>
+                <p className="text-slate-500 text-sm mb-6">
+                  {weekDays[0].toLocaleDateString("en-AU", {
+                    month: "short",
+                    day: "numeric",
+                  })}{" "}
+                  -{" "}
+                  {weekDays[6].toLocaleDateString("en-AU", {
+                    month: "short",
+                    day: "numeric",
+                    year: "numeric",
+                  })}
+                </p>
+                {canCreate && onCreateEvent && (
+                  <button
+                    onClick={() => onCreateEvent()}
+                    className="px-8 py-4 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-all shadow-lg inline-flex items-center gap-3"
+                  >
+                    <Plus size={24} />
+                    Create Event This Week
+                  </button>
+                )}
+              </div>
             )}
           </div>
         )}
       </div>
 
-      {/* Color Legend */}
-      <div className="px-6 pb-6 pt-2 border-t border-slate-200 bg-slate-50">
-        <div className="text-xs font-black uppercase text-slate-500 mb-2">
-          Categories
+      {/* Legend */}
+      <div className="px-6 pb-6 border-t-2 border-slate-100 pt-4 bg-slate-50">
+        <div className="text-xs font-black uppercase text-slate-500 mb-3">
+          Event Categories
         </div>
         <div className="flex flex-wrap gap-3">
           {Object.entries(CATEGORY_COLORS).map(([category, colorClass]) => (
             <div key={category} className="flex items-center gap-2">
-              <div className={`w-4 h-4 ${colorClass} rounded`} />
-              <span className="text-xs font-bold text-slate-600 capitalize">
+              <div className={`w-4 h-4 ${colorClass} rounded-md shadow-sm`} />
+              <span className="text-sm font-bold text-slate-700 capitalize">
                 {category}
               </span>
             </div>
