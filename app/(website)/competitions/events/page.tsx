@@ -16,6 +16,7 @@ import { Event } from "@/types/event";
 import { User, getEventPermissions } from "@/lib/permissions/event-permissions";
 import EventModal from "@/components/events/EventModal";
 import EventCalendar from "@/components/events/EventCalendar";
+import EventFormModal, { EventFormData } from "@/components/events/EventFormModal";
 
 const CATEGORY_STYLES: Record<
   string,
@@ -111,6 +112,11 @@ export default function EventsPage() {
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
+  // Form modal state (create / edit)
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [editingEvent, setEditingEvent] = useState<Event | null>(null);
+  const [formDefaultDate, setFormDefaultDate] = useState<Date | null>(null);
+
   // Mock current user - SET TO ADMIN SO ALL BUTTONS SHOW
   const currentUser: User = {
     id: "user123",
@@ -172,13 +178,52 @@ export default function EventsPage() {
   };
 
   const handleCreateEvent = (date?: Date) => {
-    console.log("➕ Create event for date:", date);
-    alert(`Create event${date ? ` on ${date.toLocaleDateString()}` : ""}`);
+    setEditingEvent(null);
+    setFormDefaultDate(date ?? null);
+    setIsFormOpen(true);
   };
 
   const handleEditEvent = (event: Event) => {
-    console.log("✏️ Edit event:", event.name);
-    alert(`Edit event: ${event.name}`);
+    setEditingEvent(event);
+    setFormDefaultDate(null);
+    setIsModalOpen(false); // close detail modal if open
+    setIsFormOpen(true);
+  };
+
+  const handleSaveEvent = async (data: EventFormData) => {
+    if (editingEvent) {
+      // UPDATE
+      const res = await fetch(`/api/admin/events/${editingEvent.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || "Failed to update event");
+      }
+      const updated: Event = await res.json().then((b) => b.event ?? b);
+      setEvents((prev) =>
+        prev.map((e) => (e.id === editingEvent.id ? updated : e)),
+      );
+    } else {
+      // CREATE
+      const res = await fetch("/api/admin/events", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || "Failed to create event");
+      }
+      const created: Event = await res.json().then((b) => b.event ?? b);
+      setEvents((prev) =>
+        [...prev, created].sort((a, b) =>
+          a.startDate.localeCompare(b.startDate),
+        ),
+      );
+    }
   };
 
   const handleDeleteEvent = async (event: Event) => {
@@ -516,6 +561,14 @@ export default function EventsPage() {
         onEdit={handleEditEvent}
         onDelete={handleDeleteEvent}
         currentUser={currentUser}
+      />
+
+      <EventFormModal
+        isOpen={isFormOpen}
+        onClose={() => setIsFormOpen(false)}
+        onSave={handleSaveEvent}
+        event={editingEvent}
+        defaultDate={formDefaultDate}
       />
     </div>
   );
