@@ -1,5 +1,5 @@
-// app/(admin)/admin/associations/[associationId]/page.tsx
-// Association detail/view page
+// app/admin/associations/[associationId]/page.tsx
+// COMPLETE Association View - Shows ALL Fields
 
 import clientPromise from "@/lib/mongodb";
 import Link from "next/link";
@@ -19,6 +19,11 @@ import {
   Twitter,
   Shield,
   FileText,
+  Settings,
+  Palette,
+  Calendar,
+  CheckCircle,
+  XCircle,
 } from "lucide-react";
 
 export default async function AssociationDetailPage({
@@ -28,16 +33,13 @@ export default async function AssociationDetailPage({
 }) {
   try {
     const { associationId } = await params;
-
     const client = await clientPromise;
     const db = client.db();
 
-    // Fetch association
     const association = await db
       .collection("associations")
       .findOne({ associationId });
 
-    // If not found, show 404
     if (!association) {
       return (
         <div className="min-h-screen bg-slate-50">
@@ -53,8 +55,7 @@ export default async function AssociationDetailPage({
                     Association Not Found
                   </h2>
                   <p className="text-yellow-700 font-bold mb-4">
-                    The association "{associationId}" doesn't exist or has been
-                    removed.
+                    The association "{associationId}" doesn't exist.
                   </p>
                   <Link
                     href="/admin/associations"
@@ -74,9 +75,9 @@ export default async function AssociationDetailPage({
     // Fetch parent
     let parent = null;
     if (association.parentAssociationId) {
-      parent = await db
-        .collection("associations")
-        .findOne({ associationId: association.parentAssociationId });
+      parent = await db.collection("associations").findOne({
+        associationId: association.parentAssociationId,
+      });
     }
 
     // Fetch children
@@ -91,20 +92,7 @@ export default async function AssociationDetailPage({
       .find({ parentAssociationId: associationId })
       .toArray();
 
-    // Get registration statistics
-    const totalRegistrations = await db
-      .collection("association-registrations")
-      .countDocuments({ associationId });
-
-    const activeRegistrations = await db
-      .collection("association-registrations")
-      .countDocuments({ associationId, status: "active" });
-
-    const pendingRegistrations = await db
-      .collection("association-registrations")
-      .countDocuments({ associationId, status: "pending" });
-
-    // Get level badge info
+    // Get level badge info - FIXED
     const getLevelInfo = (level: number) => {
       const levels = {
         0: {
@@ -119,6 +107,10 @@ export default async function AssociationDetailPage({
           label: "Regional",
           color: "bg-green-100 text-green-700 border-green-300",
         },
+        3: {
+          label: "District",
+          color: "bg-orange-100 text-orange-700 border-orange-300",
+        },
       };
       return (
         levels[level as keyof typeof levels] || {
@@ -128,7 +120,7 @@ export default async function AssociationDetailPage({
       );
     };
 
-    const levelInfo = getLevelInfo(association.level);
+    const levelInfo = getLevelInfo(association.level ?? 0);
 
     return (
       <div className="min-h-screen bg-slate-50">
@@ -156,7 +148,7 @@ export default async function AssociationDetailPage({
         </div>
 
         <div className="max-w-7xl mx-auto px-6 py-8">
-          {/* Header */}
+          {/* Header - WITH ALL IDENTITY FIELDS */}
           <div className="bg-white rounded-[2rem] shadow-xl border border-slate-100 p-8 mb-6">
             <div className="flex items-start gap-4 mb-6">
               <div
@@ -173,6 +165,7 @@ export default async function AssociationDetailPage({
                   <h1 className="text-3xl font-black text-[#06054e]">
                     {association.name}
                   </h1>
+                  {/* FIXED: Level Badge */}
                   <span
                     className={`px-3 py-1 rounded-lg text-sm font-bold border-2 ${levelInfo.color}`}
                   >
@@ -191,9 +184,33 @@ export default async function AssociationDetailPage({
                 <p className="text-lg text-slate-600 font-bold">
                   {association.fullName}
                 </p>
+                {/* NEW: Show Acronym */}
+                {association.acronym && (
+                  <p className="text-sm text-slate-500 font-bold mt-1">
+                    Acronym: {association.acronym}
+                  </p>
+                )}
                 <p className="text-sm text-slate-500 font-bold mt-1">
-                  {association.region}, {association.state}
+                  {association.region && `${association.region}, `}
+                  {association.state}
+                  {association.country && ` • ${association.country}`}
                 </p>
+                {/* NEW: Show Timezone */}
+                {association.timezone && (
+                  <p className="text-xs text-slate-400 font-bold mt-1">
+                    Timezone: {association.timezone}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* NEW: Show Association ID */}
+            <div className="bg-slate-50 rounded-xl p-4">
+              <div className="text-xs font-black uppercase text-slate-500 mb-1">
+                Association ID
+              </div>
+              <div className="font-mono font-bold text-slate-700">
+                {association.associationId}
               </div>
             </div>
           </div>
@@ -232,13 +249,13 @@ export default async function AssociationDetailPage({
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-bold text-slate-500 uppercase">
-                    Active
+                    Fees
                   </p>
-                  <p className="text-3xl font-black text-green-600 mt-1">
-                    {activeRegistrations}
+                  <p className="text-3xl font-black text-[#06054e] mt-1">
+                    {association.fees?.length || 0}
                   </p>
                 </div>
-                <Shield size={32} className="text-slate-300" />
+                <DollarSign size={32} className="text-slate-300" />
               </div>
             </div>
 
@@ -246,120 +263,104 @@ export default async function AssociationDetailPage({
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-bold text-slate-500 uppercase">
-                    Pending
+                    Positions
                   </p>
-                  <p className="text-3xl font-black text-orange-600 mt-1">
-                    {pendingRegistrations}
+                  <p className="text-3xl font-black text-[#06054e] mt-1">
+                    {association.positions?.length || 0}
                   </p>
                 </div>
-                <FileText size={32} className="text-slate-300" />
+                <Shield size={32} className="text-slate-300" />
               </div>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-            {/* Contact Info */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+            {/* Contact Info - COMPLETE */}
             <div className="bg-white rounded-2xl shadow-xl border border-slate-100 p-8">
               <h2 className="text-2xl font-black text-[#06054e] mb-6 flex items-center gap-3">
                 <Mail size={24} />
                 Contact Information
               </h2>
               <div className="space-y-4">
-                <div className="flex items-start gap-3">
-                  <Mail
-                    size={20}
-                    className="text-slate-400 mt-1 flex-shrink-0"
-                  />
+                {/* Primary Email */}
+                {association.contact?.primaryEmail && (
                   <div>
                     <div className="text-xs font-black uppercase text-slate-500 mb-1">
                       Primary Email
                     </div>
                     <a
-                      href={`mailto:${association.contact?.primaryEmail}`}
-                      className="font-bold text-blue-600 hover:underline"
+                      href={`mailto:${association.contact.primaryEmail}`}
+                      className="flex items-center gap-2 font-bold text-[#06054e] hover:text-yellow-500 transition-colors"
                     >
-                      {association.contact?.primaryEmail}
+                      <Mail size={16} />
+                      {association.contact.primaryEmail}
                     </a>
-                  </div>
-                </div>
-
-                {association.contact?.secondaryEmail && (
-                  <div className="flex items-start gap-3">
-                    <Mail
-                      size={20}
-                      className="text-slate-400 mt-1 flex-shrink-0"
-                    />
-                    <div>
-                      <div className="text-xs font-black uppercase text-slate-500 mb-1">
-                        Secondary Email
-                      </div>
-                      <a
-                        href={`mailto:${association.contact.secondaryEmail}`}
-                        className="font-bold text-blue-600 hover:underline"
-                      >
-                        {association.contact.secondaryEmail}
-                      </a>
-                    </div>
                   </div>
                 )}
 
-                <div className="flex items-start gap-3">
-                  <Phone
-                    size={20}
-                    className="text-slate-400 mt-1 flex-shrink-0"
-                  />
+                {/* NEW: Secondary Email */}
+                {association.contact?.secondaryEmail && (
+                  <div>
+                    <div className="text-xs font-black uppercase text-slate-500 mb-1">
+                      Secondary Email
+                    </div>
+                    <a
+                      href={`mailto:${association.contact.secondaryEmail}`}
+                      className="flex items-center gap-2 font-bold text-slate-700 hover:text-[#06054e] transition-colors"
+                    >
+                      <Mail size={16} />
+                      {association.contact.secondaryEmail}
+                    </a>
+                  </div>
+                )}
+
+                {/* Phone */}
+                {association.contact?.phone && (
                   <div>
                     <div className="text-xs font-black uppercase text-slate-500 mb-1">
                       Phone
                     </div>
                     <a
-                      href={`tel:${association.contact?.phone}`}
-                      className="font-bold text-slate-700"
+                      href={`tel:${association.contact.phone}`}
+                      className="flex items-center gap-2 font-bold text-slate-700 hover:text-[#06054e] transition-colors"
                     >
-                      {association.contact?.phone}
+                      <Phone size={16} />
+                      {association.contact.phone}
                     </a>
-                  </div>
-                </div>
-
-                {association.contact?.mobile && (
-                  <div className="flex items-start gap-3">
-                    <Phone
-                      size={20}
-                      className="text-slate-400 mt-1 flex-shrink-0"
-                    />
-                    <div>
-                      <div className="text-xs font-black uppercase text-slate-500 mb-1">
-                        Mobile
-                      </div>
-                      <a
-                        href={`tel:${association.contact.mobile}`}
-                        className="font-bold text-slate-700"
-                      >
-                        {association.contact.mobile}
-                      </a>
-                    </div>
                   </div>
                 )}
 
-                {association.contact?.website && (
-                  <div className="flex items-start gap-3">
-                    <Globe
-                      size={20}
-                      className="text-slate-400 mt-1 flex-shrink-0"
-                    />
-                    <div>
-                      <div className="text-xs font-black uppercase text-slate-500 mb-1">
-                        Website
-                      </div>
-                      <a
-                        href={association.contact.website}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="font-bold text-blue-600 hover:underline"
-                      >
-                        {association.contact.website}
-                      </a>
+                {/* NEW: Mobile */}
+                {association.contact?.mobile && (
+                  <div>
+                    <div className="text-xs font-black uppercase text-slate-500 mb-1">
+                      Mobile
                     </div>
+                    <a
+                      href={`tel:${association.contact.mobile}`}
+                      className="flex items-center gap-2 font-bold text-slate-700 hover:text-[#06054e] transition-colors"
+                    >
+                      <Phone size={16} />
+                      {association.contact.mobile}
+                    </a>
+                  </div>
+                )}
+
+                {/* Website */}
+                {association.contact?.website && (
+                  <div>
+                    <div className="text-xs font-black uppercase text-slate-500 mb-1">
+                      Website
+                    </div>
+                    <a
+                      href={association.contact.website}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-2 font-bold text-blue-600 hover:text-blue-700 transition-colors"
+                    >
+                      <Globe size={16} />
+                      {association.contact.website}
+                    </a>
                   </div>
                 )}
 
@@ -371,7 +372,7 @@ export default async function AssociationDetailPage({
                     <div className="text-xs font-black uppercase text-slate-500 mb-3">
                       Social Media
                     </div>
-                    <div className="flex gap-3">
+                    <div className="flex gap-2">
                       {association.socialMedia.facebook && (
                         <a
                           href={association.socialMedia.facebook}
@@ -408,19 +409,31 @@ export default async function AssociationDetailPage({
               </div>
             </div>
 
-            {/* Address */}
+            {/* Address & Hierarchy */}
             <div className="bg-white rounded-2xl shadow-xl border border-slate-100 p-8">
               <h2 className="text-2xl font-black text-[#06054e] mb-6 flex items-center gap-3">
                 <MapPin size={24} />
                 Address
               </h2>
               <div className="font-bold text-slate-700 text-lg leading-relaxed">
-                <div>{association.address?.street}</div>
-                <div>
-                  {association.address?.suburb}, {association.address?.state}{" "}
-                  {association.address?.postcode}
-                </div>
-                <div>{association.address?.country}</div>
+                {association.address?.street && (
+                  <div>{association.address.street}</div>
+                )}
+                {association.address?.suburb && (
+                  <div>
+                    {association.address.suburb}
+                    {association.address.city &&
+                      ` (${association.address.city})`}
+                  </div>
+                )}
+                {association.address?.state && (
+                  <div>
+                    {association.address.state} {association.address.postcode}
+                  </div>
+                )}
+                {association.address?.country && (
+                  <div>{association.address.country}</div>
+                )}
               </div>
 
               {/* Hierarchy */}
@@ -441,7 +454,7 @@ export default async function AssociationDetailPage({
                         {parent.name}
                       </div>
                       <div className="text-xs text-slate-500">
-                        Level {parent.level}
+                        {getLevelInfo(parent.level ?? 0).label}
                       </div>
                     </div>
                   </Link>
@@ -449,6 +462,190 @@ export default async function AssociationDetailPage({
               )}
             </div>
           </div>
+
+          {/* NEW: Settings Section */}
+          {association.settings && (
+            <div className="bg-white rounded-2xl shadow-xl border border-slate-100 p-8 mb-6">
+              <h2 className="text-2xl font-black text-[#06054e] mb-6 flex items-center gap-3">
+                <Settings size={24} />
+                Settings & Configuration
+              </h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="flex items-start gap-3">
+                  {association.settings.requiresApproval ? (
+                    <CheckCircle size={20} className="text-green-600 mt-1" />
+                  ) : (
+                    <XCircle size={20} className="text-slate-400 mt-1" />
+                  )}
+                  <div>
+                    <div className="font-bold text-slate-900">
+                      Requires Approval
+                    </div>
+                    <div className="text-sm text-slate-600">
+                      {association.settings.requiresApproval ? "Yes" : "No"}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3">
+                  {association.settings.autoApproveReturningPlayers ? (
+                    <CheckCircle size={20} className="text-green-600 mt-1" />
+                  ) : (
+                    <XCircle size={20} className="text-slate-400 mt-1" />
+                  )}
+                  <div>
+                    <div className="font-bold text-slate-900">
+                      Auto-Approve Returning
+                    </div>
+                    <div className="text-sm text-slate-600">
+                      {association.settings.autoApproveReturningPlayers
+                        ? "Yes"
+                        : "No"}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3">
+                  {association.settings.allowMultipleClubs ? (
+                    <CheckCircle size={20} className="text-green-600 mt-1" />
+                  ) : (
+                    <XCircle size={20} className="text-slate-400 mt-1" />
+                  )}
+                  <div>
+                    <div className="font-bold text-slate-900">
+                      Allow Multiple Clubs
+                    </div>
+                    <div className="text-sm text-slate-600">
+                      {association.settings.allowMultipleClubs ? "Yes" : "No"}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3">
+                  <Calendar size={20} className="text-blue-600 mt-1" />
+                  <div>
+                    <div className="font-bold text-slate-900">Season</div>
+                    <div className="text-sm text-slate-600">
+                      Month {association.settings.seasonStartMonth} -{" "}
+                      {association.settings.seasonEndMonth}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3">
+                  {association.settings.requiresInsurance ? (
+                    <CheckCircle size={20} className="text-green-600 mt-1" />
+                  ) : (
+                    <XCircle size={20} className="text-slate-400 mt-1" />
+                  )}
+                  <div>
+                    <div className="font-bold text-slate-900">
+                      Requires Insurance
+                    </div>
+                    <div className="text-sm text-slate-600">
+                      {association.settings.requiresInsurance ? "Yes" : "No"}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3">
+                  {association.settings.requiresMedicalInfo ? (
+                    <CheckCircle size={20} className="text-green-600 mt-1" />
+                  ) : (
+                    <XCircle size={20} className="text-slate-400 mt-1" />
+                  )}
+                  <div>
+                    <div className="font-bold text-slate-900">
+                      Requires Medical Info
+                    </div>
+                    <div className="text-sm text-slate-600">
+                      {association.settings.requiresMedicalInfo ? "Yes" : "No"}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3">
+                  {association.settings.requiresEmergencyContact ? (
+                    <CheckCircle size={20} className="text-green-600 mt-1" />
+                  ) : (
+                    <XCircle size={20} className="text-slate-400 mt-1" />
+                  )}
+                  <div>
+                    <div className="font-bold text-slate-900">
+                      Requires Emergency Contact
+                    </div>
+                    <div className="text-sm text-slate-600">
+                      {association.settings.requiresEmergencyContact
+                        ? "Yes"
+                        : "No"}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* NEW: Branding Section */}
+          {association.branding && (
+            <div className="bg-white rounded-2xl shadow-xl border border-slate-100 p-8 mb-6">
+              <h2 className="text-2xl font-black text-[#06054e] mb-6 flex items-center gap-3">
+                <Palette size={24} />
+                Branding & Colors
+              </h2>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div>
+                  <div className="text-xs font-black uppercase text-slate-500 mb-2">
+                    Primary Color
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div
+                      className="w-16 h-16 rounded-xl border-2 border-slate-200 shadow-inner"
+                      style={{
+                        backgroundColor: association.branding.primaryColor,
+                      }}
+                    />
+                    <div className="font-mono font-bold text-slate-700 uppercase">
+                      {association.branding.primaryColor}
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <div className="text-xs font-black uppercase text-slate-500 mb-2">
+                    Secondary Color
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div
+                      className="w-16 h-16 rounded-xl border-2 border-slate-200 shadow-inner"
+                      style={{
+                        backgroundColor: association.branding.secondaryColor,
+                      }}
+                    />
+                    <div className="font-mono font-bold text-slate-700 uppercase">
+                      {association.branding.secondaryColor}
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  <div className="text-xs font-black uppercase text-slate-500 mb-2">
+                    Accent Color
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div
+                      className="w-16 h-16 rounded-xl border-2 border-slate-200 shadow-inner"
+                      style={{
+                        backgroundColor: association.branding.accentColor,
+                      }}
+                    />
+                    <div className="font-mono font-bold text-slate-700 uppercase">
+                      {association.branding.accentColor}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Children Associations */}
           {children.length > 0 && (
@@ -458,21 +655,55 @@ export default async function AssociationDetailPage({
                 Child Associations ({children.length})
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {children.map((child: any) => (
+                {children.map((child: any) => {
+                  const childLevelInfo = getLevelInfo(child.level ?? 0);
+                  return (
+                    <Link
+                      key={child.associationId}
+                      href={`/admin/associations/${child.associationId}`}
+                      className="flex items-center gap-3 p-4 bg-slate-50 rounded-xl hover:bg-slate-100 transition-colors border-2 border-slate-200"
+                    >
+                      <div className="w-12 h-12 rounded-lg bg-[#06054e] text-white flex items-center justify-center font-black">
+                        {child.code}
+                      </div>
+                      <div className="flex-1">
+                        <div className="font-bold text-slate-900">
+                          {child.name}
+                        </div>
+                        <div className="text-xs text-slate-500">
+                          {childLevelInfo.label}
+                        </div>
+                      </div>
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Clubs */}
+          {clubs.length > 0 && (
+            <div className="bg-white rounded-2xl shadow-xl border border-slate-100 p-8 mb-6">
+              <h2 className="text-2xl font-black text-[#06054e] mb-6 flex items-center gap-3">
+                <Users size={24} />
+                Clubs ({clubs.length})
+              </h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {clubs.map((club: any) => (
                   <Link
-                    key={child.associationId}
-                    href={`/admin/associations/${child.associationId}`}
+                    key={club.clubId}
+                    href={`/admin/clubs/${club.clubId}`}
                     className="flex items-center gap-3 p-4 bg-slate-50 rounded-xl hover:bg-slate-100 transition-colors border-2 border-slate-200"
                   >
-                    <div className="w-12 h-12 rounded-lg bg-[#06054e] text-white flex items-center justify-center font-black">
-                      {child.code}
+                    <div className="w-10 h-10 rounded-lg bg-green-600 text-white flex items-center justify-center font-black text-sm">
+                      {club.code}
                     </div>
                     <div className="flex-1">
-                      <div className="font-bold text-slate-900">
-                        {child.name}
+                      <div className="font-bold text-slate-900 text-sm">
+                        {club.name}
                       </div>
                       <div className="text-xs text-slate-500">
-                        Level {child.level}
+                        {club.suburb || club.region}
                       </div>
                     </div>
                   </Link>
@@ -541,7 +772,6 @@ export default async function AssociationDetailPage({
     );
   } catch (error: any) {
     console.error("Error loading association:", error);
-
     return (
       <div className="min-h-screen bg-slate-50">
         <div className="max-w-7xl mx-auto px-6 py-8">
@@ -568,37 +798,5 @@ export default async function AssociationDetailPage({
         </div>
       </div>
     );
-  }
-}
-
-// Metadata
-export async function generateMetadata({
-  params,
-}: {
-  params: Promise<{ associationId: string }>;
-}) {
-  const { associationId } = await params;
-
-  try {
-    const client = await clientPromise;
-    const db = client.db();
-
-    const association = await db
-      .collection("associations")
-      .findOne({ associationId });
-
-    return {
-      title: association
-        ? `${association.name} | Hockey Admin`
-        : "Association | Hockey Admin",
-      description: association
-        ? `View details for ${association.name}`
-        : "Association details",
-    };
-  } catch {
-    return {
-      title: "Association | Hockey Admin",
-      description: "Association details",
-    };
   }
 }

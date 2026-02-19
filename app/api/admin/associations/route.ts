@@ -67,6 +67,7 @@ const AssociationSchema = z.object({
     .object({
       primaryColor: z.string().default("#06054e"),
       secondaryColor: z.string().default("#FFD700"),
+      accentColor: z.string().default("#ffd700"),
     })
     .optional(),
 

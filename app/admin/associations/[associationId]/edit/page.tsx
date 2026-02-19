@@ -1,5 +1,5 @@
-// app/(admin)/admin/associations/[associationId]/edit/page.tsx
-// Fixed: Removed conflicting notFound function
+// app/admin/associations/[associationId]/edit/page.tsx
+// FIXED: Added accentColor to branding serialization
 
 import AssociationForm from "@/components/admin/associations/AssociationForm";
 import clientPromise from "@/lib/mongodb";
@@ -80,7 +80,7 @@ export default async function EditAssociationPage({
 
       // Hierarchy
       parentAssociationId: association.parentAssociationId || "",
-      level: association.level,
+      level: association.level ?? 0, // ✅ ENSURE LEVEL IS PASSED
       hierarchy: association.hierarchy || [],
 
       // Location
@@ -170,15 +170,17 @@ export default async function EditAssociationPage({
             requiresEmergencyContact: true,
           },
 
-      // Branding
+      // Branding - ✅ FIXED: Added accentColor
       branding: association.branding
         ? {
             primaryColor: association.branding.primaryColor || "#06054e",
             secondaryColor: association.branding.secondaryColor || "#FFD700",
+            accentColor: association.branding.accentColor || "#ffd700", // ✅ ADDED
           }
         : {
             primaryColor: "#06054e",
             secondaryColor: "#FFD700",
+            accentColor: "#ffd700", // ✅ ADDED
           },
 
       // Status
@@ -194,7 +196,7 @@ export default async function EditAssociationPage({
       associationId: a.associationId,
       code: a.code,
       name: a.name,
-      level: a.level,
+      level: a.level ?? 0, // ✅ ENSURE LEVEL IS PASSED
     }));
 
     return (

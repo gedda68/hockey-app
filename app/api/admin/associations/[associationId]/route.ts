@@ -62,7 +62,7 @@ const AssociationSchema = z.object({
         validTo: z.union([z.date(), z.string()]).optional(), // Accept both
         ageCategories: z.array(z.string()).optional(),
         roleCategories: z.array(z.string()).optional(),
-      })
+      }),
     )
     .default([]),
 
@@ -83,6 +83,7 @@ const AssociationSchema = z.object({
     .object({
       primaryColor: z.string().default("#06054e"),
       secondaryColor: z.string().default("#FFD700"),
+      accentColor: z.string().default("#ffd700"),
     })
     .optional(),
 
@@ -92,7 +93,7 @@ const AssociationSchema = z.object({
 // Helper: Calculate hierarchy and level
 async function calculateHierarchy(
   db: any,
-  parentAssociationId?: string
+  parentAssociationId?: string,
 ): Promise<{ level: number; hierarchy: string[] }> {
   if (!parentAssociationId) {
     return { level: 0, hierarchy: [] };
@@ -124,7 +125,7 @@ function normalizeFees(fees: any[]) {
 // GET /api/admin/associations/[id] - Get single association
 export async function GET(
   request: Request,
-  { params }: { params: Promise<{ associationId: string }> }
+  { params }: { params: Promise<{ associationId: string }> },
 ) {
   try {
     const { associationId } = await params;
@@ -139,7 +140,7 @@ export async function GET(
     if (!association) {
       return NextResponse.json(
         { error: "Association not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -198,7 +199,7 @@ export async function GET(
     console.error("Error fetching association:", error);
     return NextResponse.json(
       { error: error.message || "Failed to fetch association" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -206,7 +207,7 @@ export async function GET(
 // PUT /api/admin/associations/[id] - Update association
 export async function PUT(
   request: Request,
-  { params }: { params: Promise<{ associationId: string }> }
+  { params }: { params: Promise<{ associationId: string }> },
 ) {
   try {
     const { associationId } = await params;
@@ -223,7 +224,7 @@ export async function PUT(
     if (!existing) {
       return NextResponse.json(
         { error: "Association not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -234,24 +235,32 @@ export async function PUT(
     const parentChanged =
       validated.parentAssociationId !== existing.parentAssociationId;
 
-    // Auto-calculate level and hierarchy
-    let level = existing.level;
+    // Use submitted level if provided, otherwise keep existing
+    let level = validated.level ?? existing.level;
     let hierarchy = existing.hierarchy;
 
     if (parentChanged) {
-      // Recalculate based on new parent
-      const calculated = await calculateHierarchy(
-        db,
-        validated.parentAssociationId
-      );
-      level = calculated.level;
-      hierarchy = calculated.hierarchy;
+      // Recalculate hierarchy based on new parent
+      const parent = validated.parentAssociationId
+        ? await db.collection("associations").findOne({
+            associationId: validated.parentAssociationId,
+          })
+        : null;
+
+      hierarchy = parent
+        ? [...(parent.hierarchy || []), parent.associationId]
+        : [];
+
+      // Only auto-calculate level if not explicitly provided
+      if (validated.level === undefined) {
+        level = parent ? parent.level + 1 : 0;
+      }
 
       // Check for circular reference
       if (validated.parentAssociationId === associationId) {
         return NextResponse.json(
           { error: "Cannot set association as its own parent" },
-          { status: 400 }
+          { status: 400 },
         );
       }
 
@@ -262,7 +271,7 @@ export async function PUT(
             error:
               "Circular reference detected - association is ancestor of new parent",
           },
-          { status: 400 }
+          { status: 400 },
         );
       }
     }
@@ -328,7 +337,7 @@ export async function PUT(
               level: newDescendantLevel,
               updatedAt: new Date(),
             },
-          }
+          },
         );
       }
     }
@@ -351,13 +360,13 @@ export async function PUT(
           error: "Validation failed",
           details: error.errors,
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     return NextResponse.json(
       { error: error.message || "Failed to update association" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -365,7 +374,7 @@ export async function PUT(
 // DELETE /api/admin/associations/[id] - Soft delete
 export async function DELETE(
   request: Request,
-  { params }: { params: Promise<{ associationId: string }> }
+  { params }: { params: Promise<{ associationId: string }> },
 ) {
   try {
     const { associationId } = await params;
@@ -381,7 +390,7 @@ export async function DELETE(
     if (!existing) {
       return NextResponse.json(
         { error: "Association not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -393,7 +402,7 @@ export async function DELETE(
     if (childrenCount > 0) {
       return NextResponse.json(
         { error: "Cannot delete association with child associations" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -405,7 +414,7 @@ export async function DELETE(
     if (clubsCount > 0) {
       return NextResponse.json(
         { error: "Cannot delete association with clubs" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -417,7 +426,7 @@ export async function DELETE(
     if (activeRegistrations > 0) {
       return NextResponse.json(
         { error: "Cannot delete association with active registrations" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -426,7 +435,7 @@ export async function DELETE(
       .collection("associations")
       .updateOne(
         { associationId },
-        { $set: { status: "inactive", updatedAt: new Date() } }
+        { $set: { status: "inactive", updatedAt: new Date() } },
       );
 
     return NextResponse.json({
@@ -436,7 +445,7 @@ export async function DELETE(
     console.error("Error deleting association:", error);
     return NextResponse.json(
       { error: error.message || "Failed to delete association" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
