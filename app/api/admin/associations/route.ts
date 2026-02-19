@@ -73,17 +73,26 @@ const AssociationSchema = z.object({
   status: z.enum(["active", "inactive", "suspended"]).default("active"),
 });
 
-// Helper: Calculate hierarchy and level
+// 5-level system: 1=National, 2=Sub-national, 3=State, 4=Regional, 5=City
+const LEVEL_NAMES: Record<number, string> = {
+  1: "National",
+  2: "Sub-national",
+  3: "State",
+  4: "Regional",
+  5: "City",
+};
+
+// Helper: Calculate hierarchy from parent
 async function calculateHierarchy(
   db: any,
   parentAssociationId?: string,
+  explicitLevel?: number,
 ): Promise<{ level: number; hierarchy: string[] }> {
   if (!parentAssociationId) {
-    // Root level (National)
-    return { level: 0, hierarchy: [] };
+    // Root — use explicit level or default to 1 (National)
+    return { level: explicitLevel ?? 1, hierarchy: [] };
   }
 
-  // Get parent
   const parent = await db
     .collection("associations")
     .findOne({ associationId: parentAssociationId });
@@ -92,23 +101,18 @@ async function calculateHierarchy(
     throw new Error("Parent association not found");
   }
 
-  // Level = parent's level + 1
-  // Hierarchy = parent's hierarchy + parent's ID
+  // Use explicit level if provided, otherwise derive from parent
+  const level = explicitLevel ?? Math.min(parent.level + 1, 5);
+
   return {
-    level: parent.level + 1,
+    level,
     hierarchy: [...(parent.hierarchy || []), parent.associationId],
   };
 }
 
-// Helper: Map numeric level to string level for backwards compatibility
+// Helper: Map numeric level to string label
 function getLevelString(numericLevel: number): string {
-  const levelMap: Record<number, string> = {
-    0: "National",
-    1: "State",
-    2: "City",
-    3: "Region",
-  };
-  return levelMap[numericLevel] || "Other";
+  return LEVEL_NAMES[numericLevel] || `Level ${numericLevel}`;
 }
 
 // GET /api/admin/associations - List associations with hierarchical filtering
@@ -138,23 +142,17 @@ export async function GET(request: NextRequest) {
       query.status = "active";
     }
 
-    // Handle level filtering (support both string and numeric)
+    // Handle level filtering — support numeric (1-5) or string name
     if (level) {
-      // Try parsing as number first
       const numericLevel = parseInt(level);
-
       if (!isNaN(numericLevel)) {
-        // It's a number: 0, 1, 2, 3
         query.level = numericLevel;
       } else {
-        // It's a string: 'National', 'State', 'City', 'Region'
-        const levelMap: Record<string, number> = {
-          National: 0,
-          State: 2, // Note: State is level 2, not 1!
-          City: 3, // City is level 3
-          Region: 3,
-        };
-        query.level = levelMap[level] ?? 0;
+        // String name → find matching level number
+        const found = Object.entries(LEVEL_NAMES).find(
+          ([, name]) => name.toLowerCase() === level.toLowerCase(),
+        );
+        if (found) query.level = parseInt(found[0]);
       }
     }
 
@@ -296,10 +294,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // ✅ AUTO-CALCULATE level and hierarchy
+    // AUTO-CALCULATE level and hierarchy (pass explicit level if provided)
     const { level, hierarchy } = await calculateHierarchy(
       db,
       validated.parentAssociationId,
+      (validated as any).level,
     );
 
     // Create association document
