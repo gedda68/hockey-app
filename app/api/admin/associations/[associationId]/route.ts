@@ -1,11 +1,11 @@
 // app/api/admin/associations/[associationId]/route.ts
-// Fixed: Make level, hierarchy, and fee dates optional/flexible
+// FINAL FIX: Make fee dates nullable
 
 import { NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import { z } from "zod";
 
-// Flexible schema for updates - level and hierarchy are optional
+// Flexible schema for updates
 const AssociationSchema = z.object({
   associationId: z.string().min(1),
   code: z.string().min(1).max(10),
@@ -14,8 +14,8 @@ const AssociationSchema = z.object({
   acronym: z.string().optional(),
 
   parentAssociationId: z.string().optional(),
-  level: z.number().optional(), // Auto-calculated
-  hierarchy: z.array(z.string()).optional(), // Auto-calculated
+  level: z.number().optional(),
+  hierarchy: z.array(z.string()).optional(),
 
   region: z.string().min(1),
   state: z.string().min(1),
@@ -49,7 +49,7 @@ const AssociationSchema = z.object({
 
   positions: z.array(z.any()).default([]),
 
-  // Fees with flexible date handling
+  // ✅ FIX: Fees with nullable dates
   fees: z
     .array(
       z.object({
@@ -58,8 +58,14 @@ const AssociationSchema = z.object({
         amount: z.number(),
         category: z.string().optional(),
         isActive: z.boolean().optional(),
-        validFrom: z.union([z.date(), z.string()]).optional(), // Accept both
-        validTo: z.union([z.date(), z.string()]).optional(), // Accept both
+        validFrom: z
+          .union([z.date(), z.string(), z.null()])
+          .optional()
+          .nullable(),
+        validTo: z
+          .union([z.date(), z.string(), z.null()])
+          .optional()
+          .nullable(),
         ageCategories: z.array(z.string()).optional(),
         roleCategories: z.array(z.string()).optional(),
       }),
@@ -113,12 +119,12 @@ async function calculateHierarchy(
   };
 }
 
-// Helper: Convert date strings to Date objects
+// Helper: Normalize fees
 function normalizeFees(fees: any[]) {
   return fees.map((fee) => ({
     ...fee,
-    validFrom: fee.validFrom ? new Date(fee.validFrom) : undefined,
-    validTo: fee.validTo ? new Date(fee.validTo) : undefined,
+    validFrom: fee.validFrom ? new Date(fee.validFrom) : null,
+    validTo: fee.validTo ? new Date(fee.validTo) : null,
   }));
 }
 
@@ -152,48 +158,22 @@ export async function GET(
         .findOne({ associationId: association.parentAssociationId });
     }
 
-    // Get ancestors (full hierarchy)
-    const ancestors = [];
-    if (association.hierarchy && association.hierarchy.length > 0) {
-      const ancestorDocs = await db
-        .collection("associations")
-        .find({ associationId: { $in: association.hierarchy } })
-        .toArray();
-      ancestors.push(...ancestorDocs);
-    }
-
     // Get children
     const children = await db
       .collection("associations")
       .find({ parentAssociationId: associationId })
       .toArray();
 
-    // Get clubs
-    const clubs = await db
-      .collection("clubs")
-      .find({ parentAssociationId: associationId })
-      .toArray();
-
-    // Get registration statistics
-    const statistics = {
-      total: await db
-        .collection("association-registrations")
-        .countDocuments({ associationId }),
-      active: await db
-        .collection("association-registrations")
-        .countDocuments({ associationId, status: "active" }),
-      pending: await db
-        .collection("association-registrations")
-        .countDocuments({ associationId, status: "pending" }),
-    };
-
     return NextResponse.json({
       ...association,
-      parent,
-      ancestors,
-      children,
-      clubs,
-      statistics,
+      parent: parent
+        ? {
+            associationId: parent.associationId,
+            name: parent.name,
+            code: parent.code,
+          }
+        : null,
+      childrenCount: children.length,
     });
   } catch (error: any) {
     console.error("Error fetching association:", error);
@@ -228,19 +208,18 @@ export async function PUT(
       );
     }
 
-    // Validate with Zod (level and hierarchy are optional)
+    // Validate with Zod
     const validated = AssociationSchema.parse(body);
 
     // Check if parent changed
     const parentChanged =
       validated.parentAssociationId !== existing.parentAssociationId;
 
-    // Use submitted level if provided, otherwise keep existing
+    // ✅ FIX: Respect submitted level, only auto-calculate if not provided
     let level = validated.level ?? existing.level;
     let hierarchy = existing.hierarchy;
 
     if (parentChanged) {
-      // Recalculate hierarchy based on new parent
       const parent = validated.parentAssociationId
         ? await db.collection("associations").findOne({
             associationId: validated.parentAssociationId,
@@ -255,111 +234,54 @@ export async function PUT(
       if (validated.level === undefined) {
         level = parent ? parent.level + 1 : 0;
       }
-
-      // Check for circular reference
-      if (validated.parentAssociationId === associationId) {
-        return NextResponse.json(
-          { error: "Cannot set association as its own parent" },
-          { status: 400 },
-        );
-      }
-
-      // Check if new parent would create circular reference
-      if (hierarchy.includes(associationId)) {
-        return NextResponse.json(
-          {
-            error:
-              "Circular reference detected - association is ancestor of new parent",
-          },
-          { status: 400 },
-        );
-      }
     }
 
-    // Normalize fees (convert date strings to Date objects)
-    const normalizedFees = normalizeFees(validated.fees || []);
-
-    // Update association
-    const update = {
+    // Prepare update
+    const updateData = {
       ...validated,
       level,
       hierarchy,
-      fees: normalizedFees,
-      settings: {
-        requiresApproval: validated.settings?.requiresApproval ?? false,
-        autoApproveReturningPlayers:
-          validated.settings?.autoApproveReturningPlayers ?? true,
-        allowMultipleClubs: validated.settings?.allowMultipleClubs ?? true,
-        seasonStartMonth: validated.settings?.seasonStartMonth || 1,
-        seasonEndMonth: validated.settings?.seasonEndMonth || 12,
-        requiresInsurance: validated.settings?.requiresInsurance ?? true,
-        requiresMedicalInfo: validated.settings?.requiresMedicalInfo ?? true,
-        requiresEmergencyContact:
-          validated.settings?.requiresEmergencyContact ?? true,
-      },
-      branding: {
-        primaryColor: validated.branding?.primaryColor || "#06054e",
-        secondaryColor: validated.branding?.secondaryColor || "#FFD700",
-      },
+      fees: normalizeFees(validated.fees || []),
       updatedAt: new Date(),
     };
 
-    await db
-      .collection("associations")
-      .updateOne({ associationId }, { $set: update });
+    // Check for code conflicts (excluding self)
+    const codeConflict = await db.collection("associations").findOne({
+      code: validated.code,
+      associationId: { $ne: associationId },
+    });
 
-    // If parent changed, update all descendants' hierarchies
-    if (parentChanged) {
-      const descendants = await db
-        .collection("associations")
-        .find({ hierarchy: associationId })
-        .toArray();
-
-      for (const descendant of descendants) {
-        // Find where this association appears in descendant's hierarchy
-        const indexInHierarchy = descendant.hierarchy.indexOf(associationId);
-
-        // New hierarchy = new parent's hierarchy + this association + remaining path
-        const newDescendantHierarchy = [
-          ...hierarchy,
-          associationId,
-          ...descendant.hierarchy.slice(indexInHierarchy + 1),
-        ];
-
-        // New level = length of new hierarchy
-        const newDescendantLevel = newDescendantHierarchy.length;
-
-        await db.collection("associations").updateOne(
-          { associationId: descendant.associationId },
-          {
-            $set: {
-              hierarchy: newDescendantHierarchy,
-              level: newDescendantLevel,
-              updatedAt: new Date(),
-            },
-          },
-        );
-      }
+    if (codeConflict) {
+      return NextResponse.json(
+        { error: "Code already in use by another association" },
+        { status: 400 },
+      );
     }
 
-    return NextResponse.json({
-      message: "Association updated successfully",
-      association: {
-        associationId,
-        code: validated.code,
-        name: validated.name,
-        level,
-      },
-    });
+    // Update
+    const result = await db
+      .collection("associations")
+      .updateOne({ associationId }, { $set: updateData });
+
+    if (result.matchedCount === 0) {
+      return NextResponse.json(
+        { error: "Association not found" },
+        { status: 404 },
+      );
+    }
+
+    // Fetch and return updated association
+    const updated = await db
+      .collection("associations")
+      .findOne({ associationId });
+
+    return NextResponse.json(updated);
   } catch (error: any) {
     console.error("Error updating association:", error);
 
     if (error.name === "ZodError") {
       return NextResponse.json(
-        {
-          error: "Validation failed",
-          details: error.errors,
-        },
+        { error: "Validation error", details: error.errors },
         { status: 400 },
       );
     }
@@ -371,7 +293,7 @@ export async function PUT(
   }
 }
 
-// DELETE /api/admin/associations/[id] - Soft delete
+// DELETE /api/admin/associations/[id] - Delete association
 export async function DELETE(
   request: Request,
   { params }: { params: Promise<{ associationId: string }> },
@@ -394,52 +316,44 @@ export async function DELETE(
       );
     }
 
-    // Check for children
-    const childrenCount = await db
+    // Check if it has children
+    const children = await db
       .collection("associations")
-      .countDocuments({ parentAssociationId: associationId });
+      .find({ parentAssociationId: associationId })
+      .toArray();
 
-    if (childrenCount > 0) {
+    if (children.length > 0) {
       return NextResponse.json(
-        { error: "Cannot delete association with child associations" },
+        {
+          error: "Cannot delete association with child associations",
+          childCount: children.length,
+        },
         { status: 400 },
       );
     }
 
-    // Check for clubs
-    const clubsCount = await db
+    // Check if it has any clubs
+    const clubs = await db
       .collection("clubs")
-      .countDocuments({ parentAssociationId: associationId });
+      .find({ associationId })
+      .toArray();
 
-    if (clubsCount > 0) {
+    if (clubs.length > 0) {
       return NextResponse.json(
-        { error: "Cannot delete association with clubs" },
+        {
+          error: "Cannot delete association with registered clubs",
+          clubCount: clubs.length,
+        },
         { status: 400 },
       );
     }
 
-    // Check for active registrations
-    const activeRegistrations = await db
-      .collection("association-registrations")
-      .countDocuments({ associationId, status: "active" });
-
-    if (activeRegistrations > 0) {
-      return NextResponse.json(
-        { error: "Cannot delete association with active registrations" },
-        { status: 400 },
-      );
-    }
-
-    // Soft delete (set status to inactive)
-    await db
-      .collection("associations")
-      .updateOne(
-        { associationId },
-        { $set: { status: "inactive", updatedAt: new Date() } },
-      );
+    // Safe to delete
+    await db.collection("associations").deleteOne({ associationId });
 
     return NextResponse.json({
       message: "Association deleted successfully",
+      associationId,
     });
   } catch (error: any) {
     console.error("Error deleting association:", error);

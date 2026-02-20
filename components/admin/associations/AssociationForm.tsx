@@ -192,11 +192,11 @@ function validateSection(
 
 function allowedParentLevels(selectedLevel: number): number[] {
   const map: Record<number, number[]> = {
-    1: [],
-    2: [1],
-    3: [1, 2],
-    4: [2, 3],
-    5: [3, 4],
+    0: [], // National: no parent
+    1: [0], // Sub-national: parent must be National (0)
+    2: [0, 1], // State: parent can be National (0) or Sub-national (1)
+    3: [1, 2], // Regional: parent can be Sub-national (1) or State (2)
+    4: [2, 3], // City: parent can be State (2) or Regional (3)
   };
   return map[selectedLevel] ?? [];
 }
@@ -256,7 +256,6 @@ export default function AssociationForm({
         primaryColor: initialData.branding?.primaryColor || "#06054e",
         secondaryColor: initialData.branding?.secondaryColor || "#FFD700",
         accentColor: initialData.branding?.accentColor || "#ffd700",
-        // ✅ FIX: Ensure fees and positions are always arrays
         fees: Array.isArray(initialData.fees) ? initialData.fees : [],
         positions: Array.isArray(initialData.positions)
           ? initialData.positions
@@ -272,14 +271,18 @@ export default function AssociationForm({
         requiresEmergencyContact:
           initialData.settings?.requiresEmergencyContact ?? true,
       });
-      // ✅ FIX 1: Use ?? instead of || to preserve 0
-      setSelectedLevel(initialData.level ?? "");
 
+      // ✅ FIX: Handle level 0 properly (0 is a valid level, not falsy!)
+      const levelToSet =
+        typeof initialData.level === "number" ? initialData.level : "";
+      setSelectedLevel(levelToSet);
       setCompletedSections(new Set(SECTIONS.map((s) => s.id as SectionId)));
 
       console.log("🔍 EDIT MODE LOADED:", {
-        level: initialData.level,
-        selectedLevelSet: initialData.level ?? "",
+        rawLevel: initialData.level,
+        levelType: typeof initialData.level,
+        levelToSet,
+        selectedLevelWillBe: levelToSet,
         parentId: initialData.parentAssociationId,
         fees: initialData.fees?.length || 0,
         positions: initialData.positions?.length || 0,
@@ -376,13 +379,30 @@ export default function AssociationForm({
     setIsSaving(true);
 
     try {
-      // ✅ FIX 2: Convert selectedLevel to number, handle all cases
+      // Convert level properly
       const levelValue =
         selectedLevel === "" ||
         selectedLevel === null ||
         selectedLevel === undefined
           ? undefined
           : Number(selectedLevel);
+
+      // ✅ CLEAN FEES: Remove date fields that cause validation issues
+      const cleanedFees = (formData.fees || []).map((fee: any) => ({
+        feeId: fee.feeId,
+        name: fee.name,
+        amount: fee.amount,
+        category: fee.category || undefined,
+        isActive: fee.isActive ?? true,
+      }));
+
+      // ✅ CLEAN POSITIONS
+      const cleanedPositions = (formData.positions || []).map((pos: any) => ({
+        positionId: pos.positionId,
+        title: pos.title,
+        description: pos.description || undefined,
+        isActive: pos.isActive ?? true,
+      }));
 
       const payload = {
         associationId: formData.associationId,
@@ -416,8 +436,8 @@ export default function AssociationForm({
           instagram: formData.instagram || undefined,
           twitter: formData.twitter || undefined,
         },
-        fees: formData.fees || [],
-        positions: formData.positions || [],
+        fees: cleanedFees,
+        positions: cleanedPositions,
         settings: {
           requiresApproval: formData.requiresApproval,
           autoApproveReturningPlayers: formData.autoApproveReturningPlayers,
@@ -440,7 +460,10 @@ export default function AssociationForm({
         selectedLevel,
         levelValue,
         levelType: typeof levelValue,
+        levelInPayload: payload.level,
         parentId: formData.parentAssociationId,
+        feesCount: cleanedFees.length,
+        positionsCount: cleanedPositions.length,
         fullPayload: payload,
       });
 
@@ -456,10 +479,17 @@ export default function AssociationForm({
       });
 
       const responseData = await res.json();
-      console.log("📡 API RESPONSE:", responseData);
+      console.log("📡 API RESPONSE:", {
+        ok: res.ok,
+        status: res.status,
+        data: responseData,
+      });
 
       if (!res.ok) {
-        throw new Error(responseData.error || "Something went wrong");
+        console.error("❌ VALIDATION ERROR:", responseData);
+        throw new Error(
+          responseData.error || responseData.details || "Validation failed",
+        );
       }
 
       success(
@@ -567,18 +597,22 @@ export default function AssociationForm({
               from: selectedLevel,
               to: val,
               type: typeof val,
+              asNumber: Number(val),
+              eventValue: e.target.value,
+              willSetSelectedLevelTo: val,
             });
             setSelectedLevel(val as number | "");
-            handleChange("parentAssociationId", "");
+            // Reset parent when level changes
+            setFormData((prev) => ({ ...prev, parentAssociationId: "" }));
           }}
           className="w-full px-5 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl font-bold focus:border-yellow-400 outline-none"
         >
           <option value="">Select level…</option>
-          <option value="1">Level 1 – National</option>
-          <option value="2">Level 2 – Sub-national</option>
-          <option value="3">Level 3 – State</option>
-          <option value="4">Level 4 – Regional</option>
-          <option value="5">Level 5 – City</option>
+          <option value="0">Level 0 – National</option>
+          <option value="1">Level 1 – Sub-national</option>
+          <option value="2">Level 2 – State</option>
+          <option value="3">Level 3 – Regional</option>
+          <option value="4">Level 4 – City</option>
         </select>
         {selectedLevel && (
           <p className="text-xs text-slate-500 font-bold mt-1 ml-1">
@@ -587,7 +621,7 @@ export default function AssociationForm({
         )}
       </div>
 
-      {selectedLevel && (selectedLevel as number) > 1 && (
+      {selectedLevel !== "" && (selectedLevel as number) > 0 && (
         <div>
           <label className="block text-xs font-black uppercase text-slate-400 mb-2 ml-1">
             Parent Association
@@ -823,7 +857,7 @@ export default function AssociationForm({
   );
 
   const renderFees = () => {
-    const fees = formData.fees || []; // ✅ FIX: Safe access
+    const fees = formData.fees || [];
 
     const addFee = () => {
       const newFee = {
@@ -954,7 +988,7 @@ export default function AssociationForm({
   };
 
   const renderPositions = () => {
-    const positions = formData.positions || []; // ✅ FIX: Safe access
+    const positions = formData.positions || [];
 
     const addPosition = () => {
       const newPosition = {
