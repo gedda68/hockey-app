@@ -1,126 +1,72 @@
-// components/admin/clubs/ClubForm.tsx
-// Reusable club form for create and edit operations
-
 "use client";
 
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
   Building2,
-  Globe,
+  Info,
   Mail,
   MapPin,
   Palette,
-  Phone,
-  FileText,
   Users,
-  BadgeDollarSign,
+  Loader2,
+  AlertCircle,
+  CheckCircle2,
   Save,
-  Plus,
-  Edit2,
-  Trash2,
-  Facebook,
-  Instagram,
-  Info,
-  Search,
+  X,
+  ChevronRight,
+  ChevronLeft,
 } from "lucide-react";
-import RichTextEditor from "@/components/ui/RichTextEditor";
+import { ToastContainer, useToast } from "@/components/ui/Toast";
+
+// Types
 import {
-  Label,
-  TextInput,
-  TextArea,
-  SelectInput,
-  ColorInput,
-  CheckboxInput,
-  SectionCard,
-  FormGrid,
-  FormField,
-  PrimaryButton,
-  SecondaryButton,
-  IconButton,
-  EmptyState,
-} from "@/components/admin/forms/FormComponents";
+  ClubFormData,
+  Association,
+  SectionId,
+  SectionDefinition,
+  DEFAULT_CLUB_DATA,
+} from "./types/club.types";
 
-/* ---------------------------------------------
-   Types
---------------------------------------------- */
-
-interface Association {
-  id: string;
-  name: string;
-}
-
-interface Fee {
-  id: string;
-  category: string;
-  name: string;
-  amount: string;
-  validFrom: string;
-  validTo: string;
-  isActive: boolean;
-}
-
-interface CommitteeMember {
-  id: string;
-  name: string;
-  position: string;
-  email: string;
-  phone: string;
-}
-
-interface ClubFormData {
-  id: string;
-  name: string;
-  shortName: string;
-  slug: string;
-  logo: string;
-  colors: {
-    primary: string;
-    secondary: string;
-    accent: string;
-  };
-  address: {
-    street: string;
-    suburb: string;
-    state: string;
-    postcode: string;
-    country: string;
-  };
-  contact: {
-    email: string;
-    phone: string;
-    website: string;
-  };
-  socialMedia: {
-    facebook: string;
-    instagram: string;
-    twitter: string;
-  };
-  committee: CommitteeMember[];
-  committeePositions: string[];
-  established: string;
-  homeGround: string;
-  description: string;
-  about: string;
-  active: boolean;
-  association?: Association | null;
-  fees: Fee[];
-}
+// Sections
+import IdentitySection from "./sections/IdentitySection";
+import DetailsSection from "./sections/DetailsSection";
+import ContactSection from "./sections/ContactSection";
+import AddressSection from "./sections/AddressSection";
+import ColorsSection from "./sections/ColorsSection";
+import CommitteeSection from "./sections/CommitteeSection";
 
 interface ClubFormProps {
-  initialData?: ClubFormData;
-  mode: "create" | "edit";
-  onSubmit: (data: ClubFormData) => Promise<void>;
-  onCancel: () => void;
+  clubId?: string;
+  initialData?: any;
+  associations?: Association[];
 }
 
-/* ---------------------------------------------
-   Helper Functions
---------------------------------------------- */
+const SECTIONS: SectionDefinition[] = [
+  {
+    id: "identity",
+    label: "Identity",
+    icon: Building2,
+    desc: "Name and association",
+  },
+  {
+    id: "details",
+    label: "Details",
+    icon: Info,
+    desc: "Logo, ground, history",
+  },
+  { id: "contact", label: "Contact", icon: Mail, desc: "Email, phone, social" },
+  { id: "address", label: "Address", icon: MapPin, desc: "Physical location" },
+  { id: "colors", label: "Colors", icon: Palette, desc: "Club branding" },
+  {
+    id: "committee",
+    label: "Committee",
+    icon: Users,
+    desc: "Committee members",
+  },
+];
 
-const DEFAULT_LOGO = "/logos/clubs/_default.png";
-const CURRENT_YEAR = new Date().getFullYear();
-
+// Generate slug from name
 function generateSlug(name: string): string {
   return name
     .toLowerCase()
@@ -128,828 +74,461 @@ function generateSlug(name: string): string {
     .replace(/^-+|-+$/g, "");
 }
 
-function createEmptyFee(): Fee {
-  return {
-    id: crypto.randomUUID(),
-    category: "",
-    name: "",
-    amount: "",
-    validFrom: `${CURRENT_YEAR}-01-01`,
-    validTo: `${CURRENT_YEAR}-12-31`,
-    isActive: true,
-  };
+// Generate club ID
+function generateClubId(): string {
+  return `club-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 }
 
-function createEmptyMember(): CommitteeMember {
-  return {
-    id: crypto.randomUUID(),
-    name: "",
-    position: "",
-    email: "",
-    phone: "",
-  };
-}
+// Validation
+function validateSection(
+  section: SectionId,
+  formData: ClubFormData,
+): Record<string, string> {
+  const errs: Record<string, string> = {};
 
-/* ---------------------------------------------
-   Club Form Component
---------------------------------------------- */
+  if (section === "identity") {
+    if (!formData.name.trim()) errs.name = "Required";
+    if (!formData.shortName.trim()) errs.shortName = "Required";
+    if (!formData.parentAssociationId) errs.parentAssociationId = "Required";
+  }
+
+  if (section === "contact") {
+    if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      errs.email = "Invalid email";
+    }
+  }
+
+  if (section === "address") {
+    if (!formData.street.trim()) errs.street = "Required";
+    if (!formData.suburb.trim()) errs.suburb = "Required";
+    if (!formData.postcode.trim()) errs.postcode = "Required";
+  }
+
+  return errs;
+}
 
 export default function ClubForm({
+  clubId,
   initialData,
-  mode,
-  onSubmit,
-  onCancel,
+  associations = [],
 }: ClubFormProps) {
   const router = useRouter();
-  const [isSaving, setIsSaving] = useState(false);
-  const [showPositionManager, setShowPositionManager] = useState(false);
-  const [newPosition, setNewPosition] = useState("");
+  const isEdit = Boolean(clubId);
+  const { toasts, dismiss, success, error: toastError } = useToast();
 
-  // Load default positions from config
-  const [defaultPositions, setDefaultPositions] = useState<string[]>([]);
-  const [feeCategories, setFeeCategories] = useState<string[]>([]);
-  const [associations, setAssociations] = useState<Association[]>([]);
-
-  const [formData, setFormData] = useState<ClubFormData>(
-    initialData || {
-      id: crypto.randomUUID(),
-      name: "",
-      shortName: "",
-      slug: "",
-      logo: DEFAULT_LOGO,
-      colors: {
-        primary: "#06054e",
-        secondary: "#FFD700",
-        accent: "#FFFFFF",
-      },
-      address: {
-        street: "",
-        suburb: "",
-        state: "QLD",
-        postcode: "",
-        country: "Australia",
-      },
-      contact: {
-        email: "",
-        phone: "",
-        website: "",
-      },
-      socialMedia: {
-        facebook: "",
-        instagram: "",
-        twitter: "",
-      },
-      committee: [],
-      committeePositions: [],
-      established: "",
-      homeGround: "",
-      description: "",
-      about: "",
-      active: true,
-      association: null,
-      fees: [],
-    }
+  const [currentSection, setCurrentSection] = useState<SectionId>("identity");
+  const [completedSections, setCompletedSections] = useState<Set<SectionId>>(
+    new Set(),
   );
+  const [sectionErrors, setSectionErrors] = useState<
+    Record<string, Record<string, string>>
+  >({});
+  const [isSaving, setIsSaving] = useState(false);
+  const [formData, setFormData] = useState<ClubFormData>(DEFAULT_CLUB_DATA);
 
-  // Load configuration data
+  // Hydrate on edit
   useEffect(() => {
-    loadConfig();
-  }, []);
+    if (initialData) {
+      setFormData({
+        id: initialData.id || "",
+        name: initialData.name || "",
+        shortName: initialData.shortName || "",
+        slug: initialData.slug || "",
+        parentAssociationId: initialData.parentAssociationId || "",
+        logo: initialData.logo || "",
+        established: initialData.established || "",
+        homeGround: initialData.homeGround || "",
+        description: initialData.description || "",
+        about: initialData.about || "",
+        primaryColor: initialData.colors?.primary || "#06054e",
+        secondaryColor: initialData.colors?.secondary || "#FFD700",
+        accentColor: initialData.colors?.accent || "#ffffff",
+        street: initialData.address?.street || "",
+        suburb: initialData.address?.suburb || "",
+        city: initialData.address?.city || "",
+        state: initialData.address?.state || "QLD",
+        postcode: initialData.address?.postcode || "",
+        country: initialData.address?.country || "Australia",
+        region: initialData.region || "",
+        email: initialData.contact?.email || "",
+        phone: initialData.contact?.phone || "",
+        website: initialData.contact?.website || "",
+        facebook: initialData.socialMedia?.facebook || "",
+        instagram: initialData.socialMedia?.instagram || "",
+        twitter: initialData.socialMedia?.twitter || "",
+        committee: Array.isArray(initialData.committee)
+          ? initialData.committee
+          : [],
+        committeePositions: Array.isArray(initialData.committeePositions)
+          ? initialData.committeePositions
+          : DEFAULT_CLUB_DATA.committeePositions,
+        active: initialData.active ?? true,
+      });
 
-  const loadConfig = async () => {
-    try {
-      // Load committee positions from config
-      const posRes = await fetch("/api/admin/config/committee-positions");
-      if (posRes.ok) {
-        const positions = await posRes.json();
-        setDefaultPositions(positions);
-        if (!initialData && formData.committeePositions.length === 0) {
-          setFormData((prev) => ({ ...prev, committeePositions: positions }));
-        }
+      setCompletedSections(new Set(SECTIONS.map((s) => s.id)));
+    } else {
+      // Generate ID for new clubs
+      setFormData((prev) => ({ ...prev, id: generateClubId() }));
+    }
+  }, [initialData]);
+
+  const handleChange = (field: string, value: any) => {
+    setFormData((prev) => {
+      const updated = { ...prev, [field]: value };
+
+      // Auto-generate slug when name changes
+      if (field === "name" && !isEdit) {
+        updated.slug = generateSlug(value);
       }
 
-      // Load fee categories from config
-      const feeRes = await fetch("/api/admin/config/fee-categories");
-      if (feeRes.ok) {
-        const categories = await feeRes.json();
-        setFeeCategories(categories);
-      }
+      return updated;
+    });
 
-      // Load associations
-      const assocRes = await fetch("/api/admin/associations");
-      if (assocRes.ok) {
-        const assocs = await assocRes.json();
-        setAssociations(assocs);
+    // Clear field error
+    setSectionErrors((prev) => {
+      const section = currentSection;
+      if (prev[section]?.[field]) {
+        const updated = { ...prev[section] };
+        delete updated[field];
+        return { ...prev, [section]: updated };
       }
-    } catch (error) {
-      console.error("Error loading config:", error);
+      return prev;
+    });
+  };
+
+  const currentIndex = SECTIONS.findIndex((s) => s.id === currentSection);
+
+  const goToSection = (id: SectionId) => {
+    if (isEdit) {
+      setCurrentSection(id);
+      return;
+    }
+    const targetIdx = SECTIONS.findIndex((s) => s.id === id);
+    const isReachable =
+      completedSections.has(id) ||
+      targetIdx === 0 ||
+      SECTIONS.slice(0, targetIdx).every((s) => completedSections.has(s.id));
+    if (isReachable) setCurrentSection(id);
+  };
+
+  const handleNext = () => {
+    const errors = validateSection(currentSection, formData);
+    if (Object.keys(errors).length > 0) {
+      setSectionErrors((prev) => ({ ...prev, [currentSection]: errors }));
+      return;
+    }
+    setSectionErrors((prev) => ({ ...prev, [currentSection]: {} }));
+    setCompletedSections((prev) => new Set([...prev, currentSection]));
+
+    if (currentIndex < SECTIONS.length - 1) {
+      setCurrentSection(SECTIONS[currentIndex + 1].id);
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleBack = () => {
+    if (currentIndex > 0) {
+      setCurrentSection(SECTIONS[currentIndex - 1].id);
+    }
+  };
+
+  const allSectionsComplete = () =>
+    ["identity", "address"].every((s) => completedSections.has(s as SectionId));
+
+  const handleSave = async () => {
+    // Validate required sections
+    const requiredSections: SectionId[] = ["identity", "address"];
+    const allErrors: Record<string, Record<string, string>> = {};
+    let hasErrors = false;
+
+    for (const s of requiredSections) {
+      const errs = validateSection(s, formData);
+      if (Object.keys(errs).length > 0) {
+        allErrors[s] = errs;
+        hasErrors = true;
+      }
+    }
+
+    if (hasErrors) {
+      setSectionErrors(allErrors);
+      const firstErrorSection = requiredSections.find((s) => allErrors[s]);
+      if (firstErrorSection) setCurrentSection(firstErrorSection);
+      toastError("Incomplete form", "Please fill in all required fields.");
+      return;
+    }
+
     setIsSaving(true);
+
     try {
-      await onSubmit(formData);
+      const payload = {
+        id: formData.id,
+        name: formData.name,
+        shortName: formData.shortName,
+        slug: formData.slug,
+        parentAssociationId: formData.parentAssociationId,
+        logo: formData.logo || undefined,
+        established: formData.established || undefined,
+        homeGround: formData.homeGround || undefined,
+        description: formData.description || undefined,
+        about: formData.about || undefined,
+        colors: {
+          primary: formData.primaryColor,
+          secondary: formData.secondaryColor,
+          accent: formData.accentColor,
+        },
+        address: {
+          street: formData.street,
+          suburb: formData.suburb,
+          city: formData.city || formData.suburb,
+          state: formData.state,
+          postcode: formData.postcode,
+          country: formData.country,
+        },
+        region: formData.region || undefined,
+        contact: {
+          email: formData.email || undefined,
+          phone: formData.phone || undefined,
+          website: formData.website || undefined,
+        },
+        socialMedia: {
+          facebook: formData.facebook || undefined,
+          instagram: formData.instagram || undefined,
+          twitter: formData.twitter || undefined,
+        },
+        committee: formData.committee,
+        committeePositions: formData.committeePositions,
+        active: formData.active,
+      };
+
+      console.log("💾 SAVING CLUB:", payload);
+
+      const url = "/api/admin/clubs";
+      const method = isEdit ? "PUT" : "POST";
+
+      const res = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      const responseData = await res.json();
+
+      if (!res.ok) {
+        throw new Error(responseData.error || "Save failed");
+      }
+
+      success(
+        isEdit ? "Club updated" : "Club created",
+        isEdit
+          ? "Changes saved successfully."
+          : `${formData.name} has been created.`,
+      );
+
+      setTimeout(() => {
+        router.push("/admin/clubs");
+        router.refresh();
+      }, 1200);
+    } catch (err: any) {
+      console.error("❌ SAVE ERROR:", err);
+      toastError("Save failed", err.message);
     } finally {
       setIsSaving(false);
     }
   };
 
-  const updateField = <K extends keyof ClubFormData>(
-    field: K,
-    value: ClubFormData[K]
-  ) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
-  };
+  const errs = sectionErrors[currentSection] || {};
+  const isLastSection = currentIndex === SECTIONS.length - 1;
 
-  const updateNestedField = <T extends keyof ClubFormData>(
-    parent: T,
-    field: keyof ClubFormData[T],
-    value: any
-  ) => {
-    setFormData((prev) => ({
-      ...prev,
-      [parent]: {
-        ...prev[parent],
-        [field]: value,
-      },
-    }));
-  };
+  // Render current section
+  const renderCurrentSection = () => {
+    const props = { formData, onChange: handleChange, errors: errs };
 
-  // Auto-generate slug from name
-  useEffect(() => {
-    if (mode === "create" && formData.name) {
-      updateField("slug", generateSlug(formData.name));
+    switch (currentSection) {
+      case "identity":
+        return (
+          <IdentitySection
+            {...props}
+            associations={associations}
+            isEdit={isEdit}
+          />
+        );
+      case "details":
+        return <DetailsSection {...props} />;
+      case "contact":
+        return <ContactSection {...props} />;
+      case "address":
+        return <AddressSection {...props} />;
+      case "colors":
+        return <ColorsSection {...props} />;
+      case "committee":
+        return <CommitteeSection {...props} />;
+      default:
+        return null;
     }
-  }, [formData.name, mode]);
-
-  // Committee position management
-  const addPosition = () => {
-    if (newPosition.trim()) {
-      if (!formData.committeePositions.includes(newPosition.trim())) {
-        updateField("committeePositions", [
-          ...formData.committeePositions,
-          newPosition.trim(),
-        ]);
-      }
-      setNewPosition("");
-    }
-  };
-
-  const removePosition = (position: string) => {
-    const inUse = formData.committee.some((m) => m.position === position);
-    if (inUse) {
-      alert("Cannot remove position that is currently in use");
-      return;
-    }
-    updateField(
-      "committeePositions",
-      formData.committeePositions.filter((p) => p !== position)
-    );
-  };
-
-  const resetToDefaultPositions = () => {
-    if (
-      confirm(
-        "Reset to default positions? This will clear any custom positions."
-      )
-    ) {
-      updateField("committeePositions", defaultPositions);
-    }
-  };
-
-  // Committee member management
-  const addMember = () => {
-    updateField("committee", [...formData.committee, createEmptyMember()]);
-  };
-
-  const removeMember = (id: string) => {
-    updateField(
-      "committee",
-      formData.committee.filter((m) => m.id !== id)
-    );
-  };
-
-  const updateMember = (
-    id: string,
-    field: keyof CommitteeMember,
-    value: string
-  ) => {
-    updateField(
-      "committee",
-      formData.committee.map((m) =>
-        m.id === id ? { ...m, [field]: value } : m
-      )
-    );
-  };
-
-  // Fee management
-  const addFee = () => {
-    updateField("fees", [...formData.fees, createEmptyFee()]);
-  };
-
-  const removeFee = (id: string) => {
-    updateField(
-      "fees",
-      formData.fees.filter((f) => f.id !== id)
-    );
-  };
-
-  const updateFee = (id: string, field: keyof Fee, value: any) => {
-    updateField(
-      "fees",
-      formData.fees.map((f) => (f.id === id ? { ...f, [field]: value } : f))
-    );
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      {/* Basic Information */}
-      <SectionCard
-        title="Basic Information"
-        icon={<Info className="text-yellow-500" />}
-      >
-        <FormGrid cols={2}>
-          <FormField>
-            <Label required>Club Name</Label>
-            <TextInput
-              value={formData.name}
-              onChange={(v) => updateField("name", v)}
-              placeholder="Brisbane Hockey Club"
-              required
-            />
-          </FormField>
-
-          <FormField>
-            <Label required>Short Name</Label>
-            <TextInput
-              value={formData.shortName}
-              onChange={(v) => updateField("shortName", v)}
-              placeholder="BHC"
-              required
-            />
-          </FormField>
-
-          <FormField>
-            <Label required>Slug (URL)</Label>
-            <TextInput
-              value={formData.slug}
-              onChange={(v) => updateField("slug", v)}
-              placeholder="brisbane-hockey-club"
-              required
-            />
-          </FormField>
-
-          <FormField>
-            <Label>Established Year</Label>
-            <TextInput
-              value={formData.established}
-              onChange={(v) => updateField("established", v)}
-              placeholder="1975"
-              type="number"
-            />
-          </FormField>
-
-          <FormField>
-            <Label>Home Ground</Label>
-            <TextInput
-              value={formData.homeGround}
-              onChange={(v) => updateField("homeGround", v)}
-              placeholder="Downey Park"
-            />
-          </FormField>
-
-          <FormField>
-            <Label>Logo URL</Label>
-            <TextInput
-              value={formData.logo}
-              onChange={(v) => updateField("logo", v)}
-              placeholder="/logos/clubs/brisbane.png"
-            />
-          </FormField>
-        </FormGrid>
-
-        <div className="mt-6">
-          <CheckboxInput
-            checked={formData.active}
-            onChange={(v) => updateField("active", v)}
-            label="Active Club"
-          />
-        </div>
-      </SectionCard>
-
-      {/* Brand Colors */}
-      <SectionCard
-        title="Brand Colors"
-        icon={<Palette className="text-yellow-500" />}
-      >
-        <FormGrid cols={3}>
-          <FormField>
-            <Label>Primary Color</Label>
-            <ColorInput
-              value={formData.colors.primary}
-              onChange={(v) => updateNestedField("colors", "primary", v)}
-              label="Main club color"
-            />
-          </FormField>
-
-          <FormField>
-            <Label>Secondary Color</Label>
-            <ColorInput
-              value={formData.colors.secondary}
-              onChange={(v) => updateNestedField("colors", "secondary", v)}
-              label="Accent color"
-            />
-          </FormField>
-
-          <FormField>
-            <Label>Tertiary Color</Label>
-            <ColorInput
-              value={formData.colors.accent}
-              onChange={(v) => updateNestedField("colors", "accent", v)}
-              label="Additional color"
-            />
-          </FormField>
-        </FormGrid>
-      </SectionCard>
-
-      {/* Address */}
-      <SectionCard
-        title="Address"
-        icon={<MapPin className="text-yellow-500" />}
-      >
-        <FormGrid cols={2}>
-          <div className="md:col-span-2">
-            <Label>Street Address</Label>
-            <TextInput
-              value={formData.address.street}
-              onChange={(v) => updateNestedField("address", "street", v)}
-              placeholder="123 Hockey Lane"
-            />
-          </div>
-
-          <FormField>
-            <Label>Suburb</Label>
-            <TextInput
-              value={formData.address.suburb}
-              onChange={(v) => updateNestedField("address", "suburb", v)}
-              placeholder="Windsor"
-            />
-          </FormField>
-
-          <FormField>
-            <Label>State</Label>
-            <SelectInput
-              value={formData.address.state}
-              onChange={(v) => updateNestedField("address", "state", v)}
-              options={["QLD", "NSW", "VIC", "SA", "WA", "TAS", "NT", "ACT"]}
-            />
-          </FormField>
-
-          <FormField>
-            <Label>Postcode</Label>
-            <TextInput
-              value={formData.address.postcode}
-              onChange={(v) => updateNestedField("address", "postcode", v)}
-              placeholder="4030"
-            />
-          </FormField>
-
-          <FormField>
-            <Label>Country</Label>
-            <TextInput
-              value={formData.address.country}
-              onChange={(v) => updateNestedField("address", "country", v)}
-              placeholder="Australia"
-            />
-          </FormField>
-        </FormGrid>
-      </SectionCard>
-
-      {/* Contact Information */}
-      <SectionCard
-        title="Contact Information"
-        icon={<Phone className="text-yellow-500" />}
-      >
-        <FormGrid cols={2}>
-          <FormField>
-            <Label>Email</Label>
-            <TextInput
-              value={formData.contact.email}
-              onChange={(v) => updateNestedField("contact", "email", v)}
-              placeholder="info@club.com"
-              type="email"
-            />
-          </FormField>
-
-          <FormField>
-            <Label>Phone</Label>
-            <TextInput
-              value={formData.contact.phone}
-              onChange={(v) => updateNestedField("contact", "phone", v)}
-              placeholder="(07) 3456 7890"
-              type="tel"
-            />
-          </FormField>
-
-          <div className="md:col-span-2">
-            <Label>Website</Label>
-            <TextInput
-              value={formData.contact.website}
-              onChange={(v) => updateNestedField("contact", "website", v)}
-              placeholder="https://www.club.com"
-              type="url"
-            />
-          </div>
-        </FormGrid>
-      </SectionCard>
-
-      {/* Social Media */}
-      <SectionCard
-        title="Social Media"
-        icon={<Globe className="text-yellow-500" />}
-      >
-        <FormGrid cols={2}>
-          <FormField>
-            <Label>Facebook</Label>
-            <TextInput
-              value={formData.socialMedia.facebook}
-              onChange={(v) => updateNestedField("socialMedia", "facebook", v)}
-              placeholder="https://facebook.com/club"
-            />
-          </FormField>
-
-          <FormField>
-            <Label>Instagram</Label>
-            <TextInput
-              value={formData.socialMedia.instagram}
-              onChange={(v) => updateNestedField("socialMedia", "instagram", v)}
-              placeholder="https://instagram.com/club"
-            />
-          </FormField>
-        </FormGrid>
-      </SectionCard>
-
-      {/* Description */}
-      <SectionCard
-        title="Description"
-        icon={<FileText className="text-yellow-500" />}
-      >
-        <div className="mb-4">
-          <Label>About (Plain Text)</Label>
-          <TextArea
-            value={formData.about}
-            onChange={(v) => updateField("about", v)}
-            placeholder="Brief description of the club..."
-            rows={3}
-          />
-        </div>
-
-        <div>
-          <Label>Full Description (Rich Text)</Label>
-          <RichTextEditor
-            value={formData.description}
-            onChange={(v) => updateField("description", v)}
-          />
-        </div>
-      </SectionCard>
-
-      {/* Committee Positions */}
-      <SectionCard
-        title="Committee Positions"
-        icon={<Users className="text-yellow-500" />}
-        right={
-          <button
-            type="button"
-            onClick={() => setShowPositionManager(!showPositionManager)}
-            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all"
-          >
-            <Edit2 size={18} />
-            {showPositionManager ? "Hide" : "Manage"} Positions
-          </button>
-        }
-      >
-        {showPositionManager && (
-          <div className="mb-6 p-6 bg-indigo-50 rounded-2xl border-2 border-indigo-200">
-            <h3 className="font-black text-indigo-900 mb-4">
-              Manage Custom Positions
-            </h3>
-
-            <div className="flex gap-3 mb-4">
-              <input
-                type="text"
-                value={newPosition}
-                onChange={(e) => setNewPosition(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    addPosition();
-                  }
-                }}
-                className="flex-1 p-3 bg-white border-2 border-indigo-300 rounded-xl outline-none font-bold"
-                placeholder="Enter new position name..."
-              />
-              <button
-                type="button"
-                onClick={addPosition}
-                className="px-4 py-2 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700"
-              >
-                <Plus size={20} />
-              </button>
+    <>
+      <div className="max-w-5xl mx-auto space-y-6 pb-32">
+        {/* Header */}
+        <div className="bg-white rounded-[2rem] shadow-xl border border-slate-100 p-8">
+          <div className="flex items-center gap-6">
+            <div className="w-20 h-20 rounded-3xl bg-[#06054e] text-white flex items-center justify-center">
+              <Building2 size={40} />
             </div>
-
-            <div className="space-y-2">
-              <p className="text-sm font-bold text-indigo-700 mb-2">
-                Current Positions ({formData.committeePositions.length}):
+            <div>
+              <h1 className="text-4xl font-black text-[#06054e]">
+                {isEdit ? "Edit Club" : "New Club"}
+              </h1>
+              <p className="text-slate-500 font-bold">
+                {isEdit ? "Update club details" : "Create a new hockey club"}
               </p>
-
-              <div className="flex flex-wrap gap-2">
-                {formData.committeePositions.map((position) => {
-                  const inUse = formData.committee.some(
-                    (m) => m.position === position
-                  );
-                  return (
-                    <div
-                      key={position}
-                      className={`flex items-center gap-2 px-3 py-2 rounded-lg font-bold text-sm ${
-                        inUse
-                          ? "bg-green-100 text-green-700 border-2 border-green-300"
-                          : "bg-white text-indigo-700 border-2 border-indigo-300"
-                      }`}
-                    >
-                      <span>{position}</span>
-                      {inUse && (
-                        <span className="text-xs bg-green-200 px-2 py-0.5 rounded-full">
-                          In Use
-                        </span>
-                      )}
-                      <button
-                        type="button"
-                        onClick={() => removePosition(position)}
-                        className="ml-1 text-red-600 hover:text-red-800"
-                        title={
-                          inUse ? "Cannot delete - in use" : "Delete position"
-                        }
-                        disabled={inUse}
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    </div>
-                  );
-                })}
-              </div>
             </div>
+          </div>
+        </div>
 
-            <button
-              type="button"
-              onClick={resetToDefaultPositions}
-              className="mt-4 text-sm text-indigo-600 hover:text-indigo-800 font-bold"
-            >
-              Reset to Default Positions
-            </button>
+        {/* Section Nav */}
+        <div className="bg-white rounded-[2rem] shadow-xl border border-slate-100 p-6">
+          <div className="flex flex-wrap gap-2">
+            {SECTIONS.map((s, idx) => {
+              const isActive = s.id === currentSection;
+              const isDone = completedSections.has(s.id);
+              const isReachable =
+                isEdit ||
+                isDone ||
+                idx === 0 ||
+                SECTIONS.slice(0, idx).every((prev) =>
+                  completedSections.has(prev.id),
+                );
+              const Icon = s.icon;
+              const hasError =
+                Object.keys(sectionErrors[s.id] || {}).length > 0;
+
+              return (
+                <button
+                  key={s.id}
+                  onClick={() => goToSection(s.id)}
+                  disabled={!isReachable}
+                  className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-sm transition-all ${
+                    isActive
+                      ? "bg-[#06054e] text-white"
+                      : hasError
+                        ? "bg-red-50 text-red-700 border-2 border-red-200"
+                        : isDone
+                          ? "bg-green-50 text-green-700 border-2 border-green-200"
+                          : isReachable
+                            ? "bg-slate-50 text-slate-600 hover:bg-slate-100"
+                            : "bg-slate-50 text-slate-300 cursor-not-allowed"
+                  }`}
+                >
+                  {isDone && !isActive && !hasError ? (
+                    <CheckCircle2 size={16} />
+                  ) : hasError ? (
+                    <AlertCircle size={16} />
+                  ) : (
+                    <Icon size={16} />
+                  )}
+                  {s.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Active Section */}
+        <div className="bg-white rounded-[2rem] shadow-xl border border-slate-100 p-8">
+          <div className="flex items-center gap-3 mb-8">
+            <div className="w-2 h-8 bg-yellow-400 rounded-full" />
+            <div>
+              <h2 className="text-2xl font-black text-[#06054e]">
+                {SECTIONS[currentIndex].label}
+              </h2>
+              <p className="text-sm font-bold text-slate-400">
+                {SECTIONS[currentIndex].desc}
+              </p>
+            </div>
+          </div>
+
+          {renderCurrentSection()}
+        </div>
+
+        {/* Progress */}
+        {!isEdit && (
+          <div className="bg-white rounded-2xl shadow-xl border border-slate-100 p-5">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-black uppercase text-slate-500">
+                Progress
+              </span>
+              <span className="text-xs font-black text-slate-500">
+                {completedSections.size} / {SECTIONS.length}
+              </span>
+            </div>
+            <div className="w-full bg-slate-100 rounded-full h-2">
+              <div
+                className="bg-[#06054e] h-2 rounded-full transition-all"
+                style={{
+                  width: `${(completedSections.size / SECTIONS.length) * 100}%`,
+                }}
+              />
+            </div>
           </div>
         )}
-
-        <p className="text-sm text-slate-600 font-bold">
-          These positions will be available in the dropdown when adding
-          committee members.
-        </p>
-      </SectionCard>
-
-      {/* Committee Members */}
-      <SectionCard
-        title="Committee Members"
-        icon={<Users className="text-yellow-500" />}
-        right={
-          <button
-            type="button"
-            onClick={addMember}
-            className="flex items-center gap-2 px-4 py-2 bg-[#06054e] text-white rounded-xl font-bold hover:bg-yellow-400 hover:text-[#06054e] transition-all"
-          >
-            <Plus size={20} />
-            Add Member
-          </button>
-        }
-      >
-        <div className="space-y-4">
-          {formData.committee.map((member, index) => (
-            <div
-              key={member.id}
-              className="p-6 bg-slate-50 rounded-2xl border-2 border-slate-200"
-            >
-              <div className="flex items-start justify-between mb-4">
-                <h3 className="font-black text-slate-700">
-                  Member {index + 1}
-                </h3>
-                <IconButton
-                  onClick={() => removeMember(member.id)}
-                  icon={<Trash2 size={18} />}
-                  variant="danger"
-                  title="Remove member"
-                />
-              </div>
-
-              <FormGrid cols={2}>
-                <FormField>
-                  <Label>Name</Label>
-                  <input
-                    type="text"
-                    value={member.name}
-                    onChange={(e) =>
-                      updateMember(member.id, "name", e.target.value)
-                    }
-                    className="w-full p-3 bg-white border border-slate-200 rounded-xl outline-none font-bold"
-                    placeholder="Full name"
-                  />
-                </FormField>
-
-                <FormField>
-                  <Label>Position</Label>
-                  <select
-                    value={member.position}
-                    onChange={(e) =>
-                      updateMember(member.id, "position", e.target.value)
-                    }
-                    className="w-full p-3 bg-white border border-slate-200 rounded-xl outline-none font-bold"
-                  >
-                    <option value="">Select position...</option>
-                    {formData.committeePositions.map((pos) => (
-                      <option key={pos} value={pos}>
-                        {pos}
-                      </option>
-                    ))}
-                  </select>
-                </FormField>
-
-                <FormField>
-                  <Label>Email</Label>
-                  <input
-                    type="email"
-                    value={member.email}
-                    onChange={(e) =>
-                      updateMember(member.id, "email", e.target.value)
-                    }
-                    className="w-full p-3 bg-white border border-slate-200 rounded-xl outline-none font-bold"
-                    placeholder="email@example.com"
-                  />
-                </FormField>
-
-                <FormField>
-                  <Label>Phone</Label>
-                  <input
-                    type="tel"
-                    value={member.phone}
-                    onChange={(e) =>
-                      updateMember(member.id, "phone", e.target.value)
-                    }
-                    className="w-full p-3 bg-white border border-slate-200 rounded-xl outline-none font-bold"
-                    placeholder="0400 000 000"
-                  />
-                </FormField>
-              </FormGrid>
-            </div>
-          ))}
-
-          {formData.committee.length === 0 && (
-            <EmptyState
-              icon={<Users size={48} />}
-              title="No committee members added yet"
-              description="Click 'Add Member' to get started"
-            />
-          )}
-        </div>
-      </SectionCard>
-
-      {/* Club Fees */}
-      <SectionCard
-        title="Club Fees"
-        icon={<BadgeDollarSign className="text-yellow-500" />}
-        right={
-          <button
-            type="button"
-            onClick={addFee}
-            className="flex items-center gap-2 px-4 py-2 bg-[#06054e] text-white rounded-xl font-bold hover:bg-yellow-400 hover:text-[#06054e] transition-all"
-          >
-            <Plus size={20} />
-            Add Fee
-          </button>
-        }
-      >
-        <div className="space-y-4">
-          {formData.fees.map((fee, index) => (
-            <div
-              key={fee.id}
-              className="p-6 bg-slate-50 rounded-2xl border-2 border-slate-200"
-            >
-              <div className="flex items-start justify-between mb-4">
-                <h3 className="font-black text-slate-700">Fee {index + 1}</h3>
-                <IconButton
-                  onClick={() => removeFee(fee.id)}
-                  icon={<Trash2 size={18} />}
-                  variant="danger"
-                  title="Remove fee"
-                />
-              </div>
-
-              <FormGrid cols={2}>
-                <FormField>
-                  <Label>Category</Label>
-                  <SelectInput
-                    value={fee.category}
-                    onChange={(v) => updateFee(fee.id, "category", v)}
-                    options={feeCategories}
-                    placeholder="Select category..."
-                  />
-                </FormField>
-
-                <FormField>
-                  <Label>Fee Name</Label>
-                  <input
-                    type="text"
-                    value={fee.name}
-                    onChange={(e) => updateFee(fee.id, "name", e.target.value)}
-                    className="w-full p-3 bg-white border border-slate-200 rounded-xl outline-none font-bold"
-                    placeholder="Membership Fee"
-                  />
-                </FormField>
-
-                <FormField>
-                  <Label>Amount ($)</Label>
-                  <input
-                    type="number"
-                    value={fee.amount}
-                    onChange={(e) =>
-                      updateFee(fee.id, "amount", e.target.value)
-                    }
-                    className="w-full p-3 bg-white border border-slate-200 rounded-xl outline-none font-bold"
-                    placeholder="150.00"
-                    step="0.01"
-                  />
-                </FormField>
-
-                <FormField>
-                  <Label>Valid From</Label>
-                  <input
-                    type="date"
-                    value={fee.validFrom}
-                    onChange={(e) =>
-                      updateFee(fee.id, "validFrom", e.target.value)
-                    }
-                    className="w-full p-3 bg-white border border-slate-200 rounded-xl outline-none font-bold"
-                  />
-                </FormField>
-
-                <FormField>
-                  <Label>Valid To</Label>
-                  <input
-                    type="date"
-                    value={fee.validTo}
-                    onChange={(e) =>
-                      updateFee(fee.id, "validTo", e.target.value)
-                    }
-                    className="w-full p-3 bg-white border border-slate-200 rounded-xl outline-none font-bold"
-                  />
-                </FormField>
-
-                <FormField>
-                  <div className="pt-7">
-                    <CheckboxInput
-                      checked={fee.isActive}
-                      onChange={(v) => updateFee(fee.id, "isActive", v)}
-                      label="Active"
-                    />
-                  </div>
-                </FormField>
-              </FormGrid>
-            </div>
-          ))}
-
-          {formData.fees.length === 0 && (
-            <EmptyState
-              icon={<BadgeDollarSign size={48} />}
-              title="No fees configured yet"
-              description="Click 'Add Fee' to configure club fees"
-            />
-          )}
-        </div>
-      </SectionCard>
-
-      {/* Action Buttons */}
-      <div className="flex gap-4 justify-end">
-        <SecondaryButton onClick={onCancel}>Cancel</SecondaryButton>
-        <PrimaryButton
-          type="submit"
-          disabled={isSaving}
-          icon={<Save size={20} />}
-        >
-          {isSaving
-            ? "Saving..."
-            : mode === "create"
-              ? "Create Club"
-              : "Save Changes"}
-        </PrimaryButton>
       </div>
-    </form>
+
+      {/* Action Bar */}
+      <div className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t-2 border-slate-100 shadow-2xl">
+        <div className="max-w-5xl mx-auto px-6 py-4 flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => router.push("/admin/clubs")}
+            className="flex items-center gap-2 px-6 py-3 border-2 border-slate-200 text-slate-700 rounded-xl font-bold hover:bg-slate-50"
+          >
+            <X size={18} />
+            Cancel
+          </button>
+
+          <div className="flex-1" />
+
+          {currentIndex > 0 && (
+            <button
+              type="button"
+              onClick={handleBack}
+              className="flex items-center gap-2 px-6 py-3 border-2 border-slate-200 text-slate-700 rounded-xl font-bold hover:bg-slate-50"
+            >
+              <ChevronLeft size={18} />
+              Back
+            </button>
+          )}
+
+          {!isEdit && !isLastSection && (
+            <button
+              type="button"
+              onClick={handleNext}
+              className="flex items-center gap-2 px-6 py-3 bg-[#06054e] text-white rounded-xl font-black hover:bg-yellow-400 hover:text-[#06054e]"
+            >
+              Next
+              <ChevronRight size={18} />
+            </button>
+          )}
+
+          {(isEdit || isLastSection) && (
+            <button
+              type="button"
+              onClick={handleSave}
+              disabled={isSaving || (!isEdit && !allSectionsComplete())}
+              className="flex items-center gap-2 px-8 py-3 bg-yellow-400 text-[#06054e] rounded-xl font-black hover:scale-[1.02] disabled:opacity-50"
+            >
+              {isSaving ? (
+                <Loader2 className="animate-spin" size={20} />
+              ) : (
+                <Save size={20} />
+              )}
+              {isSaving ? "Saving…" : isEdit ? "Save Changes" : "Create Club"}
+            </button>
+          )}
+        </div>
+      </div>
+
+      <ToastContainer toasts={toasts} onDismiss={dismiss} />
+    </>
   );
 }

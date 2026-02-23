@@ -692,11 +692,19 @@ export default async function AssociationDetailPage({
                 {clubs.map((club: any) => (
                   <Link
                     key={club.clubId}
-                    href={`/admin/clubs/${club.clubId}`}
+                    href={`/admin/clubs/${club.id}`}
                     className="flex items-center gap-3 p-4 bg-slate-50 rounded-xl hover:bg-slate-100 transition-colors border-2 border-slate-200"
                   >
-                    <div className="w-10 h-10 rounded-lg bg-green-600 text-white flex items-center justify-center font-black text-sm">
-                      {club.code}
+                    <div className="w-10 h-10 rounded-lg text-black flex items-center justify-center font-black text-sm">
+                      {club.logo ? (
+                        <img
+                          src={club.logo}
+                          alt={club.name}
+                          className="w-full h-full object-cover rounded-lg"
+                        />
+                      ) : (
+                        club.name.charAt(0).toUpperCase()
+                      )}
                     </div>
                     <div className="flex-1">
                       <div className="font-bold text-slate-900 text-sm">
