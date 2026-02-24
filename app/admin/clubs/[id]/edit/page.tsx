@@ -1,5 +1,5 @@
 // app/admin/clubs/[id]/edit/page.tsx
-// Edit club page - Complete with ClubForm integration
+// FIXED: Loads ClubForm with data
 
 import { notFound } from "next/navigation";
 import ClubForm from "@/components/admin/clubs/ClubForm";
@@ -49,7 +49,6 @@ export default async function EditClubPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  // Next.js 15+ requires awaiting params
   const { id } = await params;
 
   const [club, associations] = await Promise.all([

@@ -61,6 +61,12 @@ export const menuConfig: MenuItem[] = [
     color: "from-yellow-500 to-yellow-600",
     subItems: [
       {
+        label: "Create Player",
+        href: "/admin/players/new",
+        icon: "👤",
+        description: "Create a new player profile",
+      },
+      {
         label: "All Players",
         href: "/admin/players",
         icon: "👤",

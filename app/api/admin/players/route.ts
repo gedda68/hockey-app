@@ -1,107 +1,240 @@
 // app/api/admin/players/route.ts
-
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 
-const getAUDate = () => {
-  return new Date().toLocaleDateString("en-AU").split("/").join("-");
-};
-
-export async function GET() {
+// GET: Fetch all players with filtering
+export async function GET(request: NextRequest) {
   try {
-    const client = await clientPromise;
-    const db = client.db("hockey-app");
-    // Fetches existing players from hockey-app.players.json collection
-    const players = await db.collection("players").find({}).toArray();
-    return NextResponse.json(players || []);
-  } catch (error: any) {
-    return NextResponse.json([], { status: 500 });
-  }
-}
+    const { searchParams } = new URL(request.url);
 
-export async function POST(request: Request) {
-  try {
-    const client = await clientPromise;
-    const db = client.db("hockey-app");
-    const body = await request.json();
+    const clubId = searchParams.get("clubId");
+    const status = searchParams.get("status");
+    const gender = searchParams.get("gender");
+    const search = searchParams.get("search");
+    const page = parseInt(searchParams.get("page") || "1");
+    const limit = parseInt(searchParams.get("limit") || "100");
+    const skip = (page - 1) * limit;
 
-    const newPlayer = {
-      playerId: body.playerId || `P-${Date.now()}`,
-      name: body.name,
-      clubId: body.clubId,
-      primaryPosition: body.primaryPosition,
-      secondaryPosition: body.secondaryPosition || "N/A",
-      status: {
-        active: true,
-        effectiveDate: getAUDate(),
-        reason: "",
+    const client = await clientPromise;
+    const db = client.db();
+
+    // Build query
+    const query: any = {};
+
+    if (clubId) query.clubId = clubId;
+
+    if (status) {
+      query.active = status === "active";
+    }
+
+    if (gender) query.gender = gender;
+
+    if (search) {
+      query.$or = [
+        { firstName: { $regex: search, $options: "i" } },
+        { lastName: { $regex: search, $options: "i" } },
+        { preferredName: { $regex: search, $options: "i" } },
+      ];
+    }
+
+    console.log("🏃 GET players - Query:", query);
+
+    // Get total count
+    const total = await db.collection("players").countDocuments(query);
+
+    // Get players
+    const players = await db
+      .collection("players")
+      .find(query)
+      .sort({ lastName: 1, firstName: 1 })
+      .skip(skip)
+      .limit(limit)
+      .toArray();
+
+    console.log(`✅ Found ${players.length} players (${total} total)`);
+
+    // Remove MongoDB _id from all players
+    const cleanPlayers = players.map(({ _id, ...player }) => player);
+
+    return NextResponse.json({
+      players: cleanPlayers,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
       },
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-
-    await db.collection("players").insertOne(newPlayer);
-    return NextResponse.json({ success: true });
+    });
   } catch (error: any) {
+    console.error("💥 Error fetching players:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
 
-export async function PUT(request: Request) {
+// POST: Create new player
+export async function POST(request: NextRequest) {
   try {
-    const client = await clientPromise;
-    const db = client.db("hockey-app");
     const body = await request.json();
-    const { playerId, ...updates } = body;
 
-    // 1. Fetch current version to compare status
-    const existingPlayer = await db.collection("players").findOne({ playerId });
-    if (!existingPlayer)
-      return NextResponse.json({ error: "Player not found" }, { status: 404 });
-
-    let historyEntry = null;
-
-    // 2. Logic: If 'active' status or 'reason' has changed, create a history log
-    if (
-      existingPlayer.status.active !== updates.active ||
-      existingPlayer.status.reason !== updates.statusReason
-    ) {
-      const newStatus = updates.active
-        ? "Active"
-        : `Inactive (${updates.statusReason})`;
-      historyEntry = {
-        date: updates.statusDate || getAUDate(),
-        event: `Status changed from ${
-          existingPlayer.status.active ? "Active" : "Inactive"
-        } to ${newStatus}`,
-      };
+    if (!body.playerId || !body.firstName || !body.lastName) {
+      return NextResponse.json(
+        { error: "Player ID, first name, and last name are required" },
+        { status: 400 },
+      );
     }
 
-    // 3. Construct the update object
-    const updateOperation: any = {
-      $set: {
-        name: updates.name,
-        clubId: updates.clubId,
-        primaryPosition: updates.primaryPosition,
-        secondaryPosition: updates.secondaryPosition,
-        status: {
-          active: updates.active,
-          reason: updates.active ? "" : updates.statusReason,
-          effectiveDate: updates.statusDate || getAUDate(),
-        },
-        updatedAt: new Date().toISOString(),
+    const client = await clientPromise;
+    const db = client.db();
+
+    // Check if player already exists
+    const existing = await db
+      .collection("players")
+      .findOne({ playerId: body.playerId });
+
+    if (existing) {
+      return NextResponse.json(
+        { error: "Player already exists" },
+        { status: 400 },
+      );
+    }
+
+    const playerData = {
+      ...body,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      active: body.active !== undefined ? body.active : true,
+      registrationStatus: body.registrationStatus || "pending",
+
+      // Ensure arrays exist
+      emergencyContacts: body.emergencyContacts || [],
+      guardians: body.guardians || [],
+      teamIds: body.teamIds || [],
+      documents: body.documents || [],
+      playHistory: body.playHistory || [],
+
+      // Ensure medical object exists
+      medical: {
+        conditions: "",
+        allergies: "",
+        medications: "",
+        doctorName: "",
+        doctorPhone: "",
+        healthFundName: "",
+        healthFundNumber: "",
+        medicareNumber: "",
+        ...body.medical,
       },
     };
 
-    // 4. Push to history only if there's a change
-    if (historyEntry) {
-      updateOperation.$push = { history: historyEntry };
+    await db.collection("players").insertOne(playerData);
+
+    console.log(`✅ Created player: ${body.firstName} ${body.lastName}`);
+
+    // Remove _id before returning
+    const { _id, ...cleanPlayer } = playerData;
+
+    return NextResponse.json(
+      { message: "Player created", player: cleanPlayer },
+      { status: 201 },
+    );
+  } catch (error: any) {
+    console.error("💥 Error creating player:", error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}
+
+// PUT: Update player
+export async function PUT(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const { playerId } = body;
+
+    if (!playerId) {
+      return NextResponse.json(
+        { error: "Player ID required" },
+        { status: 400 },
+      );
     }
 
-    await db.collection("players").updateOne({ playerId }, updateOperation);
+    const client = await clientPromise;
+    const db = client.db();
 
-    return NextResponse.json({ success: true });
+    const oldData = await db.collection("players").findOne({ playerId });
+
+    if (!oldData) {
+      return NextResponse.json({ error: "Player not found" }, { status: 404 });
+    }
+
+    const newData = {
+      ...oldData,
+      ...body,
+      playerId, // Ensure playerId stays the same
+      updatedAt: new Date().toISOString(),
+
+      // Ensure arrays exist
+      emergencyContacts:
+        body.emergencyContacts || oldData.emergencyContacts || [],
+      guardians: body.guardians || oldData.guardians || [],
+      teamIds: body.teamIds || oldData.teamIds || [],
+      documents: body.documents || oldData.documents || [],
+      playHistory: body.playHistory || oldData.playHistory || [],
+
+      // Merge medical data
+      medical: {
+        ...oldData.medical,
+        ...body.medical,
+      },
+    };
+
+    // Cleanup internal MongoDB _id if present in body
+    delete (newData as any)._id;
+
+    await db.collection("players").updateOne({ playerId }, { $set: newData });
+
+    console.log(`✅ Updated player: ${newData.firstName} ${newData.lastName}`);
+
+    // Remove _id before returning
+    const { _id, ...cleanPlayer } = newData;
+
+    return NextResponse.json({
+      message: "Player updated",
+      player: cleanPlayer,
+    });
   } catch (error: any) {
+    console.error("💥 Error updating player:", error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}
+
+// DELETE: Remove player
+export async function DELETE(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const playerId = searchParams.get("playerId");
+
+    if (!playerId) {
+      return NextResponse.json(
+        { error: "Player ID required" },
+        { status: 400 },
+      );
+    }
+
+    const client = await clientPromise;
+    const db = client.db();
+
+    const player = await db.collection("players").findOne({ playerId });
+
+    if (!player) {
+      return NextResponse.json({ error: "Player not found" }, { status: 404 });
+    }
+
+    await db.collection("players").deleteOne({ playerId });
+
+    console.log(`✅ Deleted player: ${player.firstName} ${player.lastName}`);
+
+    return NextResponse.json({ message: "Player deleted successfully" });
+  } catch (error: any) {
+    console.error("💥 Error deleting player:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

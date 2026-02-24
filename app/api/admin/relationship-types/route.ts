@@ -1,34 +1,42 @@
 // app/api/admin/relationship-types/route.ts
-// CRUD operations for relationship types
+// API for managing relationship types (Parent, Sibling, Friend, etc.)
 
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 
-// GET - List all relationship types
+// GET - Fetch all relationship types
 export async function GET(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url);
-    const activeOnly = searchParams.get("activeOnly") === "true";
-    const category = searchParams.get("category");
-
     const client = await clientPromise;
-    const db = client.db(process.env.DB_NAME || "hockey-app");
+    const db = client.db();
 
-    // Build query
-    const query: any = {};
-    if (activeOnly) query.isActive = true;
-    if (category) query.category = category;
+    console.log("📋 Fetching relationship types...");
 
-    const types = await db
-      .collection("relationship_types")
-      .find(query)
-      .sort({ category: 1, displayOrder: 1 })
+    // Fetch all relationship types, sorted by category then name
+    const relationshipTypes = await db
+      .collection("relationshipTypes")
+      .find({})
+      .sort({ category: 1, name: 1 })
       .toArray();
 
-    return NextResponse.json(types);
+    // Remove MongoDB _id for cleaner response
+    const cleanedTypes = relationshipTypes.map(({ _id, ...rest }) => rest);
+
+    console.log(`✅ Found ${cleanedTypes.length} relationship types`);
+
+    return NextResponse.json({
+      relationshipTypes: cleanedTypes,
+      count: cleanedTypes.length,
+    });
   } catch (error: any) {
-    console.error("Error fetching relationship types:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error("❌ Error fetching relationship types:", error);
+    return NextResponse.json(
+      {
+        error: error.message,
+        relationshipTypes: [], // Return empty array on error
+      },
+      { status: 500 },
+    );
   }
 }
 
@@ -36,49 +44,51 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const client = await clientPromise;
-    const db = client.db(process.env.DB_NAME || "hockey-app");
+    const { name, category } = body;
 
-    // Check for duplicate
-    const existing = await db.collection("relationship_types").findOne({
-      forward: body.forward,
-      reverse: body.reverse,
-    });
+    if (!name) {
+      return NextResponse.json({ error: "Name is required" }, { status: 400 });
+    }
+
+    const client = await clientPromise;
+    const db = client.db();
+
+    // Check if relationship type already exists
+    const existing = await db
+      .collection("relationshipTypes")
+      .findOne({ name: { $regex: new RegExp(`^${name}$`, "i") } });
 
     if (existing) {
       return NextResponse.json(
-        { error: "Relationship type with this combination already exists" },
-        { status: 400 }
+        { error: "Relationship type already exists" },
+        { status: 400 },
       );
     }
 
-    // Generate typeId
-    const typeId =
-      `reltype-${body.forward.toLowerCase()}-${body.reverse.toLowerCase()}`.replace(
-        /[^a-z0-9-]/g,
-        "-"
-      );
-
-    const newType = {
-      typeId,
-      forward: body.forward,
-      reverse: body.reverse,
-      category: body.category || "Other",
-      isActive: body.isActive !== false,
-      displayOrder: body.displayOrder || 99,
+    const relationshipType = {
+      id: `rel-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      name: name.trim(),
+      category: category || "other",
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
 
-    await db.collection("relationship_types").insertOne(newType);
+    await db.collection("relationshipTypes").insertOne(relationshipType);
 
-    console.log(
-      `✅ Created relationship type: ${newType.forward} ↔ ${newType.reverse}`
+    console.log(`✅ Created relationship type: ${name}`);
+
+    // Remove _id before returning
+    const { _id, ...cleanedType } = relationshipType as any;
+
+    return NextResponse.json(
+      {
+        message: "Relationship type created",
+        relationshipType: cleanedType,
+      },
+      { status: 201 },
     );
-
-    return NextResponse.json(newType, { status: 201 });
   } catch (error: any) {
-    console.error("Error creating relationship type:", error);
+    console.error("❌ Error creating relationship type:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
@@ -87,30 +97,43 @@ export async function POST(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     const body = await request.json();
+    const { id, name, category } = body;
+
+    if (!id || !name) {
+      return NextResponse.json(
+        { error: "ID and name are required" },
+        { status: 400 },
+      );
+    }
+
     const client = await clientPromise;
-    const db = client.db(process.env.DB_NAME || "hockey-app");
+    const db = client.db();
 
-    const updateData = {
-      ...body,
-      updatedAt: new Date().toISOString(),
-    };
+    const result = await db.collection("relationshipTypes").updateOne(
+      { id },
+      {
+        $set: {
+          name: name.trim(),
+          category: category || "other",
+          updatedAt: new Date().toISOString(),
+        },
+      },
+    );
 
-    delete updateData.typeId; // Don't update typeId
-    delete updateData._id; // Don't update _id
+    if (result.matchedCount === 0) {
+      return NextResponse.json(
+        { error: "Relationship type not found" },
+        { status: 404 },
+      );
+    }
 
-    await db
-      .collection("relationship_types")
-      .updateOne({ typeId: body.typeId }, { $set: updateData });
+    console.log(`✅ Updated relationship type: ${id}`);
 
-    const updated = await db.collection("relationship_types").findOne({
-      typeId: body.typeId,
+    return NextResponse.json({
+      message: "Relationship type updated",
     });
-
-    console.log(`✅ Updated relationship type: ${body.typeId}`);
-
-    return NextResponse.json(updated);
   } catch (error: any) {
-    console.error("Error updating relationship type:", error);
+    console.error("❌ Error updating relationship type:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
@@ -119,40 +142,31 @@ export async function PUT(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const typeId = searchParams.get("typeId");
+    const id = searchParams.get("id");
 
-    if (!typeId) {
-      return NextResponse.json(
-        { error: "typeId is required" },
-        { status: 400 }
-      );
+    if (!id) {
+      return NextResponse.json({ error: "ID is required" }, { status: 400 });
     }
 
     const client = await clientPromise;
-    const db = client.db(process.env.DB_NAME || "hockey-app");
+    const db = client.db();
 
-    // Check if in use
-    const inUse = await db.collection("members").findOne({
-      "familyRelationships.relationshipType": typeId,
-    });
+    const result = await db.collection("relationshipTypes").deleteOne({ id });
 
-    if (inUse) {
+    if (result.deletedCount === 0) {
       return NextResponse.json(
-        {
-          error: "Cannot delete relationship type that is in use",
-          inUse: true,
-        },
-        { status: 400 }
+        { error: "Relationship type not found" },
+        { status: 404 },
       );
     }
 
-    await db.collection("relationship_types").deleteOne({ typeId });
+    console.log(`✅ Deleted relationship type: ${id}`);
 
-    console.log(`✅ Deleted relationship type: ${typeId}`);
-
-    return NextResponse.json({ success: true, typeId });
+    return NextResponse.json({
+      message: "Relationship type deleted",
+    });
   } catch (error: any) {
-    console.error("Error deleting relationship type:", error);
+    console.error("❌ Error deleting relationship type:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

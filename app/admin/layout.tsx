@@ -1,5 +1,5 @@
 // app/admin/layout.tsx
-// FIXED: Admin layout with proper spacing for content below navbar
+// FIXED: Removed incorrect pt-20 padding
 
 import { Metadata } from "next";
 import AdminSidebar from "../../components/admin/AdminSidebar";
@@ -19,7 +19,7 @@ export default function AdminLayout({
       {/* Sidebar */}
       <AdminSidebar />
 
-      {/* Main Content - NO pt-20, let children handle their own spacing */}
+      {/* Main Content - NO pt-20 */}
       <div className="flex-1 overflow-x-hidden">{children}</div>
     </div>
   );
