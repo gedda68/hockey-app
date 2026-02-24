@@ -691,7 +691,7 @@ export default async function AssociationDetailPage({
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {clubs.map((club: any) => (
                   <Link
-                    key={club.clubId}
+                    key={club.id}
                     href={`/admin/clubs/${club.id}`}
                     className="flex items-center gap-3 p-4 bg-slate-50 rounded-xl hover:bg-slate-100 transition-colors border-2 border-slate-200"
                   >

@@ -1,9 +1,8 @@
 // app/admin/layout.tsx
-// Admin layout with sidebar navigation
+// FIXED: Admin layout with proper spacing for content below navbar
 
 import { Metadata } from "next";
 import AdminSidebar from "../../components/admin/AdminSidebar";
-import TopNavbar from "../../components/layout/TopNavbar";
 
 export const metadata: Metadata = {
   title: "Admin Panel - Hockey Management",
@@ -16,14 +15,12 @@ export default function AdminLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div>
-      <div className="flex min-h-screen bg-slate-50">
-        {/* Sidebar */}
-        <AdminSidebar />
+    <div className="flex min-h-screen bg-slate-50">
+      {/* Sidebar */}
+      <AdminSidebar />
 
-        {/* Main Content */}
-        <div className="flex-1 overflow-x-hidden">{children}</div>
-      </div>
+      {/* Main Content - NO pt-20, let children handle their own spacing */}
+      <div className="flex-1 overflow-x-hidden">{children}</div>
     </div>
   );
 }

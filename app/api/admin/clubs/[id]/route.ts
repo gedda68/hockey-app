@@ -1,57 +1,71 @@
-import { NextResponse } from "next/server";
+// app/api/admin/clubs/[id]/route.ts
+// FIXED: Returns correct structure { club: ... }
+
+import { NextRequest, NextResponse } from "next/server";
+import clientPromise from "@/lib/mongodb";
 
 type Ctx = { params: Promise<{ id: string }> };
 
-// Helper to match the club by ID or Slug
-function matchesClub(c: any, id: string) {
-  const cid = c?.id ? String(c.id) : "";
-  const cslug = c?.slug ? String(c.slug) : "";
-  return cid === id || cslug === id;
-}
-
-export async function GET(req: Request, ctx: Ctx) {
-  const { id } = await ctx.params;
-  const origin = new URL(req.url).origin;
-  const res = await fetch(`${origin}/api/admin/clubs`, { cache: "no-store" });
-
-  if (!res.ok)
-    return NextResponse.json({ error: "Failed to load" }, { status: 500 });
-
-  const clubs = await res.json();
-  const club = Array.isArray(clubs)
-    ? clubs.find((c: any) => matchesClub(c, id))
-    : null;
-
-  if (!club) return NextResponse.json({ error: "Not found" }, { status: 404 });
-  return NextResponse.json(club);
-}
-
-// THIS IS THE MISSING PIECE CAUSING THE 405 ERROR
-export async function PUT(req: Request, ctx: Ctx) {
-  const { id } = await ctx.params;
-  const payload = await req.json();
-  const origin = new URL(req.url).origin;
-
-  // We forward the PUT request to the main /api/admin/clubs endpoint
-  // which likely handles the actual file writing/database logic.
+export async function GET(req: NextRequest, ctx: Ctx) {
   try {
-    const res = await fetch(`${origin}/api/admin/clubs`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...payload, id }), // Ensure the ID stays consistent
-    });
+    const { id } = await ctx.params;
+    const client = await clientPromise;
+    const db = client.db();
 
-    if (!res.ok) {
-      const errorData = await res.json();
-      return NextResponse.json(errorData, { status: res.status });
+    // Find club by id
+    const club = await db.collection("clubs").findOne({ id });
+
+    if (!club) {
+      console.error(`Club not found: ${id}`);
+      return NextResponse.json({ error: "Club not found" }, { status: 404 });
     }
 
-    const updatedClub = await res.json();
-    return NextResponse.json(updatedClub);
-  } catch (error) {
-    return NextResponse.json(
-      { error: "Internal Server Error" },
-      { status: 500 }
-    );
+    // Remove MongoDB _id
+    const { _id, ...clubData } = club;
+
+    console.log(`✅ Found club: ${clubData.name}`);
+
+    // Return in expected format
+    return NextResponse.json({ club: clubData });
+  } catch (error: any) {
+    console.error("Error fetching club:", error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}
+
+export async function PUT(req: NextRequest, ctx: Ctx) {
+  try {
+    const { id } = await ctx.params;
+    const payload = await req.json();
+    const client = await clientPromise;
+    const db = client.db();
+
+    // Check club exists
+    const existing = await db.collection("clubs").findOne({ id });
+    if (!existing) {
+      return NextResponse.json({ error: "Club not found" }, { status: 404 });
+    }
+
+    // Update club
+    const updatedData = {
+      ...payload,
+      id, // Ensure ID stays the same
+      updatedAt: new Date().toISOString(),
+    };
+
+    // Remove _id if present
+    delete (updatedData as any)._id;
+
+    await db.collection("clubs").updateOne({ id }, { $set: updatedData });
+
+    console.log(`✅ Updated club: ${updatedData.name}`);
+
+    return NextResponse.json({
+      message: "Club updated",
+      club: updatedData,
+    });
+  } catch (error: any) {
+    console.error("Error updating club:", error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
