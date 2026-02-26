@@ -1,4 +1,5 @@
 // app/api/admin/players/route.ts
+// FIXED: POST now generates playerId automatically
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 
@@ -53,11 +54,48 @@ export async function GET(request: NextRequest) {
 
     console.log(`✅ Found ${players.length} players (${total} total)`);
 
-    // Remove MongoDB _id from all players
-    const cleanPlayers = players.map(({ _id, ...player }) => player);
+    // Get all unique club IDs from players
+    const clubIds = [...new Set(players.map((p) => p.clubId).filter(Boolean))];
+    console.log(`🔍 Looking up ${clubIds.length} clubs...`);
+    console.log(`🔍 Club IDs to find:`, clubIds);
+
+    // Fetch club names - try both clubId and id fields
+    const clubs = await db
+      .collection("clubs")
+      .find({
+        $or: [{ clubId: { $in: clubIds } }, { id: { $in: clubIds } }],
+      })
+      .toArray();
+
+    console.log(`✅ Found ${clubs.length} clubs in database`);
+
+    // Create club lookup map (check both clubId and id)
+    const clubMap = new Map();
+    clubs.forEach((club: any) => {
+      const id = club.clubId || club.id;
+      if (id) {
+        clubMap.set(id, club.name);
+        console.log(`📌 Club: ${id} → ${club.name}`);
+      }
+    });
+
+    // Add club name to each player
+    const playersWithClubNames = players.map((player: any) => {
+      const { _id, ...playerData } = player;
+      const clubName = player.clubId ? clubMap.get(player.clubId) : null;
+
+      console.log(
+        `👤 ${player.firstName} ${player.lastName}: clubId=${player.clubId}, clubName=${clubName || "NOT FOUND"}`,
+      );
+
+      return {
+        ...playerData,
+        clubName: clubName || null, // Include club name in response
+      };
+    });
 
     return NextResponse.json({
-      players: cleanPlayers,
+      players: playersWithClubNames,
       pagination: {
         page,
         limit,
@@ -76,9 +114,10 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
 
-    if (!body.playerId || !body.firstName || !body.lastName) {
+    // ✅ FIXED: Only validate firstName and lastName (playerId is generated)
+    if (!body.firstName || !body.lastName) {
       return NextResponse.json(
-        { error: "Player ID, first name, and last name are required" },
+        { error: "First name and last name are required" },
         { status: 400 },
       );
     }
@@ -86,20 +125,28 @@ export async function POST(request: NextRequest) {
     const client = await clientPromise;
     const db = client.db();
 
-    // Check if player already exists
-    const existing = await db
+    // ✅ Generate sequential playerId
+    const lastPlayer = await db
       .collection("players")
-      .findOne({ playerId: body.playerId });
+      .find({})
+      .sort({ playerId: -1 })
+      .limit(1)
+      .toArray();
 
-    if (existing) {
-      return NextResponse.json(
-        { error: "Player already exists" },
-        { status: 400 },
-      );
+    let nextNumber = 1;
+    if (lastPlayer.length > 0 && lastPlayer[0].playerId) {
+      const lastNumber = parseInt(lastPlayer[0].playerId);
+      if (!isNaN(lastNumber)) {
+        nextNumber = lastNumber + 1;
+      }
     }
+
+    const playerId = nextNumber.toString().padStart(10, "0");
+    console.log("🆔 Generated playerId:", playerId);
 
     const playerData = {
       ...body,
+      playerId, // ✅ Add generated playerId
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       active: body.active !== undefined ? body.active : true,
@@ -128,13 +175,19 @@ export async function POST(request: NextRequest) {
 
     await db.collection("players").insertOne(playerData);
 
-    console.log(`✅ Created player: ${body.firstName} ${body.lastName}`);
+    console.log(
+      `✅ Created player: ${body.firstName} ${body.lastName} (${playerId})`,
+    );
 
     // Remove _id before returning
     const { _id, ...cleanPlayer } = playerData;
 
     return NextResponse.json(
-      { message: "Player created", player: cleanPlayer },
+      {
+        message: "Player created",
+        player: cleanPlayer,
+        playerId, // ✅ Return playerId so client can use it
+      },
       { status: 201 },
     );
   } catch (error: any) {

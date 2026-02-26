@@ -1,15 +1,244 @@
 // sections/HistorySection.tsx
-// Player play history and past teams
+// Player play history and past teams - WITH CLUB NAME LOOKUP
 
+"use client";
+
+import { useState, useEffect } from "react";
 import { BaseSectionProps, PlayerHistory } from "../types/player.types";
-import { History, Calendar, Building2, Users, Trophy } from "lucide-react";
+import {
+  History,
+  Calendar,
+  Building2,
+  Users,
+  Trophy,
+  MapPin,
+  Clock,
+} from "lucide-react";
+
+// Component to display club details with location and dates
+function HistoryClubCard({
+  clubId,
+  clubName,
+  startDate,
+  endDate,
+  isCurrent = false,
+}: {
+  clubId?: string;
+  clubName?: string;
+  startDate?: string;
+  endDate?: string;
+  isCurrent?: boolean;
+}) {
+  const [clubDetails, setClubDetails] = useState<{
+    name?: string;
+    city?: string;
+    region?: string;
+    state?: string;
+  }>({});
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchClubDetails = async () => {
+      if (!clubId && clubName) {
+        // If we already have the club name from history record, use it
+        setClubDetails({ name: clubName });
+        setLoading(false);
+        return;
+      }
+
+      if (!clubId) {
+        setClubDetails({ name: clubName || "Unknown Club" });
+        setLoading(false);
+        return;
+      }
+
+      try {
+        const res = await fetch("/api/admin/clubs");
+        if (res.ok) {
+          const data = await res.json();
+          const clubs = data.clubs || data || [];
+          const club = clubs.find(
+            (c: any) => c.clubId === clubId || c.id === clubId,
+          );
+
+          if (club) {
+            setClubDetails({
+              name: club.name || club.clubName || clubName || "Unknown Club",
+              city: club.city || club.suburb,
+              region: club.region,
+              state: club.state,
+            });
+          } else {
+            setClubDetails({ name: clubName || `Club ID: ${clubId}` });
+          }
+        } else {
+          setClubDetails({ name: clubName || `Club ID: ${clubId}` });
+        }
+      } catch (error) {
+        setClubDetails({ name: clubName || "Unknown Club" });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchClubDetails();
+  }, [clubId, clubName]);
+
+  const getLocationString = () => {
+    const parts = [];
+    if (clubDetails.city || clubDetails.region) {
+      parts.push(clubDetails.city || clubDetails.region);
+    }
+    if (clubDetails.state) {
+      parts.push(clubDetails.state);
+    }
+    return parts.length > 0 ? parts.join(", ") : "";
+  };
+
+  const formatDate = (dateString?: string) => {
+    if (!dateString) return "";
+    const date = new Date(dateString);
+    return date.toLocaleDateString("en-AU", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    });
+  };
+
+  return (
+    <div className="flex items-start gap-3">
+      <Building2 size={16} className="text-slate-400 flex-shrink-0 mt-0.5" />
+      <div className="flex-1">
+        <p className="text-xs text-slate-500 font-bold">Club</p>
+        {loading ? (
+          <p className="text-sm text-slate-400 animate-pulse">Loading...</p>
+        ) : (
+          <>
+            <p className="text-sm text-slate-900 font-black mt-0.5">
+              {clubDetails.name}
+            </p>
+            {getLocationString() && (
+              <p className="text-xs text-slate-600 flex items-center gap-1 mt-1">
+                <MapPin size={10} />
+                {getLocationString()}
+              </p>
+            )}
+            {(startDate || endDate || isCurrent) && (
+              <div className="flex items-center gap-2 mt-2 text-xs">
+                <Clock size={10} className="text-slate-400" />
+                <span className="text-slate-600">
+                  {startDate ? formatDate(startDate) : "Unknown"}
+                  {" → "}
+                  {isCurrent ? (
+                    <span className="text-green-700 font-black">Current</span>
+                  ) : endDate ? (
+                    formatDate(endDate)
+                  ) : (
+                    "Unknown"
+                  )}
+                </span>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
 
 export default function HistorySection({
   formData,
   onChange,
   errors,
 }: BaseSectionProps) {
-  const playHistory = formData.playHistory || [];
+  const playHistory = formData?.playHistory || [];
+  const teamIds = formData?.teamIds || [];
+  const primaryPosition = formData?.primaryPosition || "";
+  const secondaryPosition = formData?.secondaryPosition || "";
+  const clubId = formData?.clubId || "";
+
+  const [clubName, setClubName] = useState<string>("Loading...");
+  const [clubDetails, setClubDetails] = useState<{
+    city?: string;
+    region?: string;
+    state?: string;
+  }>({});
+  const [loadingClub, setLoadingClub] = useState(true);
+  const [registrationStartDate, setRegistrationStartDate] =
+    useState<string>("");
+
+  // Fetch club name and details from clubId
+  useEffect(() => {
+    const fetchClubDetails = async () => {
+      if (!clubId) {
+        setClubName("Not assigned");
+        setLoadingClub(false);
+        return;
+      }
+
+      try {
+        const res = await fetch("/api/admin/clubs");
+        if (res.ok) {
+          const data = await res.json();
+          const clubs = data.clubs || data || [];
+          const club = clubs.find(
+            (c: any) => c.clubId === clubId || c.id === clubId,
+          );
+
+          if (club) {
+            setClubName(club.name || club.clubName || "Unknown Club");
+            setClubDetails({
+              city: club.city || club.suburb,
+              region: club.region,
+              state: club.state,
+            });
+          } else {
+            setClubName(`Club ID: ${clubId}`);
+          }
+        } else {
+          setClubName(`Club ID: ${clubId}`);
+        }
+      } catch (error) {
+        console.error("Error fetching club:", error);
+        setClubName(`Club ID: ${clubId}`);
+      } finally {
+        setLoadingClub(false);
+      }
+    };
+
+    fetchClubDetails();
+  }, [clubId]);
+
+  // Get registration start date from formData.club.registrationDate
+  useEffect(() => {
+    const regDate = formData?.club?.registrationDate;
+    if (regDate) {
+      setRegistrationStartDate(regDate);
+    }
+  }, [formData?.club?.registrationDate]);
+
+  // Format location string
+  const getLocationString = () => {
+    const parts = [];
+    if (clubDetails.city || clubDetails.region) {
+      parts.push(clubDetails.city || clubDetails.region);
+    }
+    if (clubDetails.state) {
+      parts.push(clubDetails.state);
+    }
+    return parts.length > 0 ? parts.join(", ") : "";
+  };
+
+  // Format date for display
+  const formatDate = (dateString: string) => {
+    if (!dateString) return "";
+    const date = new Date(dateString);
+    return date.toLocaleDateString("en-AU", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    });
+  };
 
   // Sort by season (most recent first)
   const sortedHistory = [...playHistory].sort((a, b) => {
@@ -50,26 +279,71 @@ export default function HistorySection({
             </p>
           </div>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
-          <div className="bg-white/50 rounded-xl p-3">
-            <p className="text-xs text-slate-600 font-bold">Club</p>
-            <p className="text-sm text-[#06054e] font-black mt-1">
-              {formData.clubId || "Not assigned"}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+          {/* Club Info - Expanded card with location and dates */}
+          <div className="bg-white/50 rounded-xl p-4 md:col-span-1">
+            <p className="text-xs text-slate-600 font-bold mb-2">
+              Current Club
             </p>
+            {loadingClub ? (
+              <span className="text-slate-400 animate-pulse">Loading...</span>
+            ) : (
+              <>
+                <p className="text-base text-[#06054e] font-black mb-1">
+                  {clubName}
+                </p>
+                {getLocationString() && (
+                  <p className="text-xs text-slate-600 font-bold mb-2">
+                    📍 {getLocationString()}
+                  </p>
+                )}
+                <div className="mt-3 pt-3 border-t border-slate-200">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <p className="text-xs text-slate-500 font-bold">
+                        Start Date
+                      </p>
+                      <p className="text-xs text-[#06054e] font-black">
+                        {registrationStartDate
+                          ? formatDate(registrationStartDate)
+                          : "Not set"}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-slate-500 font-bold">
+                        End Date
+                      </p>
+                      <p className="text-xs text-green-700 font-black">
+                        Current
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
-          <div className="bg-white/50 rounded-xl p-3">
-            <p className="text-xs text-slate-600 font-bold">Teams</p>
-            <p className="text-sm text-[#06054e] font-black mt-1">
-              {formData.teamIds.length > 0
-                ? `${formData.teamIds.length} team(s)`
-                : "None"}
-            </p>
-          </div>
-          <div className="bg-white/50 rounded-xl p-3">
-            <p className="text-xs text-slate-600 font-bold">Position</p>
-            <p className="text-sm text-[#06054e] font-black mt-1">
-              {formData.primaryPosition || "Not set"}
-            </p>
+
+          {/* Teams and Position */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="bg-white/50 rounded-xl p-3">
+              <p className="text-xs text-slate-600 font-bold">Teams</p>
+              <p className="text-sm text-[#06054e] font-black mt-1">
+                {teamIds.length > 0 ? `${teamIds.length} team(s)` : "None"}
+              </p>
+            </div>
+            <div className="bg-white/50 rounded-xl p-3">
+              <p className="text-xs text-slate-600 font-bold">
+                Playing Positions
+              </p>
+              <p className="text-sm text-[#06054e] font-black mt-1">
+                {primaryPosition || "Not set"}
+              </p>
+              {secondaryPosition && (
+                <p className="text-xs text-slate-600 mt-1">
+                  Secondary: {secondaryPosition}
+                </p>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -117,22 +391,15 @@ export default function HistorySection({
                     </div>
 
                     {/* Details Grid */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
-                      {/* Club */}
-                      <div className="flex items-start gap-3">
-                        <Building2
-                          size={16}
-                          className="text-slate-400 flex-shrink-0 mt-0.5"
-                        />
-                        <div>
-                          <p className="text-xs text-slate-500 font-bold">
-                            Club
-                          </p>
-                          <p className="text-sm text-slate-900 font-black mt-0.5">
-                            {record.clubName}
-                          </p>
-                        </div>
-                      </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                      {/* Club with Location and Dates */}
+                      <HistoryClubCard
+                        clubId={record.clubId}
+                        clubName={record.clubName}
+                        startDate={record.startDate}
+                        endDate={record.endDate}
+                        isCurrent={false}
+                      />
 
                       {/* Team */}
                       {record.teamName && (

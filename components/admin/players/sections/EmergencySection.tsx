@@ -1,5 +1,5 @@
 // sections/EmergencySection.tsx
-// FIXED: Uses correct database fields (typeId, forward, reverse, category)
+// COMPLETE: Auto-fill from member linking + Relationship type-ahead from config DB
 
 "use client";
 
@@ -9,7 +9,7 @@ import {
   EmergencyContact,
   Guardian,
   isMinor,
-} from "../types/player.types";
+} from "@/types/player.types";
 import {
   AlertCircle,
   Plus,
@@ -35,10 +35,11 @@ interface MemberSearchResult {
 
 interface RelationshipType {
   _id?: string;
-  typeId: string; // ← Database uses typeId
-  forward: string; // ← Display field is "forward"
-  reverse: string; // ← Reverse relationship
-  category: string;
+  configType: string;
+  id: string; // Config uses 'id' field
+  name: string; // Config uses 'name' field
+  code?: string;
+  description?: string;
   isActive: boolean;
   displayOrder: number;
 }
@@ -68,17 +69,15 @@ export default function EmergencySection({
     Record<string, string>
   >({});
 
-  // Fetch relationships from database
+  // Fetch relationships from config API
   useEffect(() => {
     const fetchRelationships = async () => {
       try {
-        console.log("📋 Fetching relationships from database...");
-        const res = await fetch("/api/admin/relationship-types");
+        console.log("📋 Fetching relationships from config API...");
+        const res = await fetch("/api/admin/config/relationship-type");
 
         if (res.ok) {
-          const data = await res.json();
-          const relationshipTypes =
-            data.relationshipTypes || data.relationships || data || [];
+          const relationshipTypes = await res.json(); // Direct array from config API
 
           console.log(
             `✅ Loaded ${relationshipTypes.length} relationship types`,
@@ -87,9 +86,10 @@ export default function EmergencySection({
 
           // Filter only active relationships and sort by displayOrder
           const activeRelationships = relationshipTypes
-            .filter((rel: any) => rel.isActive !== false)
+            .filter((rel: RelationshipType) => rel.isActive !== false)
             .sort(
-              (a: any, b: any) => (a.displayOrder || 0) - (b.displayOrder || 0),
+              (a: RelationshipType, b: RelationshipType) =>
+                (a.displayOrder || 0) - (b.displayOrder || 0),
             );
 
           setRelationships(activeRelationships);
@@ -97,58 +97,51 @@ export default function EmergencySection({
           console.warn("⚠️ Could not load relationships, using fallback");
           setRelationships([
             {
-              typeId: "parent",
-              forward: "Parent",
-              reverse: "Child",
-              category: "family",
+              configType: "relationship-type",
+              id: "parent",
+              name: "Parent",
               isActive: true,
               displayOrder: 1,
             },
             {
-              typeId: "mother",
-              forward: "Mother",
-              reverse: "Child",
-              category: "family",
+              configType: "relationship-type",
+              id: "mother",
+              name: "Mother",
               isActive: true,
               displayOrder: 2,
             },
             {
-              typeId: "father",
-              forward: "Father",
-              reverse: "Child",
-              category: "family",
+              configType: "relationship-type",
+              id: "father",
+              name: "Father",
               isActive: true,
               displayOrder: 3,
             },
             {
-              typeId: "guardian",
-              forward: "Guardian",
-              reverse: "Ward",
-              category: "family",
+              configType: "relationship-type",
+              id: "guardian",
+              name: "Guardian",
               isActive: true,
               displayOrder: 4,
             },
             {
-              typeId: "sibling",
-              forward: "Sibling",
-              reverse: "Sibling",
-              category: "family",
+              configType: "relationship-type",
+              id: "sibling",
+              name: "Sibling",
               isActive: true,
               displayOrder: 5,
             },
             {
-              typeId: "friend",
-              forward: "Friend",
-              reverse: "Friend",
-              category: "other",
+              configType: "relationship-type",
+              id: "friend",
+              name: "Friend",
               isActive: true,
               displayOrder: 10,
             },
             {
-              typeId: "other",
-              forward: "Other",
-              reverse: "Other",
-              category: "other",
+              configType: "relationship-type",
+              id: "other",
+              name: "Other",
               isActive: true,
               displayOrder: 99,
             },
@@ -158,18 +151,16 @@ export default function EmergencySection({
         console.error("❌ Error loading relationships:", error);
         setRelationships([
           {
-            typeId: "parent",
-            forward: "Parent",
-            reverse: "Child",
-            category: "family",
+            configType: "relationship-type",
+            id: "parent",
+            name: "Parent",
             isActive: true,
             displayOrder: 1,
           },
           {
-            typeId: "other",
-            forward: "Other",
-            reverse: "Other",
-            category: "other",
+            configType: "relationship-type",
+            id: "other",
+            name: "Other",
             isActive: true,
             displayOrder: 99,
           },
@@ -182,15 +173,14 @@ export default function EmergencySection({
     fetchRelationships();
   }, []);
 
-  // Filter relationships based on search - FIXED to use forward field
+  // Filter relationships based on search
   const getFilteredRelationships = (searchTerm: string) => {
     if (!searchTerm) return relationships;
     const lower = searchTerm.toLowerCase();
     return relationships.filter(
       (rel) =>
-        (rel.forward?.toLowerCase() || "").includes(lower) ||
-        (rel.reverse?.toLowerCase() || "").includes(lower) ||
-        (rel.category?.toLowerCase() || "").includes(lower),
+        (rel.name?.toLowerCase() || "").includes(lower) ||
+        (rel.description?.toLowerCase() || "").includes(lower),
     );
   };
 
@@ -202,6 +192,7 @@ export default function EmergencySection({
       relationship: "",
       phone: "",
       email: "",
+      linkedMemberId: "",
     };
     onChange("emergencyContacts", [...formData.emergencyContacts, newContact]);
   };
@@ -211,12 +202,6 @@ export default function EmergencySection({
       "emergencyContacts",
       formData.emergencyContacts.filter((c) => c.id !== id),
     );
-    const newResults = { ...contactSearchResults };
-    delete newResults[id];
-    setContactSearchResults(newResults);
-    const newSearch = { ...relationshipSearch };
-    delete newSearch[`contact-${id}`];
-    setRelationshipSearch(newSearch);
   };
 
   const updateEmergencyContact = (
@@ -241,24 +226,24 @@ export default function EmergencySection({
       phone: "",
       email: "",
       isPrimary: formData.guardians.length === 0,
+      linkedMemberId: "",
     };
     onChange("guardians", [...formData.guardians, newGuardian]);
   };
 
   const removeGuardian = (id: string) => {
-    onChange(
-      "guardians",
-      formData.guardians.filter((g) => g.id !== id),
-    );
-    const newResults = { ...guardianSearchResults };
-    delete newResults[id];
-    setGuardianSearchResults(newResults);
-    const newSearch = { ...relationshipSearch };
-    delete newSearch[`guardian-${id}`];
-    setRelationshipSearch(newSearch);
+    const remaining = formData.guardians.filter((g) => g.id !== id);
+    if (remaining.length > 0 && !remaining.some((g) => g.isPrimary)) {
+      remaining[0].isPrimary = true;
+    }
+    onChange("guardians", remaining);
   };
 
-  const updateGuardian = (id: string, field: keyof Guardian, value: any) => {
+  const updateGuardian = (
+    id: string,
+    field: keyof Guardian,
+    value: string | boolean,
+  ) => {
     onChange(
       "guardians",
       formData.guardians.map((g) =>
@@ -337,13 +322,13 @@ export default function EmergencySection({
     }
   };
 
-  // Link member to emergency contact
+  // Link member to emergency contact - WITH AUTO-FILL
   const linkMemberToContact = (
     contactId: string,
     member: MemberSearchResult,
   ) => {
     console.log(
-      "🔗 Linking member to contact:",
+      "🔗 Linking member to emergency contact:",
       member.displayName,
       member.memberId,
     );
@@ -351,16 +336,27 @@ export default function EmergencySection({
     // Auto-fill: firstName + space + lastName
     const fullName = `${member.firstName} ${member.lastName}`.trim();
 
-    console.log("📝 Auto-filling contact:", {
+    console.log("📝 Auto-filling contact details:", {
       name: fullName,
-      email: member.email,
-      phone: member.phone,
+      email: member.email || "N/A",
+      phone: member.phone || "N/A",
     });
 
-    updateEmergencyContact(contactId, "name", fullName);
-    if (member.email) updateEmergencyContact(contactId, "email", member.email);
-    if (member.phone) updateEmergencyContact(contactId, "phone", member.phone);
-    updateEmergencyContact(contactId, "linkedMemberId", member.memberId);
+    // Update all fields at once
+    const updatedContact = formData.emergencyContacts.map((c) => {
+      if (c.id === contactId) {
+        return {
+          ...c,
+          name: fullName,
+          email: member.email || c.email, // Use member email if available
+          phone: member.phone || c.phone, // Use member phone if available
+          linkedMemberId: member.memberId,
+        };
+      }
+      return c;
+    });
+
+    onChange("emergencyContacts", updatedContact);
 
     // Clear search results
     const newResults = { ...contactSearchResults };
@@ -368,12 +364,16 @@ export default function EmergencySection({
     setContactSearchResults(newResults);
 
     alert(
-      `✅ Linked to member: ${fullName}\nMember ID: ${member.memberId}\n\nAuto-filled:\n• Name: ${fullName}\n• Email: ${member.email || "N/A"}\n• Phone: ${member.phone || "N/A"}`,
+      `✅ Linked to member: ${fullName}\nMember ID: ${member.memberId}\n\n✨ Auto-filled:\n• Name: ${fullName}\n• Email: ${member.email || "Not available"}\n• Phone: ${member.phone || "Not available"}`,
     );
   };
 
   const unlinkContact = (contactId: string) => {
-    if (confirm("Unlink this contact from the member record?")) {
+    if (
+      confirm(
+        "Unlink this contact from the member record? (This will not clear the contact details)",
+      )
+    ) {
       updateEmergencyContact(contactId, "linkedMemberId", "");
       console.log("🔓 Unlinked contact from member");
     }
@@ -439,7 +439,7 @@ export default function EmergencySection({
     }
   };
 
-  // Link member to guardian
+  // Link member to guardian - WITH AUTO-FILL
   const linkMemberToGuardian = (
     guardianId: string,
     member: MemberSearchResult,
@@ -453,16 +453,27 @@ export default function EmergencySection({
     // Auto-fill: firstName + space + lastName
     const fullName = `${member.firstName} ${member.lastName}`.trim();
 
-    console.log("📝 Auto-filling guardian:", {
+    console.log("📝 Auto-filling guardian details:", {
       name: fullName,
-      email: member.email,
-      phone: member.phone,
+      email: member.email || "N/A",
+      phone: member.phone || "N/A",
     });
 
-    updateGuardian(guardianId, "name", fullName);
-    if (member.email) updateGuardian(guardianId, "email", member.email);
-    if (member.phone) updateGuardian(guardianId, "phone", member.phone);
-    updateGuardian(guardianId, "linkedMemberId", member.memberId);
+    // Update all fields at once
+    const updatedGuardians = formData.guardians.map((g) => {
+      if (g.id === guardianId) {
+        return {
+          ...g,
+          name: fullName,
+          email: member.email || g.email, // Use member email if available
+          phone: member.phone || g.phone, // Use member phone if available
+          linkedMemberId: member.memberId,
+        };
+      }
+      return g;
+    });
+
+    onChange("guardians", updatedGuardians);
 
     // Clear search results
     const newResults = { ...guardianSearchResults };
@@ -470,31 +481,29 @@ export default function EmergencySection({
     setGuardianSearchResults(newResults);
 
     alert(
-      `✅ Linked to member: ${fullName}\nMember ID: ${member.memberId}\n\nAuto-filled:\n• Name: ${fullName}\n• Email: ${member.email || "N/A"}\n• Phone: ${member.phone || "N/A"}`,
+      `✅ Linked to member: ${fullName}\nMember ID: ${member.memberId}\n\n✨ Auto-filled:\n• Name: ${fullName}\n• Email: ${member.email || "Not available"}\n• Phone: ${member.phone || "Not available"}`,
     );
   };
 
   const unlinkGuardian = (guardianId: string) => {
-    if (confirm("Unlink this guardian from the member record?")) {
+    if (
+      confirm(
+        "Unlink this guardian from the member record? (This will not clear the guardian details)",
+      )
+    ) {
       updateGuardian(guardianId, "linkedMemberId", "");
       console.log("🔓 Unlinked guardian from member");
     }
   };
 
-  const goToMemberProfile = (memberId: string) => {
-    window.open(`/admin/members/${memberId}`, "_blank");
-  };
-
   return (
-    <div className="space-y-8">
-      {/* ========================================
-          EMERGENCY CONTACTS SECTION
-      ======================================== */}
+    <div className="space-y-6">
+      {/* Emergency Contacts Section */}
       <div>
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h3 className="text-sm font-black text-slate-700 flex items-center gap-2">
-              <AlertCircle size={18} className="text-red-500" />
+            <h3 className="text-base font-black text-slate-900 flex items-center gap-2">
+              <AlertCircle size={20} className="text-red-600" />
               Emergency Contacts
             </h3>
             <p className="text-xs text-slate-500 mt-1">
@@ -504,7 +513,7 @@ export default function EmergencySection({
           <button
             type="button"
             onClick={addEmergencyContact}
-            className="flex items-center gap-2 px-4 py-2 bg-red-500 text-white rounded-xl font-bold hover:bg-red-600 text-sm transition-all"
+            className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-xl font-bold hover:bg-red-700 text-sm transition-all"
           >
             <Plus size={16} />
             Add Contact
@@ -517,79 +526,39 @@ export default function EmergencySection({
             <p className="text-red-700 font-bold">
               No emergency contacts added
             </p>
-            <p className="text-xs text-red-500 mt-1">
-              Please add at least one emergency contact
+            <p className="text-xs text-red-600 mt-1">
+              Click "Add Contact" to add at least one emergency contact
             </p>
           </div>
         ) : (
           <div className="space-y-4">
             {formData.emergencyContacts.map((contact, index) => {
-              const isSearching = searchingContact === contact.id;
-              const searchResults = contactSearchResults[contact.id] || [];
-              const hasResults = searchResults.length > 0;
-              const isLinked = !!(contact as any).linkedMemberId;
-              const relationshipSearchTerm =
-                relationshipSearch[`contact-${contact.id}`] ||
-                contact.relationship ||
-                "";
-              const filteredRelationships = getFilteredRelationships(
-                relationshipSearchTerm,
-              );
+              const contactResults = contactSearchResults[contact.id] || [];
+              const isLinked = !!contact.linkedMemberId;
+              const currentRelationshipSearch =
+                relationshipSearch[contact.id] || contact.relationship || "";
 
               return (
                 <div
                   key={contact.id}
-                  className="p-6 bg-slate-50 border-2 border-slate-100 rounded-2xl"
+                  className="p-6 bg-white border-2 border-slate-100 rounded-2xl relative"
                 >
-                  {/* Linked Member Badge */}
+                  {/* Linked Badge */}
                   {isLinked && (
-                    <div className="mb-4 p-3 bg-green-50 border-2 border-green-200 rounded-xl flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <LinkIcon size={16} className="text-green-600" />
-                        <div>
-                          <p className="text-xs font-black text-green-900">
-                            ✅ Linked to Member
-                          </p>
-                          <p className="text-xs text-green-700">
-                            Member ID: {(contact as any).linkedMemberId}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() =>
-                            goToMemberProfile((contact as any).linkedMemberId)
-                          }
-                          className="px-2 py-1 bg-blue-600 text-white rounded text-xs font-bold hover:bg-blue-700 flex items-center gap-1"
-                        >
-                          View
-                          <ExternalLink size={10} />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => unlinkContact(contact.id)}
-                          className="px-2 py-1 bg-red-100 text-red-700 rounded text-xs font-bold hover:bg-red-200 flex items-center gap-1"
-                        >
-                          <X size={10} />
-                          Unlink
-                        </button>
+                    <div className="absolute top-4 right-4">
+                      <div className="flex items-center gap-2 px-3 py-1 bg-green-100 border border-green-300 rounded-full">
+                        <LinkIcon size={12} className="text-green-700" />
+                        <span className="text-xs font-black text-green-700">
+                          LINKED
+                        </span>
                       </div>
                     </div>
                   )}
 
                   <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-2">
-                      <h4 className="text-xs font-black uppercase text-slate-600">
-                        Emergency Contact #{index + 1}
-                      </h4>
-                      {isSearching && (
-                        <Loader2
-                          size={14}
-                          className="animate-spin text-blue-600"
-                        />
-                      )}
-                    </div>
+                    <h4 className="text-xs font-black uppercase text-slate-600">
+                      Emergency Contact #{index + 1}
+                    </h4>
                     <button
                       type="button"
                       onClick={() => removeEmergencyContact(contact.id)}
@@ -600,222 +569,204 @@ export default function EmergencySection({
                   </div>
 
                   <div className="space-y-4">
-                    {/* Name with Search */}
-                    <div>
-                      <label className="block text-xs font-bold text-slate-500 mb-1 flex items-center justify-between">
-                        <span>Name *</span>
-                        {contact.name.length >= 3 &&
-                          !hasResults &&
-                          !isLinked && (
-                            <button
-                              type="button"
-                              onClick={() =>
-                                searchMemberForContact(contact.id, contact.name)
-                              }
-                              className="text-xs text-blue-600 hover:text-blue-700 flex items-center gap-1 font-bold"
-                            >
-                              <Search size={12} />
-                              Search & Link Member
-                            </button>
-                          )}
+                    {/* Name Field with Member Search */}
+                    <div className="relative">
+                      <label className="block text-xs font-bold text-slate-500 mb-1">
+                        Name <span className="text-red-500">*</span>
                       </label>
-                      <input
-                        type="text"
-                        value={contact.name}
-                        onChange={(e) => {
-                          updateEmergencyContact(
-                            contact.id,
-                            "name",
-                            e.target.value,
-                          );
-                          if (e.target.value.length >= 3 && !isLinked) {
-                            setTimeout(
-                              () =>
-                                searchMemberForContact(
-                                  contact.id,
-                                  e.target.value,
-                                ),
-                              1000,
+                      <div className="relative">
+                        <input
+                          type="text"
+                          value={contact.name}
+                          onChange={(e) => {
+                            updateEmergencyContact(
+                              contact.id,
+                              "name",
+                              e.target.value,
                             );
-                          }
-                        }}
-                        placeholder="Full Name"
-                        className="w-full px-4 py-3 bg-white border-2 border-slate-200 rounded-xl font-bold focus:border-yellow-400 outline-none"
-                      />
-                      <p className="text-xs text-slate-400 mt-1">
-                        💡 Auto-fills "firstName lastName" from member
-                      </p>
-                    </div>
+                            searchMemberForContact(contact.id, e.target.value);
+                          }}
+                          className="w-full px-4 py-3 pr-10 bg-white border-2 border-slate-200 rounded-xl font-bold focus:border-yellow-400 outline-none"
+                          placeholder="Full name"
+                          disabled={isLinked}
+                        />
+                        {searchingContact === contact.id && (
+                          <div className="absolute right-3 top-3">
+                            <Loader2
+                              size={20}
+                              className="animate-spin text-slate-400"
+                            />
+                          </div>
+                        )}
+                      </div>
 
-                    {/* Member Search Results */}
-                    {hasResults && (
-                      <div className="p-3 bg-blue-50 border-2 border-blue-200 rounded-xl">
-                        <div className="flex items-center justify-between mb-2">
-                          <p className="text-xs font-black text-blue-900">
-                            ✅ Found {searchResults.length} Member
-                            {searchResults.length !== 1 ? "s" : ""}
+                      {/* Member Search Results */}
+                      {!isLinked && contactResults.length > 0 && (
+                        <div className="absolute z-10 mt-1 w-full max-h-48 overflow-y-auto bg-white border-2 border-blue-200 rounded-xl shadow-lg">
+                          <p className="text-xs font-bold text-blue-700 px-3 py-2 bg-blue-50 border-b border-blue-200">
+                            Found {contactResults.length} member(s) - click to
+                            link & auto-fill:
                           </p>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const newResults = { ...contactSearchResults };
-                              delete newResults[contact.id];
-                              setContactSearchResults(newResults);
-                            }}
-                            className="text-blue-700 hover:text-blue-900"
-                          >
-                            <X size={14} />
-                          </button>
-                        </div>
-                        <div className="space-y-2">
-                          {searchResults.map((member) => (
+                          {contactResults.map((member) => (
                             <button
                               key={member.memberId}
                               type="button"
                               onClick={() =>
                                 linkMemberToContact(contact.id, member)
                               }
-                              className="w-full p-3 bg-white border border-blue-200 rounded-lg hover:bg-blue-100 text-left transition-all"
+                              className="w-full px-3 py-2 text-left hover:bg-blue-50 border-b border-slate-100 last:border-b-0 transition-colors"
                             >
-                              <div className="flex items-start justify-between">
-                                <div className="flex-1">
-                                  <p className="font-black text-slate-900 text-sm flex items-center gap-2">
-                                    {member.firstName} {member.lastName}
-                                    <LinkIcon
-                                      size={12}
-                                      className="text-blue-600"
-                                    />
-                                  </p>
-                                  <div className="text-xs text-slate-600 mt-1 space-y-0.5">
-                                    {member.email && <p>📧 {member.email}</p>}
-                                    {member.phone && <p>📱 {member.phone}</p>}
-                                    <p className="text-blue-600 font-bold">
-                                      ID: {member.memberId}
-                                    </p>
-                                  </div>
-                                </div>
-                                <CheckCircle
-                                  size={16}
-                                  className="text-blue-600 flex-shrink-0 ml-2"
-                                />
-                              </div>
+                              <p className="text-sm font-bold text-slate-900">
+                                {member.displayName}
+                              </p>
+                              <p className="text-xs text-slate-500">
+                                {member.email || "No email"} •{" "}
+                                {member.phone || "No phone"}
+                              </p>
                             </button>
                           ))}
                         </div>
-                      </div>
-                    )}
+                      )}
 
-                    {/* Type-ahead Relationship - FIXED to use forward field */}
+                      {/* Linked Member Info */}
+                      {isLinked && (
+                        <div className="mt-2 flex items-center gap-2">
+                          <div className="flex-1 px-3 py-2 bg-green-50 border border-green-200 rounded-lg">
+                            <p className="text-xs text-green-700">
+                              <strong>Linked to member:</strong>{" "}
+                              {contact.linkedMemberId}
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => unlinkContact(contact.id)}
+                            className="px-3 py-2 bg-red-100 text-red-700 rounded-lg text-xs font-bold hover:bg-red-200 flex items-center gap-1"
+                          >
+                            <X size={12} />
+                            Unlink
+                          </button>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Relationship - Type-ahead from Config */}
                     <div className="relative">
                       <label className="block text-xs font-bold text-slate-500 mb-1">
-                        Relationship *{" "}
-                        <span className="text-slate-400 font-normal">
-                          (Type to search)
-                        </span>
+                        Relationship <span className="text-red-500">*</span>
                       </label>
                       {loadingRelationships ? (
                         <div className="flex items-center gap-2 px-4 py-3 bg-slate-100 border-2 border-slate-200 rounded-xl">
                           <Loader2
-                            size={14}
+                            size={16}
                             className="animate-spin text-slate-400"
                           />
-                          <span className="text-sm text-slate-500">
-                            Loading...
+                          <span className="text-sm text-slate-500 font-bold">
+                            Loading relationships...
                           </span>
                         </div>
                       ) : (
                         <>
                           <input
                             type="text"
-                            value={relationshipSearchTerm}
+                            value={currentRelationshipSearch}
                             onChange={(e) => {
-                              const value = e.target.value;
                               setRelationshipSearch((prev) => ({
                                 ...prev,
-                                [`contact-${contact.id}`]: value,
+                                [contact.id]: e.target.value,
                               }));
                               updateEmergencyContact(
                                 contact.id,
                                 "relationship",
-                                value,
+                                e.target.value,
                               );
                             }}
-                            placeholder="Type to search (e.g., Parent, Friend)..."
+                            placeholder="Type to search (e.g., Mother, Father, Guardian)"
                             className="w-full px-4 py-3 bg-white border-2 border-slate-200 rounded-xl font-bold focus:border-yellow-400 outline-none"
                           />
-                          {relationshipSearchTerm &&
-                            filteredRelationships.length > 0 && (
-                              <div className="mt-1 max-h-40 overflow-y-auto bg-white border-2 border-slate-200 rounded-lg shadow-lg">
-                                {filteredRelationships
-                                  .slice(0, 8)
-                                  .map((rel) => (
-                                    <button
-                                      key={rel.typeId}
-                                      type="button"
-                                      onClick={() => {
-                                        updateEmergencyContact(
-                                          contact.id,
-                                          "relationship",
-                                          rel.forward,
-                                        );
-                                        setRelationshipSearch((prev) => ({
-                                          ...prev,
-                                          [`contact-${contact.id}`]:
-                                            rel.forward,
-                                        }));
-                                      }}
-                                      className="w-full px-3 py-2 text-left text-sm hover:bg-blue-50 flex items-center justify-between transition-colors"
-                                    >
-                                      <span className="font-bold">
-                                        {rel.forward}
+
+                          {/* Relationship Dropdown */}
+                          {currentRelationshipSearch &&
+                            getFilteredRelationships(currentRelationshipSearch)
+                              .length > 0 &&
+                            !relationships.some(
+                              (r) =>
+                                r.name.toLowerCase() ===
+                                currentRelationshipSearch.toLowerCase(),
+                            ) && (
+                              <div className="absolute z-10 mt-1 w-full max-h-48 overflow-y-auto bg-white border-2 border-slate-200 rounded-xl shadow-lg">
+                                {getFilteredRelationships(
+                                  currentRelationshipSearch,
+                                ).map((rel) => (
+                                  <button
+                                    key={rel.id}
+                                    type="button"
+                                    onClick={() => {
+                                      updateEmergencyContact(
+                                        contact.id,
+                                        "relationship",
+                                        rel.name,
+                                      );
+                                      setRelationshipSearch((prev) => ({
+                                        ...prev,
+                                        [contact.id]: rel.name,
+                                      }));
+                                    }}
+                                    className="w-full px-4 py-3 text-left hover:bg-blue-50 flex items-center justify-between transition-colors border-b border-slate-100 last:border-b-0"
+                                  >
+                                    <span className="font-bold text-slate-900">
+                                      {rel.name}
+                                    </span>
+                                    {rel.description && (
+                                      <span className="text-xs text-slate-400">
+                                        {rel.description}
                                       </span>
-                                      <span className="text-xs text-slate-400 capitalize">
-                                        {rel.category}
-                                      </span>
-                                    </button>
-                                  ))}
+                                    )}
+                                  </button>
+                                ))}
                               </div>
                             )}
                         </>
                       )}
                     </div>
 
-                    <div>
-                      <label className="block text-xs font-bold text-slate-500 mb-1">
-                        Phone *
-                      </label>
-                      <input
-                        type="tel"
-                        value={contact.phone}
-                        onChange={(e) =>
-                          updateEmergencyContact(
-                            contact.id,
-                            "phone",
-                            e.target.value,
-                          )
-                        }
-                        placeholder="0400 000 000"
-                        className="w-full px-4 py-3 bg-white border-2 border-slate-200 rounded-xl font-bold focus:border-yellow-400 outline-none"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-bold text-slate-500 mb-1">
-                        Email
-                      </label>
-                      <input
-                        type="email"
-                        value={contact.email || ""}
-                        onChange={(e) =>
-                          updateEmergencyContact(
-                            contact.id,
-                            "email",
-                            e.target.value,
-                          )
-                        }
-                        placeholder="email@example.com (optional)"
-                        className="w-full px-4 py-3 bg-white border-2 border-slate-200 rounded-xl font-bold focus:border-yellow-400 outline-none"
-                      />
+                    {/* Phone & Email - Auto-filled from member */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-xs font-bold text-slate-500 mb-1">
+                          Phone <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="tel"
+                          value={contact.phone}
+                          onChange={(e) =>
+                            updateEmergencyContact(
+                              contact.id,
+                              "phone",
+                              e.target.value,
+                            )
+                          }
+                          className="w-full px-4 py-3 bg-white border-2 border-slate-200 rounded-xl font-bold focus:border-yellow-400 outline-none"
+                          placeholder="0400 000 000"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-slate-500 mb-1">
+                          Email
+                        </label>
+                        <input
+                          type="email"
+                          value={contact.email}
+                          onChange={(e) =>
+                            updateEmergencyContact(
+                              contact.id,
+                              "email",
+                              e.target.value,
+                            )
+                          }
+                          className="w-full px-4 py-3 bg-white border-2 border-slate-200 rounded-xl font-bold focus:border-yellow-400 outline-none"
+                          placeholder="email@example.com"
+                        />
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -825,25 +776,23 @@ export default function EmergencySection({
         )}
       </div>
 
-      {/* ========================================
-          GUARDIANS SECTION (Only for Minors)
-      ======================================== */}
+      {/* Guardians Section - Only for Minors */}
       {playerIsMinor && (
-        <div className="pt-8 border-t-2 border-yellow-200">
+        <div className="pt-6 border-t-2 border-slate-100">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h3 className="text-sm font-black text-slate-700 flex items-center gap-2">
-                <Shield size={18} className="text-yellow-600" />
-                Parents/Guardians
+              <h3 className="text-base font-black text-slate-900 flex items-center gap-2">
+                <Shield size={20} className="text-blue-600" />
+                Parent/Guardian Information
               </h3>
-              <p className="text-xs text-yellow-700 mt-1 font-bold">
-                ⚠️ Required for players under 18 years old
+              <p className="text-xs text-slate-500 mt-1">
+                Required for players under 18 years old
               </p>
             </div>
             <button
               type="button"
               onClick={addGuardian}
-              className="flex items-center gap-2 px-4 py-2 bg-yellow-400 text-[#06054e] rounded-xl font-bold hover:bg-yellow-500 text-sm transition-all"
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 text-sm transition-all"
             >
               <UserPlus size={16} />
               Add Guardian
@@ -851,321 +800,278 @@ export default function EmergencySection({
           </div>
 
           {formData.guardians.length === 0 ? (
-            <div className="p-8 bg-yellow-50 border-2 border-dashed border-yellow-300 rounded-2xl text-center">
-              <Shield size={40} className="mx-auto text-yellow-400 mb-3" />
-              <p className="text-yellow-800 font-bold">No guardians added</p>
-              <p className="text-xs text-yellow-600 mt-1">
-                Guardian information is required for players under 18 years old
+            <div className="p-8 bg-blue-50 border-2 border-dashed border-blue-200 rounded-2xl text-center">
+              <Shield size={40} className="mx-auto text-blue-300 mb-3" />
+              <p className="text-blue-700 font-bold">No guardians added</p>
+              <p className="text-xs text-blue-600 mt-1">
+                This player is a minor - at least one parent/guardian is
+                required
               </p>
             </div>
           ) : (
             <div className="space-y-4">
               {formData.guardians.map((guardian, index) => {
-                const isSearching = searchingGuardian === guardian.id;
-                const searchResults = guardianSearchResults[guardian.id] || [];
-                const hasResults = searchResults.length > 0;
-                const isLinked = !!(guardian as any).linkedMemberId;
-                const relationshipSearchTerm =
-                  relationshipSearch[`guardian-${guardian.id}`] ||
+                const guardianResults =
+                  guardianSearchResults[guardian.id] || [];
+                const isLinked = !!guardian.linkedMemberId;
+                const currentRelationshipSearch =
+                  relationshipSearch[guardian.id] ||
                   guardian.relationship ||
                   "";
-                const filteredRelationships = getFilteredRelationships(
-                  relationshipSearchTerm,
-                );
 
                 return (
                   <div
                     key={guardian.id}
-                    className={`p-6 border-2 rounded-2xl ${
-                      guardian.isPrimary
-                        ? "bg-yellow-50 border-yellow-300"
-                        : "bg-slate-50 border-slate-100"
-                    }`}
+                    className="p-6 bg-white border-2 border-slate-100 rounded-2xl relative"
                   >
-                    {/* Linked Member Badge */}
-                    {isLinked && (
-                      <div className="mb-4 p-3 bg-green-50 border-2 border-green-200 rounded-xl flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <LinkIcon size={16} className="text-green-600" />
-                          <div>
-                            <p className="text-xs font-black text-green-900">
-                              ✅ Linked to Member
-                            </p>
-                            <p className="text-xs text-green-700">
-                              Member ID: {(guardian as any).linkedMemberId}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() =>
-                              goToMemberProfile(
-                                (guardian as any).linkedMemberId,
-                              )
-                            }
-                            className="px-2 py-1 bg-blue-600 text-white rounded text-xs font-bold hover:bg-blue-700 flex items-center gap-1"
-                          >
-                            View
-                            <ExternalLink size={10} />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => unlinkGuardian(guardian.id)}
-                            className="px-2 py-1 bg-red-100 text-red-700 rounded text-xs font-bold hover:bg-red-200 flex items-center gap-1"
-                          >
-                            <X size={10} />
-                            Unlink
-                          </button>
-                        </div>
-                      </div>
-                    )}
-
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="flex items-center gap-3">
-                        <h4 className="text-xs font-black uppercase text-slate-600">
-                          Guardian #{index + 1}
-                        </h4>
-                        {guardian.isPrimary && (
-                          <span className="px-2 py-1 bg-yellow-400 text-[#06054e] rounded-full text-xs font-black">
+                    {/* Linked & Primary Badges */}
+                    <div className="absolute top-4 right-4 flex gap-2">
+                      {guardian.isPrimary && (
+                        <div className="px-3 py-1 bg-yellow-100 border border-yellow-300 rounded-full">
+                          <span className="text-xs font-black text-yellow-700">
                             PRIMARY
                           </span>
-                        )}
-                        {isSearching && (
-                          <Loader2
-                            size={14}
-                            className="animate-spin text-blue-600"
-                          />
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {!guardian.isPrimary && (
-                          <button
-                            type="button"
-                            onClick={() => setPrimaryGuardian(guardian.id)}
-                            className="text-xs text-yellow-600 font-bold hover:underline"
-                          >
-                            Set as Primary
-                          </button>
-                        )}
-                        <button
-                          type="button"
-                          onClick={() => removeGuardian(guardian.id)}
-                          className="text-red-600 hover:bg-red-50 p-2 rounded-lg transition-all"
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      </div>
+                        </div>
+                      )}
+                      {isLinked && (
+                        <div className="flex items-center gap-2 px-3 py-1 bg-green-100 border border-green-300 rounded-full">
+                          <LinkIcon size={12} className="text-green-700" />
+                          <span className="text-xs font-black text-green-700">
+                            LINKED
+                          </span>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex items-center justify-between mb-4">
+                      <h4 className="text-xs font-black uppercase text-slate-600">
+                        Guardian #{index + 1}
+                      </h4>
+                      <button
+                        type="button"
+                        onClick={() => removeGuardian(guardian.id)}
+                        className="text-red-600 hover:bg-red-50 p-2 rounded-lg transition-all"
+                      >
+                        <Trash2 size={16} />
+                      </button>
                     </div>
 
                     <div className="space-y-4">
-                      {/* Name with Search */}
-                      <div>
-                        <label className="block text-xs font-bold text-slate-500 mb-1 flex items-center justify-between">
-                          <span>Name *</span>
-                          {guardian.name.length >= 3 &&
-                            !hasResults &&
-                            !isLinked && (
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  searchMemberForGuardian(
-                                    guardian.id,
-                                    guardian.name,
-                                  )
-                                }
-                                className="text-xs text-blue-600 hover:text-blue-700 flex items-center gap-1 font-bold"
-                              >
-                                <Search size={12} />
-                                Search & Link Member
-                              </button>
-                            )}
-                        </label>
+                      {/* Primary Guardian Checkbox */}
+                      <div className="flex items-center gap-2">
                         <input
-                          type="text"
-                          value={guardian.name}
-                          onChange={(e) => {
-                            updateGuardian(guardian.id, "name", e.target.value);
-                            if (e.target.value.length >= 3 && !isLinked) {
-                              setTimeout(
-                                () =>
-                                  searchMemberForGuardian(
-                                    guardian.id,
-                                    e.target.value,
-                                  ),
-                                1000,
-                              );
-                            }
-                          }}
-                          placeholder="Full Name"
-                          className="w-full px-4 py-3 bg-white border-2 border-slate-200 rounded-xl font-bold focus:border-yellow-400 outline-none"
+                          type="checkbox"
+                          checked={guardian.isPrimary}
+                          onChange={() => setPrimaryGuardian(guardian.id)}
+                          className="w-4 h-4 rounded border-slate-300"
                         />
-                        <p className="text-xs text-slate-400 mt-1">
-                          💡 Auto-fills "firstName lastName" from member
-                        </p>
+                        <label className="text-sm font-bold text-slate-700">
+                          Primary Guardian (main contact)
+                        </label>
                       </div>
 
-                      {/* Member Search Results */}
-                      {hasResults && (
-                        <div className="p-3 bg-blue-50 border-2 border-blue-200 rounded-xl">
-                          <div className="flex items-center justify-between mb-2">
-                            <p className="text-xs font-black text-blue-900">
-                              ✅ Found {searchResults.length} Member
-                              {searchResults.length !== 1 ? "s" : ""}
+                      {/* Name Field with Member Search */}
+                      <div className="relative">
+                        <label className="block text-xs font-bold text-slate-500 mb-1">
+                          Name <span className="text-red-500">*</span>
+                        </label>
+                        <div className="relative">
+                          <input
+                            type="text"
+                            value={guardian.name}
+                            onChange={(e) => {
+                              updateGuardian(
+                                guardian.id,
+                                "name",
+                                e.target.value,
+                              );
+                              searchMemberForGuardian(
+                                guardian.id,
+                                e.target.value,
+                              );
+                            }}
+                            className="w-full px-4 py-3 pr-10 bg-white border-2 border-slate-200 rounded-xl font-bold focus:border-yellow-400 outline-none"
+                            placeholder="Full name"
+                            disabled={isLinked}
+                          />
+                          {searchingGuardian === guardian.id && (
+                            <div className="absolute right-3 top-3">
+                              <Loader2
+                                size={20}
+                                className="animate-spin text-slate-400"
+                              />
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Member Search Results */}
+                        {!isLinked && guardianResults.length > 0 && (
+                          <div className="absolute z-10 mt-1 w-full max-h-48 overflow-y-auto bg-white border-2 border-blue-200 rounded-xl shadow-lg">
+                            <p className="text-xs font-bold text-blue-700 px-3 py-2 bg-blue-50 border-b border-blue-200">
+                              Found {guardianResults.length} member(s) - click
+                              to link & auto-fill:
                             </p>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const newResults = { ...guardianSearchResults };
-                                delete newResults[guardian.id];
-                                setGuardianSearchResults(newResults);
-                              }}
-                              className="text-blue-700 hover:text-blue-900"
-                            >
-                              <X size={14} />
-                            </button>
-                          </div>
-                          <div className="space-y-2">
-                            {searchResults.map((member) => (
+                            {guardianResults.map((member) => (
                               <button
                                 key={member.memberId}
                                 type="button"
                                 onClick={() =>
                                   linkMemberToGuardian(guardian.id, member)
                                 }
-                                className="w-full p-3 bg-white border border-blue-200 rounded-lg hover:bg-blue-100 text-left transition-all"
+                                className="w-full px-3 py-2 text-left hover:bg-blue-50 border-b border-slate-100 last:border-b-0 transition-colors"
                               >
-                                <div className="flex items-start justify-between">
-                                  <div className="flex-1">
-                                    <p className="font-black text-slate-900 text-sm flex items-center gap-2">
-                                      {member.firstName} {member.lastName}
-                                      <LinkIcon
-                                        size={12}
-                                        className="text-blue-600"
-                                      />
-                                    </p>
-                                    <div className="text-xs text-slate-600 mt-1 space-y-0.5">
-                                      {member.email && <p>📧 {member.email}</p>}
-                                      {member.phone && <p>📱 {member.phone}</p>}
-                                      <p className="text-blue-600 font-bold">
-                                        ID: {member.memberId}
-                                      </p>
-                                    </div>
-                                  </div>
-                                  <CheckCircle
-                                    size={16}
-                                    className="text-blue-600 flex-shrink-0 ml-2"
-                                  />
-                                </div>
+                                <p className="text-sm font-bold text-slate-900">
+                                  {member.displayName}
+                                </p>
+                                <p className="text-xs text-slate-500">
+                                  {member.email || "No email"} •{" "}
+                                  {member.phone || "No phone"}
+                                </p>
                               </button>
                             ))}
                           </div>
-                        </div>
-                      )}
+                        )}
 
-                      {/* Type-ahead Relationship - FIXED to use forward field */}
+                        {/* Linked Member Info */}
+                        {isLinked && (
+                          <div className="mt-2 flex items-center gap-2">
+                            <div className="flex-1 px-3 py-2 bg-green-50 border border-green-200 rounded-lg">
+                              <p className="text-xs text-green-700">
+                                <strong>Linked to member:</strong>{" "}
+                                {guardian.linkedMemberId}
+                              </p>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => unlinkGuardian(guardian.id)}
+                              className="px-3 py-2 bg-red-100 text-red-700 rounded-lg text-xs font-bold hover:bg-red-200 flex items-center gap-1"
+                            >
+                              <X size={12} />
+                              Unlink
+                            </button>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Relationship - Type-ahead from Config */}
                       <div className="relative">
                         <label className="block text-xs font-bold text-slate-500 mb-1">
-                          Relationship *{" "}
-                          <span className="text-slate-400 font-normal">
-                            (Type to search)
-                          </span>
+                          Relationship <span className="text-red-500">*</span>
                         </label>
                         {loadingRelationships ? (
                           <div className="flex items-center gap-2 px-4 py-3 bg-slate-100 border-2 border-slate-200 rounded-xl">
                             <Loader2
-                              size={14}
+                              size={16}
                               className="animate-spin text-slate-400"
                             />
-                            <span className="text-sm text-slate-500">
-                              Loading...
+                            <span className="text-sm text-slate-500 font-bold">
+                              Loading relationships...
                             </span>
                           </div>
                         ) : (
                           <>
                             <input
                               type="text"
-                              value={relationshipSearchTerm}
+                              value={currentRelationshipSearch}
                               onChange={(e) => {
-                                const value = e.target.value;
                                 setRelationshipSearch((prev) => ({
                                   ...prev,
-                                  [`guardian-${guardian.id}`]: value,
+                                  [guardian.id]: e.target.value,
                                 }));
                                 updateGuardian(
                                   guardian.id,
                                   "relationship",
-                                  value,
+                                  e.target.value,
                                 );
                               }}
-                              placeholder="Type to search (e.g., Mother, Father)..."
+                              placeholder="Type to search (e.g., Mother, Father, Guardian)"
                               className="w-full px-4 py-3 bg-white border-2 border-slate-200 rounded-xl font-bold focus:border-yellow-400 outline-none"
                             />
-                            {relationshipSearchTerm &&
-                              filteredRelationships.length > 0 && (
-                                <div className="mt-1 max-h-40 overflow-y-auto bg-white border-2 border-slate-200 rounded-lg shadow-lg">
-                                  {filteredRelationships
-                                    .slice(0, 8)
-                                    .map((rel) => (
-                                      <button
-                                        key={rel.typeId}
-                                        type="button"
-                                        onClick={() => {
-                                          updateGuardian(
-                                            guardian.id,
-                                            "relationship",
-                                            rel.forward,
-                                          );
-                                          setRelationshipSearch((prev) => ({
-                                            ...prev,
-                                            [`guardian-${guardian.id}`]:
-                                              rel.forward,
-                                          }));
-                                        }}
-                                        className="w-full px-3 py-2 text-left text-sm hover:bg-blue-50 flex items-center justify-between transition-colors"
-                                      >
-                                        <span className="font-bold">
-                                          {rel.forward}
+
+                            {/* Relationship Dropdown */}
+                            {currentRelationshipSearch &&
+                              getFilteredRelationships(
+                                currentRelationshipSearch,
+                              ).length > 0 &&
+                              !relationships.some(
+                                (r) =>
+                                  r.name.toLowerCase() ===
+                                  currentRelationshipSearch.toLowerCase(),
+                              ) && (
+                                <div className="absolute z-10 mt-1 w-full max-h-48 overflow-y-auto bg-white border-2 border-slate-200 rounded-xl shadow-lg">
+                                  {getFilteredRelationships(
+                                    currentRelationshipSearch,
+                                  ).map((rel) => (
+                                    <button
+                                      key={rel.id}
+                                      type="button"
+                                      onClick={() => {
+                                        updateGuardian(
+                                          guardian.id,
+                                          "relationship",
+                                          rel.name,
+                                        );
+                                        setRelationshipSearch((prev) => ({
+                                          ...prev,
+                                          [guardian.id]: rel.name,
+                                        }));
+                                      }}
+                                      className="w-full px-4 py-3 text-left hover:bg-blue-50 flex items-center justify-between transition-colors border-b border-slate-100 last:border-b-0"
+                                    >
+                                      <span className="font-bold text-slate-900">
+                                        {rel.name}
+                                      </span>
+                                      {rel.description && (
+                                        <span className="text-xs text-slate-400">
+                                          {rel.description}
                                         </span>
-                                        <span className="text-xs text-slate-400 capitalize">
-                                          {rel.category}
-                                        </span>
-                                      </button>
-                                    ))}
+                                      )}
+                                    </button>
+                                  ))}
                                 </div>
                               )}
                           </>
                         )}
                       </div>
 
-                      <div>
-                        <label className="block text-xs font-bold text-slate-500 mb-1">
-                          Phone *
-                        </label>
-                        <input
-                          type="tel"
-                          value={guardian.phone}
-                          onChange={(e) =>
-                            updateGuardian(guardian.id, "phone", e.target.value)
-                          }
-                          placeholder="0400 000 000"
-                          className="w-full px-4 py-3 bg-white border-2 border-slate-200 rounded-xl font-bold focus:border-yellow-400 outline-none"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-xs font-bold text-slate-500 mb-1">
-                          Email *
-                        </label>
-                        <input
-                          type="email"
-                          value={guardian.email}
-                          onChange={(e) =>
-                            updateGuardian(guardian.id, "email", e.target.value)
-                          }
-                          placeholder="email@example.com"
-                          className="w-full px-4 py-3 bg-white border-2 border-slate-200 rounded-xl font-bold focus:border-yellow-400 outline-none"
-                        />
+                      {/* Phone & Email - Auto-filled from member */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-xs font-bold text-slate-500 mb-1">
+                            Phone <span className="text-red-500">*</span>
+                          </label>
+                          <input
+                            type="tel"
+                            value={guardian.phone}
+                            onChange={(e) =>
+                              updateGuardian(
+                                guardian.id,
+                                "phone",
+                                e.target.value,
+                              )
+                            }
+                            className="w-full px-4 py-3 bg-white border-2 border-slate-200 rounded-xl font-bold focus:border-yellow-400 outline-none"
+                            placeholder="0400 000 000"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold text-slate-500 mb-1">
+                            Email <span className="text-red-500">*</span>
+                          </label>
+                          <input
+                            type="email"
+                            value={guardian.email}
+                            onChange={(e) =>
+                              updateGuardian(
+                                guardian.id,
+                                "email",
+                                e.target.value,
+                              )
+                            }
+                            className="w-full px-4 py-3 bg-white border-2 border-slate-200 rounded-xl font-bold focus:border-yellow-400 outline-none"
+                            placeholder="email@example.com"
+                          />
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -1175,6 +1081,14 @@ export default function EmergencySection({
           )}
         </div>
       )}
+
+      {/* Info Notice */}
+      <div className="p-4 bg-blue-50 border border-blue-200 rounded-xl">
+        <p className="text-xs text-blue-900 font-bold">
+          💡 <strong>Auto-Fill Feature:</strong> Start typing a name and select
+          from matching members to automatically fill email and phone numbers.
+        </p>
+      </div>
     </div>
   );
 }

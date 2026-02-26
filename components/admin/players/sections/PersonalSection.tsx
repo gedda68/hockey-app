@@ -1,11 +1,15 @@
 // sections/PersonalSection.tsx
-// COMPLETE: Player duplicate check + Member linking + Type-ahead Gender from Config
+// COMPLETE: Player duplicate check + Member linking + DOB matching + Gender auto-fill + Type-ahead
 
 "use client";
 
 import { useState, useEffect } from "react";
 import FormField from "../shared/FormField";
-import { BaseSectionProps, calculateAge, isMinor } from "../types/player.types";
+import {
+  BaseSectionProps,
+  calculateAge,
+  isMinor,
+} from "../../../../types/player.types";
 import {
   User,
   Calendar,
@@ -35,6 +39,7 @@ interface ExistingMember {
   photoUrl?: string;
   email?: string;
   phone?: string;
+  gender?: string; // ✨ ADDED - For gender auto-fill
   address?: any;
 }
 
@@ -82,9 +87,9 @@ export default function PersonalSection({
     (formData as any).linkedMemberId || null,
   );
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
-  const [searchMode, setSearchMode] = useState<"both" | "first" | "last">(
-    "both",
-  );
+  const [searchMode, setSearchMode] = useState<
+    "both" | "first" | "last" | "full"
+  >("both"); // ✨ ADDED "full" mode
   const [autoFillComplete, setAutoFillComplete] = useState(false);
 
   // Gender type-ahead state
@@ -97,7 +102,7 @@ export default function PersonalSection({
     const fetchGenderOptions = async () => {
       try {
         console.log("📋 Fetching gender options from config...");
-        const res = await fetch("/api/admin/config/");
+        const res = await fetch("/api/admin/config/gender");
 
         if (res.ok) {
           const genders = await res.json();
@@ -107,7 +112,6 @@ export default function PersonalSection({
           // Filter active and sort by displayOrder
           const activeGenders = genders
             .filter((g: ConfigOption) => g.isActive !== false)
-            .filter((g: ConfigOption) => g.configType === "gender")
             .sort(
               (a: ConfigOption, b: ConfigOption) =>
                 (a.displayOrder || 0) - (b.displayOrder || 0),
@@ -190,6 +194,38 @@ export default function PersonalSection({
     );
   };
 
+  // ✨ NEW - Helper to convert gender ID to name
+  const getGenderName = (genderValue: string): string => {
+    if (!genderValue) return "";
+
+    // If it's already a clean name (Female, Male, etc.), return as-is
+    if (!genderValue.includes("gender-") && !genderValue.includes("-")) {
+      return genderValue;
+    }
+
+    // Try to find in options by ID
+    const matchingGender = genderOptions.find((g) => g.id === genderValue);
+    if (matchingGender) {
+      console.log(
+        `✅ Converted gender ID "${genderValue}" to name "${matchingGender.name}"`,
+      );
+      return matchingGender.name;
+    }
+
+    // Fallback: extract from ID (gender-female -> Female)
+    if (genderValue.includes("-")) {
+      const parts = genderValue.split("-");
+      const name = parts[parts.length - 1];
+      const converted = name.charAt(0).toUpperCase() + name.slice(1);
+      console.log(
+        `✅ Extracted gender name "${converted}" from ID "${genderValue}"`,
+      );
+      return converted;
+    }
+
+    return genderValue;
+  };
+
   // Fetch club name by ID
   const fetchClubName = async (clubId: string): Promise<string> => {
     if (!clubId) return "No Club";
@@ -204,9 +240,12 @@ export default function PersonalSection({
     }
   };
 
-  // Auto-fill data from linked member
+  // ✨ UPDATED - Auto-fill data from linked member (NOW INCLUDES GENDER)
   const autoFillFromMember = async (member: ExistingMember) => {
-    console.log("📝 Auto-filling data from member:", member.memberId);
+    console.log("📝 Auto-filling ALL data from member:", member.memberId);
+
+    // Link the member FIRST
+    onChange("linkedMemberId", member.memberId);
 
     // Auto-fill all available fields
     if (member.firstName) onChange("firstName", member.firstName);
@@ -215,6 +254,14 @@ export default function PersonalSection({
     if (member.email) onChange("email", member.email);
     if (member.phone) onChange("phone", member.phone);
     if (member.clubId) onChange("clubId", member.clubId);
+
+    // ✨ UPDATED - Auto-fill gender from member (convert ID to name)
+    if (member.gender) {
+      const genderName = getGenderName(member.gender);
+      console.log("🎯 Auto-filling gender:", member.gender, "->", genderName);
+      onChange("gender", genderName);
+      setGenderSearch(genderName);
+    }
 
     if (member.address) {
       if (member.address.street) onChange("street", member.address.street);
@@ -230,18 +277,23 @@ export default function PersonalSection({
     if (member.photoUrl) onChange("photo", member.photoUrl);
 
     setAutoFillComplete(true);
-    console.log("✅ Auto-fill complete");
+    console.log("✅ Auto-fill complete - ALL fields including gender");
   };
 
-  // Check for existing players AND members
+  // ✨ UPDATED - Check for existing players AND members (NOW INCLUDES DOB MATCHING)
   useEffect(() => {
     const checkForExisting = async () => {
       const firstName = formData.firstName?.trim() || "";
       const lastName = formData.lastName?.trim() || "";
+      const dateOfBirth = formData.dateOfBirth?.trim() || ""; // ✨ ADDED - Get DOB
 
-      // Determine search mode
-      let mode: "both" | "first" | "last" = "both";
-      if (firstName.length >= 2 && lastName.length < 2) {
+      // ✨ UPDATED - Determine search mode (now includes "full" with DOB)
+      let mode: "both" | "first" | "last" | "full" = "both";
+
+      // If we have ALL 3 fields (name + DOB), use FULL exact search
+      if (firstName.length >= 2 && lastName.length >= 2 && dateOfBirth) {
+        mode = "full";
+      } else if (firstName.length >= 2 && lastName.length < 2) {
         mode = "first";
       } else if (lastName.length >= 2 && firstName.length < 2) {
         mode = "last";
@@ -264,11 +316,11 @@ export default function PersonalSection({
       try {
         console.log(
           `🔍 Checking for existing players AND members (mode: ${mode}):`,
-          { firstName, lastName },
+          { firstName, lastName, dateOfBirth }, // ✨ ADDED - Log DOB
         );
 
         let searchQuery = "";
-        if (mode === "both") {
+        if (mode === "full" || mode === "both") {
           searchQuery = `${firstName} ${lastName}`;
         } else if (mode === "first") {
           searchQuery = firstName;
@@ -286,7 +338,7 @@ export default function PersonalSection({
           ),
         ]);
 
-        // Process Players
+        // ✨ UPDATED - Process Players (now with DOB matching)
         if (playersRes.ok) {
           const playersData = await playersRes.json();
           const players = playersData.players || playersData || [];
@@ -295,12 +347,23 @@ export default function PersonalSection({
             const similarPlayers = players.filter((p: any) => {
               const pFirstName = (p.firstName || "").toLowerCase().trim();
               const pLastName = (p.lastName || "").toLowerCase().trim();
+              const pDOB = (p.dateOfBirth || "").trim(); // ✨ ADDED - Get player DOB
               const inputFirst = firstName.toLowerCase();
               const inputLast = lastName.toLowerCase();
 
               if (p.playerId === formData.playerId) return false;
 
-              if (mode === "both") {
+              // ✨ ADDED - Full mode with DOB matching
+              if (mode === "full") {
+                const dobMatch = pDOB === dateOfBirth; // Exact DOB match
+                const firstMatch =
+                  pFirstName.includes(inputFirst) ||
+                  inputFirst.includes(pFirstName);
+                const lastMatch =
+                  pLastName.includes(inputLast) ||
+                  inputLast.includes(pLastName);
+                return firstMatch && lastMatch && dobMatch;
+              } else if (mode === "both") {
                 const firstMatch =
                   pFirstName.includes(inputFirst) ||
                   inputFirst.includes(pFirstName);
@@ -334,7 +397,7 @@ export default function PersonalSection({
 
         setIsCheckingPlayers(false);
 
-        // Process Members
+        // ✨ UPDATED - Process Members (now with DOB matching and gender extraction)
         if (membersRes.ok) {
           const membersData = await membersRes.json();
           const members = membersData.members || membersData || [];
@@ -351,10 +414,25 @@ export default function PersonalSection({
               const mLastName = (m.personalInfo?.lastName || m.lastName || "")
                 .toLowerCase()
                 .trim();
+              const mDOB = (
+                m.personalInfo?.dateOfBirth ||
+                m.dateOfBirth ||
+                ""
+              ).trim(); // ✨ ADDED - Get member DOB
               const inputFirst = firstName.toLowerCase();
               const inputLast = lastName.toLowerCase();
 
-              if (mode === "both") {
+              // ✨ ADDED - Full mode with exact DOB matching
+              if (mode === "full") {
+                const dobMatch = mDOB === dateOfBirth; // Exact DOB match required
+                const firstMatch =
+                  mFirstName.includes(inputFirst) ||
+                  inputFirst.includes(mFirstName);
+                const lastMatch =
+                  mLastName.includes(inputLast) ||
+                  inputLast.includes(mLastName);
+                return firstMatch && lastMatch && dobMatch;
+              } else if (mode === "both") {
                 const firstMatch =
                   mFirstName.includes(inputFirst) ||
                   inputFirst.includes(mFirstName);
@@ -386,6 +464,10 @@ export default function PersonalSection({
                   ? await fetchClubName(clubId)
                   : "No Club";
 
+                // ✨ UPDATED - Extract gender and convert ID to name
+                const genderRaw = m.personalInfo?.gender || m.gender || "";
+                const gender = getGenderName(genderRaw);
+
                 return {
                   memberId: m.memberId || m.id || m._id,
                   firstName: m.personalInfo?.firstName || m.firstName || "",
@@ -402,6 +484,7 @@ export default function PersonalSection({
                   photoUrl: m.personalInfo?.photoUrl || m.photoUrl || "",
                   email: m.contact?.email || m.email || "",
                   phone: m.contact?.phone || m.phone || "",
+                  gender: gender, // ✨ ADDED - Include gender in member object
                   address: m.address || null,
                 };
               }),
@@ -412,8 +495,9 @@ export default function PersonalSection({
               `✅ Found ${transformedMembers.length} similar members`,
             );
 
-            // AUTO-FILL: If exactly one active member found and no existing players, auto-link and fill
+            // ✨ UPDATED - AUTO-FILL: Only auto-link when in "full" mode (exact name + DOB match)
             if (
+              mode === "full" && // Only when we have name + DOB
               transformedMembers.length === 1 &&
               transformedMembers[0].membershipStatus === "active" &&
               existingPlayers.length === 0 &&
@@ -422,16 +506,24 @@ export default function PersonalSection({
             ) {
               const member = transformedMembers[0];
               console.log(
-                "🔗 Auto-linking to single active member:",
+                "🔗 Auto-linking to exact match (name + DOB):",
                 member.displayName,
               );
 
-              onChange("linkedMemberId", member.memberId);
               setLinkedMemberId(member.memberId);
               await autoFillFromMember(member);
 
+              // ✨ UPDATED - Alert message mentions gender
               alert(
-                `✅ Auto-linked to member: ${member.displayName}\n🏢 Club: ${member.clubName}\n\nData has been pre-filled from their member record.`,
+                `✅ EXACT MATCH FOUND!\n\n` +
+                  `Auto-linked to: ${member.displayName}\n` +
+                  `Member ID: ${member.memberId}\n` +
+                  `Club: ${member.clubName}\n\n` +
+                  `✨ All data has been auto-filled:\n` +
+                  `• Name, DOB, Gender\n` +
+                  `• Email, Phone\n` +
+                  `• Full Address\n` +
+                  `• Club & Photo`,
               );
             }
           }
@@ -447,20 +539,36 @@ export default function PersonalSection({
 
     const timer = setTimeout(checkForExisting, 800);
     return () => clearTimeout(timer);
-  }, [formData.firstName, formData.lastName]);
+  }, [formData.firstName, formData.lastName, formData.dateOfBirth]); // ✨ ADDED - formData.dateOfBirth to dependencies
 
-  // Link to selected member
+  // ✨ UPDATED - Link to selected member (now shows which fields were filled)
   const handleLinkToMember = async (member: ExistingMember) => {
     console.log("🔗 Linking to member:", member.memberId, member.displayName);
 
-    onChange("linkedMemberId", member.memberId);
     setLinkedMemberId(member.memberId);
     setSelectedMemberId(null);
 
     await autoFillFromMember(member);
 
+    // ✨ ADDED - Build dynamic list of filled fields
+    const filledFields = [
+      "Member ID",
+      member.email ? "Email" : null,
+      member.phone ? "Phone" : null,
+      member.gender ? "Gender" : null, // ✨ ADDED - Show if gender was filled
+      member.dateOfBirth ? "DOB" : null,
+      member.address ? "Address" : null,
+      member.clubId ? "Club" : null,
+      member.photoUrl ? "Photo" : null,
+    ]
+      .filter(Boolean)
+      .join(", ");
+
     alert(
-      `✅ Linked to member: ${member.displayName}\n🏢 Club: ${member.clubName}\n\nData has been auto-filled from their member record.`,
+      `✅ Linked to member: ${member.displayName}\n` +
+        `Member ID: ${member.memberId}\n` +
+        `Club: ${member.clubName}\n\n` +
+        `✨ Auto-filled: ${filledFields}`,
     );
   };
 
@@ -500,8 +608,11 @@ export default function PersonalSection({
     router.push(`/admin/players/${playerId}/edit`);
   };
 
+  // ✨ UPDATED - Search description now mentions DOB when in full mode
   const getSearchDescription = () => {
-    if (searchMode === "both") {
+    if (searchMode === "full") {
+      return `Exact search: "${formData.firstName} ${formData.lastName}" + DOB: ${formatDate(formData.dateOfBirth)}`;
+    } else if (searchMode === "both") {
       return `Searching by first AND last name: "${formData.firstName} ${formData.lastName}"`;
     } else if (searchMode === "first") {
       return `Searching by first name only: "${formData.firstName}"`;
@@ -762,7 +873,7 @@ export default function PersonalSection({
                   will automatically populate:
                 </p>
                 <ul className="text-xs text-yellow-800 mt-1 ml-4 list-disc space-y-1">
-                  <li>Date of birth, email, phone number</li>
+                  <li>Date of birth, gender, email, phone number</li>
                   <li>Full address (street, suburb, city, state, postcode)</li>
                   <li>Club assignment & player photo</li>
                   <li>Links player to official member record</li>
@@ -879,35 +990,39 @@ export default function PersonalSection({
               placeholder="Type to search (e.g., Male, Female, Non-binary)..."
               className="w-full px-5 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl font-bold focus:border-yellow-400 outline-none"
             />
-            {genderSearch && getFilteredGenders(genderSearch).length > 0 && (
-              <div className="absolute z-10 mt-1 w-full max-h-60 overflow-y-auto bg-white border-2 border-slate-200 rounded-xl shadow-lg">
-                {getFilteredGenders(genderSearch).map((gender) => (
-                  <button
-                    key={gender.id}
-                    type="button"
-                    onClick={() => {
-                      onChange("gender", gender.name);
-                      setGenderSearch(gender.name);
-                    }}
-                    className="w-full px-4 py-3 text-left hover:bg-blue-50 flex items-center justify-between transition-colors border-b border-slate-100 last:border-b-0"
-                  >
-                    <div className="flex-1">
-                      <span className="font-bold text-slate-900">
-                        {gender.name}
+            {genderSearch &&
+              getFilteredGenders(genderSearch).length > 0 &&
+              !genderOptions.some(
+                (g) => g.name.toLowerCase() === genderSearch.toLowerCase(),
+              ) && (
+                <div className="absolute z-10 mt-1 w-full max-h-60 overflow-y-auto bg-white border-2 border-slate-200 rounded-xl shadow-lg">
+                  {getFilteredGenders(genderSearch).map((gender) => (
+                    <button
+                      key={gender.id}
+                      type="button"
+                      onClick={() => {
+                        onChange("gender", gender.name);
+                        setGenderSearch(gender.name);
+                      }}
+                      className="w-full px-4 py-3 text-left hover:bg-blue-50 flex items-center justify-between transition-colors border-b border-slate-100 last:border-b-0"
+                    >
+                      <div className="flex-1">
+                        <span className="font-bold text-slate-900">
+                          {gender.name}
+                        </span>
+                        {gender.description && (
+                          <p className="text-xs text-slate-500 mt-0.5">
+                            {gender.description}
+                          </p>
+                        )}
+                      </div>
+                      <span className="text-xs font-bold text-slate-400 ml-2">
+                        {gender.code}
                       </span>
-                      {gender.description && (
-                        <p className="text-xs text-slate-500 mt-0.5">
-                          {gender.description}
-                        </p>
-                      )}
-                    </div>
-                    <span className="text-xs font-bold text-slate-400 ml-2">
-                      {gender.code}
-                    </span>
-                  </button>
-                ))}
-              </div>
-            )}
+                    </button>
+                  ))}
+                </div>
+              )}
           </>
         )}
         {errors.gender && (
@@ -1016,16 +1131,14 @@ export default function PersonalSection({
         </div>
       </div>
 
-      {/* Membership Warning */}
-      {!similarMembers.some((m) => m.membershipStatus === "active") &&
+      {/* Membership Warning - Only show when we have all 3 fields and no members found */}
+      {searchMode === "full" &&
+        similarMembers.length === 0 &&
         !linkedMemberId &&
-        showMemberCheck &&
         !isCheckingMembers &&
         !isCheckingPlayers &&
         !checkError &&
-        existingPlayers.length === 0 &&
-        (formData.firstName.trim().length >= 2 ||
-          formData.lastName.trim().length >= 2) && (
+        existingPlayers.length === 0 && (
           <div className="p-4 bg-blue-50 border-2 border-blue-200 rounded-xl">
             <div className="flex items-start gap-3">
               <AlertCircle
@@ -1037,8 +1150,10 @@ export default function PersonalSection({
                   New Member Registration Required
                 </h4>
                 <p className="text-xs text-blue-700 mt-1">
-                  No active member found. They must complete membership
-                  registration before being added as a player.
+                  No active member found for {formData.firstName}{" "}
+                  {formData.lastName} (DOB: {formatDate(formData.dateOfBirth)}).
+                  They must complete membership registration before being added
+                  as a player.
                 </p>
                 <button
                   type="button"

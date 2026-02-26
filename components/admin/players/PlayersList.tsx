@@ -1,47 +1,61 @@
+// components/admin/players/PlayersList.tsx
+// Players list with TYPE-AHEAD CLUB FILTER (no counts)
+
 "use client";
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
-  Users,
-  Plus,
   Search,
-  Edit,
-  MapPin,
-  Calendar,
-  Loader2,
+  Filter,
+  UserPlus,
+  Activity,
+  Clock,
   AlertCircle,
-  Building2,
-  Target,
+  XCircle,
+  Archive,
+  CheckCircle,
 } from "lucide-react";
-import { calculateAge } from "./types/player.types";
 
 interface Player {
   playerId: string;
   firstName: string;
   lastName: string;
   preferredName?: string;
-  dateOfBirth: string;
-  gender: string;
-  clubId: string;
-  primaryPosition: string;
+  dateOfBirth?: string;
+  gender?: string;
+  phone?: string;
+  clubId?: string;
   photo?: string;
-  registrationStatus: "pending" | "approved" | "rejected" | "inactive";
-  medical?: {
-    allergies?: string;
-    conditions?: string;
+  linkedMemberId?: string;
+  status?: {
+    current: string;
+    registrationDate?: string;
+    expiryDate?: string;
   };
-  address?: {
-    suburb: string;
-    state: string;
-  };
-  active: boolean;
+  clubName?: string;
+  emergencyContacts?: Array<{
+    id: string;
+    name: string;
+    relationship: string;
+    phone?: string;
+    email?: string;
+    linkedMemberId?: string;
+  }>;
+  guardians?: Array<{
+    id: string;
+    name: string;
+    relationship: string;
+    phone?: string;
+    email?: string;
+    linkedMemberId?: string;
+  }>;
 }
 
 interface Club {
-  id: string;
+  clubId: string;
   name: string;
-  shortName: string;
+  location?: string;
 }
 
 export default function PlayersList() {
@@ -50,17 +64,19 @@ export default function PlayersList() {
   const [clubs, setClubs] = useState<Club[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
-  const [filterClub, setFilterClub] = useState("");
-  const [filterStatus, setFilterStatus] = useState("active");
-  const [filterGender, setFilterGender] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [clubSearchText, setClubSearchText] = useState("");
+  const [clubFilter, setClubFilter] = useState("all");
+  const [showClubSuggestions, setShowClubSuggestions] = useState(false);
 
   useEffect(() => {
     fetchData();
-  }, [filterClub, filterStatus, filterGender]);
+  }, []);
 
   const fetchData = async () => {
     try {
       setLoading(true);
+
       const [playersRes, clubsRes] = await Promise.all([
         fetch("/api/admin/players"),
         fetch("/api/admin/clubs"),
@@ -69,199 +85,252 @@ export default function PlayersList() {
       const playersData = await playersRes.json();
       const clubsData = await clubsRes.json();
 
-      setPlayers(
-        Array.isArray(playersData) ? playersData : playersData.players || [],
-      );
-      setClubs(Array.isArray(clubsData) ? clubsData : clubsData.clubs || []);
+      setClubs(clubsData.clubs || []);
+      setPlayers(playersData.players || []);
     } catch (error) {
-      console.error("Error fetching data:", error);
+      console.error("❌ Error fetching data:", error);
     } finally {
       setLoading(false);
     }
   };
 
-  const getClubName = (clubId: string) => {
-    const club = clubs.find((c) => c.id === clubId);
-    return club?.name || "Unknown Club";
+  const getStatusInfo = (status?: string) => {
+    const statusMap = {
+      active: {
+        label: "Active",
+        color: "bg-green-100 text-green-700 border-green-300",
+        icon: Activity,
+        textColor: "text-green-700",
+      },
+      inactive: {
+        label: "Inactive",
+        color: "bg-slate-100 text-slate-600 border-slate-300",
+        icon: Clock,
+        textColor: "text-slate-600",
+      },
+      pending: {
+        label: "Pending",
+        color: "bg-amber-100 text-amber-700 border-amber-300",
+        icon: AlertCircle,
+        textColor: "text-amber-700",
+      },
+      suspended: {
+        label: "Suspended",
+        color: "bg-red-100 text-red-700 border-red-300",
+        icon: XCircle,
+        textColor: "text-red-700",
+      },
+      archived: {
+        label: "Archived",
+        color: "bg-slate-100 text-slate-500 border-slate-300",
+        icon: Archive,
+        textColor: "text-slate-500",
+      },
+    };
+
+    return statusMap[status as keyof typeof statusMap] || statusMap.pending;
   };
 
+  // Get filtered club suggestions
+  const filteredClubSuggestions = clubs.filter((club) =>
+    club.name.toLowerCase().includes(clubSearchText.toLowerCase()),
+  );
+
+  // Filter players
   const filteredPlayers = players.filter((player) => {
     const searchLower = search.toLowerCase();
     const matchesSearch =
-      !search ||
-      player.firstName.toLowerCase().includes(searchLower) ||
-      player.lastName.toLowerCase().includes(searchLower) ||
+      player.firstName?.toLowerCase().includes(searchLower) ||
+      player.lastName?.toLowerCase().includes(searchLower) ||
       player.preferredName?.toLowerCase().includes(searchLower) ||
-      false;
+      player.playerId?.toLowerCase().includes(searchLower) ||
+      player.clubName?.toLowerCase().includes(searchLower);
 
-    const matchesClub = !filterClub || player.clubId === filterClub;
-
+    const playerStatus = player.status?.current || "pending";
     const matchesStatus =
-      filterStatus === "" ||
-      (filterStatus === "active" && player.active) ||
-      (filterStatus === "inactive" && !player.active);
+      statusFilter === "all" || playerStatus === statusFilter;
 
-    const matchesGender = !filterGender || player.gender === filterGender;
+    const matchesClub = clubFilter === "all" || player.clubId === clubFilter;
 
-    return matchesSearch && matchesClub && matchesStatus && matchesGender;
+    return matchesSearch && matchesStatus && matchesClub;
   });
 
-  const statusColors = {
-    pending: "bg-yellow-100 text-yellow-700",
-    approved: "bg-green-100 text-green-700",
-    rejected: "bg-red-100 text-red-700",
-    inactive: "bg-slate-100 text-slate-600",
+  const statusCounts = {
+    all: players.length,
+    active: players.filter((p) => p.status?.current === "active").length,
+    pending: players.filter(
+      (p) => !p.status?.current || p.status?.current === "pending",
+    ).length,
+    inactive: players.filter((p) => p.status?.current === "inactive").length,
+    suspended: players.filter((p) => p.status?.current === "suspended").length,
+    archived: players.filter((p) => p.status?.current === "archived").length,
   };
 
+  const handleClubSelect = (club: Club | null) => {
+    if (club) {
+      setClubSearchText(club.name);
+      setClubFilter(club.clubId);
+    } else {
+      setClubSearchText("");
+      setClubFilter("all");
+    }
+    setShowClubSuggestions(false);
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-slate-600 font-bold">Loading players...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-slate-50 p-6">
-      <div className="max-w-7xl mx-auto space-y-6">
-        {/* Header */}
-        <div className="bg-white rounded-[2rem] shadow-xl border border-slate-100 p-8">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 pt-30">
+      {/* Header */}
+      <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white py-8 shadow-lg">
+        <div className="max-w-7xl mx-auto px-6">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-6">
-              <div className="w-20 h-20 rounded-3xl bg-[#06054e] text-white flex items-center justify-center">
-                <Users size={40} />
-              </div>
-              <div>
-                <h1 className="text-4xl font-black text-[#06054e] tracking-tight">
-                  Players
-                </h1>
-                <p className="text-slate-500 font-bold">
-                  Manage player registrations and details
-                </p>
-              </div>
+            <div>
+              <h1 className="text-4xl font-black mb-2">Players</h1>
+              <p className="text-blue-100 text-sm font-bold">
+                {filteredPlayers.length}{" "}
+                {filteredPlayers.length === 1 ? "player" : "players"}
+              </p>
             </div>
             <button
               onClick={() => router.push("/admin/players/new")}
-              className="flex items-center gap-2 px-6 py-3 bg-yellow-400 text-[#06054e] rounded-xl font-black hover:scale-[1.02] active:scale-[0.98] transition-all shadow-lg"
+              className="px-6 py-3 bg-white text-blue-600 rounded-xl font-bold hover:bg-blue-50 transition-colors flex items-center gap-2 shadow-lg"
             >
-              <Plus size={20} />
-              New Player
+              <UserPlus size={20} />
+              Add Player
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div className="max-w-7xl mx-auto px-6 py-8">
+        {/* Search and Filters */}
+        <div className="bg-white rounded-2xl shadow-xl p-6 mb-6 border border-slate-100">
+          {/* Search Bar */}
+          <div className="mb-4">
+            <div className="relative">
+              <Search
+                className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
+                size={20}
+              />
+              <input
+                type="text"
+                placeholder="Search by name, ID, or club..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full pl-12 pr-4 py-3 border-2 border-slate-200 rounded-xl font-bold focus:border-blue-400 outline-none"
+              />
+            </div>
+          </div>
+
+          {/* Status Filter Tabs */}
+          <div className="flex flex-wrap gap-2 mb-4">
+            <button
+              onClick={() => setStatusFilter("all")}
+              className={`px-4 py-2 rounded-lg font-bold transition-colors ${
+                statusFilter === "all"
+                  ? "bg-blue-600 text-white"
+                  : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+              }`}
+            >
+              All ({statusCounts.all})
+            </button>
+            <button
+              onClick={() => setStatusFilter("active")}
+              className={`px-4 py-2 rounded-lg font-bold transition-colors flex items-center gap-2 ${
+                statusFilter === "active"
+                  ? "bg-green-600 text-white"
+                  : "bg-green-50 text-green-700 hover:bg-green-100"
+              }`}
+            >
+              <Activity size={16} />
+              Active ({statusCounts.active})
+            </button>
+            <button
+              onClick={() => setStatusFilter("pending")}
+              className={`px-4 py-2 rounded-lg font-bold transition-colors flex items-center gap-2 ${
+                statusFilter === "pending"
+                  ? "bg-amber-600 text-white"
+                  : "bg-amber-50 text-amber-700 hover:bg-amber-100"
+              }`}
+            >
+              <AlertCircle size={16} />
+              Pending ({statusCounts.pending})
+            </button>
+            <button
+              onClick={() => setStatusFilter("inactive")}
+              className={`px-4 py-2 rounded-lg font-bold transition-colors flex items-center gap-2 ${
+                statusFilter === "inactive"
+                  ? "bg-slate-600 text-white"
+                  : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+              }`}
+            >
+              <Clock size={16} />
+              Inactive ({statusCounts.inactive})
+            </button>
+            <button
+              onClick={() => setStatusFilter("suspended")}
+              className={`px-4 py-2 rounded-lg font-bold transition-colors flex items-center gap-2 ${
+                statusFilter === "suspended"
+                  ? "bg-red-600 text-white"
+                  : "bg-red-50 text-red-700 hover:bg-red-100"
+              }`}
+            >
+              <XCircle size={16} />
+              Suspended ({statusCounts.suspended})
+            </button>
+            <button
+              onClick={() => setStatusFilter("archived")}
+              className={`px-4 py-2 rounded-lg font-bold transition-colors flex items-center gap-2 ${
+                statusFilter === "archived"
+                  ? "bg-slate-600 text-white"
+                  : "bg-slate-100 text-slate-500 hover:bg-slate-200"
+              }`}
+            >
+              <Archive size={16} />
+              Archived ({statusCounts.archived})
             </button>
           </div>
         </div>
 
-        {/* Filters */}
-        <div className="bg-white rounded-2xl shadow-xl border border-slate-100 p-6">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            {/* Search */}
-            <div className="md:col-span-2">
-              <div className="relative">
-                <Search
-                  className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
-                  size={20}
-                />
-                <input
-                  type="text"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Search by name..."
-                  className="w-full pl-12 pr-4 py-3 bg-slate-50 border-2 border-slate-100 rounded-xl font-bold focus:border-yellow-400 outline-none"
-                />
-              </div>
-            </div>
-
-            {/* Club Filter */}
-            <div>
-              <select
-                value={filterClub}
-                onChange={(e) => setFilterClub(e.target.value)}
-                className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-100 rounded-xl font-bold focus:border-yellow-400 outline-none"
-              >
-                <option value="">All Clubs</option>
-                {clubs.map((club) => (
-                  <option key={club.id} value={club.id}>
-                    {club.shortName}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Status Filter */}
-            <div>
-              <select
-                value={filterStatus}
-                onChange={(e) => setFilterStatus(e.target.value)}
-                className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-100 rounded-xl font-bold focus:border-yellow-400 outline-none"
-              >
-                <option value="">All Status</option>
-                <option value="active">Active</option>
-                <option value="inactive">Inactive</option>
-              </select>
-            </div>
-          </div>
-
-          {/* Gender Filter (second row) */}
-          <div className="mt-4 grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div>
-              <select
-                value={filterGender}
-                onChange={(e) => setFilterGender(e.target.value)}
-                className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-100 rounded-xl font-bold focus:border-yellow-400 outline-none"
-              >
-                <option value="">All Genders</option>
-                <option value="male">Male</option>
-                <option value="female">Female</option>
-                <option value="other">Other</option>
-              </select>
-            </div>
-          </div>
-
-          <div className="mt-4 flex items-center gap-4 text-sm">
-            <span className="text-slate-500 font-bold">
-              {filteredPlayers.length} player
-              {filteredPlayers.length !== 1 ? "s" : ""} found
-            </span>
-            {(search || filterClub || filterStatus || filterGender) && (
-              <button
-                onClick={() => {
-                  setSearch("");
-                  setFilterClub("");
-                  setFilterStatus("active");
-                  setFilterGender("");
-                }}
-                className="text-blue-600 font-bold hover:underline"
-              >
-                Clear filters
-              </button>
-            )}
-          </div>
-        </div>
-
         {/* Players Grid */}
-        {loading ? (
-          <div className="flex items-center justify-center py-20">
-            <Loader2 className="animate-spin text-[#06054e]" size={40} />
-          </div>
-        ) : filteredPlayers.length === 0 ? (
-          <div className="bg-white rounded-2xl shadow-xl border border-slate-100 p-12 text-center">
-            <Users size={64} className="mx-auto text-slate-300 mb-4" />
-            <h3 className="text-xl font-black text-slate-600 mb-2">
-              No players found
+        {filteredPlayers.length === 0 ? (
+          <div className="bg-white rounded-2xl shadow-xl p-12 text-center border border-slate-100">
+            <UserPlus size={64} className="mx-auto text-slate-300 mb-4" />
+            <h3 className="text-2xl font-black text-slate-900 mb-2">
+              {search || statusFilter !== "all" || clubFilter !== "all"
+                ? "No players found"
+                : "No players yet"}
             </h3>
-            <p className="text-slate-400 mb-6">
-              {search || filterClub
-                ? "Try adjusting your filters"
-                : "Get started by registering your first player"}
+            <p className="text-slate-600 mb-6">
+              {search || statusFilter !== "all" || clubFilter !== "all"
+                ? "Try adjusting your search or filters"
+                : "Get started by adding your first player"}
             </p>
-            {!search && !filterClub && (
+            {!search && statusFilter === "all" && clubFilter === "all" && (
               <button
                 onClick={() => router.push("/admin/players/new")}
-                className="inline-flex items-center gap-2 px-6 py-3 bg-[#06054e] text-white rounded-xl font-bold hover:bg-yellow-400 hover:text-[#06054e]"
+                className="px-6 py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-colors inline-flex items-center gap-2"
               >
-                <Plus size={20} />
-                Register Player
+                <UserPlus size={20} />
+                Add First Player
               </button>
             )}
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredPlayers.map((player) => {
-              const age = player.dateOfBirth
-                ? calculateAge(player.dateOfBirth)
-                : null;
-              const hasAllergies = player.medical?.allergies?.trim().length > 0;
+              const statusInfo = getStatusInfo(player.status?.current);
+              const StatusIcon = statusInfo.icon;
 
               return (
                 <div
@@ -271,102 +340,204 @@ export default function PlayersList() {
                     router.push(`/admin/players/${player.playerId}/edit`)
                   }
                 >
-                  {/* Header */}
-                  <div className="h-24 bg-gradient-to-r from-[#06054e] to-blue-600 relative">
-                    <div className="absolute inset-0 flex items-center justify-between p-6">
-                      <div className="flex items-center gap-3">
-                        {player.photo ? (
-                          <img
-                            src={player.photo}
-                            alt={`${player.firstName} ${player.lastName}`}
-                            className="w-16 h-16 rounded-full border-4 border-white object-cover"
-                          />
-                        ) : (
-                          <div className="w-16 h-16 rounded-full bg-white flex items-center justify-center font-black text-[#06054e] text-xl">
-                            {player.firstName.charAt(0)}
-                            {player.lastName.charAt(0)}
-                          </div>
-                        )}
-                        {hasAllergies && (
-                          <div className="bg-red-500 rounded-full p-1.5">
-                            <AlertCircle size={16} className="text-white" />
-                          </div>
-                        )}
+                  {/* Status Badge - Top Right */}
+                  <div className="relative">
+                    {player.photo ? (
+                      <img
+                        src={player.photo}
+                        alt={`${player.firstName} ${player.lastName}`}
+                        className="w-full h-48 object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-48 bg-gradient-to-br from-blue-100 to-blue-200 flex items-center justify-center">
+                        <div className="text-6xl font-black text-blue-300">
+                          {player.firstName?.[0]}
+                          {player.lastName?.[0]}
+                        </div>
                       </div>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          router.push(`/admin/players/${player.playerId}/edit`);
-                        }}
-                        className="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-lg flex items-center justify-center text-white hover:bg-white/30 transition-all"
-                      >
-                        <Edit size={18} />
-                      </button>
+                    )}
+
+                    {/* Status Badge */}
+                    <div
+                      className={`absolute top-3 right-3 px-3 py-1.5 rounded-full border-2 ${statusInfo.color} flex items-center gap-1.5 shadow-lg`}
+                    >
+                      <StatusIcon size={14} />
+                      <span className="text-xs font-black uppercase">
+                        {statusInfo.label}
+                      </span>
                     </div>
                   </div>
 
-                  {/* Content */}
                   <div className="p-6">
-                    <h3 className="text-xl font-black text-[#06054e] mb-1 group-hover:text-yellow-600 transition-colors">
+                    {/* Player Name */}
+                    <h3 className="text-2xl font-black text-slate-900 mb-1 group-hover:text-blue-600 transition-colors">
                       {player.firstName} {player.lastName}
                     </h3>
-                    {player.preferredName && (
-                      <p className="text-sm text-slate-500 font-bold mb-2">
-                        "{player.preferredName}"
-                      </p>
-                    )}
 
-                    <div className="space-y-2 text-sm mt-4">
-                      {age !== null && (
-                        <div className="flex items-center gap-2 text-slate-600">
-                          <Calendar size={16} className="flex-shrink-0" />
-                          <span className="font-bold">
-                            {age} years old {age < 18 ? "(Minor)" : ""}
-                          </span>
-                        </div>
+                    {/* Preferred Name */}
+                    {player.preferredName &&
+                      player.preferredName !== player.firstName && (
+                        <p className="text-sm text-slate-500 font-bold mb-2">
+                          "{player.preferredName}"
+                        </p>
                       )}
 
-                      <div className="flex items-center gap-2 text-slate-600">
-                        <Building2 size={16} className="flex-shrink-0" />
-                        <span className="font-bold">
-                          {getClubName(player.clubId)}
+                    {/* Player Info */}
+                    <div className="space-y-2 text-sm mt-4">
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-500 font-bold">
+                          Player ID:
+                        </span>
+                        <span className="font-black text-slate-900">
+                          {player.playerId}
                         </span>
                       </div>
 
-                      {player.primaryPosition && (
-                        <div className="flex items-center gap-2 text-slate-600">
-                          <Target size={16} className="flex-shrink-0" />
-                          <span className="font-bold">
-                            {player.primaryPosition}
+                      {player.linkedMemberId && (
+                        <div className="flex items-center justify-between">
+                          <span className="text-slate-500 font-bold">
+                            Member ID:
+                          </span>
+                          <span className="font-black text-slate-900">
+                            {player.linkedMemberId}
                           </span>
                         </div>
                       )}
 
-                      {player.address && (
-                        <div className="flex items-center gap-2 text-slate-600">
-                          <MapPin size={16} className="flex-shrink-0" />
-                          <span className="font-bold">
-                            {player.address.suburb}, {player.address.state}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="mt-4 pt-4 border-t border-slate-100 flex items-center justify-between">
-                      <span
-                        className={`px-3 py-1 rounded-full text-xs font-black ${
-                          statusColors[player.registrationStatus]
-                        }`}
-                      >
-                        {player.registrationStatus}
-                      </span>
-                      {hasAllergies && (
-                        <span className="text-xs text-red-600 font-bold flex items-center gap-1">
-                          <AlertCircle size={12} />
-                          Allergies
+                      {/* Club Name */}
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-500 font-bold">Club:</span>
+                        <span
+                          className={`font-black ${player.clubName && player.clubName !== "No Club" ? "text-blue-700" : "text-slate-400"}`}
+                        >
+                          {player.clubName || "No Club"}
                         </span>
+                      </div>
+
+                      {player.gender && (
+                        <div className="flex items-center justify-between">
+                          <span className="text-slate-500 font-bold">
+                            Gender:
+                          </span>
+                          <span className="font-black text-slate-900">
+                            {player.gender}
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Registration Dates */}
+                      {player.status?.registrationDate && (
+                        <div className="flex items-center justify-between pt-2 border-t border-slate-100">
+                          <span className="text-slate-500 font-bold">
+                            Registered:
+                          </span>
+                          <span className="font-black text-slate-900 text-xs">
+                            {new Date(
+                              player.status.registrationDate,
+                            ).toLocaleDateString("en-AU", {
+                              day: "2-digit",
+                              month: "short",
+                              year: "numeric",
+                            })}
+                          </span>
+                        </div>
+                      )}
+
+                      {player.status?.expiryDate && (
+                        <div className="flex items-center justify-between">
+                          <span className="text-slate-500 font-bold">
+                            Expires:
+                          </span>
+                          <span
+                            className={`font-black text-xs ${
+                              new Date(player.status.expiryDate) < new Date()
+                                ? "text-red-600"
+                                : "text-slate-900"
+                            }`}
+                          >
+                            {new Date(
+                              player.status.expiryDate,
+                            ).toLocaleDateString("en-AU", {
+                              day: "2-digit",
+                              month: "short",
+                              year: "numeric",
+                            })}
+                          </span>
+                        </div>
                       )}
                     </div>
+
+                    {/* Linked Members */}
+                    {(player.emergencyContacts &&
+                      player.emergencyContacts.length > 0) ||
+                    (player.guardians && player.guardians.length > 0) ? (
+                      <div className="mt-4 pt-4 border-t border-slate-100">
+                        <p className="text-xs font-black uppercase text-slate-400 mb-2">
+                          Linked Members:
+                        </p>
+                        <div className="space-y-1.5">
+                          {/* Emergency Contacts */}
+                          {player.emergencyContacts?.map((contact) => (
+                            <div
+                              key={contact.id}
+                              className="flex items-start gap-2 text-xs"
+                            >
+                              <CheckCircle
+                                size={12}
+                                className="text-blue-600 flex-shrink-0 mt-0.5"
+                              />
+                              <div className="flex-1">
+                                <div>
+                                  <span className="text-blue-700 font-bold">
+                                    {contact.name}
+                                  </span>
+                                  {contact.linkedMemberId && (
+                                    <span className="text-blue-600 ml-1">
+                                      ({contact.linkedMemberId})
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="text-slate-500">
+                                  Emergency Contact
+                                  {contact.relationship &&
+                                    ` - ${contact.relationship}`}
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+
+                          {/* Guardians */}
+                          {player.guardians?.map((guardian) => (
+                            <div
+                              key={guardian.id}
+                              className="flex items-start gap-2 text-xs"
+                            >
+                              <CheckCircle
+                                size={12}
+                                className="text-purple-600 flex-shrink-0 mt-0.5"
+                              />
+                              <div className="flex-1">
+                                <div>
+                                  <span className="text-purple-700 font-bold">
+                                    {guardian.name}
+                                  </span>
+                                  {guardian.linkedMemberId && (
+                                    <span className="text-purple-600 ml-1">
+                                      ({guardian.linkedMemberId})
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="text-slate-500">
+                                  Guardian
+                                  {guardian.relationship &&
+                                    ` - ${guardian.relationship}`}
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
                   </div>
                 </div>
               );

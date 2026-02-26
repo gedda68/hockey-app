@@ -1,5 +1,7 @@
 // sections/MedicalSection.tsx
-// Player medical information
+// Player medical information - FIXED with null safety
+
+"use client";
 
 import FormField from "../shared/FormField";
 import { BaseSectionProps } from "../types/player.types";
@@ -10,8 +12,29 @@ export default function MedicalSection({
   onChange,
   errors,
 }: BaseSectionProps) {
-  const hasAllergies = formData.medical.allergies?.trim().length > 0;
-  const hasConditions = formData.medical.conditions?.trim().length > 0;
+  // ✅ FIXED: Safe access to medical object with default values
+  const medical = formData.medical || {
+    conditions: "",
+    allergies: "",
+    medications: "",
+    doctorName: "",
+    doctorPhone: "",
+    medicareNumber: "",
+    healthFund: "",
+    healthFundNumber: "",
+  };
+
+  const hasAllergies = medical.allergies?.trim().length > 0;
+  const hasConditions = medical.conditions?.trim().length > 0;
+  const hasMedications = medical.medications?.trim().length > 0;
+
+  // Helper to update medical fields
+  const updateMedical = (field: string, value: any) => {
+    onChange("medical", {
+      ...medical,
+      [field]: value,
+    });
+  };
 
   return (
     <div className="space-y-6">
@@ -28,12 +51,12 @@ export default function MedicalSection({
             </h4>
             {hasAllergies && (
               <p className="text-red-700 text-sm mt-1">
-                <strong>Allergies:</strong> {formData.medical.allergies}
+                <strong>Allergies:</strong> {medical.allergies}
               </p>
             )}
             {hasConditions && (
               <p className="text-red-700 text-sm mt-1">
-                <strong>Conditions:</strong> {formData.medical.conditions}
+                <strong>Conditions:</strong> {medical.conditions}
               </p>
             )}
           </div>
@@ -52,42 +75,33 @@ export default function MedicalSection({
           Medical Conditions
         </label>
         <textarea
-          value={formData.medical.conditions}
-          onChange={(e) =>
-            onChange("medical", {
-              ...formData.medical,
-              conditions: e.target.value,
-            })
-          }
+          value={medical.conditions || ""}
+          onChange={(e) => updateMedical("conditions", e.target.value)}
           rows={3}
           className="w-full px-5 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl font-bold focus:border-yellow-400 outline-none resize-y"
           placeholder="Any ongoing medical conditions (e.g., asthma, diabetes, epilepsy)"
         />
         <p className="text-xs text-slate-400 mt-1 ml-1">
-          Include any conditions coaches and medical staff should be aware of
+          List all medical conditions that emergency responders should be aware
+          of
         </p>
       </div>
 
       {/* Allergies */}
       <div>
-        <label className="block text-xs font-black uppercase text-slate-400 mb-2 ml-1 flex items-center gap-2">
-          <AlertCircle size={14} className="text-red-500" />
+        <label className="block text-xs font-black uppercase text-slate-400 mb-2 ml-1">
           Allergies
         </label>
         <textarea
-          value={formData.medical.allergies}
-          onChange={(e) =>
-            onChange("medical", {
-              ...formData.medical,
-              allergies: e.target.value,
-            })
-          }
-          rows={2}
+          value={medical.allergies || ""}
+          onChange={(e) => updateMedical("allergies", e.target.value)}
+          rows={3}
           className="w-full px-5 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl font-bold focus:border-yellow-400 outline-none resize-y"
-          placeholder="Food, medication, insect stings, or other allergies"
+          placeholder="Any allergies (medications, foods, environmental)"
         />
         <p className="text-xs text-slate-400 mt-1 ml-1">
-          Critical for emergency treatment - be specific
+          Include severity and reactions (e.g., "Penicillin - severe
+          anaphylaxis")
         </p>
       </div>
 
@@ -97,17 +111,16 @@ export default function MedicalSection({
           Current Medications
         </label>
         <textarea
-          value={formData.medical.medications}
-          onChange={(e) =>
-            onChange("medical", {
-              ...formData.medical,
-              medications: e.target.value,
-            })
-          }
-          rows={2}
+          value={medical.medications || ""}
+          onChange={(e) => updateMedical("medications", e.target.value)}
+          rows={3}
           className="w-full px-5 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl font-bold focus:border-yellow-400 outline-none resize-y"
-          placeholder="Regular medications, dosages, and frequency"
+          placeholder="Current medications and dosages"
         />
+        <p className="text-xs text-slate-400 mt-1 ml-1">
+          Include name, dosage, and frequency (e.g., "Ventolin inhaler - as
+          needed")
+        </p>
       </div>
 
       {/* Doctor Information */}
@@ -115,27 +128,23 @@ export default function MedicalSection({
         <h3 className="text-xs font-black uppercase text-slate-400 mb-4">
           Doctor Information
         </h3>
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <FormField
-            label="Doctor Name"
+            label="Doctor's Name"
             name="doctorName"
-            value={formData.medical.doctorName}
-            onChange={(val) =>
-              onChange("medical", { ...formData.medical, doctorName: val })
-            }
-            placeholder="Dr. John Smith"
-            error={errors.doctorName}
+            value={medical.doctorName || ""}
+            onChange={(val) => updateMedical("doctorName", val)}
+            placeholder="Dr. Jane Smith"
           />
+
           <FormField
-            label="Doctor Phone"
+            label="Doctor's Phone"
             name="doctorPhone"
-            value={formData.medical.doctorPhone}
-            onChange={(val) =>
-              onChange("medical", { ...formData.medical, doctorPhone: val })
-            }
             type="tel"
+            value={medical.doctorPhone || ""}
+            onChange={(val) => updateMedical("doctorPhone", val)}
             placeholder="07 1234 5678"
-            error={errors.doctorPhone}
           />
         </div>
       </div>
@@ -143,56 +152,42 @@ export default function MedicalSection({
       {/* Health Insurance */}
       <div className="pt-4 border-t-2 border-slate-100">
         <h3 className="text-xs font-black uppercase text-slate-400 mb-4">
-          Health Insurance Information
+          Health Insurance
         </h3>
-        <div className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <FormField
-              label="Health Fund Name"
-              name="healthFundName"
-              value={formData.medical.healthFundName}
-              onChange={(val) =>
-                onChange("medical", {
-                  ...formData.medical,
-                  healthFundName: val,
-                })
-              }
-              placeholder="e.g., Bupa, Medibank, HCF"
-              error={errors.healthFundName}
-            />
-            <FormField
-              label="Health Fund Number"
-              name="healthFundNumber"
-              value={formData.medical.healthFundNumber}
-              onChange={(val) =>
-                onChange("medical", {
-                  ...formData.medical,
-                  healthFundNumber: val,
-                })
-              }
-              placeholder="Policy/membership number"
-              error={errors.healthFundNumber}
-            />
-          </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <FormField
             label="Medicare Number"
             name="medicareNumber"
-            value={formData.medical.medicareNumber}
-            onChange={(val) =>
-              onChange("medical", { ...formData.medical, medicareNumber: val })
-            }
-            placeholder="1234 56789 0 (with individual reference)"
-            error={errors.medicareNumber}
+            value={medical.medicareNumber || ""}
+            onChange={(val) => updateMedical("medicareNumber", val)}
+            placeholder="1234 56789 0"
+          />
+
+          <FormField
+            label="Health Fund"
+            name="healthFund"
+            value={medical.healthFund || ""}
+            onChange={(val) => updateMedical("healthFund", val)}
+            placeholder="e.g., Bupa, HCF, Medibank"
+          />
+
+          <FormField
+            label="Health Fund Number"
+            name="healthFundNumber"
+            value={medical.healthFundNumber || ""}
+            onChange={(val) => updateMedical("healthFundNumber", val)}
+            placeholder="Member number"
           />
         </div>
       </div>
 
-      {/* Privacy Notice */}
-      <div className="p-4 bg-blue-50 border-2 border-blue-200 rounded-xl">
+      {/* Important Notice */}
+      <div className="p-4 bg-blue-50 border border-blue-200 rounded-xl">
         <p className="text-xs text-blue-900 font-bold">
-          🔒 <strong>Privacy:</strong> Medical information is encrypted and only
-          accessible to authorized medical staff and coaches in emergency
-          situations.
+          💡 <strong>Important:</strong> This information will be shared with
+          coaches and first aid officers. In an emergency, this information may
+          be shared with medical professionals.
         </p>
       </div>
     </div>

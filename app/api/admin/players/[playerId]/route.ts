@@ -1,40 +1,57 @@
 // app/api/admin/players/[playerId]/route.ts
+// GET individual player by playerId
+
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 
-type Ctx = { params: Promise<{ playerId: string }> };
-
-export async function GET(req: NextRequest, ctx: Ctx) {
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ playerId: string }> },
+) {
   try {
-    const { playerId } = await ctx.params;
+    const { playerId } = await params; // ✅ AWAIT params
+
+    console.log("📋 Fetching player:", playerId);
+
     const client = await clientPromise;
     const db = client.db();
 
     const player = await db.collection("players").findOne({ playerId });
 
     if (!player) {
-      console.error(`Player not found: ${playerId}`);
+      console.error(`❌ Player not found: ${playerId}`);
       return NextResponse.json({ error: "Player not found" }, { status: 404 });
     }
 
+    console.log(`✅ Found player: ${player.firstName} ${player.lastName}`);
+
     // Remove MongoDB _id
-    const { _id, ...playerData } = player;
+    const { _id, ...cleanPlayer } = player;
 
-    console.log(
-      `✅ Found player: ${playerData.firstName} ${playerData.lastName}`,
-    );
-
-    return NextResponse.json({ player: playerData });
+    return NextResponse.json({ player: cleanPlayer });
   } catch (error: any) {
-    console.error("Error fetching player:", error);
+    console.error("💥 Error fetching player:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
 
-export async function PUT(req: NextRequest, ctx: Ctx) {
+export async function PUT(
+  request: NextRequest,
+  { params }: { params: Promise<{ playerId: string }> },
+) {
   try {
-    const { playerId } = await ctx.params;
-    const body = await req.json();
+    const { playerId } = await params; // ✅ AWAIT params
+    const body = await request.json();
+
+    console.log("📝 Updating player:", playerId);
+
+    if (!body.firstName || !body.lastName) {
+      return NextResponse.json(
+        { error: "First name and last name are required" },
+        { status: 400 },
+      );
+    }
+
     const client = await clientPromise;
     const db = client.db();
 
@@ -57,15 +74,34 @@ export async function PUT(req: NextRequest, ctx: Ctx) {
       teamIds: body.teamIds || oldData.teamIds || [],
       documents: body.documents || oldData.documents || [],
       playHistory: body.playHistory || oldData.playHistory || [],
+      notes: body.notes || oldData.notes || [],
 
       // Merge medical data
       medical: {
         ...oldData.medical,
         ...body.medical,
       },
+
+      // Merge club data
+      club: {
+        ...oldData.club,
+        ...body.club,
+      },
+
+      // Merge status data
+      status: {
+        ...oldData.status,
+        ...body.status,
+      },
+
+      // Merge consents data
+      consents: {
+        ...oldData.consents,
+        ...body.consents,
+      },
     };
 
-    // Cleanup internal MongoDB _id
+    // Cleanup internal MongoDB _id if present in body
     delete (newData as any)._id;
 
     await db.collection("players").updateOne({ playerId }, { $set: newData });
@@ -78,16 +114,23 @@ export async function PUT(req: NextRequest, ctx: Ctx) {
     return NextResponse.json({
       message: "Player updated",
       player: cleanPlayer,
+      playerId,
     });
   } catch (error: any) {
-    console.error("Error updating player:", error);
+    console.error("💥 Error updating player:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
 
-export async function DELETE(req: NextRequest, ctx: Ctx) {
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ playerId: string }> },
+) {
   try {
-    const { playerId } = await ctx.params;
+    const { playerId } = await params; // ✅ AWAIT params
+
+    console.log("🗑️ Deleting player:", playerId);
+
     const client = await clientPromise;
     const db = client.db();
 
@@ -103,7 +146,7 @@ export async function DELETE(req: NextRequest, ctx: Ctx) {
 
     return NextResponse.json({ message: "Player deleted successfully" });
   } catch (error: any) {
-    console.error("Error deleting player:", error);
+    console.error("💥 Error deleting player:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
