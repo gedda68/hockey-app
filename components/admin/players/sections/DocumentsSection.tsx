@@ -4,7 +4,7 @@
 "use client";
 
 import { useState } from "react";
-import { BaseSectionProps, PlayerDocument } from "../types/player.types";
+import { BaseSectionProps, PlayerDocument } from "@/types/player.types";
 import {
   FileText,
   Upload,

@@ -21,6 +21,12 @@ export const menuConfig: MenuItem[] = [
     color: "from-blue-500 to-blue-600",
   },
   {
+    label: "Teams",
+    href: "/admin/teams",
+    icon: "👥",
+    description: "Manage teams",
+  },
+  {
     label: "Representative",
     href: "/admin/representative",
     icon: "📋",

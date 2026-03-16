@@ -1,5 +1,5 @@
 // app/api/admin/clubs/route.ts
-// Clubs API with hierarchical filtering + change logging
+// Clubs API with hierarchical filtering + change logging + clubId mapping
 
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
@@ -196,13 +196,22 @@ export async function GET(request: NextRequest) {
 
     console.log(`✅ Found ${clubs.length} clubs (${total} total)`);
 
-    // For simple list (used by wizard), return minimal data
+    // **NEW: Map 'id' to 'clubId' for teams modal compatibility**
+    const mappedClubs = clubs.map((club: any) => ({
+      ...club,
+      clubId: club.id, // Add clubId field mapped from id
+    }));
+
+    // For simple list (used by wizard + teams modal)
     if (searchParams.get("simple") === "true") {
-      const simple = clubs.map((c) => ({
+      const simple = mappedClubs.map((c) => ({
         id: c.id,
+        clubId: c.id, // Include clubId for teams modal
         name: c.name,
         shortName: c.shortName,
         associationId: c.parentAssociationId,
+        colors: c.colors,
+        logo: c.logo,
       }));
 
       return NextResponse.json({
@@ -216,9 +225,9 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // Full club data
+    // Full club data (with clubId mapped)
     return NextResponse.json({
-      clubs,
+      clubs: mappedClubs,
       pagination: {
         page,
         limit,

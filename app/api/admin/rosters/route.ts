@@ -34,7 +34,7 @@ export async function GET(request: Request) {
     console.error("❌ Error fetching rosters:", error);
     return NextResponse.json(
       { error: "Failed to fetch rosters" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -54,7 +54,7 @@ export async function POST(request: Request) {
     if (!ageGroup || !season) {
       return NextResponse.json(
         { error: "Age Group and Season are required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -70,7 +70,7 @@ export async function POST(request: Request) {
         {
           error: `A roster for ${ageGroup} in the ${season} season already exists.`,
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -100,13 +100,13 @@ export async function POST(request: Request) {
         ageGroup: ageGroup,
         season: season,
       },
-      { status: 201 }
+      { status: 201 },
     );
   } catch (error) {
     console.error("❌ Error creating roster:", error);
     return NextResponse.json(
       { error: "Failed to create roster" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

@@ -36,11 +36,11 @@ interface EditingSelector {
 export default function AdminPanel() {
   // --- STATE ---
   const [selectedYear, setSelectedYear] = useState(
-    new Date().getFullYear().toString()
+    new Date().getFullYear().toString(),
   );
   const [expandedRoster, setExpandedRoster] = useState<string | null>(null);
   const [editingPlayer, setEditingPlayer] = useState<EditingPlayer | null>(
-    null
+    null,
   );
   const [editingStaff, setEditingStaff] = useState<EditingStaff | null>(null);
   const [editingShadowPlayer, setEditingShadowPlayer] =
@@ -83,7 +83,7 @@ export default function AdminPanel() {
   const handleAddDivision = async (ageGroup: string, season: string) => {
     setSaveStatus("saving");
     try {
-      const response = await fetch("/api/admin/rosters", {
+      const response = await fetch("/app/api/admin/rosters", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -124,9 +124,9 @@ export default function AdminPanel() {
       // Note: Endpoint needs to handle season to ensure we don't delete other years
       const response = await fetch(
         `/api/admin/rosters/${encodeURIComponent(
-          ageGroup
+          ageGroup,
         )}?season=${selectedYear}`,
-        { method: "DELETE" }
+        { method: "DELETE" },
       );
 
       if (response.ok) {
@@ -192,12 +192,13 @@ export default function AdminPanel() {
         <div className="grid grid-cols-1 gap-6">
           {rosters.map((roster) => (
             <DivisionCard
-              key={`${roster.ageGroup}-${roster.season || selectedYear}`}
+              key={roster.id}
+              //key={`${roster.ageGroup}-${roster.season || selectedYear}`}
               roster={roster}
               isExpanded={expandedRoster === roster.ageGroup}
               onToggleExpand={() =>
                 setExpandedRoster(
-                  expandedRoster === roster.ageGroup ? null : roster.ageGroup
+                  expandedRoster === roster.ageGroup ? null : roster.ageGroup,
                 )
               }
               onDelete={() => handleDeleteDivision(roster.ageGroup)}
@@ -311,7 +312,7 @@ export default function AdminPanel() {
               editingPlayer.ageGroup,
               editingPlayer.teamName,
               editingPlayer.playerIndex,
-              editingPlayer.player
+              editingPlayer.player,
             );
             setEditingPlayer(null);
           }}
@@ -329,7 +330,7 @@ export default function AdminPanel() {
               editingStaff.ageGroup,
               editingStaff.teamName,
               editingStaff.role,
-              editingStaff.staff
+              editingStaff.staff,
             );
             setEditingStaff(null);
           }}
@@ -347,7 +348,7 @@ export default function AdminPanel() {
             shadowOps.handleUpdateShadowPlayer(
               editingShadowPlayer.ageGroup,
               editingShadowPlayer.playerIndex,
-              editingShadowPlayer.player
+              editingShadowPlayer.player,
             );
             setEditingShadowPlayer(null);
           }}
@@ -392,7 +393,7 @@ export default function AdminPanel() {
             selectorOps.handleUpdateSelector(
               editingSelector.ageGroup,
               editingSelector.selectorIndex,
-              editingSelector.selector
+              editingSelector.selector,
             );
             setEditingSelector(null);
           }}
@@ -420,8 +421,8 @@ export default function AdminPanel() {
             saveStatus === "saving"
               ? "bg-[#06054e]"
               : saveStatus === "saved"
-              ? "bg-green-600"
-              : "bg-red-600"
+                ? "bg-green-600"
+                : "bg-red-600"
           }`}
         >
           {saveStatus === "saving" && (

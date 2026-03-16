@@ -2,7 +2,7 @@
 // FIXED: Removed incorrect pt-20 padding
 
 import { Metadata } from "next";
-import AdminSidebar from "../../components/admin/AdminSidebar";
+import AdminSidebar from "@/components/admin/AdminSidebar";
 
 export const metadata: Metadata = {
   title: "Admin Panel - Hockey Management",
@@ -20,7 +20,7 @@ export default function AdminLayout({
       <AdminSidebar />
 
       {/* Main Content - NO pt-20 */}
-      <div className="flex-1 overflow-x-hidden">{children}</div>
+      <div className="flex-1 overflow-x-hidden pt-32">{children}</div>
     </div>
   );
 }
