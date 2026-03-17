@@ -73,11 +73,13 @@ export async function POST(request: NextRequest) {
       tournamentId,
       season,
       ageGroup,
+      gender: body.gender ?? "mixed",
       title,
       startDate,
       endDate,
       location,
       additionalInfo: additionalInfo ?? "",
+      nominationFee: body.nominationFee ?? 0,
       createdAt: now,
       updatedAt: now,
     };

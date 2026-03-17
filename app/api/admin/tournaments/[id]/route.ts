@@ -67,10 +67,12 @@ export async function PUT(
     const now = new Date().toISOString();
     const updateFields: Record<string, unknown> = {
       ...(body.title !== undefined && { title: body.title }),
+      ...(body.gender !== undefined && { gender: body.gender }),
       ...(body.startDate !== undefined && { startDate: body.startDate }),
       ...(body.endDate !== undefined && { endDate: body.endDate }),
       ...(body.location !== undefined && { location: body.location }),
       ...(body.additionalInfo !== undefined && { additionalInfo: body.additionalInfo }),
+      ...(body.nominationFee !== undefined && { nominationFee: body.nominationFee }),
       updatedAt: now,
     };
 

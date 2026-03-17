@@ -159,6 +159,47 @@ export type PlayerDocument = {
   size?: number; // File size in bytes
 };
 
+export interface TournamentHistoryEntry {
+  id: string;
+  season: string;
+  ageGroup: string;
+  tournamentId?: string;
+  tournamentTitle: string;
+  tournamentLocation?: string;
+  tournamentStartDate?: string;
+  nominatedDate: string;
+  nominationStatus: "pending" | "accepted" | "withdrawn" | "rejected" | "played";
+  feeId?: string;
+}
+
+export interface FeeRecord {
+  id: string;
+  date: string;
+  type: "nomination" | "registration" | "association" | "other";
+  description: string;
+  amount: number;        // AUD dollars
+  currency: string;      // "AUD"
+  status: "pending" | "paid" | "overdue" | "waived" | "refunded";
+  paymentMethod?: "stripe" | "paypal" | "cash" | "bank_transfer" | "other";
+  transactionId?: string;
+  paidDate?: string;
+  linkedTournamentId?: string;
+  notes?: string;
+}
+
+export interface DisciplinaryRecord {
+  id: string;
+  date: string;
+  type: "yellow_card" | "red_card" | "suspension" | "warning" | "other";
+  competition?: string;
+  reason: string;
+  duration?: string;
+  endDate?: string;
+  isActive: boolean;
+  imposedBy?: string;
+  notes?: string;
+}
+
 // Main Player Form Data
 export interface PlayerFormData {
   // System Fields
@@ -215,6 +256,11 @@ export interface PlayerFormData {
   teamIds?: string[];
   primaryPosition?: string;
   secondaryPosition?: string;
+
+  // Rep Tournament & Fee History
+  tournamentHistory?: TournamentHistoryEntry[];
+  feeHistory?: FeeRecord[];
+  disciplinaryHistory?: DisciplinaryRecord[];
 }
 
 // Base Section Props (used by all section components)
@@ -404,6 +450,11 @@ export const DEFAULT_PLAYER_DATA: PlayerFormData = {
   teamIds: [],
   primaryPosition: "",
   secondaryPosition: "",
+
+  // Rep Tournament & Fee History
+  tournamentHistory: [],
+  feeHistory: [],
+  disciplinaryHistory: [],
 };
 
 // ============================================
@@ -639,4 +690,7 @@ export type {
   Consents,
   PlayerStatus,
   Note,
+  TournamentHistoryEntry,
+  FeeRecord,
+  DisciplinaryRecord,
 };

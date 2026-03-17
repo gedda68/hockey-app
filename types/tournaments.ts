@@ -3,16 +3,20 @@
 
 // ─── Tournament ───────────────────────────────────────────────────────────────
 
+export type TournamentGender = "male" | "female" | "mixed";
+
 export interface Tournament {
   _id?: string;             // MongoDB id (serialised to string)
   tournamentId: string;
   season: string;           // e.g. "2026"
   ageGroup: string;         // e.g. "Under 14", "Opens", "Masters 40"
+  gender: TournamentGender; // e.g. "male", "female", "mixed"
   title: string;            // e.g. "2026 Queensland Hockey Under 14 Championships"
   startDate: string;        // ISO date string (YYYY-MM-DD)
   endDate: string;          // ISO date string (YYYY-MM-DD)
   location: string;         // e.g. "Hockey World, Gold Coast"
   additionalInfo: string;   // Rich-text HTML
+  nominationFee?: number;   // AUD dollars
   createdAt: string;
   updatedAt: string;
 }
@@ -20,11 +24,13 @@ export interface Tournament {
 export interface CreateTournamentRequest {
   season: string;
   ageGroup: string;
+  gender?: TournamentGender;
   title: string;
   startDate: string;
   endDate: string;
   location: string;
   additionalInfo?: string;
+  nominationFee?: number;
 }
 
 // ─── Nomination Period ────────────────────────────────────────────────────────
@@ -53,6 +59,29 @@ export interface UpsertNominationPeriodRequest {
   isStartCustom?: boolean;
   isEndCustom?: boolean;
   linkedTournamentId?: string;
+}
+
+// ─── Open Opportunity ─────────────────────────────────────────────────────────
+
+export interface OpenOpportunity {
+  ageGroup: string;
+  season: string;
+  tournamentId: string;
+  tournamentTitle: string;
+  tournamentGender: TournamentGender;
+  tournamentLocation: string;
+  tournamentStartDate: string;
+  tournamentEndDate: string;
+  nominationPeriodStart: string;
+  nominationPeriodEnd: string;
+  daysRemaining: number;
+  nominationFee: number;
+  eligibilityRange: {
+    minAge: number;
+    maxAge: number | null;
+    divisionType: string;
+    description: string;
+  };
 }
 
 // ─── Utilities ────────────────────────────────────────────────────────────────
@@ -120,4 +149,24 @@ export function periodCountdown(startDate: string, endDate: string): string {
   }
   const days = Math.round((end.getTime() - today.getTime()) / msPerDay);
   return `${days} day${days !== 1 ? "s" : ""} remaining`;
+}
+
+/** Normalise any gender string to "male" | "female" | "" */
+export function normaliseGender(raw: string | undefined | null): "male" | "female" | "" {
+  if (!raw) return "";
+  const lower = raw.toLowerCase();
+  if (lower.includes("female") || lower === "f") return "female";
+  if (lower.includes("male") || lower === "m") return "male";
+  return "";
+}
+
+/** Check if a player's gender qualifies for a tournament's gender restriction */
+export function isGenderEligible(
+  playerGender: string | undefined | null,
+  tournamentGender: TournamentGender,
+): boolean {
+  if (tournamentGender === "mixed") return true;
+  const pg = normaliseGender(playerGender);
+  if (!pg) return true; // unknown gender: let admin decide
+  return pg === tournamentGender;
 }

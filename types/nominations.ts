@@ -21,6 +21,7 @@ export interface Nomination {
   clubName: string;          // denormalised for display
   memberId: string;
   memberName: string;        // denormalised for display
+  playerId?: string;         // player record id (players collection), if nominated via player
   dateOfBirth: string;       // ISO date string
   ageAtSeason: number;       // pre-calculated: season year - birth year
   nominatedBy?: string;
@@ -34,7 +35,8 @@ export interface CreateNominationRequest {
   season: string;
   ageGroup: string;
   clubId: string;
-  memberId: string;
+  memberId?: string;    // optional when nominating via player record
+  playerId?: string;    // optional: player record id (players collection)
   nominatedBy?: string;
   notes?: string;
 }

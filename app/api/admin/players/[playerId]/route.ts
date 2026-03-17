@@ -142,14 +142,9 @@ export async function PATCH(
     }
 
     const pushFields: Record<string, any> = {};
-    const setFields: Record<string, any> = {
-      updatedAt: new Date().toISOString(),
-    };
+    const setFields: Record<string, any> = { updatedAt: new Date().toISOString() };
 
-    if (
-      body._appendTournamentHistory &&
-      Array.isArray(body.tournamentHistory)
-    ) {
+    if (body._appendTournamentHistory && Array.isArray(body.tournamentHistory)) {
       pushFields.tournamentHistory = { $each: body.tournamentHistory };
     }
     if (body._appendFeeHistory && Array.isArray(body.feeHistory)) {

@@ -18,6 +18,8 @@ export async function GET(request: NextRequest) {
     const ageGroup = searchParams.get("ageGroup");
     const clubId = searchParams.get("clubId");
     const status = searchParams.get("status");
+    const playerId = searchParams.get("playerId");
+    const memberId = searchParams.get("memberId");
 
     const client = await clientPromise;
     const db = client.db("hockey-app");
@@ -27,6 +29,8 @@ export async function GET(request: NextRequest) {
     if (ageGroup) query.ageGroup = ageGroup;
     if (clubId) query.clubId = clubId;
     if (status) query.status = status;
+    if (playerId) query.playerId = playerId;
+    if (memberId) query.memberId = memberId;
 
     const nominations = await db
       .collection("rep_nominations")
@@ -50,11 +54,18 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body: CreateNominationRequest = await request.json();
-    const { season, ageGroup, clubId, memberId, nominatedBy, notes } = body;
+    const { season, ageGroup, clubId, memberId, playerId, nominatedBy, notes } = body;
 
-    if (!season || !ageGroup || !clubId || !memberId) {
+    if (!season || !ageGroup || !clubId) {
       return NextResponse.json(
-        { error: "season, ageGroup, clubId and memberId are required" },
+        { error: "season, ageGroup and clubId are required" },
+        { status: 400 },
+      );
+    }
+
+    if (!memberId && !playerId) {
+      return NextResponse.json(
+        { error: "Either memberId or playerId is required" },
         { status: 400 },
       );
     }
@@ -62,38 +73,76 @@ export async function POST(request: NextRequest) {
     const client = await clientPromise;
     const db = client.db("hockey-app");
 
-    // Prevent duplicate nomination for same member/ageGroup/season
-    const existing = await db.collection("rep_nominations").findOne({
-      season,
-      ageGroup,
-      memberId,
-    });
-    if (existing) {
-      return NextResponse.json(
-        { error: "This player is already nominated for this age group and season" },
-        { status: 409 },
-      );
-    }
-
-    // Look up the member (members collection uses clubId as club.id, not slug)
-    const member = await db.collection("members").findOne({ memberId });
-    if (!member) {
-      return NextResponse.json({ error: "Member not found" }, { status: 404 });
+    // Prevent duplicate nomination — check both memberId and playerId
+    const duplicateQuery: Record<string, any>[] = [{ season, ageGroup }];
+    if (memberId) duplicateQuery[0].memberId = memberId;
+    if (playerId) {
+      // Check either memberId OR playerId match to avoid double-nominating the same physical player
+      const orClauses: Record<string, any>[] = [];
+      if (memberId) orClauses.push({ memberId, season, ageGroup });
+      if (playerId) orClauses.push({ playerId, season, ageGroup });
+      const existing = await db
+        .collection("rep_nominations")
+        .findOne({ $or: orClauses });
+      if (existing) {
+        return NextResponse.json(
+          { error: "This player is already nominated for this age group and season" },
+          { status: 409 },
+        );
+      }
+    } else {
+      // memberId only path
+      const existing = await db
+        .collection("rep_nominations")
+        .findOne({ season, ageGroup, memberId });
+      if (existing) {
+        return NextResponse.json(
+          { error: "This player is already nominated for this age group and season" },
+          { status: 409 },
+        );
+      }
     }
 
     // Look up the club
     const club = await db
       .collection("clubs")
-      .findOne({ $or: [{ id: clubId }, { slug: clubId }] });
+      .findOne({ $or: [{ id: clubId }, { slug: clubId }, { clubId }] });
     if (!club) {
       return NextResponse.json({ error: "Club not found" }, { status: 404 });
     }
 
-    // Age eligibility check
-    const dob: string = member.personalInfo?.dateOfBirth ?? "";
+    let firstName = "";
+    let lastName = "";
+    let dob = "";
+    let resolvedMemberId = memberId;
+
+    if (memberId) {
+      // --- Lookup via members collection (existing logic) ---
+      const member = await db.collection("members").findOne({ memberId });
+      if (!member) {
+        return NextResponse.json({ error: "Member not found" }, { status: 404 });
+      }
+      dob = member.personalInfo?.dateOfBirth ?? "";
+      firstName = member.personalInfo?.firstName ?? "";
+      lastName = member.personalInfo?.lastName ?? "";
+    } else if (playerId) {
+      // --- Lookup via players collection ---
+      const player = await db.collection("players").findOne({ playerId });
+      if (!player) {
+        return NextResponse.json({ error: "Player not found" }, { status: 404 });
+      }
+      dob = player.dateOfBirth ?? "";
+      firstName = player.firstName ?? "";
+      lastName = player.lastName ?? "";
+      // Use player's linkedMemberId if available
+      if (player.linkedMemberId) {
+        resolvedMemberId = player.linkedMemberId;
+      }
+    }
+
     if (!dob) {
       return NextResponse.json(
-        { error: "Member has no date of birth recorded" },
+        { error: "Player has no date of birth recorded" },
         { status: 422 },
       );
     }
@@ -109,19 +158,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const firstName: string = member.personalInfo?.firstName ?? "";
-    const lastName: string = member.personalInfo?.lastName ?? "";
     const memberName = `${firstName} ${lastName}`.trim();
     const ageAtSeason = calcAgeForSeason(dob, seasonYear);
     const now = new Date().toISOString();
 
-    const nomination = {
+    const nomination: Record<string, any> = {
       nominationId: `nom-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       season,
       ageGroup,
-      clubId: club.id,
+      clubId: club.id ?? club.clubId ?? clubId,
       clubName: club.name,
-      memberId,
       memberName,
       dateOfBirth: dob,
       ageAtSeason,
@@ -131,6 +177,10 @@ export async function POST(request: NextRequest) {
       notes: notes ?? "",
       updatedAt: now,
     };
+
+    // Store whichever IDs are available
+    if (resolvedMemberId) nomination.memberId = resolvedMemberId;
+    if (playerId) nomination.playerId = playerId;
 
     const result = await db.collection("rep_nominations").insertOne(nomination);
 

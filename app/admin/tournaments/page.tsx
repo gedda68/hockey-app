@@ -16,6 +16,8 @@ import {
   ChevronDown,
   AlertCircle,
   CalendarClock,
+  DollarSign,
+  Users,
 } from "lucide-react";
 import RichTextEditor from "@/app/admin/components/RichTextEditor";
 import type { Tournament, CreateTournamentRequest } from "@/types/tournaments";
@@ -51,13 +53,20 @@ function tournamentStatus(t: Tournament): "upcoming" | "active" | "past" {
 
 // ─── Empty form state ─────────────────────────────────────────────────────────
 
-const EMPTY_FORM: Omit<CreateTournamentRequest, "season"> = {
+type TournamentFormState = Omit<CreateTournamentRequest, "season"> & {
+  gender: string;
+  nominationFee: number;
+};
+
+const EMPTY_FORM: TournamentFormState = {
   ageGroup: "",
+  gender: "mixed",
   title: "",
   startDate: "",
   endDate: "",
   location: "",
   additionalInfo: "",
+  nominationFee: 0,
 };
 
 // ─── Modal ────────────────────────────────────────────────────────────────────
@@ -79,13 +88,15 @@ function TournamentModal({
 }: TournamentModalProps) {
   const isEdit = !!initial;
 
-  const [form, setForm] = useState<Omit<CreateTournamentRequest, "season">>({
+  const [form, setForm] = useState<TournamentFormState>({
     ageGroup: initial?.ageGroup ?? "",
+    gender: initial?.gender ?? "mixed",
     title: initial?.title ?? "",
     startDate: initial?.startDate ?? "",
     endDate: initial?.endDate ?? "",
     location: initial?.location ?? "",
     additionalInfo: initial?.additionalInfo ?? "",
+    nominationFee: initial?.nominationFee ?? 0,
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -124,7 +135,7 @@ function TournamentModal({
       const res = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, season }),
+        body: JSON.stringify({ ...form, season, gender: form.gender, nominationFee: form.nominationFee }),
       });
 
       if (!res.ok) {
@@ -194,6 +205,34 @@ function TournamentModal({
             </select>
           </div>
 
+          {/* Gender */}
+          <div>
+            <label className="block text-xs font-black uppercase text-slate-500 mb-1">
+              Tournament Gender
+            </label>
+            <div className="flex gap-2">
+              {(["mixed", "male", "female"] as const).map((g) => (
+                <button
+                  key={g}
+                  type="button"
+                  onClick={() => setForm({ ...form, gender: g })}
+                  className={`flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl border-2 text-xs font-black uppercase transition-all ${
+                    form.gender === g
+                      ? g === "male"
+                        ? "border-blue-500 bg-blue-50 text-blue-700"
+                        : g === "female"
+                          ? "border-pink-500 bg-pink-50 text-pink-700"
+                          : "border-[#06054e] bg-[#06054e]/10 text-[#06054e]"
+                      : "border-slate-200 text-slate-400 hover:border-slate-300"
+                  }`}
+                >
+                  <Users size={13} />
+                  {g === "mixed" ? "Mixed" : g === "male" ? "Male" : "Female"}
+                </button>
+              ))}
+            </div>
+          </div>
+
           {/* Title */}
           <div>
             <label className="block text-xs font-black uppercase text-slate-500 mb-1">
@@ -261,6 +300,26 @@ function TournamentModal({
             />
           </div>
 
+          {/* Nomination Fee */}
+          <div>
+            <label className="block text-xs font-black uppercase text-slate-500 mb-1">
+              Nomination Fee (AUD)
+            </label>
+            <div className="relative">
+              <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-sm">$</span>
+              <input
+                type="number"
+                min={0}
+                step={0.01}
+                value={form.nominationFee}
+                onChange={(e) => setForm({ ...form, nominationFee: parseFloat(e.target.value) || 0 })}
+                placeholder="0.00"
+                className="w-full pl-8 pr-4 py-2.5 border-2 border-slate-200 rounded-xl text-sm focus:border-[#06054e] focus:outline-none"
+              />
+            </div>
+            <p className="text-xs text-slate-400 mt-1">Enter 0 if there is no nomination fee.</p>
+          </div>
+
           {/* Additional info – rich text */}
           <RichTextEditor
             label="Additional Information"
@@ -323,7 +382,7 @@ function TournamentCard({
       <div className="px-6 py-5">
         <div className="flex items-start justify-between gap-4">
           <div className="flex-1 min-w-0">
-            {/* Status + age group */}
+            {/* Status + age group + gender */}
             <div className="flex items-center gap-2 mb-2 flex-wrap">
               <span
                 className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase border ${STATUS_STYLES[status]}`}
@@ -333,6 +392,23 @@ function TournamentCard({
               <span className="px-2.5 py-0.5 bg-[#06054e]/10 text-[#06054e] rounded-full text-[10px] font-black uppercase">
                 {tournament.ageGroup}
               </span>
+              {tournament.gender && (
+                <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase border ${
+                  tournament.gender === "male"
+                    ? "bg-blue-50 text-blue-700 border-blue-200"
+                    : tournament.gender === "female"
+                      ? "bg-pink-50 text-pink-700 border-pink-200"
+                      : "bg-slate-50 text-slate-600 border-slate-200"
+                }`}>
+                  {tournament.gender}
+                </span>
+              )}
+              {tournament.nominationFee != null && tournament.nominationFee > 0 && (
+                <span className="flex items-center gap-1 px-2.5 py-0.5 bg-yellow-50 text-yellow-700 border border-yellow-200 rounded-full text-[10px] font-black uppercase">
+                  <DollarSign size={9} />
+                  {tournament.nominationFee.toFixed(2)} AUD
+                </span>
+              )}
             </div>
 
             {/* Title */}
