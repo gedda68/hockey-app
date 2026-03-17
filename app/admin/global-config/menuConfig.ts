@@ -42,8 +42,14 @@ export const menuConfig: MenuItem[] = [
       {
         label: "Nominations",
         href: "/admin/nominations",
+        icon: "✋",
+        description: "Club player nominations by age group",
+      },
+      {
+        label: "Tournaments",
+        href: "/admin/tournaments",
         icon: "🏆",
-        description: "Player Nominations",
+        description: "Tournament & competition details",
       },
       {
         label: "Shadow Players",
