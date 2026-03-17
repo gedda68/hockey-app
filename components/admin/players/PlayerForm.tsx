@@ -13,6 +13,9 @@ import HistorySection from "./sections/HistorySection";
 import ConsentPermissionsSection from "./sections/ConsentPermissionsSection";
 import PlayerStatusSection from "./sections/PlayerStatusSection";
 import NotesHistorySection from "./sections/NotesHistorySection";
+import TournamentHistorySection from "./sections/TournamentHistorySection";
+import FeeHistorySection from "./sections/FeeHistorySection";
+import DisciplinarySection from "./sections/DisciplinarySection";
 import { PlayerFormData } from "./types/player.types";
 import {
   User,
@@ -26,6 +29,9 @@ import {
   MessageSquare,
   Save,
   X,
+  Trophy,
+  DollarSign,
+  AlertTriangle,
 } from "lucide-react";
 
 interface PlayerFormProps {
@@ -113,6 +119,11 @@ export default function PlayerForm({
 
       // Notes
       notes: [],
+
+      // Rep Tournament & Fee History
+      tournamentHistory: [],
+      feeHistory: [],
+      disciplinaryHistory: [],
     },
   );
 
@@ -183,6 +194,27 @@ export default function PlayerForm({
       icon: MessageSquare,
       component: NotesHistorySection,
       description: "Admin notes",
+    },
+    {
+      id: "tournaments",
+      label: "Tournaments",
+      icon: Trophy,
+      component: TournamentHistorySection,
+      description: "Rep nominations & history",
+    },
+    {
+      id: "fees",
+      label: "Fees",
+      icon: DollarSign,
+      component: FeeHistorySection,
+      description: "Fee & payment history",
+    },
+    {
+      id: "discipline",
+      label: "Discipline",
+      icon: AlertTriangle,
+      component: DisciplinarySection,
+      description: "Cards & suspensions",
     },
   ];
 

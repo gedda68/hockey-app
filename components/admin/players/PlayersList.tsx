@@ -15,7 +15,10 @@ import {
   XCircle,
   Archive,
   CheckCircle,
+  Trophy,
 } from "lucide-react";
+import NominationWorkflowModal from "./NominationWorkflowModal";
+import type { OpenOpportunity } from "@/types/tournaments";
 
 interface Player {
   playerId: string;
@@ -58,6 +61,12 @@ interface Club {
   location?: string;
 }
 
+const CURRENT_SEASON = new Date().getFullYear().toString();
+
+function calcAgeForSeason(dob: string, year: number) {
+  return year - new Date(dob).getFullYear();
+}
+
 export default function PlayersList() {
   const router = useRouter();
   const [players, setPlayers] = useState<Player[]>([]);
@@ -68,6 +77,12 @@ export default function PlayersList() {
   const [clubSearchText, setClubSearchText] = useState("");
   const [clubFilter, setClubFilter] = useState("all");
   const [showClubSuggestions, setShowClubSuggestions] = useState(false);
+  const [openOpportunities, setOpenOpportunities] = useState<OpenOpportunity[]>([]);
+  const [seasonNominations, setSeasonNominations] = useState<any[]>([]);
+  const [nominationModal, setNominationModal] = useState<{
+    player: Player;
+    opportunity: OpenOpportunity;
+  } | null>(null);
 
   useEffect(() => {
     fetchData();
@@ -77,18 +92,24 @@ export default function PlayersList() {
     try {
       setLoading(true);
 
-      const [playersRes, clubsRes] = await Promise.all([
+      const [playersRes, clubsRes, oppsRes, nomsRes] = await Promise.all([
         fetch("/api/admin/players"),
         fetch("/api/admin/clubs"),
+        fetch(`/api/admin/nominations/available?season=${CURRENT_SEASON}`),
+        fetch(`/api/admin/nominations?season=${CURRENT_SEASON}`),
       ]);
 
       const playersData = await playersRes.json();
       const clubsData = await clubsRes.json();
+      const oppsData = oppsRes.ok ? await oppsRes.json() : { opportunities: [] };
+      const nomsData = nomsRes.ok ? await nomsRes.json() : [];
 
       setClubs(clubsData.clubs || []);
       setPlayers(playersData.players || []);
+      setOpenOpportunities(oppsData.opportunities ?? []);
+      setSeasonNominations(Array.isArray(nomsData) ? nomsData : []);
     } catch (error) {
-      console.error("❌ Error fetching data:", error);
+      console.error("Error fetching data:", error);
     } finally {
       setLoading(false);
     }
@@ -332,6 +353,27 @@ export default function PlayersList() {
               const statusInfo = getStatusInfo(player.status?.current);
               const StatusIcon = statusInfo.icon;
 
+              // Compute which open opportunities this player is eligible for
+              const eligibleOpportunities = player.dateOfBirth
+                ? openOpportunities.filter((opp) => {
+                    const age = calcAgeForSeason(
+                      player.dateOfBirth!,
+                      parseInt(opp.season),
+                    );
+                    const range = opp.eligibilityRange;
+                    const ageOk =
+                      age >= range.minAge &&
+                      (range.maxAge === null || age <= range.maxAge);
+                    if (!ageOk) return false;
+                    if (opp.tournamentGender === "mixed") return true;
+                    const pg = (player.gender || "").toLowerCase();
+                    return (
+                      pg.includes(opp.tournamentGender) ||
+                      pg === opp.tournamentGender[0]
+                    );
+                  })
+                : [];
+
               return (
                 <div
                   key={player.playerId}
@@ -467,6 +509,58 @@ export default function PlayersList() {
                       )}
                     </div>
 
+                    {/* Open Nominations */}
+                    {eligibleOpportunities.length > 0 && (
+                      <div className="mt-4 pt-4 border-t border-slate-100">
+                        <p className="text-xs font-black uppercase text-slate-400 mb-2 flex items-center gap-1.5">
+                          <Trophy size={11} /> Open Nominations
+                        </p>
+                        {eligibleOpportunities.map((opp) => {
+                          const alreadyNominated = seasonNominations.some(
+                            (n) =>
+                              (n.playerId === player.playerId ||
+                                (player.linkedMemberId &&
+                                  n.memberId === player.linkedMemberId)) &&
+                              n.ageGroup === opp.ageGroup,
+                          );
+                          return (
+                            <div
+                              key={opp.ageGroup}
+                              className={`flex items-center justify-between p-2 px-3 rounded-xl mb-1.5 text-xs ${
+                                alreadyNominated
+                                  ? "bg-green-50 border border-green-100"
+                                  : "bg-blue-50 border border-blue-100"
+                              }`}
+                            >
+                              <div>
+                                <span className="font-bold text-slate-700">
+                                  {opp.ageGroup}
+                                </span>
+                                <span className="text-slate-400 ml-2">
+                                  {opp.daysRemaining}d left
+                                </span>
+                              </div>
+                              {alreadyNominated ? (
+                                <span className="flex items-center gap-1 text-green-600 font-black">
+                                  <CheckCircle size={11} /> Nominated
+                                </span>
+                              ) : (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setNominationModal({ player, opportunity: opp });
+                                  }}
+                                  className="px-3 py-1 bg-[#06054e] text-white rounded-lg font-black uppercase text-[10px] hover:bg-[#0a0870] transition-all"
+                                >
+                                  Nominate
+                                </button>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+
                     {/* Linked Members */}
                     {(player.emergencyContacts &&
                       player.emergencyContacts.length > 0) ||
@@ -545,6 +639,19 @@ export default function PlayersList() {
           </div>
         )}
       </div>
+
+      {/* Nomination Workflow Modal */}
+      {nominationModal && (
+        <NominationWorkflowModal
+          player={nominationModal.player}
+          opportunity={nominationModal.opportunity}
+          onClose={() => setNominationModal(null)}
+          onSuccess={() => {
+            setNominationModal(null);
+            fetchData();
+          }}
+        />
+      )}
     </div>
   );
 }

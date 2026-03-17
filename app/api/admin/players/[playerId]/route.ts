@@ -122,6 +122,49 @@ export async function PUT(
   }
 }
 
+// ─── PATCH /api/admin/players/[playerId] ─────────────────────────────────────
+// Appends entries to tournamentHistory and/or feeHistory arrays.
+// Uses special flags: _appendTournamentHistory and _appendFeeHistory
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ playerId: string }> },
+) {
+  try {
+    const { playerId } = await params;
+    const body = await request.json();
+
+    const client = await clientPromise;
+    const db = client.db();
+
+    const player = await db.collection("players").findOne({ playerId });
+    if (!player) {
+      return NextResponse.json({ error: "Player not found" }, { status: 404 });
+    }
+
+    const pushFields: Record<string, any> = {};
+    const setFields: Record<string, any> = { updatedAt: new Date().toISOString() };
+
+    if (body._appendTournamentHistory && Array.isArray(body.tournamentHistory)) {
+      pushFields.tournamentHistory = { $each: body.tournamentHistory };
+    }
+    if (body._appendFeeHistory && Array.isArray(body.feeHistory)) {
+      pushFields.feeHistory = { $each: body.feeHistory };
+    }
+
+    const update: Record<string, any> = { $set: setFields };
+    if (Object.keys(pushFields).length > 0) {
+      update.$push = pushFields;
+    }
+
+    await db.collection("players").updateOne({ playerId }, update);
+
+    return NextResponse.json({ message: "Player history updated", playerId });
+  } catch (error: any) {
+    console.error("💥 Error patching player:", error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}
+
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ playerId: string }> },
