@@ -86,7 +86,10 @@ export async function POST(request: NextRequest) {
         .findOne({ $or: orClauses });
       if (existing) {
         return NextResponse.json(
-          { error: "This player is already nominated for this age group and season" },
+          {
+            error:
+              "This player is already nominated for this age group and season",
+          },
           { status: 409 },
         );
       }
@@ -97,7 +100,10 @@ export async function POST(request: NextRequest) {
         .findOne({ season, ageGroup, memberId });
       if (existing) {
         return NextResponse.json(
-          { error: "This player is already nominated for this age group and season" },
+          {
+            error:
+              "This player is already nominated for this age group and season",
+          },
           { status: 409 },
         );
       }
@@ -120,7 +126,10 @@ export async function POST(request: NextRequest) {
       // --- Lookup via members collection (existing logic) ---
       const member = await db.collection("members").findOne({ memberId });
       if (!member) {
-        return NextResponse.json({ error: "Member not found" }, { status: 404 });
+        return NextResponse.json(
+          { error: "Member not found" },
+          { status: 404 },
+        );
       }
       dob = member.personalInfo?.dateOfBirth ?? "";
       firstName = member.personalInfo?.firstName ?? "";
@@ -129,7 +138,10 @@ export async function POST(request: NextRequest) {
       // --- Lookup via players collection ---
       const player = await db.collection("players").findOne({ playerId });
       if (!player) {
-        return NextResponse.json({ error: "Player not found" }, { status: 404 });
+        return NextResponse.json(
+          { error: "Player not found" },
+          { status: 404 },
+        );
       }
       dob = player.dateOfBirth ?? "";
       firstName = player.firstName ?? "";

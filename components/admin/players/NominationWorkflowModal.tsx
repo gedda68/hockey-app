@@ -100,8 +100,10 @@ function formatDate(iso: string) {
 
 function GenderIcon({ gender }: { gender: string }) {
   const g = gender.toLowerCase();
-  if (g === "male") return <span className="text-blue-600 font-black text-xs">M</span>;
-  if (g === "female") return <span className="text-pink-600 font-black text-xs">F</span>;
+  if (g === "male")
+    return <span className="text-blue-600 font-black text-xs">M</span>;
+  if (g === "female")
+    return <span className="text-pink-600 font-black text-xs">F</span>;
   return <span className="text-slate-500 font-black text-xs">Mixed</span>;
 }
 
@@ -382,13 +384,15 @@ export default function NominationWorkflowModal({
         <div className="flex items-center gap-0 px-8 py-4 bg-[#06054e]/5 border-b border-slate-100">
           {steps.map((s, i) => (
             <div key={s.id} className="flex items-center">
-              <div className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black uppercase transition-all ${
-                i < currentStepIndex
-                  ? "bg-green-100 text-green-700"
-                  : i === currentStepIndex
-                    ? "bg-[#06054e] text-white"
-                    : "bg-slate-100 text-slate-400"
-              }`}>
+              <div
+                className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black uppercase transition-all ${
+                  i < currentStepIndex
+                    ? "bg-green-100 text-green-700"
+                    : i === currentStepIndex
+                      ? "bg-[#06054e] text-white"
+                      : "bg-slate-100 text-slate-400"
+                }`}
+              >
                 {i < currentStepIndex ? <CheckCircle size={11} /> : null}
                 {s.label}
               </div>
@@ -701,7 +705,10 @@ export default function NominationWorkflowModal({
               {/* Tournament summary card */}
               <div className="bg-slate-50 rounded-2xl p-4 space-y-3">
                 <div className="flex items-start gap-2">
-                  <Trophy size={16} className="text-yellow-500 flex-shrink-0 mt-0.5" />
+                  <Trophy
+                    size={16}
+                    className="text-yellow-500 flex-shrink-0 mt-0.5"
+                  />
                   <div>
                     <p className="font-black text-[#06054e] text-sm leading-tight">
                       {opportunity.tournamentTitle}
@@ -720,26 +727,37 @@ export default function NominationWorkflowModal({
 
                 {opportunity.tournamentLocation && (
                   <div className="flex items-center gap-2 text-xs text-slate-500">
-                    <MapPin size={12} className="text-slate-400 flex-shrink-0" />
+                    <MapPin
+                      size={12}
+                      className="text-slate-400 flex-shrink-0"
+                    />
                     {opportunity.tournamentLocation}
                   </div>
                 )}
 
                 {opportunity.tournamentStartDate && (
                   <div className="flex items-center gap-2 text-xs text-slate-500">
-                    <Calendar size={12} className="text-slate-400 flex-shrink-0" />
+                    <Calendar
+                      size={12}
+                      className="text-slate-400 flex-shrink-0"
+                    />
                     {formatDate(opportunity.tournamentStartDate)}
-                    {opportunity.tournamentEndDate && opportunity.tournamentEndDate !== opportunity.tournamentStartDate && (
-                      <> – {formatDate(opportunity.tournamentEndDate)}</>
-                    )}
+                    {opportunity.tournamentEndDate &&
+                      opportunity.tournamentEndDate !==
+                        opportunity.tournamentStartDate && (
+                        <> – {formatDate(opportunity.tournamentEndDate)}</>
+                      )}
                   </div>
                 )}
 
                 <div className="flex items-center gap-2 text-xs">
                   <Calendar size={12} className="text-amber-500 flex-shrink-0" />
                   <span className="text-amber-700 font-semibold">
-                    Nominations close: <strong>{formatDate(opportunity.nominationPeriodEnd)}</strong>
-                    {" "}· {opportunity.daysRemaining}d remaining
+                    Nominations close:{" "}
+                    <strong>
+                      {formatDate(opportunity.nominationPeriodEnd)}
+                    </strong>{" "}
+                    · {opportunity.daysRemaining}d remaining
                   </span>
                 </div>
               </div>
@@ -855,7 +873,8 @@ export default function NominationWorkflowModal({
                   </button>
                   {showStripeMsg && (
                     <div className="mt-2 px-4 py-3 bg-indigo-50 border border-indigo-100 rounded-xl text-xs text-indigo-700 font-semibold">
-                      Stripe integration coming soon. Please use an alternative payment method.
+                      Stripe integration coming soon. Please use an alternative
+                      payment method.
                     </div>
                   )}
                 </div>
@@ -871,7 +890,8 @@ export default function NominationWorkflowModal({
                   </button>
                   {showPaypalMsg && (
                     <div className="mt-2 px-4 py-3 bg-blue-50 border border-blue-100 rounded-xl text-xs text-blue-700 font-semibold">
-                      PayPal integration coming soon. Please use an alternative payment method.
+                      PayPal integration coming soon. Please use an alternative
+                      payment method.
                     </div>
                   )}
                 </div>

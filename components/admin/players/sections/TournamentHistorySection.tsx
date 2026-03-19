@@ -16,30 +16,36 @@ function formatDate(iso?: string): string {
   });
 }
 
-function StatusBadge({ status }: { status: TournamentHistoryEntry["nominationStatus"] }) {
+function StatusBadge({
+  status,
+}: {
+  status: TournamentHistoryEntry["nominationStatus"];
+}) {
   const styles: Record<string, string> = {
-    pending:   "bg-amber-100 text-amber-700 border-amber-200",
-    accepted:  "bg-green-100 text-green-700 border-green-200",
-    played:    "bg-blue-100 text-blue-700 border-blue-200",
+    pending: "bg-amber-100 text-amber-700 border-amber-200",
+    accepted: "bg-green-100 text-green-700 border-green-200",
+    played: "bg-blue-100 text-blue-700 border-blue-200",
     withdrawn: "bg-slate-100 text-slate-600 border-slate-200",
-    rejected:  "bg-red-100 text-red-700 border-red-200",
+    rejected: "bg-red-100 text-red-700 border-red-200",
   };
   const icons: Record<string, JSX.Element> = {
-    pending:   <Clock size={10} />,
-    accepted:  <CheckCircle size={10} />,
-    played:    <Trophy size={10} />,
+    pending: <Clock size={10} />,
+    accepted: <CheckCircle size={10} />,
+    played: <Trophy size={10} />,
     withdrawn: <XCircle size={10} />,
-    rejected:  <XCircle size={10} />,
+    rejected: <XCircle size={10} />,
   };
   const labels: Record<string, string> = {
-    pending:   "Pending",
-    accepted:  "Accepted",
-    played:    "Played",
+    pending: "Pending",
+    accepted: "Accepted",
+    played: "Played",
     withdrawn: "Withdrawn",
-    rejected:  "Rejected",
+    rejected: "Rejected",
   };
   return (
-    <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-black uppercase border ${styles[status] ?? styles.pending}`}>
+    <span
+      className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-black uppercase border ${styles[status] ?? styles.pending}`}
+    >
       {icons[status] ?? null}
       {labels[status] ?? status}
     </span>

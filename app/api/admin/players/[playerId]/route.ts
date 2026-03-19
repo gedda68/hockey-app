@@ -142,7 +142,22 @@ export async function PATCH(
     }
 
     const pushFields: Record<string, any> = {};
-    const setFields: Record<string, any> = { updatedAt: new Date().toISOString() };
+    const setFields: Record<string, any> = {
+      updatedAt: new Date().toISOString(),
+    };
+
+    // Contact detail updates
+    if (body.email !== undefined) setFields.email = body.email;
+    if (body.phone !== undefined) setFields.phone = body.phone;
+
+    // Emergency contacts replacement
+    if (
+      Array.isArray(body.emergencyContacts) &&
+      !body._appendTournamentHistory &&
+      !body._appendFeeHistory
+    ) {
+      setFields.emergencyContacts = body.emergencyContacts;
+    }
 
     // Contact detail updates
     if (body.email !== undefined) setFields.email = body.email;

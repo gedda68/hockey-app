@@ -85,7 +85,9 @@ export default function PlayersList() {
   const [clubSearchText, setClubSearchText] = useState("");
   const [clubFilter, setClubFilter] = useState("all");
   const [showClubSuggestions, setShowClubSuggestions] = useState(false);
-  const [openOpportunities, setOpenOpportunities] = useState<OpenOpportunity[]>([]);
+  const [openOpportunities, setOpenOpportunities] = useState<OpenOpportunity[]>(
+    [],
+  );
   const [seasonNominations, setSeasonNominations] = useState<any[]>([]);
   const [nominationModal, setNominationModal] = useState<{
     player: Player;
@@ -109,7 +111,9 @@ export default function PlayersList() {
 
       const playersData = await playersRes.json();
       const clubsData = await clubsRes.json();
-      const oppsData = oppsRes.ok ? await oppsRes.json() : { opportunities: [] };
+      const oppsData = oppsRes.ok
+        ? await oppsRes.json()
+        : { opportunities: [] };
       const nomsData = nomsRes.ok ? await nomsRes.json() : [];
 
       setClubs(clubsData.clubs || []);
@@ -556,7 +560,10 @@ export default function PlayersList() {
                                 <button
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    setNominationModal({ player, opportunity: opp });
+                                    setNominationModal({
+                                      player,
+                                      opportunity: opp,
+                                    });
                                   }}
                                   className="px-3 py-1 bg-[#06054e] text-white rounded-lg font-black uppercase text-[10px] hover:bg-[#0a0870] transition-all"
                                 >

@@ -168,7 +168,12 @@ export interface TournamentHistoryEntry {
   tournamentLocation?: string;
   tournamentStartDate?: string;
   nominatedDate: string;
-  nominationStatus: "pending" | "accepted" | "withdrawn" | "rejected" | "played";
+  nominationStatus:
+    | "pending"
+    | "accepted"
+    | "withdrawn"
+    | "rejected"
+    | "played";
   feeId?: string;
 }
 
@@ -177,8 +182,8 @@ export interface FeeRecord {
   date: string;
   type: "nomination" | "registration" | "association" | "other";
   description: string;
-  amount: number;        // AUD dollars
-  currency: string;      // "AUD"
+  amount: number; // AUD dollars
+  currency: string; // "AUD"
   status: "pending" | "paid" | "overdue" | "waived" | "refunded";
   paymentMethod?: "stripe" | "paypal" | "cash" | "bank_transfer" | "other";
   transactionId?: string;
