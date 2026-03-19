@@ -18,6 +18,7 @@ import FeeHistorySection from "./sections/FeeHistorySection";
 import DisciplinarySection from "./sections/DisciplinarySection";
 import RepresentativeSection from "./sections/RepresentativeSection";
 import InjuriesSection from "./sections/InjuriesSection";
+import StatsSection from "./sections/StatsSection";
 import { PlayerFormData } from "./types/player.types";
 import {
   User,
@@ -36,6 +37,7 @@ import {
   AlertTriangle,
   Star,
   Zap,
+  BarChart2,
 } from "lucide-react";
 
 interface PlayerFormProps {
@@ -185,6 +187,13 @@ export default function PlayerForm({
       icon: History,
       component: HistorySection,
       description: "Play history",
+    },
+    {
+      id: "stats",
+      label: "Stats",
+      icon: BarChart2,
+      component: StatsSection,
+      description: "Goals, assists and season stats",
     },
     {
       id: "consent",

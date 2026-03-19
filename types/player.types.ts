@@ -127,21 +127,36 @@ export interface Consents {
   emergencyTreatmentConsent: boolean; // Can authorize emergency treatment (REQUIRED)
 }
 
-// Player History Record
+// Player History Record (also used as the per-season stats source)
 export interface PlayerHistory {
   id: string;
-  season: string; // e.g., "2024"
-  clubId?: string; // Link to club
-  clubName: string; // Club name for display
-  teamName?: string; // Team name (optional)
-  division?: string; // Division/grade (optional)
-  position?: string; // Playing position
-  startDate?: string; // When they joined this club
-  endDate?: string; // When they left (blank if current)
-  gamesPlayed?: number; // Number of games
-  goals?: number; // Goals scored
-  assists?: number; // Assists
-  notes?: string; // Additional notes
+  season: string;         // e.g., "2024"
+  clubId?: string;        // Link to club
+  clubName: string;       // Club name for display
+  teamName?: string;      // Team name
+  division?: string;      // Division/grade
+  position?: string;      // Playing position (Forward, Midfielder, Defender, Goalkeeper, Other)
+  startDate?: string;     // When they joined this season/club
+  endDate?: string;       // When they left (blank if current)
+  // ── Outfield stats ──────────────────────────────────────────────────────
+  gamesPlayed?: number;
+  goals?: number;
+  assists?: number;
+  penaltyCorners?: number;       // Penalty corners won/taken
+  penaltyStrokeGoals?: number;   // PC goals converted via stroke
+  minutesPlayed?: number;
+  // ── Discipline ──────────────────────────────────────────────────────────
+  greenCards?: number;
+  yellowCards?: number;
+  redCards?: number;
+  // ── Goalkeeper stats ────────────────────────────────────────────────────
+  cleanSheets?: number;
+  goalsConceded?: number;
+  saves?: number;
+  // ── Awards ──────────────────────────────────────────────────────────────
+  playerOfMatch?: number;   // Times awarded Player of the Match
+  // ── Notes ───────────────────────────────────────────────────────────────
+  notes?: string;
 }
 
 // Player Status & Registration
