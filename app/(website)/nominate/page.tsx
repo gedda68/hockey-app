@@ -91,6 +91,7 @@ export default function NominatePage() {
   const [activeOpportunity, setActiveOpportunity] =
     useState<OpenOpportunity | null>(null);
   const [nominatedAgeGroups, setNominatedAgeGroups] = useState<string[]>([]);
+  const [lastNominatedTitle, setLastNominatedTitle] = useState<string | null>(null);
 
   // ── Lookup ─────────────────────────────────────────────────────────────────
   const handleLookup = async (e: React.FormEvent) => {
@@ -179,6 +180,7 @@ export default function NominatePage() {
   };
 
   const handleNominationSuccess = (ageGroup: string) => {
+    setLastNominatedTitle(activeOpportunity?.tournamentTitle ?? ageGroup);
     setActiveOpportunity(null);
     setNominatedAgeGroups((prev) => [...prev, ageGroup]);
   };
@@ -193,16 +195,25 @@ export default function NominatePage() {
       {/* Header */}
       <div className="bg-[#06054e] text-white pt-10 pb-24 text-center">
         <div className="max-w-3xl mx-auto px-4">
-          <Link
-            href="/representative"
-            className="text-xs font-bold uppercase tracking-widest text-white/50 hover:text-yellow-400 flex items-center justify-center gap-2 mb-8 group transition-colors"
-          >
-            <ChevronLeft
-              size={16}
-              className="group-hover:-translate-x-1 transition-transform"
-            />
-            Back to Representative
-          </Link>
+          <div className="flex items-center justify-center gap-6 mb-8">
+            <Link
+              href="/representative"
+              className="text-xs font-bold uppercase tracking-widest text-white/50 hover:text-yellow-400 flex items-center gap-2 group transition-colors"
+            >
+              <ChevronLeft
+                size={16}
+                className="group-hover:-translate-x-1 transition-transform"
+              />
+              Back to Representative
+            </Link>
+            <span className="text-white/20">|</span>
+            <Link
+              href="/nomination-status"
+              className="text-xs font-bold uppercase tracking-widest text-white/50 hover:text-yellow-400 flex items-center gap-2 transition-colors"
+            >
+              Check My Status →
+            </Link>
+          </div>
 
           <div className="inline-flex items-center gap-2 bg-yellow-400/20 px-4 py-2 rounded-2xl border border-yellow-400/30 mb-6">
             <Trophy size={16} className="text-yellow-400" />
@@ -391,6 +402,26 @@ export default function NominatePage() {
                 </button>
               </div>
             </div>
+
+            {/* Success banner — shown after first nomination in this session */}
+            {lastNominatedTitle && (
+              <div className="bg-green-600 rounded-3xl p-5 mb-6 flex items-start gap-4 shadow-xl">
+                <CheckCircle size={22} className="text-white flex-shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <p className="text-white font-black text-sm">Nomination submitted!</p>
+                  <p className="text-green-200 text-xs font-bold mt-0.5">
+                    Your nomination for <span className="text-white">{lastNominatedTitle}</span> has been received.
+                    You&apos;ll be notified when a decision is made.
+                  </p>
+                </div>
+                <Link
+                  href="/nomination-status"
+                  className="flex-shrink-0 px-4 py-2 bg-white text-green-700 rounded-xl text-xs font-black uppercase hover:bg-green-50 transition-colors"
+                >
+                  View Status →
+                </Link>
+              </div>
+            )}
 
             {/* Eligible tournaments */}
             <div className="bg-white rounded-3xl shadow-2xl p-8">
