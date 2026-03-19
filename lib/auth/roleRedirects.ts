@@ -20,12 +20,19 @@ export function getRoleDashboard(
         ? `/admin/associations/${associationId}`
         : "/admin/dashboard";
 
-    // New association-level roles
+    // Association-level roles
+    case "assoc-committee":
     case "assoc-coach":
     case "assoc-selector":
+    case "assoc-registrar":
       return "/admin/representative";
 
-    // New team-level roles
+    // Club committee/registrar
+    case "club-committee":
+    case "registrar":
+      return "/admin/players";
+
+    // Team-level selector
     case "team-selector":
       return "/admin/nominations";
 
