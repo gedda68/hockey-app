@@ -17,6 +17,7 @@ import TournamentHistorySection from "./sections/TournamentHistorySection";
 import FeeHistorySection from "./sections/FeeHistorySection";
 import DisciplinarySection from "./sections/DisciplinarySection";
 import RepresentativeSection from "./sections/RepresentativeSection";
+import InjuriesSection from "./sections/InjuriesSection";
 import { PlayerFormData } from "./types/player.types";
 import {
   User,
@@ -34,6 +35,7 @@ import {
   DollarSign,
   AlertTriangle,
   Star,
+  Zap,
 } from "lucide-react";
 
 interface PlayerFormProps {
@@ -155,6 +157,13 @@ export default function PlayerForm({
       icon: Heart,
       component: MedicalSection,
       description: "Health information",
+    },
+    {
+      id: "injuries",
+      label: "Injuries",
+      icon: Zap,
+      component: InjuriesSection,
+      description: "Injury history",
     },
     {
       id: "emergency",
