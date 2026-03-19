@@ -50,6 +50,29 @@ export interface Guardian {
   linkedMemberId?: string; // Links to Members collection
 }
 
+// Injury clearance / evidence document attached to a single injury record
+export interface InjuryDocument {
+  id: string;
+  type:
+    | "medical_clearance"    // General medical clearance to return to play
+    | "return_to_play"       // Formal return-to-play certificate
+    | "imaging_scan"         // X-ray, MRI, CT scan results
+    | "specialist_report"    // Orthopaedic / neurology / sports medicine report
+    | "physio_report"        // Physiotherapy assessment or discharge report
+    | "hospital_report"      // Emergency/hospital discharge summary
+    | "other";
+  label: string;             // Short display title (pre-filled but editable)
+  issuedBy?: string;         // Issuing doctor, clinic or specialist name
+  issuedDate?: string;       // ISO date the document was issued
+  expiryDate?: string;       // ISO date clearance expires (leave blank if indefinite)
+  notes?: string;            // Any extra context
+  // File attachment
+  url: string;               // Uploaded file URL (or "" if pending upload)
+  name: string;              // Original filename
+  size?: number;             // File size in bytes
+  uploadedAt: string;        // ISO datetime of upload
+}
+
 // Injury Record (for medical history)
 export interface InjuryRecord {
   id: string;
@@ -58,6 +81,7 @@ export interface InjuryRecord {
   description: string;
   treatment: string;
   recoveryPeriod: string;
+  documents?: InjuryDocument[]; // Clearance certs, imaging, reports, etc.
 }
 
 // Medical Information
@@ -706,6 +730,7 @@ export type {
   Club,
   PlayerDocument,
   InjuryRecord,
+  InjuryDocument,
   ClubTransfer,
   Consents,
   PlayerStatus,
