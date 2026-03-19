@@ -13,14 +13,27 @@ export function getRoleDashboard(
 ): string {
   switch (role) {
     case "super-admin":
-      // Full admin dashboard with everything
       return "/admin/dashboard";
 
     case "association-admin":
-      // Association-specific dashboard
       return associationId
         ? `/admin/associations/${associationId}`
         : "/admin/dashboard";
+
+    // New association-level roles
+    case "assoc-coach":
+    case "assoc-selector":
+      return "/admin/representative";
+
+    // New team-level roles
+    case "team-selector":
+      return "/admin/nominations";
+
+    // Public portal roles — go to nomination portal
+    case "player":
+    case "member":
+    case "parent":
+      return "/nominate";
 
     case "club-admin":
       // Club-specific dashboard

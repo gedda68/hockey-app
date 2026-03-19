@@ -4,7 +4,7 @@
 import LoginForm from "./LoginForm";
 
 export const metadata = {
-  title: "Login | Hockey Admin",
+  title: "Sign In | Hockey",
 };
 
 export default function LoginPage() {
