@@ -52,6 +52,12 @@ export const menuConfig: MenuItem[] = [
         description: "Tournament & competition details",
       },
       {
+        label: "Fees",
+        href: "/admin/fees",
+        icon: "💵",
+        description: "Outstanding fees, payments & reminders",
+      },
+      {
         label: "Shadow Players",
         href: "/admin/shadow",
         icon: "🌟",

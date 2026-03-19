@@ -3,7 +3,7 @@
 
 "use client";
 
-import { BaseSectionProps, FeeRecord } from "../types/player.types";
+import { BaseSectionProps, FeeRecord } from "@/types/player.types";
 import {
   DollarSign,
   CheckCircle,
