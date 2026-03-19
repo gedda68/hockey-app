@@ -111,9 +111,7 @@ export default function NominatePage() {
       ]);
 
       const playerData = await playerRes.json();
-      const oppsData = oppsRes.ok
-        ? await oppsRes.json()
-        : { opportunities: [] };
+      const oppsData = oppsRes.ok ? await oppsRes.json() : { opportunities: [] };
 
       if (!playerData.player) {
         setLookupState("not_found");
@@ -214,8 +212,7 @@ export default function NominatePage() {
           </div>
 
           <h1 className="text-5xl md:text-6xl font-black text-white uppercase tracking-tighter mb-4">
-            Nominate for
-            <br />
+            Nominate for<br />
             <span className="text-yellow-400">Rep Hockey</span>
           </h1>
           <p className="text-white/60 font-bold text-sm max-w-md mx-auto">
@@ -380,9 +377,7 @@ export default function NominatePage() {
                     <p className="text-xs font-black uppercase text-slate-400 mb-1">
                       Club
                     </p>
-                    <p className="font-black text-blue-700">
-                      {player.clubName}
-                    </p>
+                    <p className="font-black text-blue-700">{player.clubName}</p>
                   </div>
                 )}
               </div>

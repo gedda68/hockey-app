@@ -211,13 +211,7 @@ export interface RepOfficialNomination {
   ageGroup: string;
   tournamentId?: string;
   tournamentTitle?: string;
-  role:
-    | "head_coach"
-    | "assistant_coach"
-    | "manager"
-    | "umpire"
-    | "trainer"
-    | "other";
+  role: "head_coach" | "assistant_coach" | "manager" | "umpire" | "trainer" | "other";
   nominatedDate: string;
   status: "pending" | "accepted" | "withdrawn" | "rejected" | "fulfilled";
   notes?: string;

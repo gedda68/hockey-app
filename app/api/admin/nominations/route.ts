@@ -54,18 +54,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body: CreateNominationRequest = await request.json();
-    const {
-      season,
-      ageGroup,
-      clubId,
-      memberId,
-      playerId,
-      nominatedBy,
-      notes,
-      playerSnapshot,
-      nominationType,
-      role,
-    } = body as any;
+    const { season, ageGroup, clubId, memberId, playerId, nominatedBy, notes, playerSnapshot, nominationType, role } = body as any;
 
     if (!season || !ageGroup || !clubId) {
       return NextResponse.json(

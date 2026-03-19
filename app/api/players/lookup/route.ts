@@ -72,6 +72,9 @@ export async function GET(request: NextRequest) {
     });
   } catch (error: any) {
     console.error("GET /api/players/lookup error:", error);
-    return NextResponse.json({ error: "Lookup failed" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Lookup failed" },
+      { status: 500 },
+    );
   }
 }

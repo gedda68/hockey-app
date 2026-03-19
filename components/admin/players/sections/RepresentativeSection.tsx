@@ -531,7 +531,7 @@ export default function RepresentativeSection({ formData }: BaseSectionProps) {
                   conditions: formData.medical.conditions ?? "",
                   allergies: formData.medical.allergies ?? "",
                   medications: formData.medical.medications ?? "",
-                  bloodType: (formData.medical as any).bloodType ?? "",
+                  bloodType: formData.medical.bloodType ?? "",
                   doctorName: formData.medical.doctorName ?? "",
                   doctorPhone: formData.medical.doctorPhone ?? "",
                 }
