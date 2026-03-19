@@ -33,7 +33,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ player: null });
     }
 
-    // Return only what's needed for nomination — no admin-only fields
+    // Return fields needed for nomination.
+    // Emergency contacts and medical are returned so the player can confirm/update their own data.
     return NextResponse.json({
       player: {
         playerId: player.playerId,
@@ -49,6 +50,24 @@ export async function GET(request: NextRequest) {
         linkedMemberId: player.linkedMemberId ?? null,
         photo: player.photo ?? null,
         status: player.status?.current ?? "active",
+        // Returned so the player can verify and update their own contact/medical details
+        emergencyContacts: (player.emergencyContacts ?? []).map((c: any) => ({
+          id: c.id ?? "",
+          name: c.name ?? "",
+          relationship: c.relationship ?? "",
+          phone: c.phone ?? "",
+          email: c.email ?? "",
+        })),
+        medical: player.medical
+          ? {
+              conditions: player.medical.conditions ?? "",
+              allergies: player.medical.allergies ?? "",
+              medications: player.medical.medications ?? "",
+              bloodType: player.medical.bloodType ?? "",
+              doctorName: player.medical.doctorName ?? "",
+              doctorPhone: player.medical.doctorPhone ?? "",
+            }
+          : null,
       },
     });
   } catch (error: any) {

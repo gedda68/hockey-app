@@ -144,11 +144,30 @@ export async function PATCH(
     const pushFields: Record<string, any> = {};
     const setFields: Record<string, any> = { updatedAt: new Date().toISOString() };
 
+    // Contact detail updates
+    if (body.email !== undefined) setFields.email = body.email;
+    if (body.phone !== undefined) setFields.phone = body.phone;
+
+    // Emergency contacts replacement
+    if (Array.isArray(body.emergencyContacts) && !body._appendTournamentHistory && !body._appendFeeHistory) {
+      setFields.emergencyContacts = body.emergencyContacts;
+    }
+
+    // Medical info merge
+    if (body.medical && typeof body.medical === "object" && !body._appendTournamentHistory && !body._appendFeeHistory) {
+      const existingMedical = player.medical ?? {};
+      setFields.medical = { ...existingMedical, ...body.medical };
+    }
+
+    // History appends
     if (body._appendTournamentHistory && Array.isArray(body.tournamentHistory)) {
       pushFields.tournamentHistory = { $each: body.tournamentHistory };
     }
     if (body._appendFeeHistory && Array.isArray(body.feeHistory)) {
       pushFields.feeHistory = { $each: body.feeHistory };
+    }
+    if (body._appendOfficialHistory && Array.isArray(body.officialHistory)) {
+      pushFields.officialHistory = { $each: body.officialHistory };
     }
 
     const update: Record<string, any> = { $set: setFields };

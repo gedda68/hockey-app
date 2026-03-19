@@ -200,6 +200,18 @@ export interface DisciplinaryRecord {
   notes?: string;
 }
 
+export interface RepOfficialNomination {
+  id: string;
+  season: string;
+  ageGroup: string;
+  tournamentId?: string;
+  tournamentTitle?: string;
+  role: "head_coach" | "assistant_coach" | "manager" | "umpire" | "trainer" | "other";
+  nominatedDate: string;
+  status: "pending" | "accepted" | "withdrawn" | "rejected" | "fulfilled";
+  notes?: string;
+}
+
 // Main Player Form Data
 export interface PlayerFormData {
   // System Fields
@@ -261,6 +273,9 @@ export interface PlayerFormData {
   tournamentHistory?: TournamentHistoryEntry[];
   feeHistory?: FeeRecord[];
   disciplinaryHistory?: DisciplinaryRecord[];
+
+  // Rep Official Role History (coach, manager, umpire etc.)
+  officialHistory?: RepOfficialNomination[];
 }
 
 // Base Section Props (used by all section components)
@@ -693,4 +708,5 @@ export type {
   TournamentHistoryEntry,
   FeeRecord,
   DisciplinaryRecord,
+  RepOfficialNomination,
 };

@@ -37,6 +37,21 @@ interface FoundPlayer {
   linkedMemberId?: string | null;
   photo?: string | null;
   status?: string;
+  emergencyContacts?: Array<{
+    id: string;
+    name: string;
+    relationship: string;
+    phone: string;
+    email: string;
+  }>;
+  medical?: {
+    conditions: string;
+    allergies: string;
+    medications: string;
+    bloodType: string;
+    doctorName: string;
+    doctorPhone: string;
+  } | null;
 }
 
 type LookupState = "idle" | "loading" | "found" | "not_found" | "error";
@@ -510,6 +525,15 @@ export default function NominatePage() {
                   })}
                 </div>
               )}
+              {/* Cancel / start over */}
+              <div className="pt-4 border-t border-slate-100 text-center">
+                <button
+                  onClick={handleReset}
+                  className="text-sm font-black uppercase text-slate-400 hover:text-[#06054e] transition-colors"
+                >
+                  ← Cancel &amp; Search Again
+                </button>
+              </div>
             </div>
           </>
         )}

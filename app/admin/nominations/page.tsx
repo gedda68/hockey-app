@@ -20,6 +20,9 @@ import {
   Save,
   X,
   CalendarDays,
+  UserCheck,
+  Trophy,
+  ShieldCheck,
 } from "lucide-react";
 import type {
   Nomination,
@@ -349,8 +352,10 @@ export default function NominationsPage() {
   // UI state
   const [expandedClubs, setExpandedClubs] = useState<Set<string>>(new Set());
   const [nominating, setNominating] = useState<Set<string>>(new Set());
-  const [activeTab, setActiveTab] = useState<"eligible" | "nominations">("eligible");
+  const [activeTab, setActiveTab] = useState<"eligible" | "nominations" | "selection">("eligible");
   const [statusFilter, setStatusFilter] = useState<NominationStatus | "all">("all");
+  const [finalising, setFinalising] = useState(false);
+  const [finaliseConfirm, setFinaliseConfirm] = useState(false);
 
   // ── Load seasons + age groups from rosters ──────────────────────────────
   useEffect(() => {
@@ -467,6 +472,28 @@ export default function NominationsPage() {
     });
     if (res.ok) fetchNominations();
     else alert("Failed to update status");
+  }
+
+  // ── Finalise squad — reject all remaining pending nominations ────────────
+  async function handleFinalise() {
+    const pending = nominations.filter((n) => n.status === "pending");
+    if (pending.length === 0) { setFinaliseConfirm(false); return; }
+    setFinalising(true);
+    try {
+      await Promise.all(
+        pending.map((n) =>
+          fetch(`/api/admin/nominations/${n._id ?? n.nominationId}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ status: "rejected" }),
+          })
+        )
+      );
+      await fetchNominations();
+    } finally {
+      setFinalising(false);
+      setFinaliseConfirm(false);
+    }
   }
 
   // ── Remove nomination ────────────────────────────────────────────────────
@@ -602,6 +629,30 @@ export default function NominationsPage() {
                   }`}
                 >
                   {nominations.length}
+                </span>
+              )}
+            </span>
+          </button>
+          <button
+            onClick={() => setActiveTab("selection")}
+            className={`px-5 py-2 rounded-xl text-xs font-black uppercase transition-all ${
+              activeTab === "selection"
+                ? "bg-yellow-400 text-[#06054e]"
+                : "text-slate-400 hover:text-[#06054e]"
+            }`}
+          >
+            <span className="flex items-center gap-2">
+              <Trophy size={14} />
+              Team Selection
+              {nominations.filter((n) => n.status === "accepted").length > 0 && (
+                <span
+                  className={`px-1.5 py-0.5 rounded-full text-[10px] font-black ${
+                    activeTab === "selection"
+                      ? "bg-[#06054e]/20 text-[#06054e]"
+                      : "bg-yellow-400 text-[#06054e]"
+                  }`}
+                >
+                  {nominations.filter((n) => n.status === "accepted").length} selected
                 </span>
               )}
             </span>
@@ -928,6 +979,274 @@ export default function NominationsPage() {
                     ))}
                   </tbody>
                 </table>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* ── TAB: TEAM SELECTION ──────────────────────────────────────────── */}
+        {activeTab === "selection" && ageGroup && (
+          <>
+            {nominations.length === 0 ? (
+              <div className="text-center py-20 bg-white rounded-3xl border border-slate-100 shadow-sm">
+                <Trophy size={40} className="mx-auto text-slate-200 mb-4" />
+                <p className="font-black uppercase text-slate-300 text-lg">No nominations yet</p>
+                <p className="text-slate-400 text-sm font-semibold mt-2">
+                  Nominations for <strong>{ageGroup}</strong> will appear here once submitted.
+                </p>
+              </div>
+            ) : (
+              <div className="lg:grid lg:grid-cols-3 lg:gap-6 space-y-6 lg:space-y-0">
+
+                {/* ── Left: Nomination cards ───────────────────────────────── */}
+                <div className="lg:col-span-2 space-y-3">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="font-black uppercase text-[#06054e] text-sm tracking-widest">
+                      All Nominations ({nominations.length})
+                    </h3>
+                    <div className="flex items-center gap-3 text-xs font-black">
+                      <span className="flex items-center gap-1 text-yellow-700 bg-yellow-50 px-2 py-1 rounded-lg border border-yellow-200">
+                        <Clock size={11} />
+                        {nominations.filter((n) => n.status === "pending").length} pending
+                      </span>
+                      <span className="flex items-center gap-1 text-green-700 bg-green-50 px-2 py-1 rounded-lg border border-green-200">
+                        <CheckCircle size={11} />
+                        {nominations.filter((n) => n.status === "accepted").length} accepted
+                      </span>
+                      <span className="flex items-center gap-1 text-red-600 bg-red-50 px-2 py-1 rounded-lg border border-red-200">
+                        <XCircle size={11} />
+                        {nominations.filter((n) => n.status === "rejected").length} declined
+                      </span>
+                    </div>
+                  </div>
+
+                  {[...nominations]
+                    .sort((a, b) => {
+                      const order: Record<NominationStatus, number> = { pending: 0, accepted: 1, rejected: 2, withdrawn: 3 };
+                      return (order[a.status] ?? 9) - (order[b.status] ?? 9);
+                    })
+                    .map((nom) => (
+                      <div
+                        key={nom._id ?? nom.nominationId}
+                        className={`rounded-2xl border-2 p-5 transition-all ${
+                          nom.status === "accepted"
+                            ? "border-green-300 bg-green-50"
+                            : nom.status === "rejected"
+                              ? "border-slate-200 bg-slate-50 opacity-70"
+                              : nom.status === "withdrawn"
+                                ? "border-slate-200 bg-slate-50 opacity-50"
+                                : "border-slate-200 bg-white hover:border-[#06054e]/30"
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-4">
+                          {/* Player info */}
+                          <div className="flex items-start gap-3">
+                            <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 text-sm font-black ${
+                              nom.status === "accepted" ? "bg-green-200 text-green-800"
+                              : nom.status === "rejected" ? "bg-slate-200 text-slate-500"
+                              : "bg-[#06054e]/10 text-[#06054e]"
+                            }`}>
+                              {(nom.memberName ?? "?").charAt(0).toUpperCase()}
+                            </div>
+                            <div>
+                              <p className="font-black text-[#06054e] text-base leading-tight">
+                                {nom.memberName}
+                              </p>
+                              <p className="text-xs text-slate-500 font-bold mt-0.5">
+                                {nom.clubName}
+                                {nom.ageAtSeason ? (
+                                  <span className="ml-2 px-1.5 py-0.5 bg-slate-100 rounded-md text-[10px] font-black text-slate-600">
+                                    Age {nom.ageAtSeason}
+                                  </span>
+                                ) : null}
+                                {(nom as any).nominationType === "official" && (nom as any).role ? (
+                                  <span className="ml-2 px-1.5 py-0.5 bg-purple-100 rounded-md text-[10px] font-black text-purple-700 uppercase">
+                                    {(nom as any).role.replace("_", " ")}
+                                  </span>
+                                ) : null}
+                              </p>
+                              <p className="text-[10px] text-slate-400 mt-0.5">
+                                Nominated {nom.nominatedAt ? new Date(nom.nominatedAt).toLocaleDateString("en-AU") : "—"}
+                              </p>
+                            </div>
+                          </div>
+
+                          {/* Action buttons */}
+                          <div className="flex items-center gap-2 flex-shrink-0">
+                            {nom.status === "pending" && (
+                              <>
+                                <button
+                                  onClick={() => handleStatusChange(nom, "accepted")}
+                                  className="flex items-center gap-1.5 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-xl text-xs font-black uppercase transition-all shadow-sm"
+                                >
+                                  <UserCheck size={13} />
+                                  Select
+                                </button>
+                                <button
+                                  onClick={() => handleStatusChange(nom, "rejected")}
+                                  className="flex items-center gap-1.5 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-xl text-xs font-black uppercase transition-all shadow-sm"
+                                >
+                                  <XCircle size={13} />
+                                  Decline
+                                </button>
+                              </>
+                            )}
+                            {nom.status === "accepted" && (
+                              <button
+                                onClick={() => handleStatusChange(nom, "pending")}
+                                className="flex items-center gap-1.5 px-4 py-2 border-2 border-green-300 text-green-700 hover:bg-green-50 rounded-xl text-xs font-black uppercase transition-all"
+                              >
+                                <CheckCircle size={13} />
+                                Selected
+                              </button>
+                            )}
+                            {nom.status === "rejected" && (
+                              <button
+                                onClick={() => handleStatusChange(nom, "pending")}
+                                className="flex items-center gap-1.5 px-3 py-2 border-2 border-slate-200 text-slate-500 hover:border-[#06054e] hover:text-[#06054e] rounded-xl text-xs font-black uppercase transition-all"
+                              >
+                                Restore
+                              </button>
+                            )}
+                            {nom.status === "withdrawn" && (
+                              <span className="px-3 py-1.5 bg-slate-100 text-slate-400 rounded-xl text-xs font-black uppercase">
+                                Withdrawn
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                </div>
+
+                {/* ── Right: Selected Squad panel ──────────────────────────── */}
+                <div className="lg:col-span-1">
+                  <div className="sticky top-6 bg-white rounded-3xl border-2 border-slate-100 shadow-sm overflow-hidden">
+                    {/* Panel header */}
+                    <div className="bg-[#06054e] px-6 py-5">
+                      <div className="flex items-center gap-3 mb-3">
+                        <ShieldCheck size={20} className="text-yellow-400" />
+                        <h3 className="font-black uppercase text-white text-sm tracking-widest">
+                          Selected Squad
+                        </h3>
+                      </div>
+                      <div className="flex gap-3">
+                        <div className="flex-1 bg-white/10 rounded-xl px-3 py-2 text-center">
+                          <p className="text-2xl font-black text-yellow-400">
+                            {nominations.filter((n) => n.status === "accepted").length}
+                          </p>
+                          <p className="text-[10px] text-white/60 font-black uppercase">Selected</p>
+                        </div>
+                        <div className="flex-1 bg-white/10 rounded-xl px-3 py-2 text-center">
+                          <p className="text-2xl font-black text-white">
+                            {nominations.filter((n) => n.status === "pending").length}
+                          </p>
+                          <p className="text-[10px] text-white/60 font-black uppercase">Pending</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Squad list */}
+                    <div className="px-4 py-4 max-h-80 overflow-y-auto">
+                      {nominations.filter((n) => n.status === "accepted").length === 0 ? (
+                        <div className="text-center py-8">
+                          <UserCheck size={28} className="mx-auto text-slate-200 mb-2" />
+                          <p className="text-xs font-black text-slate-400 uppercase">
+                            No players selected yet
+                          </p>
+                          <p className="text-[10px] text-slate-400 mt-1">
+                            Use the Select button on nominations to build the squad.
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          {nominations
+                            .filter((n) => n.status === "accepted")
+                            .map((nom, i) => (
+                              <div key={nom._id ?? nom.nominationId} className="flex items-center gap-3">
+                                <span className="w-6 h-6 bg-[#06054e] text-white rounded-full text-[10px] font-black flex items-center justify-center flex-shrink-0">
+                                  {i + 1}
+                                </span>
+                                <div className="flex-1 min-w-0">
+                                  <p className="font-black text-sm text-[#06054e] truncate">
+                                    {nom.memberName}
+                                  </p>
+                                  <p className="text-[10px] text-slate-400 font-bold truncate">
+                                    {nom.clubName}
+                                    {(nom as any).nominationType === "official" ? (
+                                      <span className="ml-1 text-purple-600">
+                                        · {((nom as any).role ?? "").replace("_", " ")}
+                                      </span>
+                                    ) : null}
+                                  </p>
+                                </div>
+                                <button
+                                  onClick={() => handleStatusChange(nom, "pending")}
+                                  className="p-1 text-slate-300 hover:text-red-500 transition-colors flex-shrink-0"
+                                  title="Remove from squad"
+                                >
+                                  <X size={14} />
+                                </button>
+                              </div>
+                            ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Finalise section */}
+                    <div className="px-4 pb-4 pt-2 border-t border-slate-100">
+                      {nominations.filter((n) => n.status === "pending").length > 0 && (
+                        <>
+                          {!finaliseConfirm ? (
+                            <button
+                              onClick={() => setFinaliseConfirm(true)}
+                              disabled={nominations.filter((n) => n.status === "accepted").length === 0}
+                              className="w-full flex items-center justify-center gap-2 py-3 bg-yellow-400 hover:bg-yellow-300 text-[#06054e] font-black uppercase text-xs rounded-2xl transition-all disabled:opacity-40 shadow-md"
+                            >
+                              <ShieldCheck size={16} />
+                              Finalise Selection
+                            </button>
+                          ) : (
+                            <div className="bg-red-50 border-2 border-red-200 rounded-2xl p-4">
+                              <p className="text-xs font-black text-red-800 mb-1 uppercase">
+                                Confirm finalise?
+                              </p>
+                              <p className="text-[10px] text-red-700 font-bold mb-3">
+                                This will decline all {nominations.filter((n) => n.status === "pending").length} remaining pending nominations.
+                              </p>
+                              <div className="flex gap-2">
+                                <button
+                                  onClick={handleFinalise}
+                                  disabled={finalising}
+                                  className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-black uppercase transition-all"
+                                >
+                                  {finalising ? <Loader2 size={12} className="animate-spin" /> : <ShieldCheck size={12} />}
+                                  {finalising ? "Finalising…" : "Confirm"}
+                                </button>
+                                <button
+                                  onClick={() => setFinaliseConfirm(false)}
+                                  className="flex-1 py-2 border-2 border-slate-200 text-slate-600 rounded-xl text-xs font-black uppercase hover:bg-slate-50 transition-all"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </>
+                      )}
+                      {nominations.filter((n) => n.status === "pending").length === 0 &&
+                        nominations.filter((n) => n.status === "accepted").length > 0 && (
+                        <div className="flex items-center gap-2 bg-green-50 border border-green-200 rounded-xl px-3 py-2">
+                          <CheckCircle size={14} className="text-green-600 flex-shrink-0" />
+                          <p className="text-xs font-black text-green-800">
+                            Selection finalised — {nominations.filter((n) => n.status === "accepted").length} players selected.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
               </div>
             )}
           </>

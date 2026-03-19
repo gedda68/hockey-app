@@ -54,7 +54,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body: CreateNominationRequest = await request.json();
-    const { season, ageGroup, clubId, memberId, playerId, nominatedBy, notes } = body;
+    const { season, ageGroup, clubId, memberId, playerId, nominatedBy, notes, playerSnapshot, nominationType, role } = body as any;
 
     if (!season || !ageGroup || !clubId) {
       return NextResponse.json(
@@ -148,14 +148,17 @@ export async function POST(request: NextRequest) {
     }
 
     const seasonYear = parseInt(season, 10);
-    if (!isEligibleForAgeGroup(dob, ageGroup, seasonYear)) {
-      const age = calcAgeForSeason(dob, seasonYear);
-      return NextResponse.json(
-        {
-          error: `Player is not age-eligible for ${ageGroup} in ${season}. Their age for ${season} is ${age}.`,
-        },
-        { status: 422 },
-      );
+    // Skip age eligibility check for official role nominations (coach, manager, umpire etc.)
+    if (nominationType !== "official") {
+      if (!isEligibleForAgeGroup(dob, ageGroup, seasonYear)) {
+        const age = calcAgeForSeason(dob, seasonYear);
+        return NextResponse.json(
+          {
+            error: `Player is not age-eligible for ${ageGroup} in ${season}. Their age for ${season} is ${age}.`,
+          },
+          { status: 422 },
+        );
+      }
     }
 
     const memberName = `${firstName} ${lastName}`.trim();
@@ -176,6 +179,9 @@ export async function POST(request: NextRequest) {
       status: "pending",
       notes: notes ?? "",
       updatedAt: now,
+      nominationType: nominationType ?? "player",
+      ...(role ? { role } : {}),
+      ...(playerSnapshot ? { playerSnapshot } : {}),
     };
 
     // Store whichever IDs are available

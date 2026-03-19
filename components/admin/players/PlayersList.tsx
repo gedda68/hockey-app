@@ -53,6 +53,14 @@ interface Player {
     email?: string;
     linkedMemberId?: string;
   }>;
+  medical?: {
+    conditions?: string;
+    allergies?: string;
+    medications?: string;
+    bloodType?: string;
+    doctorName?: string;
+    doctorPhone?: string;
+  };
 }
 
 interface Club {
