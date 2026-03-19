@@ -13,17 +13,21 @@ import {
   CreditCard,
   Heart,
   CheckCircle,
+  KeyRound,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
-// Step Components (will import these)
+// Step Components
 import PersonalInfoStep from "@/components/admin/members/wizard/PersonalInfoStep";
 import ContactInfoStep from "@/components/admin/members/wizard/ContactInfoStep";
 import EmergencyContactStep from "@/components/admin/members/wizard/EmergencyContactStep";
 import AddressStep from "@/components/admin/members/wizard/AddressStep";
 import MembershipStep from "@/components/admin/members/wizard/MembershipStep";
+import AccountStep, {
+  type AccountStepData,
+} from "@/components/admin/members/wizard/AccountStep";
 import MedicalStep from "@/components/admin/members/wizard/MedicalStep";
 import ReviewStep from "@/components/admin/members/wizard/ReviewStep";
 
@@ -43,9 +47,17 @@ const STEPS = [
     icon: CreditCard,
     description: "Membership & roles",
   },
-  { id: 6, title: "Medical", icon: Heart, description: "Medical information" },
-  { id: 7, title: "Review", icon: CheckCircle, description: "Review & submit" },
+  {
+    id: 6,
+    title: "Account",
+    icon: KeyRound,
+    description: "Login credentials",
+  },
+  { id: 7, title: "Medical", icon: Heart, description: "Medical information" },
+  { id: 8, title: "Review", icon: CheckCircle, description: "Review & submit" },
 ];
+
+const TOTAL_STEPS = STEPS.length;
 
 export default function CreateMemberPage() {
   const router = useRouter();
@@ -89,7 +101,14 @@ export default function CreateMemberPage() {
       status: "Active" as const,
     },
     roles: [] as string[],
-    teams: [] as any[],
+    teams: [] as unknown[],
+    account: {
+      createAccount: false,
+      role: "player",
+      password: "",
+      confirmPassword: "",
+      forcePasswordChange: true,
+    } as AccountStepData,
     medical: {
       conditions: "",
       medications: "",
@@ -106,12 +125,12 @@ export default function CreateMemberPage() {
 
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  const updateFormData = (section: string, data: any) => {
+  const updateFormData = (section: string, data: unknown) => {
     setFormData((prev) => ({
       ...prev,
       [section]: {
-        ...prev[section as keyof typeof prev],
-        ...data,
+        ...(prev[section as keyof typeof prev] as object),
+        ...(data as object),
       },
     }));
   };
@@ -179,10 +198,30 @@ export default function CreateMemberPage() {
         }
         break;
 
-      case 6: // Medical (optional - no validation)
+      case 6: // Account (optional step — only validate if createAccount is true)
+        if (formData.account.createAccount) {
+          if (!formData.account.role) {
+            newErrors.role = "Please select a role";
+          }
+          if (!formData.account.password) {
+            newErrors.password = "Password is required";
+          } else if (formData.account.password.length < 8) {
+            newErrors.password = "Password must be at least 8 characters";
+          }
+          if (!formData.account.confirmPassword) {
+            newErrors.confirmPassword = "Please confirm the password";
+          } else if (
+            formData.account.password !== formData.account.confirmPassword
+          ) {
+            newErrors.confirmPassword = "Passwords do not match";
+          }
+        }
         break;
 
-      case 7: // Review (no validation)
+      case 7: // Medical (optional — no validation)
+        break;
+
+      case 8: // Review (no validation)
         break;
     }
 
@@ -192,7 +231,7 @@ export default function CreateMemberPage() {
 
   const handleNext = () => {
     if (validateStep(currentStep)) {
-      setCurrentStep((prev) => Math.min(7, prev + 1));
+      setCurrentStep((prev) => Math.min(TOTAL_STEPS, prev + 1));
       window.scrollTo({ top: 0, behavior: "smooth" });
     } else {
       toast.error("Please fill in all required fields");
@@ -205,7 +244,6 @@ export default function CreateMemberPage() {
   };
 
   const handleSubmit = async () => {
-    // 1. Validation check
     if (!validateStep(currentStep)) {
       toast.error("Please review all fields");
       return;
@@ -214,13 +252,13 @@ export default function CreateMemberPage() {
     setIsSubmitting(true);
 
     try {
+      // 1. Create the member record
       const res = await fetch("/api/admin/members", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData),
       });
 
-      // 2. Parse JSON once and check for errors immediately
       const data = await res
         .json()
         .catch(() => ({ error: "Invalid server response" }));
@@ -229,16 +267,56 @@ export default function CreateMemberPage() {
         throw new Error(data.error || "Failed to create member");
       }
 
-      // 3. Success path
-      toast.success("Member created successfully!");
+      const createdMemberId: string = data.member?._id || data.member?.memberId;
+
+      // 2. Optionally create an auth account for the new member
+      if (formData.account.createAccount && createdMemberId) {
+        try {
+          const authRes = await fetch(
+            `/api/admin/members/${createdMemberId}/set-auth`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                action: "create",
+                role: formData.account.role,
+                password: formData.account.password,
+                forcePasswordChange: formData.account.forcePasswordChange,
+              }),
+            }
+          );
+
+          const authData = await authRes.json().catch(() => ({}));
+
+          if (!authRes.ok) {
+            // Member was created but auth failed — warn the admin but don't block
+            toast.warning(
+              `Member created, but account setup failed: ${authData.error || "Unknown error"}. You can set up the account from the member record.`
+            );
+          } else {
+            toast.success(
+              `Member created! Username: ${authData.username}${formData.account.forcePasswordChange ? " (must change password on first login)" : ""}`
+            );
+          }
+        } catch {
+          toast.warning(
+            "Member created, but account setup encountered an error. Please set up the account from the member record."
+          );
+        }
+      } else {
+        toast.success("Member created successfully!");
+      }
+
       router.push(`/admin/members/${data.member.memberId}`);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Submission error:", error);
-      toast.error(error.message || "Connection failed");
-      // 4. CRITICAL: Always reset the button if we aren't redirecting
+      toast.error(
+        error instanceof Error ? error.message : "Connection failed"
+      );
       setIsSubmitting(false);
     }
   };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-8">
       <div className="max-w-5xl mx-auto space-y-6">
@@ -252,7 +330,7 @@ export default function CreateMemberPage() {
             Back to Members
           </Link>
           <div className="text-sm text-slate-600 font-bold">
-            Step {currentStep} of {STEPS.length}
+            Step {currentStep} of {TOTAL_STEPS}
           </div>
         </div>
 
@@ -362,29 +440,38 @@ export default function CreateMemberPage() {
               onRolesChange={(roles) =>
                 setFormData((prev) => ({ ...prev, roles }))
               }
-              // FIX: Update BOTH the top-level clubId and the membership nested clubId
               onClubChange={(clubId) => {
                 setFormData((prev) => ({
                   ...prev,
-                  clubId: clubId, // Top level for easy access
+                  clubId,
                   membership: {
                     ...prev.membership,
-                    clubId: clubId, // Nested if your API looks here
+                    clubId,
                   },
                 }));
               }}
               errors={errors}
             />
           )}
-
           {currentStep === 6 && (
+            <AccountStep
+              data={formData.account}
+              onChange={(data) =>
+                setFormData((prev) => ({ ...prev, account: data }))
+              }
+              errors={errors}
+              previewFirstName={formData.personalInfo.firstName}
+              previewLastName={formData.personalInfo.lastName}
+            />
+          )}
+          {currentStep === 7 && (
             <MedicalStep
               data={formData.medical}
               onChange={(data) => updateFormData("medical", data)}
               errors={errors}
             />
           )}
-          {currentStep === 7 && (
+          {currentStep === 8 && (
             <ReviewStep
               formData={formData}
               onEdit={(step) => setCurrentStep(step)}
@@ -403,7 +490,7 @@ export default function CreateMemberPage() {
             Previous
           </button>
 
-          {currentStep < 7 ? (
+          {currentStep < TOTAL_STEPS ? (
             <button
               onClick={handleNext}
               className="flex items-center gap-2 px-6 py-3 bg-[#06054e] text-white rounded-xl font-bold hover:bg-yellow-400 hover:text-[#06054e] transition-all shadow-lg"

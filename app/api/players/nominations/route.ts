@@ -1,37 +1,75 @@
 // app/api/players/nominations/route.ts
-// Public endpoint — identity-gated (name + DOB).
+// Public endpoint — identity-gated.
+// Access either via name+DOB (anonymous) or memberId (session-authenticated via /api/auth/me).
 // Returns all rep nominations for the matched player, enriched with tournament details.
-// No auth required, but access is limited to the player's own records by requiring exact name+DOB.
 
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
+import { getSessionFromRequest } from "@/lib/auth";
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const firstName = (searchParams.get("firstName") ?? "").trim();
     const lastName  = (searchParams.get("lastName")  ?? "").trim();
-    const dob       = (searchParams.get("dob")        ?? "").trim(); // YYYY-MM-DD
-
-    if (!firstName || !lastName || !dob) {
-      return NextResponse.json(
-        { error: "firstName, lastName and dob are required" },
-        { status: 400 },
-      );
-    }
+    const dob       = (searchParams.get("dob")        ?? "").trim();
+    const memberIdParam = (searchParams.get("memberId") ?? "").trim();
 
     const client = await clientPromise;
     const db = client.db("hockey-app");
 
-    // ── 1. Look up the player ─────────────────────────────────────────────────
-    const player = await db.collection("players").findOne({
-      firstName:   { $regex: `^${firstName}$`, $options: "i" },
-      lastName:    { $regex: `^${lastName}$`,  $options: "i" },
-      dateOfBirth: dob,
-    });
+    let player: Record<string, any> | null = null;
 
-    if (!player) {
-      return NextResponse.json({ found: false, nominations: [] });
+    // ── Path A: Session-authenticated lookup by memberId ─────────────────────
+    if (memberIdParam) {
+      // Verify the session owns this memberId (prevent enumeration)
+      const session = await getSessionFromRequest(request);
+      if (!session?.user?.memberId || session.user.memberId !== memberIdParam) {
+        return NextResponse.json({ error: "Unauthorised" }, { status: 401 });
+      }
+      player = await db.collection("players").findOne({
+        $or: [{ linkedMemberId: memberIdParam }, { playerId: memberIdParam }],
+      });
+      if (!player) {
+        // Also try looking up the member and getting their linked player
+        const member = await db.collection("members").findOne({ memberId: memberIdParam });
+        if (member) {
+          player = await db.collection("players").findOne({ linkedMemberId: memberIdParam }) ?? null;
+          // If still no player, synthesise a minimal player object from the member
+          if (!player && member) {
+            player = {
+              playerId: memberIdParam,
+              firstName: member.personalInfo?.firstName ?? "",
+              lastName: member.personalInfo?.lastName ?? "",
+              dateOfBirth: member.personalInfo?.dateOfBirth ?? "",
+              gender: member.personalInfo?.gender ?? null,
+              clubName: null,
+              linkedMemberId: memberIdParam,
+            };
+          }
+        }
+      }
+      if (!player) {
+        return NextResponse.json({ found: false, nominations: [] });
+      }
+    }
+
+    // ── Path B: Anonymous lookup by name + DOB ────────────────────────────────
+    else {
+      if (!firstName || !lastName || !dob) {
+        return NextResponse.json(
+          { error: "firstName, lastName and dob are required (or memberId with valid session)" },
+          { status: 400 },
+        );
+      }
+      player = await db.collection("players").findOne({
+        firstName:   { $regex: `^${firstName}$`, $options: "i" },
+        lastName:    { $regex: `^${lastName}$`,  $options: "i" },
+        dateOfBirth: dob,
+      });
+      if (!player) {
+        return NextResponse.json({ found: false, nominations: [] });
+      }
     }
 
     // ── 2. Fetch their nominations ────────────────────────────────────────────

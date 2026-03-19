@@ -11,6 +11,10 @@ import {
   UserX,
   Eye,
   Edit2,
+  KeyRound,
+  Loader2,
+  Check,
+  Copy,
 } from "lucide-react";
 import { toast } from "sonner";
 import Link from "next/link";
@@ -37,6 +41,11 @@ interface Member {
   createdAt: string;
 }
 
+interface BulkResult {
+  processed: number;
+  created: Array<{ memberId: string; memberName: string; username: string; tempPassword: string }>;
+}
+
 export default function MembersPage() {
   const [members, setMembers] = useState<Member[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -45,6 +54,41 @@ export default function MembersPage() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [total, setTotal] = useState(0);
+
+  // Bulk username generation
+  const [bulkModalOpen, setBulkModalOpen] = useState(false);
+  const [bulkLoading, setBulkLoading] = useState(false);
+  const [bulkDryRun, setBulkDryRun] = useState(true);
+  const [bulkResult, setBulkResult] = useState<BulkResult | null>(null);
+  const [copiedRow, setCopiedRow] = useState<string | null>(null);
+
+  const handleBulkGenerate = async (dryRun: boolean) => {
+    setBulkLoading(true);
+    setBulkResult(null);
+    try {
+      const res = await fetch("/api/admin/members/bulk-auth", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ dryRun }),
+      });
+      const data = await res.json();
+      setBulkResult(data);
+      if (!dryRun) {
+        setBulkDryRun(false);
+        toast.success(`${data.processed} member accounts created`);
+      }
+    } catch {
+      toast.error("Failed to generate usernames");
+    } finally {
+      setBulkLoading(false);
+    }
+  };
+
+  const copyCredentials = (row: BulkResult["created"][number]) => {
+    navigator.clipboard.writeText(`Username: ${row.username}\nPassword: ${row.tempPassword} (must change on first login)`);
+    setCopiedRow(row.memberId);
+    setTimeout(() => setCopiedRow(null), 2000);
+  };
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -157,14 +201,125 @@ export default function MembersPage() {
               Manage club members and registrations
             </p>
           </div>
-          <Link
-            href="/admin/members/create"
-            className="flex items-center gap-2 px-6 py-3 bg-[#06054e] text-white rounded-xl font-black hover:bg-yellow-400 hover:text-[#06054e] transition-all shadow-lg"
-          >
-            <Plus size={20} />
-            Add Member
-          </Link>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => { setBulkModalOpen(true); setBulkResult(null); setBulkDryRun(true); }}
+              className="flex items-center gap-2 px-4 py-3 border-2 border-slate-200 text-slate-600 rounded-xl font-black hover:border-[#06054e] hover:text-[#06054e] transition-all"
+              title="Bulk generate login usernames for members without accounts"
+            >
+              <KeyRound size={18} />
+              Generate Logins
+            </button>
+            <Link
+              href="/admin/members/create"
+              className="flex items-center gap-2 px-6 py-3 bg-[#06054e] text-white rounded-xl font-black hover:bg-yellow-400 hover:text-[#06054e] transition-all shadow-lg"
+            >
+              <Plus size={20} />
+              Add Member
+            </Link>
+          </div>
         </div>
+
+        {/* ── Bulk Login Generation Modal ── */}
+        {bulkModalOpen && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[80vh] flex flex-col">
+              <div className="flex items-center justify-between p-6 border-b border-slate-100">
+                <div>
+                  <h2 className="text-xl font-black text-[#06054e] flex items-center gap-2">
+                    <KeyRound size={20} className="text-yellow-500" />
+                    Bulk Generate Member Logins
+                  </h2>
+                  <p className="text-sm text-slate-500 font-bold mt-1">
+                    Auto-creates usernames and temporary passwords for members without accounts.
+                    Temp password: <code className="bg-slate-100 px-2 py-0.5 rounded font-mono text-xs">Hockey{new Date().getFullYear()}!</code>
+                  </p>
+                </div>
+                <button onClick={() => setBulkModalOpen(false)} className="p-2 text-slate-400 hover:text-slate-700 rounded-xl">✕</button>
+              </div>
+
+              <div className="p-6 overflow-y-auto flex-1 space-y-4">
+                {!bulkResult && (
+                  <div className="space-y-3">
+                    <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl text-sm text-amber-800 font-semibold">
+                      <strong>Preview first</strong> — run a dry run to see which members will get accounts before committing.
+                    </div>
+                    <div className="flex gap-3">
+                      <button
+                        onClick={() => handleBulkGenerate(true)}
+                        disabled={bulkLoading}
+                        className="flex-1 py-3 border-2 border-[#06054e] text-[#06054e] rounded-2xl font-black uppercase text-sm hover:bg-[#06054e]/5 transition-all disabled:opacity-60 flex items-center justify-center gap-2"
+                      >
+                        {bulkLoading ? <Loader2 size={16} className="animate-spin" /> : <Search size={16} />}
+                        Preview (Dry Run)
+                      </button>
+                      <button
+                        onClick={() => handleBulkGenerate(false)}
+                        disabled={bulkLoading}
+                        className="flex-1 py-3 bg-[#06054e] text-white rounded-2xl font-black uppercase text-sm hover:bg-[#0a0870] transition-all disabled:opacity-60 flex items-center justify-center gap-2"
+                      >
+                        {bulkLoading ? <Loader2 size={16} className="animate-spin" /> : <KeyRound size={16} />}
+                        Create Accounts
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {bulkResult && (
+                  <div className="space-y-3">
+                    <div className={`p-4 rounded-2xl border text-sm font-bold ${bulkDryRun ? "bg-blue-50 border-blue-200 text-blue-800" : "bg-green-50 border-green-200 text-green-800"}`}>
+                      {bulkDryRun
+                        ? `Preview: ${bulkResult.processed} member(s) would receive accounts. Review below, then click Create Accounts to commit.`
+                        : `✓ ${bulkResult.processed} member account(s) created. Note the credentials below — passwords are only shown once.`
+                      }
+                    </div>
+
+                    {bulkResult.created.length === 0 && (
+                      <p className="text-center text-slate-400 font-bold py-8">All members already have login accounts.</p>
+                    )}
+
+                    {bulkResult.created.length > 0 && (
+                      <>
+                        <div className="text-[10px] font-black uppercase text-slate-400 grid grid-cols-12 gap-2 px-2">
+                          <span className="col-span-4">Member</span>
+                          <span className="col-span-4">Username</span>
+                          <span className="col-span-3">Temp Password</span>
+                        </div>
+                        <div className="space-y-1.5 max-h-72 overflow-y-auto">
+                          {bulkResult.created.map((row) => (
+                            <div key={row.memberId} className="grid grid-cols-12 gap-2 items-center bg-slate-50 rounded-xl px-3 py-2 text-sm">
+                              <span className="col-span-4 font-bold text-slate-700 truncate">{row.memberName}</span>
+                              <span className="col-span-4 font-mono text-[#06054e] font-black">{row.username}</span>
+                              <span className="col-span-3 font-mono text-slate-600">{row.tempPassword}</span>
+                              <button
+                                onClick={() => copyCredentials(row)}
+                                className="col-span-1 flex items-center justify-center text-slate-400 hover:text-[#06054e] transition-colors"
+                                title="Copy credentials"
+                              >
+                                {copiedRow === row.memberId ? <Check size={14} className="text-green-500" /> : <Copy size={14} />}
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+
+                        {bulkDryRun && (
+                          <button
+                            onClick={() => handleBulkGenerate(false)}
+                            disabled={bulkLoading}
+                            className="w-full py-3 bg-[#06054e] text-white rounded-2xl font-black uppercase text-sm hover:bg-[#0a0870] transition-all disabled:opacity-60 flex items-center justify-center gap-2"
+                          >
+                            {bulkLoading ? <Loader2 size={16} className="animate-spin" /> : <KeyRound size={16} />}
+                            Confirm — Create {bulkResult.created.length} Account(s)
+                          </button>
+                        )}
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Search and Filters */}
         <div className="bg-white p-6 rounded-[2rem] shadow-xl border border-slate-100">

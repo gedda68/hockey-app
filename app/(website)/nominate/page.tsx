@@ -4,7 +4,7 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import {
   Search,
@@ -17,6 +17,8 @@ import {
   Clock,
   User,
   Loader2,
+  LogIn,
+  KeyRound,
 } from "lucide-react";
 import { calcAgeForSeason } from "@/types/nominations";
 import type { OpenOpportunity } from "@/types/tournaments";
@@ -74,9 +76,98 @@ function genderLabel(g?: string | null) {
   return g;
 }
 
+// ── Login tab sub-component ───────────────────────────────────────────────────
+function LoginTab({ onSuccess }: { onSuccess: (memberId: string) => void }) {
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setError(data.error || "Invalid username or password"); return; }
+      if (data.forcePasswordChange) {
+        window.location.href = `/change-password?next=/nominate&force=1`;
+        return;
+      }
+      if (data.user?.memberId) { onSuccess(data.user.memberId); }
+      else { setError("Account found but no player profile linked. Contact your club."); }
+    } catch { setError("Something went wrong. Please try again."); }
+    finally { setLoading(false); }
+  };
+
+  return (
+    <div>
+      <h2 className="text-2xl font-black uppercase text-[#06054e] mb-2">Member Login</h2>
+      <p className="text-slate-500 font-bold text-sm mb-8">
+        Log in with your username to pre-fill your details and nominate.
+      </p>
+      <form onSubmit={handleLogin} className="space-y-5">
+        <div>
+          <label className="block text-xs font-black uppercase text-slate-400 mb-1.5">Username</label>
+          <div className="relative">
+            <KeyRound size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input
+              type="text"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              placeholder="e.g. sjohnson001"
+              required
+              autoComplete="username"
+              className="w-full pl-11 pr-4 py-3 border-2 border-slate-200 rounded-xl font-bold focus:border-[#06054e] outline-none text-slate-900 transition-colors"
+            />
+          </div>
+        </div>
+        <div>
+          <label className="block text-xs font-black uppercase text-slate-400 mb-1.5">Password</label>
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="••••••••"
+            required
+            autoComplete="current-password"
+            className="w-full px-4 py-3 border-2 border-slate-200 rounded-xl font-bold focus:border-[#06054e] outline-none text-slate-900 transition-colors"
+          />
+        </div>
+        {error && (
+          <div className="p-3 bg-red-50 border border-red-200 rounded-xl flex items-center gap-2 text-red-700 text-sm font-bold">
+            <AlertCircle size={15} />{error}
+          </div>
+        )}
+        <button
+          type="submit"
+          disabled={loading}
+          className="w-full py-4 bg-[#06054e] text-white rounded-2xl font-black uppercase text-sm tracking-widest hover:bg-[#0a0870] transition-colors flex items-center justify-center gap-3 disabled:opacity-60"
+        >
+          {loading ? <><Loader2 size={18} className="animate-spin" /> Signing in...</> : <><LogIn size={18} /> Login</>}
+        </button>
+      </form>
+      <p className="mt-5 text-center text-xs text-slate-400 font-bold">
+        Don&apos;t have an account? Use the &ldquo;Find by Name&rdquo; tab above, or{" "}
+        <span className="text-slate-600">contact your club administrator to get login credentials.</span>
+      </p>
+    </div>
+  );
+}
+
 // ── Main component ─────────────────────────────────────────────────────────────
 export default function NominatePage() {
+  // Session state
+  const [session, setSession] = useState<{ memberId?: string; username?: string; firstName?: string; lastName?: string; role?: string } | null>(null);
+  const [sessionChecked, setSessionChecked] = useState(false);
+
   // Lookup form
+  const [lookupTab, setLookupTab] = useState<"login" | "search">("login");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [dob, setDob] = useState("");
@@ -92,6 +183,62 @@ export default function NominatePage() {
     useState<OpenOpportunity | null>(null);
   const [nominatedAgeGroups, setNominatedAgeGroups] = useState<string[]>([]);
   const [lastNominatedTitle, setLastNominatedTitle] = useState<string | null>(null);
+
+  // ── Check session on mount ─────────────────────────────────────────────────
+  useEffect(() => {
+    fetch("/api/auth/me")
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => {
+        if (data?.user) {
+          setSession(data.user);
+          // If logged in as a player, auto-trigger lookup using session identity
+          if (data.user.memberId) {
+            handleSessionLookup(data.user.memberId);
+          }
+        }
+      })
+      .catch(() => {})
+      .finally(() => setSessionChecked(true));
+  }, []);
+
+  // Lookup player data using member session
+  const handleSessionLookup = async (memberId: string) => {
+    setLookupState("loading");
+    try {
+      const [playerRes, oppsRes] = await Promise.all([
+        fetch(`/api/players/lookup?memberId=${memberId}`),
+        fetch(`/api/admin/nominations/available?season=${new Date().getFullYear()}`),
+      ]);
+      const playerData = await playerRes.json();
+      const oppsData = oppsRes.ok ? await oppsRes.json() : { opportunities: [] };
+
+      if (!playerData.player) { setLookupState("not_found"); return; }
+
+      const foundPlayer: FoundPlayer = playerData.player;
+      const eligible = (oppsData.opportunities as OpenOpportunity[]).filter((opp) => {
+        if (!foundPlayer.dateOfBirth) return false;
+        const age = calcAgeForSeason(foundPlayer.dateOfBirth, parseInt(opp.season));
+        const range = opp.eligibilityRange;
+        const ageOk = age >= range.minAge && (range.maxAge === null || age <= range.maxAge);
+        if (!ageOk) return false;
+        if (opp.tournamentGender === "mixed") return true;
+        const pg = (foundPlayer.gender || "").toLowerCase();
+        return pg.includes(opp.tournamentGender) || pg === opp.tournamentGender[0];
+      });
+
+      const season = new Date().getFullYear();
+      const nomsRes = await fetch(`/api/admin/nominations?season=${season}&playerId=${foundPlayer.playerId}`);
+      const nomsData = nomsRes.ok ? await nomsRes.json() : [];
+      const nomAgeGroups: string[] = Array.isArray(nomsData)
+        ? nomsData.filter((n: any) => n.playerId === foundPlayer.playerId || (foundPlayer.linkedMemberId && n.memberId === foundPlayer.linkedMemberId)).map((n: any) => n.ageGroup)
+        : [];
+
+      setPlayer(foundPlayer);
+      setOpportunities(eligible);
+      setExistingNominations(nomAgeGroups);
+      setLookupState("found");
+    } catch { setLookupState("error"); }
+  };
 
   // ── Lookup ─────────────────────────────────────────────────────────────────
   const handleLookup = async (e: React.FormEvent) => {
@@ -230,13 +377,78 @@ export default function NominatePage() {
             Find your player profile and nominate for any eligible open
             tournament during the nomination window.
           </p>
+
+          {/* Logged-in session indicator */}
+          {session && sessionChecked && (
+            <div className="mt-6 inline-flex items-center gap-2 bg-green-500/20 border border-green-400/30 px-4 py-2 rounded-2xl text-green-300 text-xs font-black">
+              <User size={13} />
+              Logged in as {session.username}
+              <button
+                onClick={() => {
+                  fetch("/api/auth/logout", { method: "POST" }).then(() => {
+                    setSession(null);
+                    setLookupState("idle");
+                    setPlayer(null);
+                  });
+                }}
+                className="ml-2 text-green-400/60 hover:text-green-300 transition-colors underline font-bold"
+              >
+                Sign out
+              </button>
+            </div>
+          )}
+
+          {/* Check status link */}
+          <div className="mt-4">
+            <Link
+              href="/nomination-status"
+              className="inline-flex items-center gap-2 text-xs font-black uppercase text-white/40 hover:text-yellow-400 transition-colors"
+            >
+              Already nominated? Check your status →
+            </Link>
+          </div>
         </div>
       </div>
 
       <main className="max-w-3xl mx-auto px-4 -mt-12 pb-20">
-        {/* ── STEP 1: Lookup form ── */}
+        {/* ── STEP 1: Lookup / Login ── */}
         {lookupState !== "found" && (
-          <div className="bg-white rounded-3xl shadow-2xl p-8 mb-6">
+          <div className="bg-white rounded-3xl shadow-2xl overflow-hidden mb-6">
+            {/* Tab switcher */}
+            <div className="flex border-b-2 border-slate-100">
+              <button
+                onClick={() => setLookupTab("login")}
+                className={`flex-1 flex items-center justify-center gap-2 py-4 text-sm font-black uppercase transition-colors ${
+                  lookupTab === "login"
+                    ? "text-[#06054e] border-b-2 border-[#06054e] -mb-px"
+                    : "text-slate-400 hover:text-slate-600"
+                }`}
+              >
+                <LogIn size={16} />
+                Login
+              </button>
+              <button
+                onClick={() => setLookupTab("search")}
+                className={`flex-1 flex items-center justify-center gap-2 py-4 text-sm font-black uppercase transition-colors ${
+                  lookupTab === "search"
+                    ? "text-[#06054e] border-b-2 border-[#06054e] -mb-px"
+                    : "text-slate-400 hover:text-slate-600"
+                }`}
+              >
+                <Search size={16} />
+                Find by Name
+              </button>
+            </div>
+
+            <div className="p-8">
+            {/* ── Login tab ── */}
+            {lookupTab === "login" && (
+              <LoginTab onSuccess={(memberId) => handleSessionLookup(memberId)} />
+            )}
+
+            {/* ── Name search tab ── */}
+            {lookupTab === "search" && (
+              <>
             <h2 className="text-2xl font-black uppercase text-[#06054e] mb-2">
               Find Your Profile
             </h2>
@@ -336,6 +548,9 @@ export default function NominatePage() {
                 </p>
               </div>
             )}
+            </>
+            )}
+            </div>{/* end .p-8 */}
           </div>
         )}
 

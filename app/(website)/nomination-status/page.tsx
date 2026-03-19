@@ -4,7 +4,7 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import {
   Search,
@@ -379,6 +379,35 @@ export default function NominationStatusPage() {
   const [lookupState,  setLookupState]  = useState<LookupState>("idle");
   const [player,       setPlayer]       = useState<PlayerInfo | null>(null);
   const [nominations,  setNominations]  = useState<NominationRecord[]>([]);
+  const [sessionUser,  setSessionUser]  = useState<{ username?: string; memberId?: string } | null>(null);
+
+  // ── Auto-load from session if logged in ────────────────────────────────────
+  useEffect(() => {
+    fetch("/api/auth/me")
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => {
+        if (data?.user?.memberId) {
+          setSessionUser(data.user);
+          handleSessionNominations(data.user.memberId);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const handleSessionNominations = async (memberId: string) => {
+    setLookupState("loading");
+    try {
+      const res = await fetch(`/api/players/nominations?memberId=${memberId}`);
+      const data = await res.json();
+      if (data.found) {
+        setPlayer(data.player);
+        setNominations(data.nominations ?? []);
+        setLookupState("found");
+      } else {
+        setLookupState("not_found");
+      }
+    } catch { setLookupState("error"); }
+  };
 
   // ── Lookup ──────────────────────────────────────────────────────────────────
   const handleLookup = async (e: React.FormEvent) => {

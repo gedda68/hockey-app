@@ -12,14 +12,36 @@ export interface SessionData {
   userId: string;
   email: string;
   name: string;
-  role: "super_admin" | "admin" | "user";
+  // Legacy role values kept for backward compat with existing admin code
+  // New member auth uses the full expanded role union
+  role:
+    | "super_admin"
+    | "admin"
+    | "user"
+    | "super-admin"
+    | "association-admin"
+    | "club-admin"
+    | "coach"
+    | "manager"
+    | "umpire"
+    | "volunteer"
+    | "member"
+    | "parent"
+    | "player"
+    | "team-selector"
+    | "assoc-coach"
+    | "assoc-selector";
   clubId: string | null;
   clubName?: string;
+  // Member-specific fields (populated when a member logs in via auth.username)
+  memberId?: string | null;
+  username?: string;
+  forcePasswordChange?: boolean;
 }
 
 // Encrypt session data
 async function encrypt(payload: SessionData) {
-  return await new SignJWT(payload)
+  return await new SignJWT(payload as unknown as Record<string, unknown>)
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
     .setExpirationTime("7d")
@@ -32,8 +54,8 @@ async function decrypt(token: string): Promise<SessionData | null> {
     const { payload } = await jwtVerify(token, key, {
       algorithms: ["HS256"],
     });
-    return payload as SessionData;
-  } catch (error) {
+    return payload as unknown as SessionData;
+  } catch {
     return null;
   }
 }
@@ -80,7 +102,9 @@ export async function isAuthenticated(): Promise<boolean> {
 // Check if user is super admin
 export async function isSuperAdmin(): Promise<boolean> {
   const session = await getSession();
-  return session?.role === "super_admin";
+  return (
+    session?.role === "super_admin" || session?.role === "super-admin"
+  );
 }
 
 // Get user's club ID

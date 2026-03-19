@@ -10,7 +10,11 @@ export type UserRole =
   | "umpire"
   | "volunteer"
   | "member"
-  | "parent";
+  | "parent"
+  | "player"
+  | "team-selector"
+  | "assoc-coach"
+  | "assoc-selector";
 
 export type Permission =
   // System permissions
@@ -63,7 +67,11 @@ export type Permission =
   | "selection.view"
   | "selection.nominate"
   | "selection.vote"
-  | "selection.manage";
+  | "selection.manage"
+
+  // Profile permissions
+  | "profile.view"
+  | "profile.edit";
 
 export interface RoleDefinition {
   role: UserRole;
@@ -116,6 +124,8 @@ export const ROLE_DEFINITIONS: Record<UserRole, RoleDefinition> = {
       "selection.nominate",
       "selection.vote",
       "selection.manage",
+      "profile.view",
+      "profile.edit",
     ],
     color: "from-purple-500 to-purple-700",
     icon: "👑",
@@ -236,7 +246,7 @@ export const ROLE_DEFINITIONS: Record<UserRole, RoleDefinition> = {
     role: "member",
     label: "Member / Player",
     description: "Can view own information",
-    permissions: ["member.view", "team.view"],
+    permissions: ["member.view", "team.view", "profile.view", "profile.edit"],
     color: "from-indigo-500 to-indigo-700",
     icon: "⭐",
   },
@@ -245,9 +255,81 @@ export const ROLE_DEFINITIONS: Record<UserRole, RoleDefinition> = {
     role: "parent",
     label: "Parent / Guardian",
     description: "Can manage children's registrations",
-    permissions: ["member.view", "registration.view", "team.view"],
+    permissions: [
+      "member.view",
+      "registration.view",
+      "team.view",
+      "profile.view",
+      "profile.edit",
+    ],
     color: "from-pink-500 to-pink-700",
     icon: "👨‍👩‍👧‍👦",
+  },
+
+  player: {
+    role: "player",
+    label: "Player",
+    description: "Can nominate for representative teams and view own profile",
+    permissions: [
+      "profile.view",
+      "profile.edit",
+      "selection.nominate",
+      "team.view",
+    ],
+    color: "from-emerald-500 to-emerald-700",
+    icon: "🏑",
+  },
+
+  "team-selector": {
+    role: "team-selector",
+    label: "Team Selector",
+    description:
+      "Can view nominations and select team members for their division",
+    permissions: [
+      "selection.view",
+      "selection.manage",
+      "member.view",
+      "team.view",
+      "team.roster",
+    ],
+    color: "from-teal-500 to-teal-700",
+    icon: "📝",
+  },
+
+  "assoc-coach": {
+    role: "assoc-coach",
+    label: "Association Coach",
+    description: "Association-level coaching staff with nomination visibility",
+    permissions: [
+      "selection.view",
+      "selection.nominate",
+      "member.view",
+      "team.view",
+      "team.roster",
+      "reports.view",
+    ],
+    color: "from-amber-500 to-amber-700",
+    icon: "🎽",
+  },
+
+  "assoc-selector": {
+    role: "assoc-selector",
+    label: "Association Selector",
+    description:
+      "Association-level selection management across all divisions",
+    permissions: [
+      "selection.view",
+      "selection.nominate",
+      "selection.manage",
+      "member.view",
+      "team.view",
+      "team.roster",
+      "team.create",
+      "team.edit",
+      "reports.view",
+    ],
+    color: "from-violet-500 to-violet-700",
+    icon: "🗂️",
   },
 };
 
@@ -260,6 +342,12 @@ export function getRoleDefinition(role: UserRole): RoleDefinition {
 export function hasPermission(role: UserRole, permission: Permission): boolean {
   const roleDefinition = ROLE_DEFINITIONS[role];
   return roleDefinition.permissions.includes(permission);
+}
+
+// Helper to check if role is an admin/staff role (not a player-portal role)
+export function isAdminRole(role: UserRole): boolean {
+  const nonAdminRoles: UserRole[] = ["player", "member", "parent"];
+  return !nonAdminRoles.includes(role);
 }
 
 // Helper to check if role can access resource
