@@ -16,6 +16,7 @@ import NotesHistorySection from "./sections/NotesHistorySection";
 import TournamentHistorySection from "./sections/TournamentHistorySection";
 import FeeHistorySection from "./sections/FeeHistorySection";
 import DisciplinarySection from "./sections/DisciplinarySection";
+import RepresentativeSection from "./sections/RepresentativeSection";
 import { PlayerFormData } from "./types/player.types";
 import {
   User,
@@ -32,6 +33,7 @@ import {
   Trophy,
   DollarSign,
   AlertTriangle,
+  Star,
 } from "lucide-react";
 
 interface PlayerFormProps {
@@ -124,6 +126,7 @@ export default function PlayerForm({
       tournamentHistory: [],
       feeHistory: [],
       disciplinaryHistory: [],
+      officialHistory: [],
     },
   );
 
@@ -196,11 +199,18 @@ export default function PlayerForm({
       description: "Admin notes",
     },
     {
+      id: "representative",
+      label: "Representative",
+      icon: Star,
+      component: RepresentativeSection,
+      description: "Nominate for rep teams and official roles",
+    },
+    {
       id: "tournaments",
-      label: "Tournaments",
+      label: "Rep History",
       icon: Trophy,
       component: TournamentHistorySection,
-      description: "Rep nominations & history",
+      description: "Tournament & official role history",
     },
     {
       id: "fees",

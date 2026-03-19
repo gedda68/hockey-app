@@ -192,8 +192,7 @@ export default function AdminPanel() {
         <div className="grid grid-cols-1 gap-6">
           {rosters.map((roster) => (
             <DivisionCard
-              key={roster.id}
-              //key={`${roster.ageGroup}-${roster.season || selectedYear}`}
+              key={`${roster.ageGroup}-${roster.season || selectedYear}`}
               roster={roster}
               isExpanded={expandedRoster === roster.ageGroup}
               onToggleExpand={() =>

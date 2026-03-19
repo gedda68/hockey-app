@@ -11,6 +11,7 @@ import {
   Loader2,
   Calendar,
   Archive,
+  ClipboardList,
 } from "lucide-react";
 
 /* ---- Local types ----
@@ -314,6 +315,17 @@ export default function RepresentativePage() {
           <span className="px-4 py-1.5 bg-black/30 rounded-full text-[10px] font-black uppercase tracking-widest border border-white/10">
             Updated: {activeData?.lastUpdated || "TBA"}
           </span>
+
+          {/* Self-nomination CTA */}
+          <div className="mt-8">
+            <Link
+              href="/nominate"
+              className="inline-flex items-center gap-3 px-8 py-4 bg-yellow-400 text-[#06054e] rounded-2xl font-black uppercase text-sm tracking-widest shadow-lg hover:bg-yellow-300 hover:scale-105 transition-all"
+            >
+              <ClipboardList size={20} />
+              Nominate for Rep
+            </Link>
+          </div>
         </div>
       </div>
 

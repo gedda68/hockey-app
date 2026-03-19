@@ -168,7 +168,12 @@ export interface TournamentHistoryEntry {
   tournamentLocation?: string;
   tournamentStartDate?: string;
   nominatedDate: string;
-  nominationStatus: "pending" | "accepted" | "withdrawn" | "rejected" | "played";
+  nominationStatus:
+    | "pending"
+    | "accepted"
+    | "withdrawn"
+    | "rejected"
+    | "played";
   feeId?: string;
 }
 
@@ -177,8 +182,8 @@ export interface FeeRecord {
   date: string;
   type: "nomination" | "registration" | "association" | "other";
   description: string;
-  amount: number;        // AUD dollars
-  currency: string;      // "AUD"
+  amount: number; // AUD dollars
+  currency: string; // "AUD"
   status: "pending" | "paid" | "overdue" | "waived" | "refunded";
   paymentMethod?: "stripe" | "paypal" | "cash" | "bank_transfer" | "other";
   transactionId?: string;
@@ -197,6 +202,24 @@ export interface DisciplinaryRecord {
   endDate?: string;
   isActive: boolean;
   imposedBy?: string;
+  notes?: string;
+}
+
+export interface RepOfficialNomination {
+  id: string;
+  season: string;
+  ageGroup: string;
+  tournamentId?: string;
+  tournamentTitle?: string;
+  role:
+    | "head_coach"
+    | "assistant_coach"
+    | "manager"
+    | "umpire"
+    | "trainer"
+    | "other";
+  nominatedDate: string;
+  status: "pending" | "accepted" | "withdrawn" | "rejected" | "fulfilled";
   notes?: string;
 }
 
@@ -261,6 +284,9 @@ export interface PlayerFormData {
   tournamentHistory?: TournamentHistoryEntry[];
   feeHistory?: FeeRecord[];
   disciplinaryHistory?: DisciplinaryRecord[];
+
+  // Rep Official Role History (coach, manager, umpire etc.)
+  officialHistory?: RepOfficialNomination[];
 }
 
 // Base Section Props (used by all section components)
@@ -693,4 +719,5 @@ export type {
   TournamentHistoryEntry,
   FeeRecord,
   DisciplinaryRecord,
+  RepOfficialNomination,
 };
