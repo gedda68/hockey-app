@@ -1,9 +1,9 @@
 // app/admin/layout.tsx
-// Updated: Added AdminBrandingBar for club/association-scoped users
+// Admin layout — fixed branded header (via root layout) + sidebar + content
 
 import { Metadata } from "next";
 import AdminSidebar from "@/components/admin/AdminSidebar";
-import AdminBrandingBar from "@/components/admin/AdminBrandingBar";
+import AdminHeader from "@/components/admin/AdminHeader";
 
 export const metadata: Metadata = {
   title: "Admin Panel - Hockey Management",
@@ -16,14 +16,16 @@ export default function AdminLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex min-h-screen bg-slate-50">
-      {/* Sidebar */}
-      <AdminSidebar />
+    <div className="min-h-screen bg-slate-50">
+      {/* Fixed branded header (club gradient / super-admin navy) */}
+      <AdminHeader />
 
-      {/* Main Content */}
-      <div className="flex-1 overflow-x-hidden flex flex-col">
-        <AdminBrandingBar />
-        <div className="flex-1 pt-16">{children}</div>
+      {/* pt-16 clears the fixed header */}
+      <div className="flex pt-16">
+        <AdminSidebar />
+        <main className="flex-1 min-h-[calc(100vh-64px)] overflow-x-hidden">
+          {children}
+        </main>
       </div>
     </div>
   );

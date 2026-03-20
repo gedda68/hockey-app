@@ -6,7 +6,9 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/lib/auth/AuthContext";
 import { Toaster } from "sonner";
-import Header from "@/components/layout/Header";
+import ConditionalPublicHeader from "@/components/layout/ConditionalPublicHeader";
+import ConditionalBodyPadding from "@/components/layout/ConditionalBodyPadding";
+import TopNavbarWrapper from "@/components/layout/TopNavbarWrapper";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -24,12 +26,13 @@ export default function RootLayout({
     <html lang="en">
       <body className={inter.className}>
         <AuthProvider>
-          {/* Fixed Header - always at top */}
-          <Header />
+          {/* Public header — hidden automatically on /admin routes */}
+          <ConditionalPublicHeader>
+            <TopNavbarWrapper />
+          </ConditionalPublicHeader>
 
-          {/* Body content wrapper with MORE padding for fixed header */}
-          {/* Increased to 180px to ensure "HOCKEY MANAGEMENT" is fully visible */}
-          <div className="pt-16"> {children}</div>
+          {/* Body content — public pages get pt-16 for fixed header; admin routes handle their own top spacing */}
+          <ConditionalBodyPadding>{children}</ConditionalBodyPadding>
 
           {/* Toast Notifications */}
           <Toaster position="top-right" />

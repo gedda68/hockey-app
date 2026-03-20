@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { LogOut } from "lucide-react";
 import SidebarItem from "../../app/admin/components/SidebarItem";
@@ -8,6 +8,24 @@ import { menuConfig, MenuItem } from "../../app/admin/global-config/menuConfig";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { User } from "@/lib/auth/AuthContext";
 import { toast } from "sonner";
+
+interface SidebarBranding {
+  primaryColor: string;
+  secondaryColor: string;
+  name: string;
+  shortName?: string;
+  logo?: string;
+}
+
+const SIDEBAR_CLUB_ROLES = [
+  "club-admin", "club-committee", "registrar", "coach", "manager",
+  "team-selector", "volunteer", "umpire",
+];
+
+const SIDEBAR_ASSOC_ROLES = [
+  "association-admin", "assoc-committee", "assoc-coach",
+  "assoc-selector", "assoc-registrar",
+];
 
 // Role → which top-level menu labels to show (fallback when no club/assoc context)
 const ROLE_MENU_FILTER: Record<string, string[]> = {
@@ -257,6 +275,46 @@ export default function AdminSidebar() {
   const [expandedMenus, setExpandedMenus] = useState<string[]>(["Representative"]);
   const [expandedSubMenus, setExpandedSubMenus] = useState<string[]>([]);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [branding, setBranding] = useState<SidebarBranding | null>(null);
+
+  useEffect(() => {
+    if (!user) return;
+
+    if (SIDEBAR_CLUB_ROLES.includes(user.role) && (user.clubSlug || user.clubId)) {
+      const clubRef = user.clubSlug || user.clubId;
+      fetch(`/api/admin/clubs/${clubRef}`)
+        .then((r) => r.json())
+        .then((data) => {
+          const club = data.club;
+          if (club) {
+            setBranding({
+              primaryColor: club.colors?.primaryColor || "#06054e",
+              secondaryColor: club.colors?.secondaryColor || "#1a1870",
+              name: club.name,
+              shortName: club.shortName,
+              logo: club.logo,
+            });
+          }
+        })
+        .catch(() => {});
+    } else if (SIDEBAR_ASSOC_ROLES.includes(user.role) && user.associationId) {
+      fetch(`/api/admin/associations/${user.associationId}`)
+        .then((r) => r.json())
+        .then((data) => {
+          const assoc = data.association || data;
+          if (assoc?.name || assoc?.fullName) {
+            setBranding({
+              primaryColor: assoc.branding?.primaryColor || "#06054e",
+              secondaryColor: assoc.branding?.secondaryColor || "#1a1870",
+              name: assoc.name || assoc.fullName,
+              shortName: assoc.code || assoc.acronym,
+              logo: assoc.branding?.logo,
+            });
+          }
+        })
+        .catch(() => {});
+    }
+  }, [user?.clubId, user?.clubSlug, user?.associationId, user?.role]);
 
   const toggleMenu = (label: string) => {
     setExpandedMenus((prev) =>
@@ -310,21 +368,40 @@ export default function AdminSidebar() {
           fixed md:static
           top-0 left-0
           w-64 min-h-screen
-          bg-[#06054e] text-white
+          text-white
           flex flex-col
           z-[950]
           transform transition-transform duration-300
           ${mobileOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}
         `}
+        style={{ backgroundColor: branding?.primaryColor ?? "#06054e" }}
       >
-        {/* Header */}
-        <div className="p-6 border-b border-white/10 flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-black uppercase">Hockey Admin</h1>
-            <p className="text-xs text-slate-300 mt-1">Management Portal</p>
+        {/* Sidebar entity header — logo + name */}
+        <div
+          className="p-4 border-b border-white/10 flex items-center justify-between gap-3"
+          style={{ backgroundColor: branding ? `${branding.primaryColor}cc` : "transparent" }}
+        >
+          <div className="flex items-center gap-3 min-w-0">
+            {branding?.logo ? (
+              <img
+                src={branding.logo}
+                alt={branding.shortName || branding.name}
+                className="h-9 w-9 object-contain rounded-lg bg-white/10 p-1 flex-shrink-0"
+              />
+            ) : (
+              <div className="h-9 w-9 bg-white/20 rounded-lg flex items-center justify-center flex-shrink-0 text-xl">
+                🏑
+              </div>
+            )}
+            <div className="min-w-0">
+              <h1 className="text-sm font-black uppercase leading-tight truncate">
+                {branding?.name ?? "Hockey Admin"}
+              </h1>
+              <p className="text-xs text-white/60 mt-0.5">Management Portal</p>
+            </div>
           </div>
           <button
-            className="md:hidden text-white/70"
+            className="md:hidden text-white/70 flex-shrink-0"
             onClick={() => setMobileOpen(false)}
           >
             ✕
@@ -348,15 +425,21 @@ export default function AdminSidebar() {
           </ul>
         </nav>
 
-        {/* Footer — real user info + logout */}
-        <div className="p-6 border-t border-white/10">
+        {/* Footer — user info + logout */}
+        <div className="p-4 border-t border-white/10">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-yellow-400 text-[#06054e] rounded-full flex items-center justify-center font-black text-sm flex-shrink-0">
+            <div
+              className="w-9 h-9 rounded-full flex items-center justify-center font-black text-sm flex-shrink-0"
+              style={{
+                backgroundColor: branding?.secondaryColor ?? "#FFD700",
+                color: branding?.primaryColor ?? "#06054e",
+              }}
+            >
               {initials}
             </div>
             <div className="flex-1 min-w-0">
               <div className="font-bold text-sm truncate">{displayName}</div>
-              <div className="text-xs text-slate-300 truncate">{displayRole}</div>
+              <div className="text-xs text-white/60 truncate">{displayRole}</div>
             </div>
           </div>
           <button
