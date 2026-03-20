@@ -77,16 +77,21 @@ export default function EmergencyContactStep({
       );
       if (res.ok) {
         const responseData = await res.json();
-        const results = responseData.members.map((member: any) => ({
-          memberId: member.memberId,
-          firstName: member.personalInfo.firstName,
-          lastName: member.personalInfo.lastName,
-          displayName: member.personalInfo.displayName,
-          email: member.contact.email,
-          phone: member.contact.phone,
-          mobile: member.contact.mobile,
-          dateOfBirth: member.personalInfo.dateOfBirth,
-        }));
+        const results = responseData.members.map((member: any) => {
+          // Handle mixed schemas: nested personalInfo/contact, or flat fields
+          const pi = member.personalInfo || {};
+          const ct = member.contact      || {};
+          return {
+            memberId:    member.memberId,
+            firstName:   pi.firstName   || member.firstName  || "",
+            lastName:    pi.lastName    || member.lastName   || "",
+            displayName: pi.displayName || `${pi.firstName || member.firstName || ""} ${pi.lastName || member.lastName || ""}`.trim(),
+            email:       ct.primaryEmail || ct.email || member.email || "",
+            phone:       ct.phone        || member.phone  || "",
+            mobile:      ct.mobile       || member.mobile || ct.phone || member.phone || "",
+            dateOfBirth: pi.dateOfBirth  || member.dateOfBirth || "",
+          };
+        });
 
         setSearchResults(results);
         setShowResults(true);
