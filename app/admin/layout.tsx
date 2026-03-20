@@ -1,8 +1,9 @@
 // app/admin/layout.tsx
-// FIXED: Removed incorrect pt-20 padding
+// Updated: Added AdminBrandingBar for club/association-scoped users
 
 import { Metadata } from "next";
 import AdminSidebar from "@/components/admin/AdminSidebar";
+import AdminBrandingBar from "@/components/admin/AdminBrandingBar";
 
 export const metadata: Metadata = {
   title: "Admin Panel - Hockey Management",
@@ -19,8 +20,11 @@ export default function AdminLayout({
       {/* Sidebar */}
       <AdminSidebar />
 
-      {/* Main Content - NO pt-20 */}
-      <div className="flex-1 overflow-x-hidden pt-32">{children}</div>
+      {/* Main Content */}
+      <div className="flex-1 overflow-x-hidden flex flex-col">
+        <AdminBrandingBar />
+        <div className="flex-1 pt-16">{children}</div>
+      </div>
     </div>
   );
 }

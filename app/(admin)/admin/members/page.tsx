@@ -18,6 +18,17 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import Link from "next/link";
+import { useAuth } from "@/lib/auth/AuthContext";
+
+const CLUB_SCOPED_ROLES = [
+  "club-admin",
+  "club-committee",
+  "registrar",
+  "coach",
+  "manager",
+  "team-selector",
+  "volunteer",
+];
 
 interface Member {
   memberId: string;
@@ -47,6 +58,9 @@ interface BulkResult {
 }
 
 export default function MembersPage() {
+  const { user } = useAuth();
+  const isClubScoped = !!(user && CLUB_SCOPED_ROLES.includes(user.role) && user.clubId);
+
   const [members, setMembers] = useState<Member[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
@@ -96,7 +110,7 @@ export default function MembersPage() {
     }, 300);
 
     return () => clearTimeout(timer);
-  }, [page, statusFilter, searchTerm]);
+  }, [page, statusFilter, searchTerm, isClubScoped]);
 
   const fetchMembers = async () => {
     setIsLoading(true);
@@ -112,6 +126,10 @@ export default function MembersPage() {
 
       if (searchTerm.trim()) {
         params.append("search", searchTerm.trim());
+      }
+
+      if (isClubScoped && user?.clubId) {
+        params.append("clubId", user.clubId);
       }
 
       console.log("🔍 Fetching members with params:", params.toString());

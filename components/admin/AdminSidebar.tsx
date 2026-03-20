@@ -37,13 +37,44 @@ function mc(label: string): MenuItem | undefined {
   return menuConfig.find((m) => m.label === label);
 }
 
-/** Standalone items that don't exist as top-level entries in menuConfig. */
-const feesItem: MenuItem = {
-  label: "Fees",
-  href: "/admin/fees",
-  icon: "💵",
-  description: "Fee management",
-};
+/** Returns the fees menu item with the correct href based on role/entity. */
+function getFeesItem(
+  role: string,
+  clubRef: string | null | undefined,
+  assocId: string | null | undefined
+): MenuItem {
+  if (
+    ["club-admin", "club-committee", "registrar", "coach", "manager", "team-selector", "volunteer", "umpire"].includes(role) &&
+    clubRef
+  ) {
+    return {
+      label: "Fees",
+      href: `/admin/clubs/${clubRef}/fees`,
+      icon: "💵",
+      description: "Fee management",
+    };
+  }
+
+  if (
+    ["association-admin", "assoc-committee", "assoc-coach", "assoc-selector", "assoc-registrar"].includes(role) &&
+    assocId
+  ) {
+    return {
+      label: "Fees",
+      href: `/admin/associations/${assocId}/fees`,
+      icon: "💵",
+      description: "Fee management",
+    };
+  }
+
+  return {
+    label: "Fees",
+    href: "/admin/fees",
+    icon: "💵",
+    description: "Fee management",
+  };
+}
+
 const nominationsItem: MenuItem = {
   label: "Nominations",
   href: "/admin/nominations",
@@ -79,6 +110,8 @@ function buildMenuForUser(user: User | null): MenuItem[] {
       icon: "🏢",
       description: "Club Management",
     };
+
+    const feesItem = getFeesItem(role, clubRef, user.associationId);
 
     if (role === "club-admin") {
       return [
@@ -168,6 +201,8 @@ function buildMenuForUser(user: User | null): MenuItem[] {
       description: "Association Management",
     };
 
+    const feesItem = getFeesItem(role, clubRef, assocId);
+
     if (role === "association-admin") {
       return [
         myAssoc,
@@ -177,6 +212,7 @@ function buildMenuForUser(user: User | null): MenuItem[] {
         mc("Members")!,
         mc("Teams")!,
         mc("Tournaments")!,
+        feesItem,
         mc("Reports")!,
         mc("Settings")!,
       ].filter((item): item is MenuItem => item !== undefined);

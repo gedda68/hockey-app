@@ -5,6 +5,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useAuth } from "@/lib/auth/AuthContext";
 import {
   Search,
   Filter,
@@ -75,8 +76,20 @@ function calcAgeForSeason(dob: string, year: number) {
   return year - new Date(dob).getFullYear();
 }
 
+const CLUB_SCOPED_ROLES = [
+  "club-admin",
+  "club-committee",
+  "registrar",
+  "coach",
+  "manager",
+  "team-selector",
+  "volunteer",
+];
+
 export default function PlayersList() {
   const router = useRouter();
+  const { user } = useAuth();
+  const isClubScoped = !!(user && CLUB_SCOPED_ROLES.includes(user.role) && user.clubId);
   const [players, setPlayers] = useState<Player[]>([]);
   const [clubs, setClubs] = useState<Club[]>([]);
   const [loading, setLoading] = useState(true);
@@ -85,9 +98,7 @@ export default function PlayersList() {
   const [clubSearchText, setClubSearchText] = useState("");
   const [clubFilter, setClubFilter] = useState("all");
   const [showClubSuggestions, setShowClubSuggestions] = useState(false);
-  const [openOpportunities, setOpenOpportunities] = useState<OpenOpportunity[]>(
-    [],
-  );
+  const [openOpportunities, setOpenOpportunities] = useState<OpenOpportunity[]>([]);
   const [seasonNominations, setSeasonNominations] = useState<any[]>([]);
   const [nominationModal, setNominationModal] = useState<{
     player: Player;
@@ -96,14 +107,19 @@ export default function PlayersList() {
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [isClubScoped, user?.clubId]);
 
   const fetchData = async () => {
     try {
       setLoading(true);
 
+      const playersUrl =
+        isClubScoped && user?.clubId
+          ? `/api/admin/players?clubId=${user.clubId}`
+          : `/api/admin/players`;
+
       const [playersRes, clubsRes, oppsRes, nomsRes] = await Promise.all([
-        fetch("/api/admin/players"),
+        fetch(playersUrl),
         fetch("/api/admin/clubs"),
         fetch(`/api/admin/nominations/available?season=${CURRENT_SEASON}`),
         fetch(`/api/admin/nominations?season=${CURRENT_SEASON}`),
@@ -111,9 +127,7 @@ export default function PlayersList() {
 
       const playersData = await playersRes.json();
       const clubsData = await clubsRes.json();
-      const oppsData = oppsRes.ok
-        ? await oppsRes.json()
-        : { opportunities: [] };
+      const oppsData = oppsRes.ok ? await oppsRes.json() : { opportunities: [] };
       const nomsData = nomsRes.ok ? await nomsRes.json() : [];
 
       setClubs(clubsData.clubs || []);
@@ -264,6 +278,52 @@ export default function PlayersList() {
               />
             </div>
           </div>
+
+          {/* Club Filter — only shown for non-club-scoped users */}
+          {!isClubScoped && (
+            <div className="mb-4 relative">
+              <div className="relative">
+                <Filter
+                  className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
+                  size={18}
+                />
+                <input
+                  type="text"
+                  placeholder="Filter by club..."
+                  value={clubSearchText}
+                  onChange={(e) => {
+                    setClubSearchText(e.target.value);
+                    setShowClubSuggestions(true);
+                    if (!e.target.value) setClubFilter("all");
+                  }}
+                  onFocus={() => setShowClubSuggestions(true)}
+                  onBlur={() => setTimeout(() => setShowClubSuggestions(false), 150)}
+                  className="w-full pl-12 pr-4 py-3 border-2 border-slate-200 rounded-xl font-bold focus:border-blue-400 outline-none"
+                />
+                {clubSearchText && (
+                  <button
+                    onClick={() => handleClubSelect(null)}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+              {showClubSuggestions && filteredClubSuggestions.length > 0 && (
+                <div className="absolute z-10 w-full mt-1 bg-white border-2 border-slate-200 rounded-xl shadow-xl max-h-48 overflow-y-auto">
+                  {filteredClubSuggestions.map((club) => (
+                    <button
+                      key={club.clubId}
+                      onMouseDown={() => handleClubSelect(club)}
+                      className="w-full text-left px-4 py-2 hover:bg-blue-50 font-bold text-slate-700"
+                    >
+                      {club.name}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Status Filter Tabs */}
           <div className="flex flex-wrap gap-2 mb-4">
@@ -560,10 +620,7 @@ export default function PlayersList() {
                                 <button
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    setNominationModal({
-                                      player,
-                                      opportunity: opp,
-                                    });
+                                    setNominationModal({ player, opportunity: opp });
                                   }}
                                   className="px-3 py-1 bg-[#06054e] text-white rounded-lg font-black uppercase text-[10px] hover:bg-[#0a0870] transition-all"
                                 >
