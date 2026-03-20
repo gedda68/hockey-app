@@ -1,6 +1,6 @@
 // app/admin/players/[playerId]/edit/page.tsx
-// Edit player page - Loads ALL data from database including consent, status, notes
 
+import { headers } from "next/headers";
 import PlayerForm from "@/components/admin/players/PlayerForm";
 import { notFound } from "next/navigation";
 
@@ -8,15 +8,12 @@ interface EditPlayerPageProps {
   params: Promise<{ playerId: string }>;
 }
 
-async function getPlayerData(playerId: string) {
-  try {
-    console.log("📋 Fetching all data for player:", playerId);
+async function getPlayerData(playerId: string, cookie: string) {
+  const base = process.env.NEXTAUTH_URL || "http://localhost:3000";
+  const opts = { cache: "no-store" as const, headers: cookie ? { cookie } : {} };
 
-    // Fetch main player data
-    const playerRes = await fetch(
-      `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000"}/api/admin/players/${playerId}`,
-      { cache: "no-store" },
-    );
+  try {
+    const playerRes = await fetch(`${base}/api/admin/players/${playerId}`, opts);
 
     if (!playerRes.ok) {
       console.error(`Failed to fetch player ${playerId}:`, playerRes.status);
@@ -24,87 +21,47 @@ async function getPlayerData(playerId: string) {
     }
 
     const playerData = await playerRes.json();
-    console.log("✅ Player data loaded");
 
-    // Fetch consent data (if exists)
+    // Fetch optional sub-sections (ignore failures)
     let consentsData = null;
-    try {
-      const consentsRes = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000"}/api/admin/players/${playerId}/consent`,
-        { cache: "no-store" },
-      );
-      if (consentsRes.ok) {
-        consentsData = await consentsRes.json();
-        console.log("✅ Consent data loaded");
-      }
-    } catch (err) {
-      console.log("ℹ️ No consent data found");
-    }
-
-    // Fetch status data (if exists)
     let statusData = null;
-    try {
-      const statusRes = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000"}/api/admin/players/${playerId}/status`,
-        { cache: "no-store" },
-      );
-      if (statusRes.ok) {
-        statusData = await statusRes.json();
-        console.log("✅ Status data loaded");
-      }
-    } catch (err) {
-      console.log("ℹ️ No status data found");
-    }
-
-    // Fetch notes data (if exists)
     let notesData = null;
-    try {
-      const notesRes = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000"}/api/admin/players/${playerId}/notes`,
-        { cache: "no-store" },
-      );
-      if (notesRes.ok) {
-        notesData = await notesRes.json();
-        console.log("✅ Notes data loaded");
-      }
-    } catch (err) {
-      console.log("ℹ️ No notes data found");
-    }
 
-    // Merge all data together
-    const completePlayerData = {
+    try {
+      const r = await fetch(`${base}/api/admin/players/${playerId}/consent`, opts);
+      if (r.ok) consentsData = await r.json();
+    } catch {}
+
+    try {
+      const r = await fetch(`${base}/api/admin/players/${playerId}/status`, opts);
+      if (r.ok) statusData = await r.json();
+    } catch {}
+
+    try {
+      const r = await fetch(`${base}/api/admin/players/${playerId}/notes`, opts);
+      if (r.ok) notesData = await r.json();
+    } catch {}
+
+    return {
       ...playerData.player,
-      // Override with subsection data if exists
-      consents: consentsData?.consents ||
-        playerData.player.consents || {
-          photoConsent: false,
-          mediaConsent: false,
-          transportConsent: false,
-          firstAidConsent: false,
-          emergencyTreatmentConsent: false,
-        },
-      status: statusData?.status ||
-        playerData.player.status || {
-          current: "pending",
-          registrationDate: "",
-          expiryDate: "",
-          renewalReminderDate: "",
-          seasons: [],
-        },
+      consents: consentsData?.consents || playerData.player.consents || {
+        photoConsent: false,
+        mediaConsent: false,
+        transportConsent: false,
+        firstAidConsent: false,
+        emergencyTreatmentConsent: false,
+      },
+      status: statusData?.status || playerData.player.status || {
+        current: "pending",
+        registrationDate: "",
+        expiryDate: "",
+        renewalReminderDate: "",
+        seasons: [],
+      },
       notes: notesData?.notes || playerData.player.notes || [],
     };
-
-    console.log("✅ Complete player data assembled:", {
-      playerId: completePlayerData.playerId,
-      name: `${completePlayerData.firstName} ${completePlayerData.lastName}`,
-      hasConsents: !!completePlayerData.consents,
-      hasStatus: !!completePlayerData.status,
-      notesCount: completePlayerData.notes?.length || 0,
-    });
-
-    return completePlayerData;
   } catch (error: any) {
-    console.error("❌ Error loading player data:", error);
+    console.error("Error loading player data:", error);
     return null;
   }
 }
@@ -112,7 +69,10 @@ async function getPlayerData(playerId: string) {
 export default async function EditPlayerPage({ params }: EditPlayerPageProps) {
   const { playerId } = await params;
 
-  const player = await getPlayerData(playerId);
+  const reqHeaders = await headers();
+  const cookie = reqHeaders.get("cookie") || "";
+
+  const player = await getPlayerData(playerId, cookie);
 
   if (!player) {
     notFound();
@@ -120,7 +80,6 @@ export default async function EditPlayerPage({ params }: EditPlayerPageProps) {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
-      {/* Header */}
       <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white py-8 shadow-lg">
         <div className="max-w-7xl mx-auto px-6">
           <h1 className="text-4xl font-black mb-2">
@@ -132,7 +91,6 @@ export default async function EditPlayerPage({ params }: EditPlayerPageProps) {
         </div>
       </div>
 
-      {/* Form */}
       <div className="max-w-7xl mx-auto px-6 py-8">
         <PlayerForm mode="edit" existingPlayer={player} />
       </div>

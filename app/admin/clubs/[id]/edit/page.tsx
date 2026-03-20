@@ -1,14 +1,15 @@
 // app/admin/clubs/[id]/edit/page.tsx
-// FIXED: Loads ClubForm with data
 
 import { notFound } from "next/navigation";
+import { headers } from "next/headers";
 import ClubForm from "@/components/admin/clubs/ClubForm";
 
-async function getClub(id: string) {
+async function getClub(id: string, cookie: string) {
   try {
     const baseUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
     const res = await fetch(`${baseUrl}/api/admin/clubs/${id}`, {
       cache: "no-store",
+      headers: cookie ? { cookie } : {},
     });
 
     if (!res.ok) {
@@ -24,11 +25,12 @@ async function getClub(id: string) {
   }
 }
 
-async function getAssociations() {
+async function getAssociations(cookie: string) {
   try {
     const baseUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
     const res = await fetch(`${baseUrl}/api/admin/associations`, {
       cache: "no-store",
+      headers: cookie ? { cookie } : {},
     });
 
     if (!res.ok) {
@@ -51,9 +53,13 @@ export default async function EditClubPage({
 }) {
   const { id } = await params;
 
+  // Forward the incoming request's session cookie to internal API calls
+  const reqHeaders = await headers();
+  const cookie = reqHeaders.get("cookie") || "";
+
   const [club, associations] = await Promise.all([
-    getClub(id),
-    getAssociations(),
+    getClub(id, cookie),
+    getAssociations(cookie),
   ]);
 
   if (!club) {

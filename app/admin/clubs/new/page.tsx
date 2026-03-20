@@ -1,14 +1,16 @@
 // app/admin/clubs/new/page.tsx
 // Create new club page
 
+import { headers } from "next/headers";
 import ClubForm from "@/components/admin/clubs/ClubForm";
 
-async function getAssociations() {
+async function getAssociations(cookie: string) {
   try {
     const res = await fetch(
-      `${process.env.NEXTAUTH_URL}/api/admin/associations`,
+      `${process.env.NEXTAUTH_URL || "http://localhost:3000"}/api/admin/associations`,
       {
         cache: "no-store",
+        headers: cookie ? { cookie } : {},
       },
     );
 
@@ -23,7 +25,9 @@ async function getAssociations() {
 }
 
 export default async function NewClubPage() {
-  const associations = await getAssociations();
+  const reqHeaders = await headers();
+  const cookie = reqHeaders.get("cookie") || "";
+  const associations = await getAssociations(cookie);
 
   return <ClubForm associations={associations} />;
 }

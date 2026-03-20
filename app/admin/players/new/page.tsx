@@ -1,4 +1,5 @@
 // app/admin/players/new/page.tsx
+import { headers } from "next/headers";
 import PlayerForm from "@/components/admin/players/PlayerForm";
 
 export const metadata = {
@@ -6,11 +7,12 @@ export const metadata = {
   description: "Register a new player",
 };
 
-async function getClubs() {
+async function getClubs(cookie: string) {
   try {
     const baseUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
     const res = await fetch(`${baseUrl}/api/admin/clubs`, {
       cache: "no-store",
+      headers: cookie ? { cookie } : {},
     });
 
     if (!res.ok) {
@@ -38,7 +40,9 @@ async function getTeams() {
 }
 
 export default async function NewPlayerPage() {
-  const [clubs, teams] = await Promise.all([getClubs(), getTeams()]);
+  const reqHeaders = await headers();
+  const cookie = reqHeaders.get("cookie") || "";
+  const [clubs, teams] = await Promise.all([getClubs(cookie), getTeams()]);
 
   return <PlayerForm clubs={clubs} teams={teams} />;
 }
