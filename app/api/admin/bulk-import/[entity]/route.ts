@@ -30,17 +30,22 @@ function uid(): string {
 
 function toDate(v: string): string | null {
   if (!v) return null;
-  // accept DD/MM/YYYY, MM/DD/YYYY, YYYY-MM-DD
-  const isoMatch = v.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (isoMatch) return v;
+  // YYYY-MM-DD
+  if (/^\d{4}-\d{2}-\d{2}$/.test(v)) return v;
+  // DD/MM/YYYY or DD-MM-YYYY (Australian locale)
   const slashMatch = v.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);
   if (slashMatch) {
-    const [, a, b, c] = slashMatch;
-    const year = c.length === 2 ? `20${c}` : c;
-    // Assume DD/MM/YYYY for Australian locale
-    return `${year}-${b.padStart(2, "0")}-${a.padStart(2, "0")}`;
+    const [, d, m, y] = slashMatch;
+    const year = y.length === 2 ? `20${y}` : y;
+    return `${year}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
   }
   return null;
+}
+
+/** Parse "yes"/"no"/"true"/"false"/"1"/"0" → boolean */
+function toBool(v: string): boolean {
+  const s = (v ?? "").toString().toLowerCase().trim();
+  return s === "yes" || s === "true" || s === "1";
 }
 
 // ── importers ─────────────────────────────────────────────────────────────────
@@ -140,75 +145,202 @@ async function importMembers(db: any, rows: ImportRow[]): Promise<ImportResult> 
 
   for (let i = 0; i < rows.length; i++) {
     const r = rows[i];
-    const firstName = norm(r["firstName"] || r["First Name"] || r["first_name"]);
-    const lastName  = norm(r["lastName"]  || r["Last Name"]  || r["last_name"]);
-    const email     = norm(r["email"] || r["Email"]);
 
-    if (!firstName || !lastName) { result.errors.push({ row: i + 2, message: "Missing required fields: firstName, lastName" }); continue; }
+    // ── Required fields ───────────────────────────────────────────────────────
+    const firstName = norm(r["firstName"] || r["First Name"]);
+    const lastName  = norm(r["lastName"]  || r["Last Name"]);
+    if (!firstName || !lastName) {
+      result.errors.push({ row: i + 2, message: "Missing required fields: firstName, lastName" });
+      continue;
+    }
 
-    // Resolve club
-    const clubName = norm(r["clubName"] || r["Club Name"] || r["club"]);
-    const clubIdRaw = norm(r["clubId"] || r["Club ID"]);
+    const primaryEmail = norm(r["primaryEmail"] || r["Email"] || r["email"]);
+    const dob          = toDate(norm(r["dateOfBirth"] || r["Date of Birth"] || r["DOB"]));
+    const today        = new Date().toISOString().split("T")[0];
+
+    // ── Resolve club ──────────────────────────────────────────────────────────
+    const clubName  = norm(r["clubName"] || r["Club Name"]);
+    const clubIdRaw = norm(r["clubId"]   || r["Club ID"]);
     let clubId: string | null = clubIdRaw || null;
     if (!clubId && clubName) {
-      const club = await db.collection("clubs").findOne({ $or: [{ name: clubName }, { shortName: clubName }, { slug: generateSlug(clubName) }] });
+      const club = await db.collection("clubs").findOne({
+        $or: [{ name: clubName }, { shortName: clubName }, { slug: generateSlug(clubName) }],
+      });
       clubId = club?.id ?? null;
     }
 
-    const dob = toDate(norm(r["dateOfBirth"] || r["Date of Birth"] || r["dob"] || r["DOB"]));
-    const gender = norm(r["gender"] || r["Gender"]);
+    // ── Deduplicate: email → memberId → name+DOB ──────────────────────────────
+    const existing = primaryEmail
+      ? await db.collection("members").findOne({ "contact.primaryEmail": primaryEmail })
+      : await db.collection("members").findOne({
+          "personalInfo.firstName": firstName,
+          "personalInfo.lastName":  lastName,
+          "personalInfo.dateOfBirth": dob,
+        });
 
-    const existing = email
-      ? await db.collection("members").findOne({
-          $or: [
-            { "contact.email": email },
-            { "personalInfo.email": email },
-          ],
-        })
-      : null;
+    const memberId = existing?.memberId ?? norm(r["memberId"] || r["Member ID"]) || `MBR-${uid().toUpperCase()}`;
 
-    const memberId = existing?.memberId ?? `MBR-${uid().toUpperCase()}`;
-    const phone = norm(r["phone"] || r["Phone"] || r["mobile"] || r["Mobile"]);
+    // ── Roles — accept comma-separated list ───────────────────────────────────
+    const rolesRaw = norm(r["roles"] || r["Roles"]);
+    const roles = rolesRaw
+      ? rolesRaw.split(",").map((s) => s.trim()).filter(Boolean)
+      : existing?.roles ?? ["role-player"];
 
+    // ── Emergency contacts ────────────────────────────────────────────────────
+    const ecName     = norm(r["emergencyContactName"]         || r["Emergency Contact Name"]);
+    const ecRelation = norm(r["emergencyContactRelationship"] || r["Emergency Contact Relationship"]);
+    const ecPhone    = norm(r["emergencyContactPhone"]        || r["Emergency Contact Phone"]);
+    const ecMobile   = norm(r["emergencyContactMobile"]       || r["Emergency Contact Mobile"]);
+    const ecEmail    = norm(r["emergencyContactEmail"]        || r["Emergency Contact Email"]);
+
+    const emergencyContacts = ecName
+      ? [{
+          contactId:    `emerg-${Date.now()}`,
+          priority:     1,
+          name:         ecName,
+          relationship: ecRelation,
+          phone:        ecPhone,
+          mobile:       ecMobile,
+          email:        ecEmail,
+        }]
+      : existing?.emergencyContacts ?? [];
+
+    // ── Build document matching actual member DB schema ───────────────────────
     const doc: any = {
       memberId,
       clubId,
-      // personalInfo holds name + demographics only (no contact fields)
+
+      // ── personalInfo (nested) ──────────────────────────────────────────────
       personalInfo: {
         firstName,
         lastName,
-        displayName: `${firstName} ${lastName}`,
-        dateOfBirth: dob ?? "",
-        gender,
+        displayName:  norm(r["displayName"] || r["Display Name"]) || `${firstName} ${lastName}`,
+        dateOfBirth:  dob ?? "",
+        gender:       norm(r["gender"] || r["Gender"]),   // e.g. "gender-male", "gender-female"
+        photoUrl:     existing?.personalInfo?.photoUrl ?? "",
+        socialMedia:  existing?.personalInfo?.socialMedia ?? [],
       },
-      // contact holds communication fields
+
+      // ── contact (nested) ───────────────────────────────────────────────────
       contact: {
-        email,
-        mobile: phone,
-        phone,
+        primaryEmail,
+        emailOwnership:   norm(r["emailOwnership"] || r["Email Ownership"] || "Own"),
+        additionalEmails: existing?.contact?.additionalEmails ?? [],
+        phone:  norm(r["phone"]   || r["Phone"]),
+        mobile: norm(r["mobile"]  || r["Mobile"] || r["phone"] || r["Phone"]),
+        emergencyContact: {
+          name:         ecName  || existing?.contact?.emergencyContact?.name  || "",
+          relationship: ecRelation || existing?.contact?.emergencyContact?.relationship || "",
+          phone:        ecPhone || existing?.contact?.emergencyContact?.phone || "",
+        },
       },
+
+      // ── address (nested) ───────────────────────────────────────────────────
       address: {
-        street:   norm(r["address"]  || r["Address"]),
+        street:   norm(r["street"]   || r["Street"]   || r["address"] || r["Address"]),
         suburb:   norm(r["suburb"]   || r["Suburb"]),
         state:    norm(r["state"]    || r["State"]),
         postcode: norm(r["postcode"] || r["Postcode"]),
-        country:  norm(r["country"]  || r["Country"] || "Australia"),
+        country:  norm(r["country"]  || r["Country"]  || "Australia"),
       },
+
+      // ── membership (nested) ────────────────────────────────────────────────
       membership: {
-        membershipType:  norm(r["membershipType"] || r["Membership Type"] || "standard"),
-        membershipTypes: [norm(r["membershipType"] || r["Membership Type"] || "standard")],
-        status:   "Active",
-        joinDate: new Date().toISOString().split("T")[0],
+        joinDate:       toDate(norm(r["joinDate"] || r["Join Date"])) ?? today,
+        membershipType: norm(r["membershipType"] || r["Membership Type"] || "senior"),
+        status:         norm(r["membershipStatus"] || r["Membership Status"] || "Active"),
+        expiryDate:     toDate(norm(r["expiryDate"] || r["Expiry Date"])) ?? null,
+        renewalDate:    toDate(norm(r["renewalDate"] || r["Renewal Date"])) ?? null,
       },
-      roles: [],
+
+      // ── roles (array) ──────────────────────────────────────────────────────
+      roles,
+
+      // ── playerInfo (nested) ────────────────────────────────────────────────
+      playerInfo: {
+        primaryPosition:   norm(r["primaryPosition"]   || r["Primary Position"]),
+        secondaryPosition: norm(r["secondaryPosition"] || r["Secondary Position"]),
+        jerseyNumber:      norm(r["jerseyNumber"] || r["Jersey Number"])   || null,
+        preferredFoot:     norm(r["preferredFoot"] || r["Preferred Foot"]) || null,
+        position:          norm(r["position"] || r["Position"]),
+      },
+
+      // ── socialMedia (nested) ───────────────────────────────────────────────
+      socialMedia: {
+        facebook:  norm(r["facebook"]  || r["Facebook"]),
+        instagram: norm(r["instagram"] || r["Instagram"]),
+        twitter:   norm(r["twitter"]   || r["Twitter"]),
+        tiktok:    norm(r["tiktok"]    || r["TikTok"]),
+        linkedin:  norm(r["linkedin"]  || r["LinkedIn"]),
+      },
+
+      // ── communicationPreferences (nested) ──────────────────────────────────
+      communicationPreferences: {
+        preferredMethod:     norm(r["preferredMethod"]     || r["Preferred Method"]     || "Email"),
+        emailFrequency:      norm(r["emailFrequency"]      || r["Email Frequency"]      || "All"),
+        smsNotifications:    toBool(norm(r["smsNotifications"]    || r["SMS Notifications"]    || "true")),
+        pushNotifications:   toBool(norm(r["pushNotifications"]   || r["Push Notifications"]   || "true")),
+        socialMediaUpdates:  toBool(norm(r["socialMediaUpdates"]  || r["Social Media Updates"])),
+      },
+
+      // ── medical (nested) ───────────────────────────────────────────────────
+      medical: {
+        conditions:  norm(r["medicalConditions"]  || r["Medical Conditions"]),
+        medications: norm(r["medicalMedications"] || r["Medications"]),
+        allergies:   norm(r["medicalAllergies"]   || r["Allergies"]),
+        doctorName:  norm(r["doctorName"]         || r["Doctor Name"]),
+        doctorPhone: norm(r["doctorPhone"]        || r["Doctor Phone"]),
+      },
+
+      // ── healthcare (nested) ────────────────────────────────────────────────
+      healthcare: {
+        medicare: {
+          number:      norm(r["medicareNumber"]      || r["Medicare Number"]),
+          position:    norm(r["medicarePosition"]    || r["Medicare Position"]),
+          expiryMonth: norm(r["medicareExpiryMonth"] || r["Medicare Expiry Month"]),
+          expiryYear:  norm(r["medicareExpiryYear"]  || r["Medicare Expiry Year"]),
+        },
+        privateHealth: {
+          provider:         norm(r["privateHealthProvider"]   || r["Private Health Provider"]),
+          membershipNumber: norm(r["privateHealthNumber"]     || r["Private Health Number"]),
+          expiryDate:       toDate(norm(r["privateHealthExpiry"] || r["Private Health Expiry"])) ?? null,
+        },
+      },
+
+      // ── emergencyContacts (array) ──────────────────────────────────────────
+      emergencyContacts,
+      familyRelationships: existing?.familyRelationships ?? [],
+
+      // ── notes (plain string) ───────────────────────────────────────────────
+      notes: norm(r["notes"] || r["Notes"]) || existing?.notes || "",
+
+      // ── status (ban tracking — default safe values) ────────────────────────
+      status: existing?.status ?? {
+        banned:      false,
+        bannedUntil: null,
+        banReason:   null,
+        bannedBy:    null,
+      },
+
+      // ── Misc preserved ────────────────────────────────────────────────────
+      teams:  existing?.teams  ?? [],
+      family: existing?.family ?? null,
+      userId: existing?.userId ?? null,
+
       updatedAt: new Date(),
+      updatedBy: "bulk-import",
     };
 
     if (existing) {
-      await db.collection("members").updateOne({ _id: existing._id }, { $set: doc });
+      const { _id, memberId: _m, createdAt, createdBy, migratedFrom, ...update } = doc;
+      await db.collection("members").updateOne({ _id: existing._id }, { $set: update });
       result.updated++;
     } else {
-      await db.collection("members").insertOne({ ...doc, createdAt: new Date() });
+      await db.collection("members").insertOne({
+        ...doc,
+        createdAt: new Date(),
+        createdBy: "bulk-import",
+      });
       result.imported++;
     }
   }
@@ -221,76 +353,165 @@ async function importPlayers(db: any, rows: ImportRow[]): Promise<ImportResult> 
 
   for (let i = 0; i < rows.length; i++) {
     const r = rows[i];
-    const firstName = norm(r["firstName"] || r["First Name"] || r["first_name"]);
-    const lastName  = norm(r["lastName"]  || r["Last Name"]  || r["last_name"]);
+    const firstName = norm(r["firstName"] || r["First Name"]);
+    const lastName  = norm(r["lastName"]  || r["Last Name"]);
 
-    if (!firstName || !lastName) { result.errors.push({ row: i + 2, message: "Missing required fields: firstName, lastName" }); continue; }
+    if (!firstName || !lastName) {
+      result.errors.push({ row: i + 2, message: "Missing required fields: firstName, lastName" });
+      continue;
+    }
 
-    const dob = toDate(norm(r["dateOfBirth"] || r["Date of Birth"] || r["dob"] || r["DOB"]));
-    if (!dob) { result.errors.push({ row: i + 2, message: `Row ${i + 2}: Missing or invalid dateOfBirth` }); continue; }
+    const dob = toDate(norm(r["dateOfBirth"] || r["Date of Birth"] || r["DOB"]));
+    if (!dob) {
+      result.errors.push({ row: i + 2, message: "Missing or invalid dateOfBirth (use DD/MM/YYYY or YYYY-MM-DD)" });
+      continue;
+    }
 
-    // Resolve club
-    const clubName = norm(r["clubName"] || r["Club Name"] || r["club"]);
-    const clubIdRaw = norm(r["clubId"] || r["Club ID"]);
+    // ── Resolve club ──────────────────────────────────────────────────────────
+    const clubName  = norm(r["clubName"] || r["Club Name"]);
+    const clubIdRaw = norm(r["clubId"]   || r["Club ID"]);
     let clubId: string | null = clubIdRaw || null;
     if (!clubId && clubName) {
-      const club = await db.collection("clubs").findOne({ $or: [{ name: clubName }, { shortName: clubName }] });
+      const club = await db.collection("clubs").findOne({
+        $or: [{ name: clubName }, { shortName: clubName }, { slug: generateSlug(clubName) }],
+      });
       clubId = club?.id ?? null;
     }
 
+    // ── Deduplicate: email first, then name+DOB ───────────────────────────────
     const email = norm(r["email"] || r["Email"]);
-    const phone = norm(r["phone"] || r["Phone"] || r["mobile"] || r["Mobile"]);
     const existing = email
-      ? await db.collection("players").findOne({
-          $or: [{ "contact.email": email }, { "personalInfo.email": email }],
-        })
-      : await db.collection("players").findOne({
-          "personalInfo.firstName": firstName,
-          "personalInfo.lastName": lastName,
-          "personalInfo.dateOfBirth": dob,
-        });
+      ? await db.collection("players").findOne({ email })
+      : await db.collection("players").findOne({ firstName, lastName, dateOfBirth: dob });
 
-    // Next reg number
-    let registrationNumber = norm(r["registrationNumber"] || r["Registration Number"]);
+    // ── Registration number — auto-increment if not supplied ─────────────────
+    let registrationNumber = norm(r["registrationNumber"] || r["Registration Number"] || r["memberNumber"] || r["Member Number"]);
     if (!registrationNumber && !existing) {
-      const last = await db.collection("players").find({ registrationNumber: { $exists: true } }).sort({ registrationNumber: -1 }).limit(1).toArray();
+      const last = await db
+        .collection("players")
+        .find({ registrationNumber: { $exists: true, $ne: "" } })
+        .sort({ registrationNumber: -1 })
+        .limit(1)
+        .toArray();
       const lastNum = last[0]?.registrationNumber ? parseInt(last[0].registrationNumber, 10) : 1000;
       registrationNumber = String(isNaN(lastNum) ? 1001 : lastNum + 1);
     }
 
+    const today = new Date().toISOString().split("T")[0];
+
+    // ── Build emergency contact if columns provided ───────────────────────────
+    const ecName  = norm(r["emergencyContactName"]  || r["Emergency Contact Name"]);
+    const ecPhone = norm(r["emergencyContactPhone"] || r["Emergency Contact Phone"]);
+    const emergencyContacts = ecName
+      ? [{
+          id:           `emergency-${Date.now()}-${uid()}`,
+          name:         ecName,
+          relationship: norm(r["emergencyContactRelationship"] || r["Emergency Contact Relationship"]),
+          phone:        ecPhone,
+          email:        norm(r["emergencyContactEmail"] || r["Emergency Contact Email"]),
+        }]
+      : existing?.emergencyContacts ?? [];
+
+    // ── Flat document matching real DB schema ─────────────────────────────────
     const doc: any = {
+      // ── Personal (flat top-level) ──────────────────────────────────────────
+      firstName,
+      lastName,
+      preferredName:    norm(r["preferredName"]    || r["Preferred Name"])    || firstName,
+      dateOfBirth:      dob,
+      gender:           norm(r["gender"]           || r["Gender"]),
+      email,
+      phone:            norm(r["phone"]            || r["Phone"] || r["mobile"] || r["Mobile"]),
+
+      // ── Address (flat top-level) ───────────────────────────────────────────
+      street:   norm(r["street"]   || r["Street"]   || r["address"] || r["Address"]),
+      suburb:   norm(r["suburb"]   || r["Suburb"]),
+      city:     norm(r["city"]     || r["City"]     || r["suburb"]  || r["Suburb"]),
+      state:    norm(r["state"]    || r["State"]),
+      postcode: norm(r["postcode"] || r["Postcode"]),
+      country:  norm(r["country"]  || r["Country"]  || "Australia"),
+
+      // ── Club / association ─────────────────────────────────────────────────
       clubId,
-      registrationNumber: registrationNumber || existing?.registrationNumber,
-      personalInfo: {
-        firstName,
-        lastName,
-        displayName: `${firstName} ${lastName}`,
-        dateOfBirth: dob ?? "",
-        gender:      norm(r["gender"] || r["Gender"]),
+      teamIds: existing?.teamIds ?? [],
+
+      // ── Playing details ────────────────────────────────────────────────────
+      primaryPosition:   norm(r["primaryPosition"]   || r["Primary Position"]   || r["position"] || r["Position"]),
+      secondaryPosition: norm(r["secondaryPosition"] || r["Secondary Position"]),
+
+      // ── Registration ───────────────────────────────────────────────────────
+      registrationStatus: norm(r["registrationStatus"] || r["Registration Status"] || "pending"),
+      registrationDate:   norm(r["registrationDate"]   || r["Registration Date"])  || new Date().toISOString(),
+
+      // ── Club sub-object ────────────────────────────────────────────────────
+      club: {
+        registrationDate:    norm(r["clubRegistrationDate"]    || r["Club Registration Date"]     || today),
+        registrationEndDate: norm(r["clubRegistrationEndDate"] || r["Club Registration End Date"]  || `${new Date().getFullYear()}-12-30`),
+        registrationNumber:  norm(r["clubRegistrationNumber"]  || r["Club Registration Number"]),
+        memberNumber:        norm(r["memberNumber"] || r["Member Number"]) || existing?.club?.memberNumber || registrationNumber,
+        transferHistory:     existing?.club?.transferHistory ?? [],
       },
-      contact: {
-        email,
-        mobile: phone,
-        phone,
+
+      // ── Medical (nested) ───────────────────────────────────────────────────
+      medical: {
+        conditions:       norm(r["medicalConditions"]  || r["Medical Conditions"]),
+        allergies:        norm(r["medicalAllergies"]   || r["Allergies"]),
+        medications:      norm(r["medicalMedications"] || r["Medications"]),
+        doctorName:       norm(r["doctorName"]         || r["Doctor Name"]),
+        doctorPhone:      norm(r["doctorPhone"]        || r["Doctor Phone"]),
+        healthFundName:   norm(r["healthFundName"]     || r["Health Fund"]),
+        healthFundNumber: norm(r["healthFundNumber"]   || r["Health Fund Number"]),
+        medicareNumber:   norm(r["medicareNumber"]     || r["Medicare Number"]),
       },
-      address: {
-        street:   norm(r["address"]  || r["Address"]),
-        suburb:   norm(r["suburb"]   || r["Suburb"]),
-        state:    norm(r["state"]    || r["State"]),
-        postcode: norm(r["postcode"] || r["Postcode"]),
-        country:  norm(r["country"]  || r["Country"] || "Australia"),
+
+      // ── Emergency contacts ─────────────────────────────────────────────────
+      emergencyContacts,
+      guardians: existing?.guardians ?? [],
+
+      // ── Consents ───────────────────────────────────────────────────────────
+      consents: {
+        photoConsent:              toBool(norm(r["photoConsent"]              || r["Photo Consent"])),
+        mediaConsent:              toBool(norm(r["mediaConsent"]              || r["Media Consent"])),
+        transportConsent:          toBool(norm(r["transportConsent"]          || r["Transport Consent"])),
+        firstAidConsent:           toBool(norm(r["firstAidConsent"]           || r["First Aid Consent"])),
+        emergencyTreatmentConsent: toBool(norm(r["emergencyTreatmentConsent"] || r["Emergency Treatment Consent"]) || "yes"),
+        updatedAt: new Date().toISOString(),
       },
-      position:      norm(r["position"] || r["Position"]),
-      preferredHand: norm(r["preferredHand"] || r["Preferred Hand"]),
-      status: { current: "Active" },
+
+      // ── Status (nested) ────────────────────────────────────────────────────
+      status: {
+        current:             norm(r["statusCurrent"]          || r["Status"]             || "active"),
+        registrationDate:    norm(r["statusRegistrationDate"] || r["Registration Date"]  || today),
+        expiryDate:          norm(r["statusExpiryDate"]       || r["Expiry Date"]        || `${new Date().getFullYear()}-12-30`),
+        renewalReminderDate: norm(r["renewalReminderDate"]    || r["Renewal Reminder Date"]),
+        seasons:             existing?.status?.seasons ?? [],
+        updatedAt:           new Date().toISOString(),
+      },
+
+      // ── Linked member & misc ───────────────────────────────────────────────
+      linkedMemberId:      norm(r["linkedMemberId"] || r["Linked Member ID"]) || existing?.linkedMemberId || "",
+      active:              true,
+      documents:           existing?.documents           ?? [],
+      notes:               existing?.notes               ?? [],
+      playHistory:         existing?.playHistory         ?? [],
+      teamSelectionHistory: existing?.teamSelectionHistory ?? [],
+
       updatedAt: new Date(),
     };
 
+    // Preserve registrationNumber (don't overwrite if already set)
+    if (registrationNumber) doc.registrationNumber = registrationNumber;
+
     if (existing) {
-      await db.collection("players").updateOne({ _id: existing._id }, { $set: doc });
+      const { _id, playerId: _pid, createdAt, ...update } = doc;
+      await db.collection("players").updateOne({ _id: existing._id }, { $set: update });
       result.updated++;
     } else {
-      await db.collection("players").insertOne({ ...doc, playerId: uid(), createdAt: new Date() });
+      await db.collection("players").insertOne({
+        ...doc,
+        playerId: `player-${Date.now()}-${uid()}`,
+        createdAt: new Date(),
+      });
       result.imported++;
     }
   }
