@@ -1,14 +1,8 @@
 @import "tailwindcss";
-@plugin "daisyui";
-
-/* Optional: Define your default daisyUI theme */
-:root {
-  --color-primary: var(--color-sky-500);
-}
 
 @layer base {
   body {
-    @apply antialiased text-base-content bg-base-100;
+    @apply antialiased;
   }
 }
 

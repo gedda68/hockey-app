@@ -4,7 +4,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import {
-  RegisterForClubRequestSchema,
   generateRegistrationId,
   validateClubRegistration,
   type ClubRegistration,
@@ -23,8 +22,17 @@ export async function POST(
     const { clubId } = await params;
     const body = await request.json();
 
-    // Validate request body
-    const validatedData = RegisterForClubRequestSchema.parse(body);
+    // Basic validation (registrationType is required)
+    const validatedData = {
+      registrationType: body.registrationType as "primary" | "secondary",
+      roleIds:          (body.roleIds          ?? []) as string[],
+      membershipType:   (body.membershipType   ?? "") as string,
+      registrationNotes:(body.registrationNotes ?? "") as string,
+    };
+
+    if (!validatedData.registrationType) {
+      return NextResponse.json({ error: "registrationType is required" }, { status: 400 });
+    }
 
     const client = await clientPromise;
     const db = client.db();
@@ -142,13 +150,6 @@ export async function POST(
     );
   } catch (error: any) {
     console.error("Error registering for club:", error);
-
-    if (error.name === "ZodError") {
-      return NextResponse.json(
-        { error: "Validation failed", details: error.errors },
-        { status: 400 }
-      );
-    }
 
     return NextResponse.json(
       { error: "Failed to register for club", details: error.message },

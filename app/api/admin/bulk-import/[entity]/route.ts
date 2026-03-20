@@ -178,7 +178,7 @@ async function importMembers(db: any, rows: ImportRow[]): Promise<ImportResult> 
           "personalInfo.dateOfBirth": dob,
         });
 
-    const memberId = existing?.memberId ?? norm(r["memberId"] || r["Member ID"]) || `MBR-${uid().toUpperCase()}`;
+    const memberId = existing?.memberId ?? (norm(r["memberId"] || r["Member ID"]) || `MBR-${uid().toUpperCase()}`);
 
     // ── Roles — accept comma-separated list ───────────────────────────────────
     const rolesRaw = norm(r["roles"] || r["Roles"]);

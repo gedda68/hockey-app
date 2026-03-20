@@ -3,7 +3,14 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
-import { getRenewalDates } from "@/types/member";
+// Inline helper — getRenewalDates was removed from @/types/member
+function getRenewalDates(targetYear?: number) {
+  const year = targetYear ?? new Date().getFullYear();
+  return {
+    periodStart: `${year}-01-01`,
+    periodEnd:   `${year}-12-31`,
+  };
+}
 
 export async function POST(
   request: NextRequest,
