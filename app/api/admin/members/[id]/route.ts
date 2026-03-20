@@ -49,13 +49,16 @@ export async function PUT(
     const changeLog = body._changeLog;
     delete body._changeLog; // Remove from member data
 
+    // Strip immutable / identity fields that must never appear in $set
+    const { _id, memberId: _mid, createdAt, ...updateData } = body;
+
     // Update timestamp
-    body.updatedAt = new Date().toISOString();
+    updateData.updatedAt = new Date().toISOString();
 
     // Update member
     const result = await db
       .collection("members")
-      .updateOne({ memberId }, { $set: body });
+      .updateOne({ memberId }, { $set: updateData });
 
     if (result.matchedCount === 0) {
       return NextResponse.json({ error: "Member not found" }, { status: 404 });
