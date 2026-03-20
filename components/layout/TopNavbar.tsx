@@ -249,7 +249,7 @@ export default function TopNavbar({ clubs }: TopNavbarProps) {
                     hoverTextColor="hover:text-slate-800"
                   >
                     <LogIn className="h-4 w-4" />
-                    Admin
+                    Login
                   </LinkButton>
                 )}
               </div>
@@ -383,7 +383,7 @@ export default function TopNavbar({ clubs }: TopNavbarProps) {
               >
                 <LogIn className="h-5 w-5" />
                 <span className="uppercase text-[11px] font-bold tracking-widest">
-                  Admin
+                  Login
                 </span>
               </Link>
             )}
