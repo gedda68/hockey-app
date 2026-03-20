@@ -161,7 +161,8 @@ export default function MembersPage() {
     currentStatus: string,
   ) => {
     try {
-      const newStatus = currentStatus === "Active" ? "Inactive" : "Active";
+      const isActive = (currentStatus ?? "").toLowerCase() === "active";
+      const newStatus = isActive ? "Inactive" : "Active";
 
       const res = await fetch(`/api/admin/members/${memberId}`, {
         method: "PUT",
@@ -448,7 +449,9 @@ export default function MembersPage() {
                       <td className="py-4 px-6">
                         <div>
                           <div className="font-bold text-slate-900">
-                            {member.personalInfo.displayName}
+                            {member.personalInfo?.displayName ||
+                              `${member.personalInfo?.firstName ?? ""} ${member.personalInfo?.lastName ?? ""}`.trim() ||
+                              "—"}
                           </div>
                           <div className="text-sm text-slate-500">
                             {member.roles && member.roles.length > 0
@@ -459,17 +462,21 @@ export default function MembersPage() {
                       </td>
                       <td className="py-4 px-6">
                         <span className="text-slate-600 font-bold">
-                          {calculateAge(member.personalInfo.dateOfBirth)}
+                          {calculateAge(member.personalInfo?.dateOfBirth)}
                         </span>
                       </td>
                       <td className="py-4 px-6">
                         <span className="text-slate-600">
-                          {member.contact.email}
+                          {member.contact?.email ||
+                            (member.personalInfo as any)?.email ||
+                            "—"}
                         </span>
                       </td>
                       <td className="py-4 px-6">
                         <span className="text-slate-600">
-                          {member.contact.mobile || "-"}
+                          {member.contact?.mobile ||
+                            (member.personalInfo as any)?.phone ||
+                            "-"}
                         </span>
                       </td>
                       <td className="py-4 px-6 text-center">
@@ -481,16 +488,16 @@ export default function MembersPage() {
                             )
                           }
                           className={`inline-block px-3 py-1 rounded-full text-xs font-black uppercase transition-all ${
-                            member.membership.status === "Active"
+                            (member.membership?.status ?? "").toLowerCase() === "active"
                               ? "bg-green-100 text-green-700 hover:bg-green-200"
-                              : member.membership.status === "Inactive"
+                              : (member.membership?.status ?? "").toLowerCase() === "inactive"
                                 ? "bg-red-100 text-red-700 hover:bg-red-200"
-                                : member.membership.status === "Life"
+                                : (member.membership?.status ?? "").toLowerCase() === "life"
                                   ? "bg-purple-100 text-purple-700 hover:bg-purple-200"
                                   : "bg-orange-100 text-orange-700 hover:bg-orange-200"
                           }`}
                         >
-                          {member.membership.status}
+                          {member.membership?.status ?? "Unknown"}
                         </button>
                       </td>
                       <td className="py-4 px-6">
@@ -518,12 +525,12 @@ export default function MembersPage() {
                             }
                             className="p-2 text-orange-600 hover:bg-orange-50 rounded-lg transition-colors"
                             title={
-                              member.membership.status === "Active"
+                              (member.membership?.status ?? "").toLowerCase() === "active"
                                 ? "Deactivate"
                                 : "Activate"
                             }
                           >
-                            {member.membership.status === "Active" ? (
+                            {(member.membership?.status ?? "").toLowerCase() === "active" ? (
                               <UserX size={16} />
                             ) : (
                               <UserCheck size={16} />

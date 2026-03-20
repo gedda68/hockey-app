@@ -159,34 +159,48 @@ async function importMembers(db: any, rows: ImportRow[]): Promise<ImportResult> 
     const gender = norm(r["gender"] || r["Gender"]);
 
     const existing = email
-      ? await db.collection("members").findOne({ "personalInfo.email": email })
+      ? await db.collection("members").findOne({
+          $or: [
+            { "contact.email": email },
+            { "personalInfo.email": email },
+          ],
+        })
       : null;
 
     const memberId = existing?.memberId ?? `MBR-${uid().toUpperCase()}`;
+    const phone = norm(r["phone"] || r["Phone"] || r["mobile"] || r["Mobile"]);
 
     const doc: any = {
       memberId,
       clubId,
+      // personalInfo holds name + demographics only (no contact fields)
       personalInfo: {
         firstName,
         lastName,
-        email,
-        phone:       norm(r["phone"] || r["Phone"]),
-        dateOfBirth: dob,
+        displayName: `${firstName} ${lastName}`,
+        dateOfBirth: dob ?? "",
         gender,
-        address: {
-          street:   norm(r["address"]  || r["Address"]),
-          suburb:   norm(r["suburb"]   || r["Suburb"]),
-          state:    norm(r["state"]    || r["State"]),
-          postcode: norm(r["postcode"] || r["Postcode"]),
-          country:  norm(r["country"]  || r["Country"] || "Australia"),
-        },
+      },
+      // contact holds communication fields
+      contact: {
+        email,
+        mobile: phone,
+        phone,
+      },
+      address: {
+        street:   norm(r["address"]  || r["Address"]),
+        suburb:   norm(r["suburb"]   || r["Suburb"]),
+        state:    norm(r["state"]    || r["State"]),
+        postcode: norm(r["postcode"] || r["Postcode"]),
+        country:  norm(r["country"]  || r["Country"] || "Australia"),
       },
       membership: {
-        membershipType: norm(r["membershipType"] || r["Membership Type"] || "standard"),
-        status: "active",
+        membershipType:  norm(r["membershipType"] || r["Membership Type"] || "standard"),
+        membershipTypes: [norm(r["membershipType"] || r["Membership Type"] || "standard")],
+        status:   "Active",
         joinDate: new Date().toISOString().split("T")[0],
       },
+      roles: [],
       updatedAt: new Date(),
     };
 
@@ -225,9 +239,16 @@ async function importPlayers(db: any, rows: ImportRow[]): Promise<ImportResult> 
     }
 
     const email = norm(r["email"] || r["Email"]);
+    const phone = norm(r["phone"] || r["Phone"] || r["mobile"] || r["Mobile"]);
     const existing = email
-      ? await db.collection("players").findOne({ "personalInfo.email": email })
-      : await db.collection("players").findOne({ "personalInfo.firstName": firstName, "personalInfo.lastName": lastName, "personalInfo.dateOfBirth": dob });
+      ? await db.collection("players").findOne({
+          $or: [{ "contact.email": email }, { "personalInfo.email": email }],
+        })
+      : await db.collection("players").findOne({
+          "personalInfo.firstName": firstName,
+          "personalInfo.lastName": lastName,
+          "personalInfo.dateOfBirth": dob,
+        });
 
     // Next reg number
     let registrationNumber = norm(r["registrationNumber"] || r["Registration Number"]);
@@ -243,21 +264,25 @@ async function importPlayers(db: any, rows: ImportRow[]): Promise<ImportResult> 
       personalInfo: {
         firstName,
         lastName,
-        email,
-        phone:       norm(r["phone"] || r["Phone"]),
-        dateOfBirth: dob,
+        displayName: `${firstName} ${lastName}`,
+        dateOfBirth: dob ?? "",
         gender:      norm(r["gender"] || r["Gender"]),
-        address: {
-          street:   norm(r["address"]  || r["Address"]),
-          suburb:   norm(r["suburb"]   || r["Suburb"]),
-          state:    norm(r["state"]    || r["State"]),
-          postcode: norm(r["postcode"] || r["Postcode"]),
-          country:  norm(r["country"]  || r["Country"] || "Australia"),
-        },
+      },
+      contact: {
+        email,
+        mobile: phone,
+        phone,
+      },
+      address: {
+        street:   norm(r["address"]  || r["Address"]),
+        suburb:   norm(r["suburb"]   || r["Suburb"]),
+        state:    norm(r["state"]    || r["State"]),
+        postcode: norm(r["postcode"] || r["Postcode"]),
+        country:  norm(r["country"]  || r["Country"] || "Australia"),
       },
       position:      norm(r["position"] || r["Position"]),
       preferredHand: norm(r["preferredHand"] || r["Preferred Hand"]),
-      status: { current: "active" },
+      status: { current: "Active" },
       updatedAt: new Date(),
     };
 
