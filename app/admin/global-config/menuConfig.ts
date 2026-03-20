@@ -398,6 +398,23 @@ export const menuConfig: MenuItem[] = [
   },
 
   {
+    label: "Bulk Import",
+    href: "/admin/bulk-import",
+    icon: "📥",
+    description: "Bulk upload clubs, associations, members, users, teams and more",
+    color: "from-emerald-500 to-emerald-600",
+    subItems: [
+      { label: "Members",        href: "/admin/bulk-import?tab=members",       icon: "📝", description: "Upload members via CSV/Excel" },
+      { label: "Players",        href: "/admin/bulk-import?tab=players",       icon: "⭐", description: "Upload players via CSV/Excel" },
+      { label: "Users",          href: "/admin/bulk-import?tab=users",         icon: "👤", description: "Upload user accounts via CSV/Excel" },
+      { label: "Clubs",          href: "/admin/bulk-import?tab=clubs",         icon: "🏢", description: "Upload clubs via CSV/Excel" },
+      { label: "Associations",   href: "/admin/bulk-import?tab=associations",  icon: "🏛️", description: "Upload associations via CSV/Excel" },
+      { label: "Teams",          href: "/admin/bulk-import?tab=teams",         icon: "👥", description: "Upload club teams via CSV/Excel" },
+      { label: "Rep Teams",      href: "/admin/bulk-import?tab=rep-teams",     icon: "🏆", description: "Upload representative teams via CSV/Excel" },
+    ],
+  },
+
+  {
     label: "Global Config",
     href: "/admin/config",
     icon: "🎛️",
