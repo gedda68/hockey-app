@@ -6,9 +6,10 @@ import { LogOut } from "lucide-react";
 import SidebarItem from "../../app/admin/components/SidebarItem";
 import { menuConfig, MenuItem } from "../../app/admin/global-config/menuConfig";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { User } from "@/lib/auth/AuthContext";
 import { toast } from "sonner";
 
-// Role → which top-level menu items to show
+// Role → which top-level menu labels to show (fallback when no club/assoc context)
 const ROLE_MENU_FILTER: Record<string, string[]> = {
   "super-admin": [], // empty = show all
   "association-admin": [
@@ -31,9 +32,184 @@ const ROLE_MENU_FILTER: Record<string, string[]> = {
   "volunteer":      ["Dashboard"],
 };
 
-function filterMenuForRole(role: string): MenuItem[] {
+/** Helper: get a menuConfig item by label, or undefined. */
+function mc(label: string): MenuItem | undefined {
+  return menuConfig.find((m) => m.label === label);
+}
+
+/** Standalone items that don't exist as top-level entries in menuConfig. */
+const feesItem: MenuItem = {
+  label: "Fees",
+  href: "/admin/fees",
+  icon: "💵",
+  description: "Fee management",
+};
+const nominationsItem: MenuItem = {
+  label: "Nominations",
+  href: "/admin/nominations",
+  icon: "✋",
+  description: "Player nominations",
+};
+
+function buildMenuForUser(user: User | null): MenuItem[] {
+  if (!user) return menuConfig;
+
+  const role = user.role;
+
+  // ── Super-admin: full menu ──────────────────────────────────────────────────
+  if (role === "super-admin") return menuConfig;
+
+  // ── Club-scoped roles ───────────────────────────────────────────────────────
+  const clubRef = user.clubSlug || user.clubId;
+  const clubScopedRoles = [
+    "club-admin",
+    "club-committee",
+    "registrar",
+    "coach",
+    "manager",
+    "team-selector",
+    "volunteer",
+    "umpire",
+  ];
+
+  if (clubScopedRoles.includes(role) && clubRef) {
+    const myClub: MenuItem = {
+      label: "My Club",
+      href: `/admin/clubs/${clubRef}/edit`,
+      icon: "🏢",
+      description: "Club Management",
+    };
+
+    if (role === "club-admin") {
+      return [
+        myClub,
+        mc("Players")!,
+        mc("Teams")!,
+        mc("Members")!,
+        feesItem,
+        nominationsItem,
+        mc("Reports")!,
+      ].filter((item): item is MenuItem => item !== undefined);
+    }
+
+    if (role === "club-committee") {
+      return [myClub, mc("Members")!, mc("Players")!, mc("Reports")!].filter(
+        (item): item is MenuItem => item !== undefined,
+      );
+    }
+
+    if (role === "registrar") {
+      return [myClub, mc("Members")!, mc("Players")!, feesItem].filter(
+        (item): item is MenuItem => item !== undefined,
+      );
+    }
+
+    if (role === "coach") {
+      return [myClub, mc("Players")!, mc("Teams")!, nominationsItem].filter(
+        (item): item is MenuItem => item !== undefined,
+      );
+    }
+
+    if (role === "manager") {
+      return [myClub, mc("Players")!, mc("Teams")!].filter(
+        (item): item is MenuItem => item !== undefined,
+      );
+    }
+
+    if (role === "team-selector") {
+      return [myClub, mc("Players")!, nominationsItem].filter(
+        (item): item is MenuItem => item !== undefined,
+      );
+    }
+
+    if (role === "volunteer") {
+      return [myClub];
+    }
+
+    if (role === "umpire") {
+      return [
+        {
+          label: "Dashboard",
+          href: "/admin/representative",
+          icon: "📊",
+          description: "Overview and quick stats",
+        },
+      ];
+    }
+  }
+
+  // ── Umpire without clubRef ──────────────────────────────────────────────────
+  if (role === "umpire") {
+    return [
+      {
+        label: "Dashboard",
+        href: "/admin/representative",
+        icon: "📊",
+        description: "Overview and quick stats",
+      },
+    ];
+  }
+
+  // ── Association-scoped roles ────────────────────────────────────────────────
+  const assocScopedRoles = [
+    "association-admin",
+    "assoc-committee",
+    "assoc-coach",
+    "assoc-selector",
+    "assoc-registrar",
+  ];
+
+  if (assocScopedRoles.includes(role) && user.associationId) {
+    const assocId = user.associationId;
+    const myAssoc: MenuItem = {
+      label: "My Association",
+      href: `/admin/associations/${assocId}`,
+      icon: "🏛️",
+      description: "Association Management",
+    };
+
+    if (role === "association-admin") {
+      return [
+        myAssoc,
+        mc("Representative")!,
+        mc("Players")!,
+        mc("Clubs")!,
+        mc("Members")!,
+        mc("Teams")!,
+        mc("Tournaments")!,
+        mc("Reports")!,
+        mc("Settings")!,
+      ].filter((item): item is MenuItem => item !== undefined);
+    }
+
+    if (role === "assoc-committee") {
+      return [myAssoc, mc("Representative")!, mc("Players")!, mc("Reports")!].filter(
+        (item): item is MenuItem => item !== undefined,
+      );
+    }
+
+    if (role === "assoc-coach") {
+      return [myAssoc, mc("Representative")!, mc("Players")!, mc("Teams")!].filter(
+        (item): item is MenuItem => item !== undefined,
+      );
+    }
+
+    if (role === "assoc-selector") {
+      return [myAssoc, mc("Representative")!, mc("Players")!].filter(
+        (item): item is MenuItem => item !== undefined,
+      );
+    }
+
+    if (role === "assoc-registrar") {
+      return [myAssoc, mc("Members")!, mc("Players")!, feesItem].filter(
+        (item): item is MenuItem => item !== undefined,
+      );
+    }
+  }
+
+  // ── Fallback: filter menuConfig by ROLE_MENU_FILTER ────────────────────────
   const allowed = ROLE_MENU_FILTER[role];
-  if (!allowed || allowed.length === 0) return menuConfig; // super-admin sees all
+  if (!allowed || allowed.length === 0) return menuConfig;
   return menuConfig.filter((item) => allowed.includes(item.label));
 }
 
@@ -63,7 +239,7 @@ export default function AdminSidebar() {
     toast.success("Logged out");
   };
 
-  const visibleMenu = filterMenuForRole(user?.role || "");
+  const visibleMenu = buildMenuForUser(user);
   const displayName = user
     ? `${user.firstName || ""} ${user.lastName || ""}`.trim() || user.username
     : "Admin User";
