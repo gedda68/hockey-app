@@ -5,6 +5,7 @@ import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import { createSession } from "@/lib/auth/session";
 import { verifyPassword } from "@/lib/auth/username";
+import { generateSlug } from "@/lib/utils/slug";
 import bcrypt from "bcryptjs";
 
 export async function POST(request: NextRequest) {
@@ -22,7 +23,7 @@ export async function POST(request: NextRequest) {
     }
 
     const client = await clientPromise;
-    const db = client.db();
+    const db = client.db("hockey-app");
 
     // ── 1. Check users collection (admin / staff accounts) ──────────────────
     const user = await db.collection("users").findOne({
@@ -53,13 +54,26 @@ export async function POST(request: NextRequest) {
       const fullName  = `${firstName} ${lastName}`.trim() || user.username;
       const role: string = user.role || "player";
 
-      // Resolve club name
+      // Resolve club name + slug
       let clubName: string | undefined;
+      let clubSlug: string | undefined;
       if (user.clubId) {
         const club = await db.collection("clubs").findOne({
-          $or: [{ clubId: user.clubId }, { _id: user.clubId }],
+          $or: [{ id: user.clubId }, { clubId: user.clubId }],
         });
-        clubName = club?.name;
+        if (club) {
+          clubName = club.name;
+          // Use stored slug, or generate + persist it
+          if (club.slug) {
+            clubSlug = club.slug;
+          } else if (club.name) {
+            clubSlug = generateSlug(club.name);
+            await db.collection("clubs").updateOne(
+              { _id: club._id },
+              { $set: { slug: clubSlug } }
+            );
+          }
+        }
       }
 
       const forcePasswordChange = user.forcePasswordChange === true;
@@ -73,6 +87,7 @@ export async function POST(request: NextRequest) {
         role,
         associationId: user.associationId || null,
         clubId:        user.clubId || null,
+        clubSlug:      clubSlug || null,
         clubName,
         username:      user.username,
         forcePasswordChange,
@@ -95,6 +110,7 @@ export async function POST(request: NextRequest) {
           role,
           associationId: user.associationId || null,
           clubId:        user.clubId || null,
+          clubSlug:      clubSlug || null,
           clubName:      clubName || null,
           forcePasswordChange,
         },
@@ -138,11 +154,23 @@ export async function POST(request: NextRequest) {
       const forcePasswordChange = member.auth.forcePasswordChange === true;
 
       let clubName: string | undefined;
+      let memberClubSlug: string | undefined;
       if (memberClubId) {
         const club = await db.collection("clubs").findOne({
-          $or: [{ clubId: memberClubId }, { _id: memberClubId }],
+          $or: [{ id: memberClubId }, { clubId: memberClubId }],
         });
-        clubName = club?.name;
+        if (club) {
+          clubName = club.name;
+          if (club.slug) {
+            memberClubSlug = club.slug;
+          } else if (club.name) {
+            memberClubSlug = generateSlug(club.name);
+            await db.collection("clubs").updateOne(
+              { _id: club._id },
+              { $set: { slug: memberClubSlug } }
+            );
+          }
+        }
       }
 
       await createSession({
@@ -154,6 +182,7 @@ export async function POST(request: NextRequest) {
         role,
         associationId: memberAssocId,
         clubId:        memberClubId,
+        clubSlug:      memberClubSlug || null,
         clubName,
         memberId:      member._id.toString(),
         username:      member.auth.username,
@@ -177,6 +206,7 @@ export async function POST(request: NextRequest) {
           role,
           associationId: memberAssocId,
           clubId:        memberClubId,
+          clubSlug:      memberClubSlug || null,
           clubName:      clubName || null,
           forcePasswordChange,
         },

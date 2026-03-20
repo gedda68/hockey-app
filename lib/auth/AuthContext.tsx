@@ -24,6 +24,7 @@ export interface User {
   role: string;
   associationId?: string | null;
   clubId?: string | null;
+  clubSlug?: string | null;
   clubName?: string | null;
   status?: string;
 }

@@ -17,6 +17,7 @@ export interface SessionData {
   role: string; // full role string — e.g. "super-admin", "club-admin", "player"
   associationId?: string | null;
   clubId?: string | null;
+  clubSlug?: string | null;  // URL-safe slug derived from club name
   clubName?: string;
   memberId?: string | null;
   username?: string;

@@ -131,9 +131,9 @@ function ChangePasswordForm() {
 
       setSuccess(true);
 
-      // Hard-navigate so middleware picks up the refreshed session cookie
+      // Session has been cleared — hard-navigate to login so user authenticates fresh
       setTimeout(() => {
-        window.location.href = nextUrl;
+        window.location.href = `/login?changed=1&next=${encodeURIComponent(nextUrl)}`;
       }, 1500);
     } catch {
       setError("A connection error occurred. Please try again.");

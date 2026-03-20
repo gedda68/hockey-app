@@ -25,6 +25,7 @@ export async function GET() {
         role:          session.role,
         associationId: session.associationId || null,
         clubId:        session.clubId        || null,
+        clubSlug:      session.clubSlug      || null,
         clubName:      session.clubName      || null,
         forcePasswordChange: session.forcePasswordChange || false,
       },

@@ -1,10 +1,11 @@
 // app/api/auth/change-password/route.ts
-// Allows any logged-in user (users OR members collection) to change their password.
-// When forcePasswordChange is set, skips current-password verification.
+// Handles password change for both members and users collection accounts.
+// Forced change: deletes session so user must log in fresh with new password.
+// Voluntary change: refreshes session in place.
 
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
-import { getSession, createSession } from "@/lib/auth/session";
+import { getSession, deleteSession } from "@/lib/auth/session";
 import { verifyPassword, hashPassword } from "@/lib/auth/username";
 import bcrypt from "bcryptjs";
 import { ObjectId } from "mongodb";
@@ -40,7 +41,7 @@ export async function POST(request: NextRequest) {
     }
 
     const client = await clientPromise;
-    const db = client.db();
+    const db = client.db("hockey-app");
 
     const isForced = session.forcePasswordChange === true;
 
@@ -96,32 +97,28 @@ export async function POST(request: NextRequest) {
         }
       );
 
-      await createSession({ ...session, forcePasswordChange: false });
+      // For forced changes: clear session so user logs in fresh with new password
+      await deleteSession();
       console.log("✅ Member password changed:", session.username || session.memberId);
       return NextResponse.json({ success: true });
     }
 
     // ── Path B: users collection account (admin / staff) ─────────────────────
     if (session.userId) {
-      // Try ObjectId lookup first, then userId string
-      let userDoc: Record<string, any> | null = null;
+      // Try by userId string field first
+      let userDoc: Record<string, any> | null = await db
+        .collection("users")
+        .findOne({ userId: session.userId }, { projection: { _id: 1, passwordHash: 1 } });
 
-      // Try by userId string field
-      userDoc = await db.collection("users").findOne(
-        { userId: session.userId },
-        { projection: { _id: 1, passwordHash: 1 } }
-      );
-
-      // Fallback: try by _id (ObjectId)
+      // Fallback: try by MongoDB _id
       if (!userDoc) {
         try {
           const oid = new ObjectId(session.userId);
-          userDoc = await db.collection("users").findOne(
-            { _id: oid },
-            { projection: { _id: 1, passwordHash: 1 } }
-          );
+          userDoc = await db
+            .collection("users")
+            .findOne({ _id: oid }, { projection: { _id: 1, passwordHash: 1 } });
         } catch {
-          // userId is not a valid ObjectId — continue
+          // userId is not a valid ObjectId — skip
         }
       }
 
@@ -161,7 +158,8 @@ export async function POST(request: NextRequest) {
         }
       );
 
-      await createSession({ ...session, forcePasswordChange: false });
+      // Clear session — user logs in fresh with new password
+      await deleteSession();
       console.log("✅ User password changed:", session.username || session.userId);
       return NextResponse.json({ success: true });
     }

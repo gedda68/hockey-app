@@ -3,6 +3,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
+import { generateSlug } from "@/lib/utils/slug";
 
 // --- HELPER: LOG CHANGES ---
 async function logClubChange(
@@ -136,7 +137,7 @@ export async function GET(request: NextRequest) {
     const skip = (page - 1) * limit;
 
     const client = await clientPromise;
-    const db = client.db();
+    const db = client.db("hockey-app");
 
     // Build query
     const query: any = {};
@@ -254,7 +255,7 @@ export async function POST(request: NextRequest) {
     }
 
     const client = await clientPromise;
-    const db = client.db();
+    const db = client.db("hockey-app");
 
     const existing = await db.collection("clubs").findOne({ id: body.id });
 
@@ -267,6 +268,7 @@ export async function POST(request: NextRequest) {
 
     const clubData = {
       ...body,
+      slug: body.slug || generateSlug(body.name),
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       active: body.active !== undefined ? body.active : true,
@@ -310,7 +312,7 @@ export async function PUT(request: NextRequest) {
     }
 
     const client = await clientPromise;
-    const db = client.db();
+    const db = client.db("hockey-app");
 
     const oldData = await db.collection("clubs").findOne({ id });
 
@@ -363,7 +365,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     const client = await clientPromise;
-    const db = client.db();
+    const db = client.db("hockey-app");
 
     const club = await db.collection("clubs").findOne({ id });
 

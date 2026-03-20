@@ -14,6 +14,7 @@ const key = new TextEncoder().encode(SECRET_KEY);
 interface SessionData {
   role: string;
   clubId?: string | null;
+  clubSlug?: string | null;
   associationId?: string | null;
   memberId?: string | null;
   forcePasswordChange?: boolean;
@@ -250,7 +251,7 @@ export async function middleware(request: NextRequest) {
       // Club-scoped path
       if (clubMatch && clubMatch[1] !== "new") {
         const pathClubId = clubMatch[1];
-        // club-admin must match their own clubId
+        // club-admin must match their own clubId or clubSlug
         if (
           role === "club-admin" ||
           role === "club-committee" ||
@@ -259,7 +260,9 @@ export async function middleware(request: NextRequest) {
           role === "manager" ||
           role === "team-selector"
         ) {
-          if (session.clubId && session.clubId !== pathClubId) {
+          const matchesById   = session.clubId   && session.clubId   === pathClubId;
+          const matchesBySlug = session.clubSlug && session.clubSlug === pathClubId;
+          if (session.clubId && !matchesById && !matchesBySlug) {
             return NextResponse.redirect(new URL("/unauthorized", request.url));
           }
         }

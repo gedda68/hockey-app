@@ -221,7 +221,7 @@ export default function ClubsList() {
               <div
                 key={club.id}
                 className="bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden hover:shadow-2xl transition-all cursor-pointer group"
-                onClick={() => router.push(`/admin/clubs/${club.id}/edit`)}
+                onClick={() => router.push(`/admin/clubs/${club.slug || club.id}/edit`)}
               >
                 {/* Header with club colors */}
                 <div
@@ -241,7 +241,7 @@ export default function ClubsList() {
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        router.push(`/admin/clubs/${club.id}/edit`);
+                        router.push(`/admin/clubs/${club.slug || club.id}/edit`);
                       }}
                       className="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-lg flex items-center justify-center text-white hover:bg-white/30 transition-all"
                     >

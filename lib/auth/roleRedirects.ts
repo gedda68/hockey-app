@@ -7,9 +7,10 @@
  */
 export function getRoleDashboard(
   role: string,
-  clubId?: string | null,
+  clubSlugOrId?: string | null,
   associationId?: string | null
 ): string {
+  const clubId = clubSlugOrId; // may be a slug or legacy id — both work with the clubs API
   switch (role) {
     // ── Super admin ─────────────────────────────────────────────────────────
     case "super-admin":

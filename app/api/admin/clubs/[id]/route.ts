@@ -1,23 +1,41 @@
 // app/api/admin/clubs/[id]/route.ts
-// FIXED: Returns correct structure { club: ... }
+// Looks up clubs by slug (preferred) or legacy id.
+// Auto-generates + persists slug if the club record doesn't have one yet.
 
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
+import { generateSlug } from "@/lib/utils/slug";
 
 type Ctx = { params: Promise<{ id: string }> };
+
+/** Find a club by slug first, then by id (backwards compat). */
+async function findClub(db: any, idOrSlug: string) {
+  return db.collection("clubs").findOne({
+    $or: [{ slug: idOrSlug }, { id: idOrSlug }],
+  });
+}
 
 export async function GET(req: NextRequest, ctx: Ctx) {
   try {
     const { id } = await ctx.params;
     const client = await clientPromise;
-    const db = client.db();
+    const db = client.db("hockey-app");
 
-    // Find club by id
-    const club = await db.collection("clubs").findOne({ id });
+    const club = await findClub(db, id);
 
     if (!club) {
       console.error(`Club not found: ${id}`);
       return NextResponse.json({ error: "Club not found" }, { status: 404 });
+    }
+
+    // Auto-generate slug if missing
+    if (!club.slug && club.name) {
+      const slug = generateSlug(club.name);
+      await db.collection("clubs").updateOne(
+        { _id: club._id },
+        { $set: { slug } }
+      );
+      club.slug = slug;
     }
 
     // Remove MongoDB _id
@@ -25,7 +43,6 @@ export async function GET(req: NextRequest, ctx: Ctx) {
 
     console.log(`✅ Found club: ${clubData.name}`);
 
-    // Return in expected format
     return NextResponse.json({ club: clubData });
   } catch (error: any) {
     console.error("Error fetching club:", error);
@@ -38,25 +55,31 @@ export async function PUT(req: NextRequest, ctx: Ctx) {
     const { id } = await ctx.params;
     const payload = await req.json();
     const client = await clientPromise;
-    const db = client.db();
+    const db = client.db("hockey-app");
 
-    // Check club exists
-    const existing = await db.collection("clubs").findOne({ id });
+    const existing = await findClub(db, id);
     if (!existing) {
       return NextResponse.json({ error: "Club not found" }, { status: 404 });
     }
 
-    // Update club
+    // If name changed, regenerate slug
+    const newSlug =
+      payload.slug ||
+      (payload.name && payload.name !== existing.name
+        ? generateSlug(payload.name)
+        : existing.slug || generateSlug(existing.name));
+
     const updatedData = {
       ...payload,
-      id, // Ensure ID stays the same
+      id: existing.id, // Ensure legacy ID stays the same
+      slug: newSlug,
       updatedAt: new Date().toISOString(),
     };
 
     // Remove _id if present
     delete (updatedData as any)._id;
 
-    await db.collection("clubs").updateOne({ id }, { $set: updatedData });
+    await db.collection("clubs").updateOne({ _id: existing._id }, { $set: updatedData });
 
     console.log(`✅ Updated club: ${updatedData.name}`);
 
