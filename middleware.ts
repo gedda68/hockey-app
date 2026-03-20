@@ -179,6 +179,8 @@ function isPublicPath(path: string): boolean {
     "/api/auth/login",
     "/api/auth/logout",
     "/api/auth/session",
+    "/api/auth/me",
+    "/api/auth/change-password",
     "/api/clubs",
     "/api/competitions",
     "/api/players/lookup",
@@ -220,8 +222,12 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  // 4. Force password change — only let through to /change-password
-  if (session.forcePasswordChange && !path.startsWith("/change-password")) {
+  // 4. Force password change — only let through to /change-password (and all API routes)
+  if (
+    session.forcePasswordChange &&
+    !path.startsWith("/change-password") &&
+    !path.startsWith("/api/")
+  ) {
     const changeUrl = new URL("/change-password", request.url);
     changeUrl.searchParams.set("force", "1");
     return NextResponse.redirect(changeUrl);
