@@ -5,7 +5,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
-import { getSessionFromRequest } from "@/lib/auth";
+import { getSession } from "@/lib/auth/session";
 
 export async function GET(request: NextRequest) {
   try {
@@ -23,8 +23,8 @@ export async function GET(request: NextRequest) {
     // ── Path A: Session-authenticated lookup by memberId ─────────────────────
     if (memberIdParam) {
       // Verify the session owns this memberId (prevent enumeration)
-      const session = await getSessionFromRequest(request);
-      if (!session?.user?.memberId || session.user.memberId !== memberIdParam) {
+      const session = await getSession();
+      if (!session?.memberId || session.memberId !== memberIdParam) {
         return NextResponse.json({ error: "Unauthorised" }, { status: 401 });
       }
       player = await db.collection("players").findOne({

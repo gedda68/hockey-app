@@ -6,47 +6,114 @@ import {
   useContext,
   useState,
   useEffect,
+  useCallback,
   ReactNode,
 } from "react";
 import { useRouter } from "next/navigation";
 
 export interface User {
-  userId: string;
+  userId?: string;
+  memberId?: string;
   username: string;
   email: string;
   firstName: string;
   lastName: string;
   role: string;
-  associationId?: string;
-  clubId?: string;
-  status: string;
+  associationId?: string | null;
+  clubId?: string | null;
+  clubName?: string | null;
+  status?: string;
 }
 
 interface AuthContextType {
   user: User | null;
-  setUser: (user: User | null) => void; // ← Export setUser
-  logout: () => void;
+  isAuthenticated: boolean;
   isLoading: boolean;
+  setUser: (user: User | null) => void;
+  logout: () => Promise<void>;
+  hasPermission: (permission: string) => boolean;
+  canAccessResource: (type: "association" | "club", id: string) => boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// Simple permission check based on role — mirrors middleware logic
+function roleHasPermission(role: string, permission: string): boolean {
+  const ADMIN_ROLES = [
+    "super-admin",
+    "association-admin",
+    "assoc-committee",
+    "assoc-coach",
+    "assoc-selector",
+    "assoc-registrar",
+    "club-admin",
+    "club-committee",
+    "registrar",
+    "coach",
+    "manager",
+    "umpire",
+    "volunteer",
+    "team-selector",
+  ];
+
+  const permissions: Record<string, string[]> = {
+    "manage:all":          ["super-admin"],
+    "manage:association":  ["super-admin", "association-admin"],
+    "manage:club":         ["super-admin", "association-admin", "club-admin"],
+    "manage:members":      ["super-admin", "association-admin", "club-admin", "club-committee", "registrar"],
+    "manage:players":      ["super-admin", "association-admin", "club-admin", "club-committee", "registrar", "coach", "manager"],
+    "manage:teams":        ["super-admin", "association-admin", "club-admin", "coach", "manager"],
+    "manage:nominations":  ["super-admin", "association-admin", "assoc-selector", "club-admin", "team-selector", "coach"],
+    "view:admin":          ADMIN_ROLES,
+    "view:portal":         [...ADMIN_ROLES, "player", "member", "parent"],
+  };
+
+  return permissions[permission]?.includes(role) ?? false;
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUserState] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
 
-  // Load user from localStorage on mount
+  // Load user — verify against server session (authoritative), fall back to localStorage
   useEffect(() => {
     const loadUser = async () => {
       try {
-        // Check if user is in localStorage
-        const storedUser = localStorage.getItem("user");
-        if (storedUser) {
-          setUser(JSON.parse(storedUser));
+        // Try server session first
+        const res = await fetch("/api/auth/me", { credentials: "include" });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.user) {
+            const u: User = {
+              userId:        data.user.userId,
+              memberId:      data.user.memberId,
+              username:      data.user.username || "",
+              email:         data.user.email    || "",
+              firstName:     data.user.firstName || data.user.name?.split(" ")[0] || "",
+              lastName:      data.user.lastName  || data.user.name?.split(" ").slice(1).join(" ") || "",
+              role:          data.user.role      || "player",
+              associationId: data.user.associationId || null,
+              clubId:        data.user.clubId        || null,
+              clubName:      data.user.clubName       || null,
+            };
+            setUserState(u);
+            localStorage.setItem("user", JSON.stringify(u));
+            return;
+          }
         }
-      } catch (error) {
-        console.error("Error loading user:", error);
+
+        // Session gone — clear localStorage too
+        localStorage.removeItem("user");
+        setUserState(null);
+      } catch {
+        // Network failure — try localStorage as offline fallback
+        try {
+          const stored = localStorage.getItem("user");
+          if (stored) setUserState(JSON.parse(stored));
+        } catch {
+          // ignore
+        }
       } finally {
         setIsLoading(false);
       }
@@ -55,45 +122,74 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     loadUser();
   }, []);
 
-  // Save user to localStorage when it changes
-  useEffect(() => {
-    if (user) {
-      localStorage.setItem("user", JSON.stringify(user));
+  const setUser = useCallback((u: User | null) => {
+    setUserState(u);
+    if (u) {
+      localStorage.setItem("user", JSON.stringify(u));
     } else {
       localStorage.removeItem("user");
     }
-  }, [user]);
+  }, []);
 
-  const logout = async () => {
+  const logout = useCallback(async () => {
     try {
-      // Call logout API
       await fetch("/api/auth/logout", { method: "POST" });
-    } catch (error) {
-      console.error("Logout error:", error);
-    } finally {
-      // Clear user state and localStorage
-      setUser(null);
-      localStorage.removeItem("user");
-
-      // Redirect to login
-      router.push("/login");
+    } catch {
+      // ignore network errors
     }
-  };
+    setUserState(null);
+    localStorage.removeItem("user");
+    router.push("/login");
+  }, [router]);
 
-  const value = {
-    user,
-    setUser, // ← Export setUser
-    logout,
-    isLoading,
-  };
+  const hasPermission = useCallback(
+    (permission: string) => {
+      if (!user) return false;
+      return roleHasPermission(user.role, permission);
+    },
+    [user]
+  );
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  const canAccessResource = useCallback(
+    (type: "association" | "club", id: string): boolean => {
+      if (!user) return false;
+      if (user.role === "super-admin") return true;
+      if (type === "association") {
+        if (user.role === "association-admin") return user.associationId === id;
+        // assoc staff roles
+        const assocStaff = ["assoc-committee","assoc-coach","assoc-selector","assoc-registrar"];
+        if (assocStaff.includes(user.role)) return user.associationId === id;
+        return false;
+      }
+      if (type === "club") {
+        if (user.role === "association-admin") return true; // can see all clubs in their assoc
+        const clubRoles = ["club-admin","club-committee","registrar","coach","manager","team-selector","player","member","parent","volunteer","umpire"];
+        if (clubRoles.includes(user.role)) return user.clubId === id;
+      }
+      return false;
+    },
+    [user]
+  );
+
+  return (
+    <AuthContext.Provider
+      value={{
+        user,
+        isAuthenticated: !!user,
+        isLoading,
+        setUser,
+        logout,
+        hasPermission,
+        canAccessResource,
+      }}
+    >
+      {children}
+    </AuthContext.Provider>
+  );
 }
 
 export function useAuth() {
   const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error("useAuth must be used within an AuthProvider");
-  }
+  if (!context) throw new Error("useAuth must be used within an AuthProvider");
   return context;
 }

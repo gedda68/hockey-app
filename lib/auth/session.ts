@@ -1,5 +1,5 @@
 // lib/auth/session.ts
-// Simple session-based authentication with club assignment
+// JWT session using jose — Edge-compatible
 
 import { cookies } from "next/headers";
 import { SignJWT, jwtVerify } from "jose";
@@ -12,35 +12,19 @@ export interface SessionData {
   userId: string;
   email: string;
   name: string;
-  // Legacy role values kept for backward compat with existing admin code
-  // New member auth uses the full expanded role union
-  role:
-    | "super_admin"
-    | "admin"
-    | "user"
-    | "super-admin"
-    | "association-admin"
-    | "club-admin"
-    | "coach"
-    | "manager"
-    | "umpire"
-    | "volunteer"
-    | "member"
-    | "parent"
-    | "player"
-    | "team-selector"
-    | "assoc-coach"
-    | "assoc-selector";
-  clubId: string | null;
+  firstName?: string;
+  lastName?: string;
+  role: string; // full role string — e.g. "super-admin", "club-admin", "player"
+  associationId?: string | null;
+  clubId?: string | null;
   clubName?: string;
-  // Member-specific fields (populated when a member logs in via auth.username)
   memberId?: string | null;
   username?: string;
   forcePasswordChange?: boolean;
 }
 
-// Encrypt session data
-async function encrypt(payload: SessionData) {
+// Encrypt session data into a JWT
+async function encrypt(payload: SessionData): Promise<string> {
   return await new SignJWT(payload as unknown as Record<string, unknown>)
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
@@ -48,7 +32,7 @@ async function encrypt(payload: SessionData) {
     .sign(key);
 }
 
-// Decrypt session data
+// Decrypt and verify a session JWT
 async function decrypt(token: string): Promise<SessionData | null> {
   try {
     const { payload } = await jwtVerify(token, key, {
@@ -60,13 +44,13 @@ async function decrypt(token: string): Promise<SessionData | null> {
   }
 }
 
-// Create session
-export async function createSession(data: SessionData) {
-  const expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
-  const session = await encrypt(data);
+// Create session (sets HttpOnly cookie)
+export async function createSession(data: SessionData): Promise<void> {
+  const expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+  const token = await encrypt(data);
 
   const cookieStore = await cookies();
-  cookieStore.set("session", session, {
+  cookieStore.set("session", token, {
     expires,
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
@@ -75,40 +59,31 @@ export async function createSession(data: SessionData) {
   });
 }
 
-// Get current session
+// Read current session (Server Components / API Routes)
 export async function getSession(): Promise<SessionData | null> {
   const cookieStore = await cookies();
-  const session = cookieStore.get("session")?.value;
-
-  if (!session) {
-    return null;
-  }
-
-  return await decrypt(session);
+  const token = cookieStore.get("session")?.value;
+  if (!token) return null;
+  return decrypt(token);
 }
 
-// Delete session (logout)
-export async function deleteSession() {
+// Delete session cookie
+export async function deleteSession(): Promise<void> {
   const cookieStore = await cookies();
   cookieStore.delete("session");
 }
 
-// Check if user is authenticated
+// Helpers
 export async function isAuthenticated(): Promise<boolean> {
-  const session = await getSession();
-  return session !== null;
+  return (await getSession()) !== null;
 }
 
-// Check if user is super admin
 export async function isSuperAdmin(): Promise<boolean> {
-  const session = await getSession();
-  return (
-    session?.role === "super_admin" || session?.role === "super-admin"
-  );
+  const s = await getSession();
+  return s?.role === "super-admin";
 }
 
-// Get user's club ID
 export async function getUserClubId(): Promise<string | null> {
-  const session = await getSession();
-  return session?.clubId || null;
+  const s = await getSession();
+  return s?.clubId || null;
 }

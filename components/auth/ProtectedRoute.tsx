@@ -57,7 +57,7 @@ export function ProtectedRoute({
   }
 
   // Check role requirement
-  if (requiredRole && !requiredRole.includes(user.role)) {
+  if (requiredRole && !(requiredRole as string[]).includes(user.role)) {
     return (
       <AccessDenied
         reason="insufficient-role"
