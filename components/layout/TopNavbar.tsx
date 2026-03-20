@@ -64,7 +64,8 @@ export default function TopNavbar({ clubs }: TopNavbarProps) {
   const [scrolled, setScrolled] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
-  const { isAuthenticated, logout } = useAuth();
+  const { user, logout } = useAuth();
+  const isAuthenticated = !!user;
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Lock vertical scroll only when mobile menu is open
@@ -228,14 +229,16 @@ export default function TopNavbar({ clubs }: TopNavbarProps) {
                   Clubs
                 </button>
 
-                {/* Admin Login / Logout */}
+                {/* Admin / Logout */}
                 {isAuthenticated ? (
                   <button
                     onClick={handleLogout}
                     className="flex items-center gap-2 px-4 py-2 bg-yellow-400 text-[#06054e] rounded-md text-sm font-bold uppercase tracking-wider hover:bg-yellow-300 transition-colors shadow-lg ml-2"
                   >
                     <LogOut className="h-4 w-4" />
-                    Logout
+                    <span className="max-w-[160px] truncate">
+                      Logout — {user?.firstName} {user?.lastName}
+                    </span>
                   </button>
                 ) : (
                   <LinkButton
@@ -246,7 +249,7 @@ export default function TopNavbar({ clubs }: TopNavbarProps) {
                     hoverTextColor="hover:text-slate-800"
                   >
                     <LogIn className="h-4 w-4" />
-                    Admin Login
+                    Admin
                   </LinkButton>
                 )}
               </div>
@@ -367,9 +370,9 @@ export default function TopNavbar({ clubs }: TopNavbarProps) {
                 }}
                 className="flex w-full items-center gap-4 px-6 py-4 rounded-2xl bg-yellow-400 text-[#06054e] hover:bg-yellow-300"
               >
-                <LogOut className="h-5 w-5" />
-                <span className="uppercase text-[11px] font-bold tracking-widest">
-                  Logout
+                <LogOut className="h-5 w-5 shrink-0" />
+                <span className="uppercase text-[11px] font-bold tracking-widest truncate">
+                  Logout — {user?.firstName} {user?.lastName}
                 </span>
               </button>
             ) : (
@@ -380,7 +383,7 @@ export default function TopNavbar({ clubs }: TopNavbarProps) {
               >
                 <LogIn className="h-5 w-5" />
                 <span className="uppercase text-[11px] font-bold tracking-widest">
-                  Admin Login
+                  Admin
                 </span>
               </Link>
             )}
