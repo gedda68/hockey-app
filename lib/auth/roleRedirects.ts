@@ -1,103 +1,108 @@
 // lib/auth/roleRedirects.ts
 // Role-based navigation helper
 
-import type { UserRole } from "@/lib/types/roles";
-
 /**
- * Get the appropriate dashboard path for a user based on their role
+ * Get the appropriate dashboard path for a user based on their role.
+ * The returned path MUST exist in the app/admin/ or app/(website)/ directory.
  */
 export function getRoleDashboard(
-  role: UserRole,
+  role: string,
   clubId?: string | null,
   associationId?: string | null
 ): string {
   switch (role) {
+    // ── Super admin ─────────────────────────────────────────────────────────
     case "super-admin":
       return "/admin/dashboard";
 
+    // ── Association-level ────────────────────────────────────────────────────
     case "association-admin":
       return associationId
         ? `/admin/associations/${associationId}`
-        : "/admin/dashboard";
+        : "/admin/associations";
 
-    // Association-level roles
     case "assoc-committee":
     case "assoc-coach":
     case "assoc-selector":
     case "assoc-registrar":
       return "/admin/representative";
 
-    // Club committee/registrar
+    // ── Club-level ───────────────────────────────────────────────────────────
+    case "club-admin":
+      // Go to the club's edit page (the view/overview page for that specific club)
+      return clubId ? `/admin/clubs/${clubId}/edit` : "/admin/clubs";
+
     case "club-committee":
     case "registrar":
-      return "/admin/players";
+      return "/admin/members";
 
-    // Team-level selector
+    case "coach":
+    case "manager":
+      return "/admin/teams";
+
     case "team-selector":
       return "/admin/nominations";
 
-    // Public portal roles — go to nomination portal
+    case "umpire":
+      return "/admin/representative";
+
+    case "volunteer":
+      return clubId ? `/admin/clubs/${clubId}/edit` : "/admin/clubs";
+
+    // ── Portal (no admin access) ─────────────────────────────────────────────
     case "player":
     case "member":
     case "parent":
       return "/nominate";
 
-    case "club-admin":
-      // Club-specific dashboard
-      return clubId ? `/admin/clubs/${clubId}` : "/admin/clubs";
-
-    case "coach":
-    case "manager":
-      // Team management
-      return "/admin/teams";
-
-    case "umpire":
-      // Match schedule
-      return "/admin/matches";
-
-    case "volunteer":
-      // Limited club access
-      return clubId ? `/admin/clubs/${clubId}` : "/admin/clubs";
-
-    case "member":
-    case "parent":
-      // Player/member portal
-      return "/portal/dashboard";
-
     default:
-      // Fallback to general admin
       return "/admin/dashboard";
   }
 }
 
 /**
- * Get user-friendly role name
+ * Get user-friendly display name for a role
  */
-export function getRoleDisplayName(role: UserRole): string {
-  const roleNames: Record<UserRole, string> = {
-    "super-admin": "System Administrator",
+export function getRoleDisplayName(role: string): string {
+  const roleNames: Record<string, string> = {
+    "super-admin":       "System Administrator",
     "association-admin": "Association Administrator",
-    "club-admin": "Club Administrator",
-    coach: "Coach",
-    manager: "Team Manager",
-    umpire: "Umpire",
-    volunteer: "Volunteer",
-    member: "Member",
-    parent: "Parent/Guardian",
+    "assoc-committee":   "Association Committee",
+    "assoc-coach":       "Association Coach",
+    "assoc-selector":    "Association Selector",
+    "assoc-registrar":   "Association Registrar",
+    "club-admin":        "Club Administrator",
+    "club-committee":    "Club Committee",
+    "coach":             "Coach",
+    "manager":           "Team Manager",
+    "registrar":         "Club Registrar",
+    "team-selector":     "Team Selector",
+    "umpire":            "Umpire",
+    "volunteer":         "Volunteer",
+    "player":            "Player",
+    "member":            "Member",
+    "parent":            "Parent / Guardian",
   };
   return roleNames[role] || role;
 }
 
 /**
- * Check if user can access admin area
+ * Returns true if this role has access to the /admin area
  */
-export function canAccessAdmin(role: UserRole): boolean {
+export function canAccessAdmin(role: string): boolean {
   return [
     "super-admin",
     "association-admin",
+    "assoc-committee",
+    "assoc-coach",
+    "assoc-selector",
+    "assoc-registrar",
     "club-admin",
+    "club-committee",
+    "registrar",
     "coach",
     "manager",
+    "team-selector",
     "umpire",
     "volunteer",
   ].includes(role);

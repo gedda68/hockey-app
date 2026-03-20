@@ -6,10 +6,13 @@ import {
   useContext,
   useState,
   useEffect,
+  useRef,
   useCallback,
   ReactNode,
 } from "react";
 import { useRouter } from "next/navigation";
+
+const IDLE_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
 
 export interface User {
   userId?: string;
@@ -75,6 +78,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUserState] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
+  const idleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Load user — verify against server session (authoritative), fall back to localStorage
   useEffect(() => {
@@ -132,6 +136,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const logout = useCallback(async () => {
+    if (idleTimer.current) clearTimeout(idleTimer.current);
     try {
       await fetch("/api/auth/logout", { method: "POST" });
     } catch {
@@ -141,6 +146,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem("user");
     router.push("/login");
   }, [router]);
+
+  // ── 30-minute inactivity timer ───────────────────────────────────────────
+  const resetIdleTimer = useCallback(() => {
+    if (idleTimer.current) clearTimeout(idleTimer.current);
+    idleTimer.current = setTimeout(() => {
+      // Auto-logout on 30 min idle
+      fetch("/api/auth/logout", { method: "POST" }).catch(() => {});
+      setUserState(null);
+      localStorage.removeItem("user");
+      router.push("/login?reason=idle");
+    }, IDLE_TIMEOUT_MS);
+  }, [router]);
+
+  // Attach / detach activity listeners when user is logged in
+  useEffect(() => {
+    if (!user) {
+      if (idleTimer.current) clearTimeout(idleTimer.current);
+      return;
+    }
+
+    const EVENTS = ["mousedown", "keydown", "touchstart", "scroll", "click"];
+    const handleActivity = () => resetIdleTimer();
+
+    resetIdleTimer(); // start timer on login
+    EVENTS.forEach((ev) => window.addEventListener(ev, handleActivity, { passive: true }));
+
+    return () => {
+      if (idleTimer.current) clearTimeout(idleTimer.current);
+      EVENTS.forEach((ev) => window.removeEventListener(ev, handleActivity));
+    };
+  }, [user, resetIdleTimer]);
 
   const hasPermission = useCallback(
     (permission: string) => {

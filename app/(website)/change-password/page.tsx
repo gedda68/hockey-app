@@ -131,10 +131,10 @@ function ChangePasswordForm() {
 
       setSuccess(true);
 
-      // Brief pause to show success state before redirecting
+      // Hard-navigate so middleware picks up the refreshed session cookie
       setTimeout(() => {
-        router.push(nextUrl);
-      }, 1800);
+        window.location.href = nextUrl;
+      }, 1500);
     } catch {
       setError("A connection error occurred. Please try again.");
     } finally {
@@ -176,8 +176,8 @@ function ChangePasswordForm() {
             </div>
 
             <div className="px-8 py-7 space-y-5">
-              {/* Force-change banner */}
-              {isForced && (
+              {/* Force-change banner — hidden once password is set */}
+              {isForced && !success && (
                 <div className="flex items-start gap-3 p-4 bg-yellow-50 border border-yellow-300 rounded-2xl">
                   <AlertTriangle
                     size={18}
