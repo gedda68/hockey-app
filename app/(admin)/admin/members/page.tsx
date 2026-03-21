@@ -33,29 +33,23 @@ const CLUB_SCOPED_ROLES = [
 interface Member {
   memberId: string;
   clubId: string;
-  // personalInfo may be nested (wizard-created) or absent (legacy/bulk-imported)
-  personalInfo?: {
-    firstName?: string;
-    lastName?: string;
-    displayName?: string;
-    dateOfBirth?: string;
-    gender?: string;
+  personalInfo: {
+    firstName: string;
+    lastName: string;
+    displayName: string;
+    dateOfBirth: string;
+    gender: string;
   };
-  // contact may use email (wizard) or primaryEmail (bulk-imported)
-  contact?: {
-    email?: string;
-    primaryEmail?: string;
+  contact: {
+    email: string;
     mobile?: string;
-    phone?: string;
   };
-  membership?: {
-    status?: string;
-    membershipTypes?: string[];
+  membership: {
+    status: string;
+    membershipTypes: string[];
   };
-  roles?: string[];
-  createdAt?: string;
-  // flat-schema fallbacks for legacy/bulk-imported members
-  [key: string]: any;
+  roles: string[];
+  createdAt: string;
 }
 
 interface BulkResult {
@@ -474,18 +468,15 @@ export default function MembersPage() {
                       <td className="py-4 px-6">
                         <span className="text-slate-600">
                           {member.contact?.email ||
-                            member.contact?.primaryEmail ||
-                            (member as any).email ||
+                            (member.personalInfo as any)?.email ||
                             "—"}
                         </span>
                       </td>
                       <td className="py-4 px-6">
                         <span className="text-slate-600">
                           {member.contact?.mobile ||
-                            member.contact?.phone ||
-                            (member as any).mobile ||
-                            (member as any).phone ||
-                            "—"}
+                            (member.personalInfo as any)?.phone ||
+                            "-"}
                         </span>
                       </td>
                       <td className="py-4 px-6 text-center">
@@ -493,7 +484,7 @@ export default function MembersPage() {
                           onClick={() =>
                             handleToggleStatus(
                               member.memberId,
-                              member.membership?.status ?? "Unknown",
+                              member.membership.status,
                             )
                           }
                           className={`inline-block px-3 py-1 rounded-full text-xs font-black uppercase transition-all ${
@@ -529,7 +520,7 @@ export default function MembersPage() {
                             onClick={() =>
                               handleToggleStatus(
                                 member.memberId,
-                                member.membership?.status ?? "Unknown",
+                                member.membership.status,
                               )
                             }
                             className="p-2 text-orange-600 hover:bg-orange-50 rounded-lg transition-colors"
