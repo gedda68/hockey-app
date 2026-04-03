@@ -4,8 +4,8 @@
 import { cookies } from "next/headers";
 import { SignJWT, jwtVerify } from "jose";
 
-const SECRET_KEY =
-  process.env.JWT_SECRET || "your-secret-key-change-in-production";
+const SECRET_KEY = process.env.JWT_SECRET;
+if (!SECRET_KEY) throw new Error("JWT_SECRET environment variable is not set");
 const key = new TextEncoder().encode(SECRET_KEY);
 
 export interface SessionData {

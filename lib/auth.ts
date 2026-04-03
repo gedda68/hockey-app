@@ -5,9 +5,9 @@ import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 
-const secret = new TextEncoder().encode(
-  process.env.AUTH_SECRET || "your-secret-key-min-32-chars-long",
-);
+const authSecret = process.env.AUTH_SECRET;
+if (!authSecret) throw new Error("AUTH_SECRET environment variable is not set");
+const secret = new TextEncoder().encode(authSecret);
 
 export interface User {
   userId: string;

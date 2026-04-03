@@ -9,6 +9,4 @@ module.exports = {
   daisyui: {
     base: false,
   },
-
-  THIS_WILL_THROW,
 };

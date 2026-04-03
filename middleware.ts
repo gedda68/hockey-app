@@ -7,8 +7,8 @@ import type { NextRequest } from "next/server";
 import { jwtVerify } from "jose";
 
 // Must match lib/auth/session.ts
-const SECRET_KEY =
-  process.env.JWT_SECRET || "your-secret-key-change-in-production";
+const SECRET_KEY = process.env.JWT_SECRET;
+if (!SECRET_KEY) throw new Error("JWT_SECRET environment variable is not set");
 const key = new TextEncoder().encode(SECRET_KEY);
 
 interface SessionData {
