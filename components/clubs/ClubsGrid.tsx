@@ -6,6 +6,7 @@
 import { useState } from "react";
 import Image from "next/image";
 import AboutModal from "./AboutModal";
+import { sanitizeHtml } from "@/lib/utils/sanitize";
 import ContactModal from "./ContactModal";
 import { Club } from "../../app/admin/types/clubs";
 
@@ -67,9 +68,10 @@ export default function ClubsGrid({ clubs }: ClubsGridProps) {
               <div
                 className="text-sm text-slate-600 text-center mb-4 line-clamp-3"
                 dangerouslySetInnerHTML={{
-                  __html:
+                  __html: sanitizeHtml(
                     club.description.substring(0, 150) +
-                    (club.description.length > 150 ? "..." : ""),
+                    (club.description.length > 150 ? "..." : "")
+                  ),
                 }}
               />
             )}

@@ -4,6 +4,7 @@
 // Representative Tournament / Competition management
 
 import { useState, useEffect, useCallback } from "react";
+import { sanitizeHtml } from "@/lib/utils/sanitize";
 import {
   Trophy,
   Plus,
@@ -486,7 +487,7 @@ function TournamentCard({
             {showInfo && (
               <div
                 className="mt-3 prose prose-sm max-w-none text-slate-600 bg-slate-50 rounded-2xl p-4"
-                dangerouslySetInnerHTML={{ __html: tournament.additionalInfo }}
+                dangerouslySetInnerHTML={{ __html: sanitizeHtml(tournament.additionalInfo) }}
               />
             )}
           </div>

@@ -3,6 +3,8 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
+import { escapeRegex } from "@/lib/utils/regex";
+import { getSession } from "@/lib/auth/session";
 
 const MEMBERS_PER_PAGE = 20;
 
@@ -98,12 +100,13 @@ export async function GET(request: NextRequest) {
 
     // Search by name, email, or member ID
     if (search) {
+      const safeSearch = escapeRegex(search);
       query.$or = [
-        { memberId: { $regex: search, $options: "i" } },
-        { "personalInfo.firstName": { $regex: search, $options: "i" } },
-        { "personalInfo.lastName": { $regex: search, $options: "i" } },
-        { "personalInfo.displayName": { $regex: search, $options: "i" } },
-        { "contact.email": { $regex: search, $options: "i" } },
+        { memberId: { $regex: safeSearch, $options: "i" } },
+        { "personalInfo.firstName": { $regex: safeSearch, $options: "i" } },
+        { "personalInfo.lastName": { $regex: safeSearch, $options: "i" } },
+        { "personalInfo.displayName": { $regex: safeSearch, $options: "i" } },
+        { "contact.email": { $regex: safeSearch, $options: "i" } },
       ];
     }
 
@@ -139,6 +142,7 @@ export async function GET(request: NextRequest) {
 // POST - Create new member
 export async function POST(request: NextRequest) {
   try {
+    const session = await getSession();
     const body = await request.json();
 
     console.log("➕ Creating member:", {
@@ -245,7 +249,7 @@ export async function POST(request: NextRequest) {
 
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-      createdBy: "system", // TODO: Get from auth context
+      createdBy: session?.email || session?.userId || "system",
       updatedBy: null,
     };
 
@@ -274,6 +278,7 @@ export async function PUT(
   context: { params: Promise<{ id: string }> },
 ) {
   try {
+    const session = await getSession();
     const { id } = await context.params;
     const body = await request.json();
     const client = await clientPromise;
@@ -288,7 +293,7 @@ export async function PUT(
         $set: {
           ...updateData,
           updatedAt: new Date().toISOString(),
-          updatedBy: "system", // Replace with auth context later
+          updatedBy: session?.email || session?.userId || "system",
         },
       },
       { returnDocument: "after" },

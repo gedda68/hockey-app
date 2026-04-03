@@ -3,6 +3,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
+import { escapeRegex } from "@/lib/utils/regex";
 
 // GET - Search members in club
 export async function GET(
@@ -31,15 +32,16 @@ export async function GET(
     }
 
     // ✅ Search members using club.id
+    const safeQuery = escapeRegex(query);
     const members = await db
       .collection("members")
       .find({
         clubId: club.id,
         $or: [
-          { "personalInfo.firstName": { $regex: query, $options: "i" } },
-          { "personalInfo.lastName": { $regex: query, $options: "i" } },
-          { "personalInfo.displayName": { $regex: query, $options: "i" } },
-          { memberId: { $regex: query, $options: "i" } },
+          { "personalInfo.firstName": { $regex: safeQuery, $options: "i" } },
+          { "personalInfo.lastName": { $regex: safeQuery, $options: "i" } },
+          { "personalInfo.displayName": { $regex: safeQuery, $options: "i" } },
+          { memberId: { $regex: safeQuery, $options: "i" } },
         ],
       })
       .limit(10)

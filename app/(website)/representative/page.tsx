@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import { sanitizeHtml } from "@/lib/utils/sanitize";
 import Image from "next/image";
 import Link from "next/link";
 import {
@@ -561,7 +562,7 @@ export default function RepresentativePage() {
           <div
             className="mt-8 p-6 bg-amber-50 rounded-2xl text-sm font-bold border-l-4 border-amber-400"
             dangerouslySetInnerHTML={{
-              __html: String(activeData.trialInfo?.details),
+              __html: sanitizeHtml(String(activeData.trialInfo?.details)),
             }}
           />
         )}
@@ -578,7 +579,7 @@ export default function RepresentativePage() {
           <div
             className="mt-8 p-6 bg-blue-50 rounded-2xl text-sm font-bold border-l-4 border-blue-400"
             dangerouslySetInnerHTML={{
-              __html: String(activeData.trainingInfo?.details),
+              __html: sanitizeHtml(String(activeData.trainingInfo?.details)),
             }}
           />
         )}
@@ -638,7 +639,7 @@ export default function RepresentativePage() {
           <div
             className="mt-8 p-6 bg-indigo-50 rounded-2xl text-sm font-bold border-l-4 border-indigo-400"
             dangerouslySetInnerHTML={{
-              __html: String(activeData.tournamentInfo?.details),
+              __html: sanitizeHtml(String(activeData.tournamentInfo?.details)),
             }}
           />
         )}

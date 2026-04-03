@@ -2,6 +2,7 @@
 // FIXED: POST now generates playerId automatically
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
+import { escapeRegex } from "@/lib/utils/regex";
 
 // GET: Fetch all players with filtering
 export async function GET(request: NextRequest) {
@@ -31,10 +32,11 @@ export async function GET(request: NextRequest) {
     if (gender) query.gender = gender;
 
     if (search) {
+      const safeSearch = escapeRegex(search);
       query.$or = [
-        { firstName: { $regex: search, $options: "i" } },
-        { lastName: { $regex: search, $options: "i" } },
-        { preferredName: { $regex: search, $options: "i" } },
+        { firstName: { $regex: safeSearch, $options: "i" } },
+        { lastName: { $regex: safeSearch, $options: "i" } },
+        { preferredName: { $regex: safeSearch, $options: "i" } },
       ];
     }
 

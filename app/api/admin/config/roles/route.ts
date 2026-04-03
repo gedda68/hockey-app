@@ -3,6 +3,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
+import { escapeRegex } from "@/lib/utils/regex";
 
 // GET - List all roles
 export async function GET(request: NextRequest) {
@@ -64,7 +65,7 @@ export async function POST(request: NextRequest) {
 
     // Check for duplicate
     const existing = await db.collection("member_roles").findOne({
-      name: { $regex: new RegExp(`^${body.name}$`, "i") },
+      name: { $regex: new RegExp(`^${escapeRegex(body.name)}$`, "i") },
       clubId: body.clubId || null,
     });
 

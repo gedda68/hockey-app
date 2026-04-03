@@ -4,6 +4,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import { generateSlug } from "@/lib/utils/slug";
+import { escapeRegex } from "@/lib/utils/regex";
 
 // --- HELPER: LOG CHANGES ---
 async function logClubChange(
@@ -155,9 +156,10 @@ export async function GET(request: NextRequest) {
         console.log(`📍 Mapped ${region} to region: ${matchedRegion}`);
       } else {
         // If no mapping found, search in club name or general area
+        const safeRegion = escapeRegex(region);
         query.$or = [
-          { region: { $regex: region, $options: "i" } },
-          { name: { $regex: region, $options: "i" } },
+          { region: { $regex: safeRegion, $options: "i" } },
+          { name: { $regex: safeRegion, $options: "i" } },
         ];
       }
     }
@@ -174,10 +176,11 @@ export async function GET(request: NextRequest) {
     }
 
     if (search) {
+      const safeSearch = escapeRegex(search);
       query.$or = [
-        { name: { $regex: search, $options: "i" } },
-        { shortName: { $regex: search, $options: "i" } },
-        { id: { $regex: search, $options: "i" } },
+        { name: { $regex: safeSearch, $options: "i" } },
+        { shortName: { $regex: safeSearch, $options: "i" } },
+        { id: { $regex: safeSearch, $options: "i" } },
       ];
     }
 

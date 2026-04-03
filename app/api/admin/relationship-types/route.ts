@@ -3,6 +3,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
+import { escapeRegex } from "@/lib/utils/regex";
 
 // GET - Fetch all relationship types
 export async function GET(request: NextRequest) {
@@ -56,7 +57,7 @@ export async function POST(request: NextRequest) {
     // Check if relationship type already exists
     const existing = await db
       .collection("relationshipTypes")
-      .findOne({ name: { $regex: new RegExp(`^${name}$`, "i") } });
+      .findOne({ name: { $regex: new RegExp(`^${escapeRegex(name)}$`, "i") } });
 
     if (existing) {
       return NextResponse.json(

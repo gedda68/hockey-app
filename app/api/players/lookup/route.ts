@@ -4,6 +4,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
+import { escapeRegex } from "@/lib/utils/regex";
 
 export async function GET(request: NextRequest) {
   try {
@@ -24,8 +25,8 @@ export async function GET(request: NextRequest) {
 
     // Case-insensitive name match + exact DOB
     const player = await db.collection("players").findOne({
-      firstName: { $regex: `^${firstName}$`, $options: "i" },
-      lastName: { $regex: `^${lastName}$`, $options: "i" },
+      firstName: { $regex: `^${escapeRegex(firstName)}$`, $options: "i" },
+      lastName: { $regex: `^${escapeRegex(lastName)}$`, $options: "i" },
       dateOfBirth: dob,
     });
 

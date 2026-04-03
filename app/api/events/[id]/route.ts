@@ -3,6 +3,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { MongoClient, ObjectId } from "mongodb";
+import { getSession } from "@/lib/auth/session";
 
 const uri = process.env.MONGODB_URI!;
 
@@ -34,9 +35,16 @@ export async function GET(
 
     // Check visibility and access
     if (event.visibility === "private") {
-      // TODO: Check if user has access (auth check)
-      // For now, return 403
-      return NextResponse.json({ error: "Access denied" }, { status: 403 });
+      const session = await getSession();
+      const adminRoles = [
+        "super-admin", "association-admin", "assoc-committee",
+        "assoc-coach", "assoc-selector", "assoc-registrar",
+        "club-admin", "club-committee", "registrar", "coach",
+        "manager", "team-selector",
+      ];
+      if (!session || !adminRoles.includes(session.role)) {
+        return NextResponse.json({ error: "Access denied" }, { status: 403 });
+      }
     }
 
     // Increment view count

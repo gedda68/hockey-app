@@ -15,6 +15,7 @@
     "@dnd-kit/utilities": "^3.2.2",
     "@lexical/react": "^0.39.0",
     "bcryptjs": "^3.0.3",
+    "dompurify": "^3.2.6",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "daisyui": "^5.5.14",
@@ -38,6 +39,7 @@
   "devDependencies": {
     "@tailwindcss/postcss": "^4.1.18",
     "@types/bcryptjs": "^2.4.6",
+    "@types/dompurify": "^3.0.5",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^20.19.30",
     "@types/react": "^19",

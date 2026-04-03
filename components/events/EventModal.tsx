@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { sanitizeHtml } from "@/lib/utils/sanitize";
 import {
   X,
   Calendar,
@@ -271,7 +272,7 @@ export default function EventModal({
                     {event.fullDescription ? (
                       <div
                         dangerouslySetInnerHTML={{
-                          __html: event.fullDescription,
+                          __html: sanitizeHtml(event.fullDescription),
                         }}
                       />
                     ) : (

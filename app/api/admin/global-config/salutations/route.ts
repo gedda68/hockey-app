@@ -3,6 +3,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
+import { escapeRegex } from "@/lib/utils/regex";
 
 // GET - List all salutations
 export async function GET(request: NextRequest) {
@@ -20,9 +21,10 @@ export async function GET(request: NextRequest) {
     if (activeOnly) query.isActive = true;
     if (category) query.category = category;
     if (search) {
+      const safeSearch = escapeRegex(search);
       query.$or = [
-        { name: { $regex: search, $options: "i" } },
-        { fullName: { $regex: search, $options: "i" } },
+        { name: { $regex: safeSearch, $options: "i" } },
+        { fullName: { $regex: safeSearch, $options: "i" } },
       ];
     }
 

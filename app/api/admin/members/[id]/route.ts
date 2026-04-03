@@ -3,6 +3,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
+import { getSession } from "@/lib/auth/session";
 
 // GET - Get single member by ID
 export async function GET(
@@ -38,6 +39,7 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    const session = await getSession();
     const resolvedParams = await params;
     const memberId = resolvedParams.id;
     const body = await request.json();
@@ -71,7 +73,7 @@ export async function PUT(
         section: changeLog.section,
         changes: changeLog.changes,
         timestamp: changeLog.timestamp,
-        updatedBy: body.updatedBy || "system", // TODO: Get from session
+        updatedBy: session?.email || session?.userId || "system",
         updatedAt: new Date().toISOString(),
       });
     }
@@ -98,6 +100,7 @@ export async function DELETE(
   context: { params: Promise<{ id: string }> },
 ) {
   try {
+    const session = await getSession();
     const { id } = await context.params;
 
     console.log("🗑️ Deactivating member:", id);
@@ -119,7 +122,7 @@ export async function DELETE(
         $set: {
           "membership.status": "Inactive",
           updatedAt: new Date().toISOString(),
-          updatedBy: "system", // TODO: Get from auth context
+          updatedBy: session?.email || session?.userId || "system",
         },
       },
     );

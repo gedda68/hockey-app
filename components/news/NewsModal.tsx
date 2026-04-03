@@ -6,6 +6,7 @@ import { X, Calendar, User } from "lucide-react";
 import { NewsItem } from "@/types/news";
 import Image from "next/image";
 import { useEffect } from "react";
+import { sanitizeHtml } from "@/lib/utils/sanitize";
 
 interface NewsModalProps {
   newsItem: NewsItem | null;
@@ -127,7 +128,7 @@ export default function NewsModal({
                   {/* Content */}
                   <div
                     className="prose prose-slate max-w-none [&>p]:mb-3 [&>h2]:text-xl [&>h2]:font-bold [&>h2]:mt-4 [&>h2]:mb-2 [&>h3]:text-lg [&>h3]:font-bold [&>h3]:mt-3 [&>h3]:mb-2 [&>ul]:mb-3 [&>ol]:mb-3"
-                    dangerouslySetInnerHTML={{ __html: newsItem.content }}
+                    dangerouslySetInnerHTML={{ __html: sanitizeHtml(newsItem.content) }}
                   />
                 </div>
 

@@ -7,6 +7,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
+import { getSession } from "@/lib/auth/session";
 import {
   // ApproveRegistrationRequestSchema,
   // RejectRegistrationRequestSchema,
@@ -152,8 +153,9 @@ export async function approveRegistration(
       return NextResponse.json({ error: validation.error }, { status: 400 });
     }
 
-    // Get admin ID from session/auth
-    const adminId = body.adminId || "system"; // TODO: Get from auth
+    // Get admin ID from session
+    const session = await getSession();
+    const adminId = session?.email || session?.userId || "system";
 
     // Prepare update
     const updateData: any = {

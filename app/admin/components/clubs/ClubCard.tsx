@@ -5,6 +5,7 @@
 
 import { Club } from "../../types/clubs";
 import Image from "next/image";
+import { sanitizeHtml } from "@/lib/utils/sanitize";
 
 interface ClubCardProps {
   club: Club;
@@ -86,9 +87,10 @@ export default function ClubCard({ club, onEdit, onDelete }: ClubCardProps) {
             <div
               className="text-sm text-slate-600 line-clamp-3"
               dangerouslySetInnerHTML={{
-                __html:
+                __html: sanitizeHtml(
                   club.description.substring(0, 200) +
-                  (club.description.length > 200 ? "..." : ""),
+                  (club.description.length > 200 ? "..." : "")
+                ),
               }}
             />
           </div>

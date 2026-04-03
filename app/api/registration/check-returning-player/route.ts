@@ -3,6 +3,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
+import { escapeRegex } from "@/lib/utils/regex";
 
 // ============================================================================
 // POST /api/registration/check-returning-player
@@ -22,7 +23,7 @@ export async function POST(request: NextRequest) {
 
     // Find member by email
     const member = await db.collection("members").findOne({
-      "contact.primaryEmail": { $regex: new RegExp(`^${email}$`, "i") },
+      "contact.primaryEmail": { $regex: new RegExp(`^${escapeRegex(email)}$`, "i") },
     });
 
     // If no member found, return new player response

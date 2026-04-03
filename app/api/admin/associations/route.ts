@@ -4,6 +4,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import { z } from "zod";
+import { escapeRegex } from "@/lib/utils/regex";
 
 // Schema for creating/updating associations
 const AssociationSchema = z.object({
@@ -165,10 +166,11 @@ export async function GET(request: NextRequest) {
     }
 
     if (search) {
+      const safeSearch = escapeRegex(search);
       query.$or = [
-        { name: { $regex: search, $options: "i" } },
-        { code: { $regex: search, $options: "i" } },
-        { fullName: { $regex: search, $options: "i" } },
+        { name: { $regex: safeSearch, $options: "i" } },
+        { code: { $regex: safeSearch, $options: "i" } },
+        { fullName: { $regex: safeSearch, $options: "i" } },
       ];
     }
 

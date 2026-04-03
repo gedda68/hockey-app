@@ -5,6 +5,7 @@
 
 import { Club } from "../../app/admin/types/clubs";
 import Image from "next/image";
+import { sanitizeHtml } from "@/lib/utils/sanitize";
 
 interface AboutModalProps {
   club: Club;
@@ -60,7 +61,7 @@ export default function AboutModal({ club, isOpen, onClose }: AboutModalProps) {
             <div className="mb-6">
               <div
                 className="prose prose-slate max-w-none text-lg"
-                dangerouslySetInnerHTML={{ __html: club.description }}
+                dangerouslySetInnerHTML={{ __html: sanitizeHtml(club.description) }}
               />
             </div>
           )}
@@ -78,7 +79,7 @@ export default function AboutModal({ club, isOpen, onClose }: AboutModalProps) {
               </h3>
               <div
                 className="prose prose-slate max-w-none"
-                dangerouslySetInnerHTML={{ __html: club.about }}
+                dangerouslySetInnerHTML={{ __html: sanitizeHtml(club.about) }}
               />
             </div>
           )}
