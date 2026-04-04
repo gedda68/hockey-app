@@ -281,6 +281,7 @@ export async function PATCH(
         ...(req.scopeName ? { scopeName: req.scopeName } : {}),
         grantedAt: now,
         grantedBy: session.userId,
+        ...(req.seasonYear ? { seasonYear: req.seasonYear } : {}),
         ...(req.seasonYear && roleDef?.seasonalRegistration
           ? { expiresAt: `${req.seasonYear}-12-31T23:59:59.000Z` }
           : {}),

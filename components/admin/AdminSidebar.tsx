@@ -121,6 +121,13 @@ const teamTournamentsItem: MenuItem = {
   description: "Manage team entries and per-member cost allocations",
 };
 
+const roleExpiryItem: MenuItem = {
+  label: "Role Expiry",
+  href: "/admin/role-expiry",
+  icon: "⏳",
+  description: "Monitor expiring roles and run seasonal cleanup",
+};
+
 function buildMenuForUser(user: User | null): MenuItem[] {
   if (!user) return menuConfig;
 
@@ -162,6 +169,7 @@ function buildMenuForUser(user: User | null): MenuItem[] {
         feesItem,
         nominationsItem,
         teamTournamentsItem,
+        roleExpiryItem,
         mc("Reports")!,
         myRegistrationsItem,
         myFeesItem,
@@ -175,7 +183,7 @@ function buildMenuForUser(user: User | null): MenuItem[] {
     }
 
     if (role === "registrar") {
-      return [myClub, mc("Members")!, mc("Role Approvals")!, mc("Players")!, feesItem, teamTournamentsItem, myRegistrationsItem, myFeesItem].filter(
+      return [myClub, mc("Members")!, mc("Role Approvals")!, mc("Players")!, feesItem, teamTournamentsItem, roleExpiryItem, myRegistrationsItem, myFeesItem].filter(
         (item): item is MenuItem => item !== undefined,
       );
     }
@@ -262,6 +270,7 @@ function buildMenuForUser(user: User | null): MenuItem[] {
         mc("Tournaments")!,
         feesItem,
         teamTournamentsItem,
+        roleExpiryItem,
         mc("Reports")!,
         mc("Settings")!,
         myRegistrationsItem,
@@ -288,7 +297,7 @@ function buildMenuForUser(user: User | null): MenuItem[] {
     }
 
     if (role === "assoc-registrar") {
-      return [myAssoc, mc("Members")!, mc("Role Approvals")!, mc("Players")!, feesItem, teamTournamentsItem, myRegistrationsItem, myFeesItem].filter(
+      return [myAssoc, mc("Members")!, mc("Role Approvals")!, mc("Players")!, feesItem, teamTournamentsItem, roleExpiryItem, myRegistrationsItem, myFeesItem].filter(
         (item): item is MenuItem => item !== undefined,
       );
     }

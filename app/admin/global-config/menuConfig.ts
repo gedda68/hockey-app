@@ -240,6 +240,13 @@ export const menuConfig: MenuItem[] = [
     color: "from-amber-500 to-amber-600",
   },
   {
+    label: "Role Expiry",
+    href: "/admin/role-expiry",
+    icon: "⏳",
+    description: "Monitor expiring roles and run seasonal cleanup",
+    color: "from-red-500 to-red-600",
+  },
+  {
     label: "Registration",
     href: "/admin/registrations",
     icon: "📝",

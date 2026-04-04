@@ -166,6 +166,9 @@ const ROUTE_RULES: RouteRule[] = [
   // ── Team tournament fee management ───────────────────────────────────────
   { pattern: /^\/admin\/team-tournaments(\/|$)/, allowedRoles: CLUB_MANAGEMENT, scopeCheck: true },
 
+  // ── Role expiry dashboard ─────────────────────────────────────────────────
+  { pattern: /^\/admin\/role-expiry(\/|$)/, allowedRoles: CLUB_MANAGEMENT, scopeCheck: true },
+
   // ── Catch-all admin (requires some admin role) ─────────────────────────────
   { pattern: /^\/admin(\/|$)/, allowedRoles: ANY_ADMIN },
 
@@ -197,6 +200,7 @@ function isPublicPath(path: string): boolean {
     "/api/auth/me",
     "/api/auth/change-password",
     "/api/member/my-fees",
+    "/api/member/my-roles",
     "/api/member/payments/simulate",
     "/api/clubs",
     "/api/competitions",

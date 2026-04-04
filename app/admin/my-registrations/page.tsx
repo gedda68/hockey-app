@@ -12,6 +12,7 @@ import { useAuth } from "@/lib/auth/AuthContext";
 import { toast } from "sonner";
 import { Plus, RefreshCw, ChevronDown } from "lucide-react";
 import type { RoleRequest, RoleRequestStatus } from "@/types/roleRequests";
+import type { EnrichedRoleAssignment } from "@/app/api/member/my-roles/route";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -138,13 +139,18 @@ interface SubmitModalProps {
   accountType: "user" | "member";
   onClose: () => void;
   onSuccess: () => void;
+  /** Pre-fill for renewal flow */
+  initialRole?: string;
+  initialScopeType?: "club" | "association";
+  initialScopeId?: string;
+  initialSeasonYear?: string;
 }
 
-function SubmitModal({ memberId, accountType, onClose, onSuccess }: SubmitModalProps) {
-  const [role, setRole] = useState("");
-  const [scopeType, setScopeType] = useState<"club" | "association">("club");
-  const [scopeId, setScopeId] = useState("");
-  const [seasonYear, setSeasonYear] = useState(CURRENT_SEASON);
+function SubmitModal({ memberId, accountType, onClose, onSuccess, initialRole, initialScopeType, initialScopeId, initialSeasonYear }: SubmitModalProps) {
+  const [role, setRole] = useState(initialRole ?? "");
+  const [scopeType, setScopeType] = useState<"club" | "association">(initialScopeType ?? "club");
+  const [scopeId, setScopeId] = useState(initialScopeId ?? "");
+  const [seasonYear, setSeasonYear] = useState(initialSeasonYear ?? CURRENT_SEASON);
   const [notes, setNotes] = useState("");
   const [clubs, setClubs] = useState<ClubOption[]>([]);
   const [assocs, setAssocs] = useState<AssocOption[]>([]);
@@ -360,12 +366,21 @@ function SubmitModal({ memberId, accountType, onClose, onSuccess }: SubmitModalP
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
+interface RenewalPreFill {
+  role: string;
+  scopeType: "club" | "association";
+  scopeId?: string;
+}
+
 export default function MyRegistrationsPage() {
   const { user } = useAuth();
   const [requests, setRequests] = useState<RoleRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [showSubmit, setShowSubmit] = useState(false);
+  const [renewalPreFill, setRenewalPreFill] = useState<RenewalPreFill | null>(null);
   const [activeTab, setActiveTab] = useState<"active" | "history">("active");
+  const [expiringSoon, setExpiringSoon] = useState<EnrichedRoleAssignment[]>([]);
+  const [expiredRoles, setExpiredRoles] = useState<EnrichedRoleAssignment[]>([]);
 
   const memberId = user?.memberId ?? user?.userId ?? "";
   const accountType: "user" | "member" = user?.memberId ? "member" : "user";
@@ -374,9 +389,17 @@ export default function MyRegistrationsPage() {
     if (!memberId) return;
     setLoading(true);
     try {
-      const res = await fetch(`/api/role-requests?memberId=${encodeURIComponent(memberId)}`);
-      const data = await res.json();
-      if (res.ok) setRequests(data.requests ?? []);
+      const [reqRes, rolesRes] = await Promise.all([
+        fetch(`/api/role-requests?memberId=${encodeURIComponent(memberId)}`),
+        fetch("/api/member/my-roles"),
+      ]);
+      const reqData = await reqRes.json();
+      if (reqRes.ok) setRequests(reqData.requests ?? []);
+      if (rolesRes.ok) {
+        const rolesData = await rolesRes.json();
+        setExpiringSoon(rolesData.expiringSoon ?? []);
+        setExpiredRoles(rolesData.expired ?? []);
+      }
     } catch {
       toast.error("Failed to load requests");
     } finally {
@@ -385,6 +408,15 @@ export default function MyRegistrationsPage() {
   }, [memberId]);
 
   useEffect(() => { load(); }, [load]);
+
+  function openRenewal(r: EnrichedRoleAssignment) {
+    setRenewalPreFill({
+      role: r.role,
+      scopeType: (r.scopeType === "club" || r.scopeType === "association") ? r.scopeType : "club",
+      scopeId: r.scopeId,
+    });
+    setShowSubmit(true);
+  }
 
   const handleWithdraw = async (requestId: string) => {
     if (!confirm("Withdraw this request? This cannot be undone.")) return;
@@ -446,6 +478,63 @@ export default function MyRegistrationsPage() {
           ))}
         </div>
       </div>
+
+      {/* Renewal banners */}
+      {expiredRoles.length > 0 && (
+        <div className="space-y-2 mb-5">
+          {expiredRoles.map((r, i) => (
+            <div key={`expired-${i}`} className="flex items-center justify-between gap-3 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="text-red-500 text-lg">⚠️</span>
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-red-800 truncate">
+                    {REQUESTABLE_ROLES.find(x => x.value === r.role)?.label ?? r.role}
+                    {r.scopeName && <span className="font-normal"> at {r.scopeName}</span>}
+                  </p>
+                  <p className="text-xs text-red-600">
+                    Expired {Math.abs(r.daysUntilExpiry ?? 0)} day{Math.abs(r.daysUntilExpiry ?? 0) !== 1 ? "s" : ""} ago
+                    {r.seasonYear && ` (${r.seasonYear} season)`}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => openRenewal(r)}
+                className="shrink-0 text-xs font-bold bg-red-600 text-white px-3 py-1.5 rounded-lg hover:bg-red-700 transition"
+              >
+                Renew
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {expiringSoon.length > 0 && (
+        <div className="space-y-2 mb-5">
+          {expiringSoon.map((r, i) => (
+            <div key={`expiring-${i}`} className="flex items-center justify-between gap-3 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="text-amber-500 text-lg">🕐</span>
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-amber-800 truncate">
+                    {REQUESTABLE_ROLES.find(x => x.value === r.role)?.label ?? r.role}
+                    {r.scopeName && <span className="font-normal"> at {r.scopeName}</span>}
+                  </p>
+                  <p className="text-xs text-amber-600">
+                    Expires in {r.daysUntilExpiry} day{r.daysUntilExpiry !== 1 ? "s" : ""}
+                    {r.expiresAt && ` — ${new Date(r.expiresAt).toLocaleDateString("en-AU")}`}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => openRenewal(r)}
+                className="shrink-0 text-xs font-bold bg-amber-500 text-white px-3 py-1.5 rounded-lg hover:bg-amber-600 transition"
+              >
+                Renew Early
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Tabs + Refresh */}
       <div className="flex items-center justify-between mb-5">
@@ -511,8 +600,12 @@ export default function MyRegistrationsPage() {
         <SubmitModal
           memberId={memberId}
           accountType={accountType}
-          onClose={() => setShowSubmit(false)}
-          onSuccess={load}
+          onClose={() => { setShowSubmit(false); setRenewalPreFill(null); }}
+          onSuccess={() => { load(); setRenewalPreFill(null); }}
+          initialRole={renewalPreFill?.role}
+          initialScopeType={renewalPreFill?.scopeType}
+          initialScopeId={renewalPreFill?.scopeId}
+          initialSeasonYear={CURRENT_SEASON}
         />
       )}
     </div>

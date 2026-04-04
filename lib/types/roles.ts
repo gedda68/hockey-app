@@ -140,6 +140,7 @@ export interface RoleAssignment {
   grantedAt: string;      // ISO date string
   grantedBy?: string;     // userId of the administrator who granted this
   expiresAt?: string;     // Optional — roles can have an expiry (seasonal coaching roles etc)
+  seasonYear?: string;    // Season year this assignment is for, e.g. "2025"
   notes?: string;         // Free-text context, e.g. "Under 16 Boys Head Coach"
   active?: boolean;       // Defaults to true; false = suspended/revoked
 }
@@ -712,8 +713,10 @@ export function getPrimaryRole(assignments: RoleAssignment[]): UserRole {
  * (i.e., do any of their active assignments carry adminAccess=true?)
  */
 export function hasAnyAdminAccess(assignments: RoleAssignment[]): boolean {
+  const now = new Date();
   return assignments
     .filter((a) => a.active !== false)
+    .filter((a) => !a.expiresAt || new Date(a.expiresAt) > now)
     .some((a) => ROLE_DEFINITIONS[a.role]?.adminAccess);
 }
 
