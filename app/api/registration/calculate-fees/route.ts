@@ -2,6 +2,7 @@
 // Calculate all fees from association hierarchy and club
 
 import { NextRequest, NextResponse } from "next/server";
+import type { Db } from 'mongodb';
 import clientPromise from "@/lib/mongodb";
 import type { FeeLineItem } from "@/types/registration";
 
@@ -43,7 +44,7 @@ export async function POST(request: NextRequest) {
       .find({ id: { $in: roleIds } })
       .toArray();
 
-    const roleCategories = roles.map((r: any) => r.category);
+    const roleCategories = roles.map(() => r.category);
 
     // Calculate age from DOB if member exists
     let calculatedAge: number | undefined;
@@ -72,7 +73,7 @@ export async function POST(request: NextRequest) {
     for (const association of associations) {
       if (!association.fees || association.fees.length === 0) continue;
 
-      const applicableFees = association.fees.filter((fee: any) => {
+      const applicableFees = association.fees.filter(() => {
         // Must be active
         if (!fee.isActive) return false;
 
@@ -131,7 +132,7 @@ export async function POST(request: NextRequest) {
     // ========================================================================
 
     if (club.fees && club.fees.length > 0) {
-      const applicableClubFees = club.fees.filter((fee: any) => {
+      const applicableClubFees = club.fees.filter(() => {
         if (!fee.isActive) return false;
 
         const now = new Date();
@@ -242,7 +243,7 @@ export async function POST(request: NextRequest) {
         total,
         itemCount: lineItems.length,
       },
-      associations: associations.map((a: any) => ({
+      associations: associations.map(() => ({
         associationId: a.associationId,
         name: a.name,
         level: a.level,
@@ -252,7 +253,7 @@ export async function POST(request: NextRequest) {
         name: club.name,
       },
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error calculating fees:", error);
     return NextResponse.json(
       { error: "Failed to calculate fees", details: error.message },
@@ -265,7 +266,7 @@ export async function POST(request: NextRequest) {
 // HELPER: Get association hierarchy
 // ============================================================================
 
-async function getAssociationHierarchy(db: any, associationId: string) {
+async function getAssociationHierarchy(db: Db, associationId: string) {
   const hierarchy: any[] = [];
   let currentId: string | undefined = associationId;
 

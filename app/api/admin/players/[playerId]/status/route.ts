@@ -36,7 +36,7 @@ export async function GET(
     console.log("✅ Status data retrieved");
 
     return NextResponse.json({ status });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("❌ Error fetching status:", error);
     return NextResponse.json(
       { error: "Failed to fetch status", details: error.message },
@@ -85,7 +85,7 @@ export async function PUT(
       status: updatedStatus,
       message: "Player status updated successfully",
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("❌ Error updating status:", error);
     return NextResponse.json(
       { error: "Failed to update status", details: error.message },

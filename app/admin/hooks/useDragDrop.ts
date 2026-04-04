@@ -1,6 +1,6 @@
 // app/admin/hooks/useDragDrop.ts
 import { useState } from "react";
-import { DraggedPlayer, Player, Roster } from "../types";
+import { DraggedPlayer, Player, Roster, Team } from "../types";
 
 interface ExtendedDraggedPlayer extends Omit<DraggedPlayer, "sourceType"> {
   sourceType: "team" | "shadow" | "withdrawn";
@@ -93,23 +93,23 @@ export function useDragDrop(
     );
 
     if (draggedPlayer.sourceType === "team") {
-      teams = teams.map((t: any) =>
+      teams = teams.map((t: Team) =>
         t.name === draggedPlayer.sourceTeam
           ? {
               ...t,
               players: t.players.filter(
-                (_: any, i: number) => i !== draggedPlayer.sourceIndex
+                (_: Player, i: number) => i !== draggedPlayer.sourceIndex
               ),
             }
           : t
       );
     } else if (draggedPlayer.sourceType === "shadow") {
       shadowPlayers = shadowPlayers.filter(
-        (_: any, i: number) => i !== draggedPlayer.sourceIndex
+        (_: Player, i: number) => i !== draggedPlayer.sourceIndex
       );
     } else {
       withdrawn = withdrawn.filter(
-        (_: any, i: number) => i !== draggedPlayer.sourceIndex
+        (_: Player, i: number) => i !== draggedPlayer.sourceIndex
       );
     }
 
@@ -118,7 +118,7 @@ export function useDragDrop(
       club: draggedPlayer.player.club,
       icon: draggedPlayer.player.icon,
     };
-    teams = teams.map((t: any) =>
+    teams = teams.map((t: Team) =>
       t.name === targetTeam ? { ...t, players: [...t.players, cleanPlayer] } : t
     );
 
@@ -140,19 +140,19 @@ export function useDragDrop(
     );
 
     if (draggedPlayer.sourceType === "team") {
-      teams = teams.map((t: any) =>
+      teams = teams.map((t: Team) =>
         t.name === draggedPlayer.sourceTeam
           ? {
               ...t,
               players: t.players.filter(
-                (_: any, i: number) => i !== draggedPlayer.sourceIndex
+                (_: Player, i: number) => i !== draggedPlayer.sourceIndex
               ),
             }
           : t
       );
     } else {
       withdrawn = withdrawn.filter(
-        (_: any, i: number) => i !== draggedPlayer.sourceIndex
+        (_: Player, i: number) => i !== draggedPlayer.sourceIndex
       );
     }
 
@@ -184,19 +184,19 @@ export function useDragDrop(
     );
 
     if (draggedPlayer.sourceType === "team") {
-      teams = teams.map((t: any) =>
+      teams = teams.map((t: Team) =>
         t.name === draggedPlayer.sourceTeam
           ? {
               ...t,
               players: t.players.filter(
-                (_: any, i: number) => i !== draggedPlayer.sourceIndex
+                (_: Player, i: number) => i !== draggedPlayer.sourceIndex
               ),
             }
           : t
       );
     } else {
       shadowPlayers = shadowPlayers.filter(
-        (_: any, i: number) => i !== draggedPlayer.sourceIndex
+        (_: Player, i: number) => i !== draggedPlayer.sourceIndex
       );
     }
 

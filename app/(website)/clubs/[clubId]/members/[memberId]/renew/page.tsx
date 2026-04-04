@@ -4,6 +4,7 @@
 "use client";
 
 import { useState, useEffect, use } from "react";
+import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
@@ -211,7 +212,7 @@ export default function ComprehensiveRenewalPage({ params }: RenewalPageProps) {
         throw new Error("Failed to process renewal");
       }
 
-      alert("✅ Membership renewed and details updated successfully!");
+      toast.success("Membership renewed and details updated!");
       router.push(`/clubs/${clubId}/members/${memberId}`);
     } catch (err: any) {
       setError(err.message);

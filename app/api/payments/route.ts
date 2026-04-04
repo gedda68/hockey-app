@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
     const db = client.db();
 
     // Build query
-    const query: any = {};
+    const query: Record<string, unknown> = {};
 
     if (memberId) query.memberId = memberId;
     if (status) query.status = status;
@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
       .toArray();
 
     // Enrich with member details
-    const memberIds = [...new Set(payments.map((p: any) => p.memberId))];
+    const memberIds = [...new Set(payments.map(() => p.memberId))];
     const members = await db
       .collection("members")
       .find(
@@ -55,7 +55,7 @@ export async function GET(request: NextRequest) {
 
     const memberMap = new Map(members.map((m) => [m.memberId, m]));
 
-    const enriched = payments.map((payment: any) => {
+    const enriched = payments.map(() => {
       const member = memberMap.get(payment.memberId);
       return {
         ...payment,
@@ -71,7 +71,7 @@ export async function GET(request: NextRequest) {
     });
 
     return NextResponse.json(enriched);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error fetching payments:", error);
     return NextResponse.json(
       { error: "Failed to fetch payments", details: error.message },
@@ -130,7 +130,7 @@ export async function POST(request: NextRequest) {
       },
       { status: 201 }
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error creating payment:", error);
     return NextResponse.json(
       { error: "Failed to create payment", details: error.message },

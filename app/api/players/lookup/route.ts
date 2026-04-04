@@ -52,7 +52,7 @@ export async function GET(request: NextRequest) {
         photo: player.photo ?? null,
         status: player.status?.current ?? "active",
         // Returned so the player can verify and update their own contact/medical details
-        emergencyContacts: (player.emergencyContacts ?? []).map((c: any) => ({
+        emergencyContacts: (player.emergencyContacts ?? []).map(() => ({
           id: c.id ?? "",
           name: c.name ?? "",
           relationship: c.relationship ?? "",
@@ -71,7 +71,7 @@ export async function GET(request: NextRequest) {
           : null,
       },
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("GET /api/players/lookup error:", error);
     return NextResponse.json(
       { error: "Lookup failed" },

@@ -29,9 +29,9 @@ export async function GET(
     const { _id, ...cleanPlayer } = player;
 
     return NextResponse.json({ player: cleanPlayer });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("💥 Error fetching player:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: error instanceof Error ? error.message : String(error) }, { status: 500 });
   }
 }
 
@@ -116,9 +116,9 @@ export async function PUT(
       player: cleanPlayer,
       playerId,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("💥 Error updating player:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: error instanceof Error ? error.message : String(error) }, { status: 500 });
   }
 }
 
@@ -193,9 +193,9 @@ export async function PATCH(
     await db.collection("players").updateOne({ playerId }, update);
 
     return NextResponse.json({ message: "Player history updated", playerId });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("💥 Error patching player:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: error instanceof Error ? error.message : String(error) }, { status: 500 });
   }
 }
 
@@ -222,8 +222,8 @@ export async function DELETE(
     console.log(`✅ Deleted player: ${player.firstName} ${player.lastName}`);
 
     return NextResponse.json({ message: "Player deleted successfully" });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("💥 Error deleting player:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: error instanceof Error ? error.message : String(error) }, { status: 500 });
   }
 }

@@ -56,7 +56,7 @@ export async function PATCH(
     }
 
     return NextResponse.json({ ...result, _id: result._id.toString() });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("PATCH /api/admin/nominations/[id] error:", error);
     return NextResponse.json(
       { error: "Failed to update nomination" },
@@ -87,7 +87,7 @@ export async function DELETE(
     }
 
     return NextResponse.json({ success: true });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("DELETE /api/admin/nominations/[id] error:", error);
     return NextResponse.json(
       { error: "Failed to delete nomination" },

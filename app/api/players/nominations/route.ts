@@ -142,7 +142,7 @@ export async function GET(request: NextRequest) {
       player: safePLayer(player),
       nominations: enriched,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("GET /api/players/nominations error:", error);
     return NextResponse.json(
       { error: "Failed to fetch nominations" },

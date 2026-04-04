@@ -34,9 +34,9 @@ export async function GET() {
 
     // Return defaults if no config exists
     return NextResponse.json(DEFAULT_CATEGORIES);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error fetching categories:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: error instanceof Error ? error.message : String(error) }, { status: 500 });
   }
 }
 
@@ -73,8 +73,8 @@ export async function PUT(request: Request) {
       message: "Fee categories updated successfully",
       categories,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error updating categories:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: error instanceof Error ? error.message : String(error) }, { status: 500 });
   }
 }

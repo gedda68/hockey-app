@@ -13,10 +13,6 @@ export async function POST(
     const teamIndex = parseInt(teamIndexStr);
     const body = await request.json();
 
-    console.log("\n=== ADD STAFF API ===");
-    console.log("📋 Roster ID:", rosterId);
-    console.log("📋 Team Index:", teamIndex);
-    console.log("📦 Body:", JSON.stringify(body, null, 2));
 
     const { role, memberId, memberName, qualifications } = body;
 
@@ -38,7 +34,6 @@ export async function POST(
       return NextResponse.json({ error: "Roster not found" }, { status: 404 });
     }
 
-    console.log("✅ Found roster:", roster.clubName);
 
     // Check team exists
     if (!roster.teams || !roster.teams[teamIndex]) {
@@ -46,11 +41,9 @@ export async function POST(
       return NextResponse.json({ error: "Team not found" }, { status: 404 });
     }
 
-    console.log("✅ Found team:", roster.teams[teamIndex].name);
 
     // Initialize staff array if it doesn't exist
     if (!roster.teams[teamIndex].staff) {
-      console.log("⚠️ Staff array doesn't exist, will be created");
     }
 
     // Create new staff member
@@ -66,7 +59,6 @@ export async function POST(
       addedDate: new Date().toISOString(),
     };
 
-    console.log("📄 New staff object:", JSON.stringify(newStaff, null, 2));
 
     // Update roster - add staff to team
     const updatePath = `teams.${teamIndex}.staff`;
@@ -78,9 +70,6 @@ export async function POST(
       },
     );
 
-    console.log("📊 Update result:");
-    console.log("  Matched:", result.matchedCount);
-    console.log("  Modified:", result.modifiedCount);
 
     if (result.matchedCount === 0) {
       console.error("❌ No roster matched for update");
@@ -95,7 +84,6 @@ export async function POST(
       );
     }
 
-    console.log(
       `✅ Successfully added ${role} ${memberName} to team ${roster.teams[teamIndex].name}\n`,
     );
 
@@ -103,7 +91,7 @@ export async function POST(
       success: true,
       staff: newStaff,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("❌ Error adding staff:", error);
     console.error("Stack:", error.stack);
     return NextResponse.json(

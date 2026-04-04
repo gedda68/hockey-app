@@ -22,9 +22,9 @@ export async function GET(request: NextRequest) {
       .toArray();
 
     return NextResponse.json(relationships);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error fetching relationships:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: error instanceof Error ? error.message : String(error) }, { status: 500 });
   }
 }
 
@@ -77,9 +77,9 @@ export async function POST(request: NextRequest) {
     );
 
     return NextResponse.json(relationship, { status: 201 });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error creating relationship:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: error instanceof Error ? error.message : String(error) }, { status: 500 });
   }
 }
 
@@ -98,7 +98,7 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    const updateData: any = {
+    const updateData: Record<string, unknown> = {
       updatedAt: new Date().toISOString(),
     };
 
@@ -126,9 +126,9 @@ export async function PUT(request: NextRequest) {
     console.log(`✅ Updated relationship: ${body.relationshipId}`);
 
     return NextResponse.json(updated);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error updating relationship:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: error instanceof Error ? error.message : String(error) }, { status: 500 });
   }
 }
 
@@ -181,8 +181,8 @@ export async function DELETE(request: NextRequest) {
       relationshipId,
       deleted: true,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error deleting relationship:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: error instanceof Error ? error.message : String(error) }, { status: 500 });
   }
 }

@@ -126,7 +126,7 @@ export async function GET(request: NextRequest) {
     };
 
     return NextResponse.json({ fees, summary, ageGroups: [...new Set(fees.map((f) => f.ageGroup).filter(Boolean))] });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("GET /api/admin/rep-fees error:", error);
     return NextResponse.json({ error: "Failed to fetch fees" }, { status: 500 });
   }
@@ -152,7 +152,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     const today = new Date().toISOString().split("T")[0];
-    const updatedFeeHistory = (player.feeHistory ?? []).map((fee: any) => {
+    const updatedFeeHistory = (player.feeHistory ?? []).map(() => {
       if (fee.id !== feeId) return fee;
       return {
         ...fee,
@@ -171,7 +171,7 @@ export async function PATCH(request: NextRequest) {
     );
 
     return NextResponse.json({ message: "Fee updated", playerId, feeId });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("PATCH /api/admin/rep-fees error:", error);
     return NextResponse.json({ error: "Failed to update fee" }, { status: 500 });
   }

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Plus, Edit, Trash2, Save, X, UserCircle } from "lucide-react";
+import { toast } from "sonner";
 
 interface Gender {
   genderId: string;
@@ -35,7 +36,7 @@ export default function ConfigGenderPage() {
       setGenders(data);
     } catch (error) {
       console.error("Error fetching genders:", error);
-      alert("Failed to load gender options");
+      toast.error("Failed to load gender options");
     } finally {
       setIsLoading(false);
     }
@@ -62,7 +63,7 @@ export default function ConfigGenderPage() {
 
   const handleSaveNew = async () => {
     if (!formData.name.trim()) {
-      alert("Name is required");
+      toast.warning("Name is required");
       return;
     }
 
@@ -82,13 +83,13 @@ export default function ConfigGenderPage() {
       handleCancel();
     } catch (error: any) {
       console.error("Error creating gender:", error);
-      alert(error.message || "Failed to create gender option");
+      toast.error(error.message || "Failed to create gender option");
     }
   };
 
   const handleSaveEdit = async () => {
     if (!formData.name.trim()) {
-      alert("Name is required");
+      toast.warning("Name is required");
       return;
     }
 
@@ -108,7 +109,7 @@ export default function ConfigGenderPage() {
       handleCancel();
     } catch (error) {
       console.error("Error updating gender:", error);
-      alert("Failed to update gender option");
+      toast.error("Failed to update gender option");
     }
   };
 
@@ -123,14 +124,14 @@ export default function ConfigGenderPage() {
       const data = await res.json();
 
       if (!res.ok) {
-        alert(data.error || "Failed to delete");
+        toast.error(data.error || "Failed to delete");
         return;
       }
 
       await fetchGenders();
     } catch (error) {
       console.error("Error deleting gender:", error);
-      alert("Failed to delete gender option");
+      toast.error("Failed to delete gender option");
     }
   };
 
@@ -150,7 +151,7 @@ export default function ConfigGenderPage() {
       await fetchGenders();
     } catch (error) {
       console.error("Error updating status:", error);
-      alert("Failed to update status");
+      toast.error("Failed to update status");
     }
   };
 

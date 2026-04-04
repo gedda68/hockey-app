@@ -4,6 +4,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
@@ -144,7 +145,7 @@ export default function MemberViewClient({
       const updatedMember = await res.json();
       setMember(updatedMember);
     } catch (err: any) {
-      alert(`Error: ${err.message}`);
+      toast.error(err.message || "Failed to update status");
     }
   };
 
@@ -166,7 +167,7 @@ export default function MemberViewClient({
 
       router.push(`/clubs/${clubId}/members`);
     } catch (err: any) {
-      alert(`Error: ${err.message}`);
+      toast.error(err.message || "Failed to delete member");
     }
   };
 

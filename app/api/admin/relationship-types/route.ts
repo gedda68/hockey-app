@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
       relationshipTypes: cleanedTypes,
       count: cleanedTypes.length,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("❌ Error fetching relationship types:", error);
     return NextResponse.json(
       {
@@ -88,9 +88,9 @@ export async function POST(request: NextRequest) {
       },
       { status: 201 },
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("❌ Error creating relationship type:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: error instanceof Error ? error.message : String(error) }, { status: 500 });
   }
 }
 
@@ -133,9 +133,9 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({
       message: "Relationship type updated",
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("❌ Error updating relationship type:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: error instanceof Error ? error.message : String(error) }, { status: 500 });
   }
 }
 
@@ -166,8 +166,8 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({
       message: "Relationship type deleted",
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("❌ Error deleting relationship type:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: error instanceof Error ? error.message : String(error) }, { status: 500 });
   }
 }

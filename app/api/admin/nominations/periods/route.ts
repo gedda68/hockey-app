@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(
       periods.map((p) => ({ ...p, _id: p._id.toString() })),
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("GET /api/admin/nominations/periods error:", error);
     return NextResponse.json(
       { error: "Failed to fetch nomination periods" },
@@ -97,7 +97,7 @@ export async function PUT(request: NextRequest) {
     );
 
     return NextResponse.json({ ...result, _id: result!._id.toString() });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("PUT /api/admin/nominations/periods error:", error);
     return NextResponse.json(
       { error: "Failed to save nomination period" },

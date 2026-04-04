@@ -25,7 +25,7 @@ export async function GET(
       success: true,
       changes,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error fetching member change history:", error);
     return NextResponse.json(
       { error: "Failed to fetch change history" },

@@ -27,9 +27,9 @@ export async function GET(
     console.log("✅ Found member:", member.personalInfo.displayName);
 
     return NextResponse.json({ member });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("💥 Error fetching member:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: error instanceof Error ? error.message : String(error) }, { status: 500 });
   }
 }
 
@@ -85,7 +85,7 @@ export async function PUT(
       success: true,
       member: updatedMember,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error updating member:", error);
     return NextResponse.json(
       { error: error.message || "Failed to update member" },
@@ -132,8 +132,8 @@ export async function DELETE(
     return NextResponse.json({
       message: "Member deactivated successfully",
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("💥 Error deactivating member:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: error instanceof Error ? error.message : String(error) }, { status: 500 });
   }
 }

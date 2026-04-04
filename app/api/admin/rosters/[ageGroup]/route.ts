@@ -12,7 +12,6 @@ export async function GET(
   try {
     const { ageGroup: encodedAgeGroup } = await params;
     const ageGroup = decodeURIComponent(encodedAgeGroup);
-    console.log("[GET] Fetching roster for:", ageGroup);
 
     const client = await clientPromise;
     const db = client.db("hockey-app");
@@ -21,12 +20,9 @@ export async function GET(
     const roster = await rostersCollection.findOne({ ageGroup });
 
     if (!roster) {
-      console.log("[GET] Roster not found:", ageGroup);
       return NextResponse.json({ error: "Roster not found" }, { status: 404 });
     }
 
-    console.log("[GET] Found roster with", roster.teams?.length || 0, "teams");
-    console.log(
       "[GET] Found roster with",
       roster.selectors?.length || 0,
       "selectors"
@@ -56,27 +52,20 @@ export async function PUT(
     const ageGroup = decodeURIComponent(encodedAgeGroup);
     const body = await request.json();
 
-    console.log("=== PUT /api/admin/rosters/[ageGroup] ===");
-    console.log("1. Age Group:", ageGroup);
-    console.log("2. Teams to save:", body.teams?.length || 0);
-    console.log("3. Selectors to save:", body.selectors?.length || 0);
 
     if (body.teams) {
-      console.log(
         "4. Team names:",
-        body.teams.map((t: any) => t.name).join(", ")
+        body.teams.map(() => t.name).join(", ")
       );
     }
 
     if (body.selectors) {
-      console.log(
         "5. Selector names:",
         body.selectors
-          .map((s: any) => `${s.name} (${s.isChair ? "👑" : ""})`)
+          .map(() => `${s.name} (${s.isChair ? "👑" : ""})`)
           .join(", ")
       );
-      const chairCount = body.selectors.filter((s: any) => s.isChair).length;
-      console.log("6. Chairs in payload:", chairCount);
+      const chairCount = body.selectors.filter(() => s.isChair).length;
       if (chairCount > 1) {
         console.error("❌ ERROR: Multiple chairs in payload!", chairCount);
       }
@@ -89,16 +78,12 @@ export async function PUT(
     const existingRoster = await rostersCollection.findOne({ ageGroup });
 
     if (!existingRoster) {
-      console.log("7. ❌ Roster not found in MongoDB:", ageGroup);
       return NextResponse.json(
         { error: `Roster "${ageGroup}" not found` },
         { status: 404 }
       );
     }
 
-    console.log("7. ✅ Found existing roster");
-    console.log("8. Current teams in DB:", existingRoster.teams?.length || 0);
-    console.log(
       "9. Current selectors in DB:",
       existingRoster.selectors?.length || 0
     );
@@ -124,22 +109,18 @@ export async function PUT(
           : existingRoster.tournamentInfo,
     };
 
-    console.log("10. Updating with", updateData.teams.length, "teams");
-    console.log("11. Updating with", updateData.selectors.length, "selectors");
 
     const updateResult = await rostersCollection.updateOne(
       { ageGroup },
       { $set: updateData }
     );
 
-    console.log("12. Update result:", {
       matched: updateResult.matchedCount,
       modified: updateResult.modifiedCount,
       acknowledged: updateResult.acknowledged,
     });
 
     if (updateResult.matchedCount === 0) {
-      console.log("13. ❌ No documents matched");
       return NextResponse.json(
         { error: "Roster not found for update" },
         { status: 404 }
@@ -148,11 +129,9 @@ export async function PUT(
 
     // Verify the update worked
     const verifyRoster = await rostersCollection.findOne({ ageGroup });
-    console.log(
       "13. ✅ Verification - Teams now in DB:",
       verifyRoster?.teams?.length || 0
     );
-    console.log(
       "14. ✅ Verification - Selectors now in DB:",
       verifyRoster?.selectors?.length || 0
     );
@@ -164,9 +143,7 @@ export async function PUT(
     try {
       revalidatePath("/rosters"); // Assuming your public list is here
       revalidatePath(`/rosters/${encodedAgeGroup}`); // Assuming detail pages exist
-      console.log("18. ✅ Cache revalidation triggered");
     } catch (revalError) {
-      console.warn(
         "18. ⚠️ Revalidation failed, but DB update succeeded",
         revalError
       );
@@ -176,9 +153,9 @@ export async function PUT(
       message: "Roster updated successfully",
       ageGroup: ageGroup,
       teamsCount: verifyRoster?.teams?.length || 0,
-      teamNames: verifyRoster?.teams?.map((t: any) => t.name) || [],
+      teamNames: verifyRoster?.teams?.map(() => t.name) || [],
       selectorsCount: verifyRoster?.selectors?.length || 0,
-      selectorNames: verifyRoster?.selectors?.map((s: any) => s.name) || [],
+      selectorNames: verifyRoster?.selectors?.map(() => s.name) || [],
     });
   } catch (error) {
     console.error("❌ PUT Error:", error);
@@ -206,9 +183,6 @@ export async function DELETE(
     }
 
     const decodedAgeGroup = decodeURIComponent(ageGroup);
-    console.log(
-      `=== DELETE REQUEST: ${decodedAgeGroup} for Season ${season} ===`
-    );
 
     const db = await getDatabase();
     const rostersCollection = db.collection("rosters");
@@ -226,7 +200,6 @@ export async function DELETE(
       );
     }
 
-    console.log(`✅ Successfully deleted ${decodedAgeGroup} (${season})`);
 
     return NextResponse.json({
       message: "Roster deleted successfully",

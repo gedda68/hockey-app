@@ -13,12 +13,6 @@ export async function GET(request: NextRequest) {
     const gender = searchParams.get("gender");
     const season = searchParams.get("season") || "2026";
 
-    console.log("📋 Eligible Players Query:");
-    console.log("  clubId:", clubId);
-    console.log("  division:", division);
-    console.log("  category:", category);
-    console.log("  gender:", gender);
-    console.log("  season:", season);
 
     if (!clubId) {
       return NextResponse.json(
@@ -32,33 +26,27 @@ export async function GET(request: NextRequest) {
 
     // First, let's check what's in the players collection
     const totalPlayers = await db.collection("players").countDocuments();
-    console.log(`📊 Total players in database: ${totalPlayers}`);
 
     // Check players for this club (simple query first)
     const clubPlayersCount = await db.collection("players").countDocuments({
       clubId: clubId,
     });
-    console.log(`🏒 Players with clubId "${clubId}": ${clubPlayersCount}`);
 
     // If no players with exact clubId, check what clubIds exist
     if (clubPlayersCount === 0) {
       const allClubIds = await db.collection("players").distinct("clubId");
-      console.log("⚠️ No players found with this clubId");
-      console.log("📋 Available clubIds in database:", allClubIds);
 
       // Also check if club field exists
       const withClubField = await db.collection("players").countDocuments({
         club: { $exists: true },
       });
-      console.log(`📁 Players with 'club' field (nested): ${withClubField}`);
     }
 
     // Build query - START SIMPLE
-    const query: any = {
+    const query: Record<string, unknown> = {
       clubId: clubId,
     };
 
-    console.log("🔍 Query:", JSON.stringify(query, null, 2));
 
     // Execute query
     const players = await db
@@ -67,18 +55,16 @@ export async function GET(request: NextRequest) {
       .limit(20) // Limit for debugging
       .toArray();
 
-    console.log(`✅ Found ${players.length} players`);
 
     // Log first player structure if found
     if (players.length > 0) {
-      console.log(
         "📄 First player structure:",
         JSON.stringify(players[0], null, 2),
       );
     }
 
     // Map to response format
-    const eligiblePlayers = players.map((player: any) => ({
+    const eligiblePlayers = players.map(() => ({
       id: player._id.toString(),
       playerId: player.playerId || "NO_PLAYER_ID",
       firstName: player.firstName || "Unknown",
@@ -98,7 +84,6 @@ export async function GET(request: NextRequest) {
       ),
     }));
 
-    console.log(`✅ Returning ${eligiblePlayers.length} eligible players`);
 
     return NextResponse.json({
       players: eligiblePlayers,
@@ -118,7 +103,7 @@ export async function GET(request: NextRequest) {
         season,
       },
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("❌ Error fetching eligible players:", error);
     console.error("Stack:", error.stack);
     return NextResponse.json(
@@ -136,7 +121,7 @@ function getLastSelection(history: any[], division: string, season: string) {
   if (!history || history.length === 0) return null;
 
   const relevantSelections = history
-    .filter((sel: any) => sel.division === division && sel.season === season)
+    .filter(() => sel.division === division && sel.season === season)
     .sort(
       (a: any, b: any) =>
         new Date(b.selectedDate).getTime() - new Date(a.selectedDate).getTime(),

@@ -36,7 +36,7 @@ export async function GET(
     console.log("✅ Consent data retrieved");
 
     return NextResponse.json({ consents });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("❌ Error fetching consent:", error);
     return NextResponse.json(
       { error: "Failed to fetch consent", details: error.message },
@@ -85,7 +85,7 @@ export async function PUT(
       consents: updatedConsents,
       message: "Consent preferences updated successfully",
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("❌ Error updating consent:", error);
     return NextResponse.json(
       { error: "Failed to update consent", details: error.message },

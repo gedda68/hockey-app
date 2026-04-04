@@ -51,7 +51,7 @@ export async function GET(
           }
         : null,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error fetching payment:", error);
     return NextResponse.json(
       { error: "Failed to fetch payment", details: error.message },
@@ -108,7 +108,7 @@ export async function PATCH(
     }
 
     // Build update
-    const update: any = {
+    const update: Record<string, unknown> = {
       status,
       updatedAt: new Date(),
     };
@@ -133,7 +133,7 @@ export async function PATCH(
       paymentId,
       status,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error updating payment:", error);
     return NextResponse.json(
       { error: "Failed to update payment", details: error.message },
@@ -190,7 +190,7 @@ export async function DELETE(
       message: "Payment cancelled successfully",
       paymentId,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error deleting payment:", error);
     return NextResponse.json(
       { error: "Failed to delete payment", details: error.message },

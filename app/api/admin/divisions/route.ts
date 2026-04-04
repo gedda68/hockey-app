@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
       category,
       divisions: defaultDivisions,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error fetching divisions:", error);
     return NextResponse.json(
       { error: "Failed to fetch divisions" },
@@ -108,7 +108,7 @@ export async function POST(request: NextRequest) {
       category,
       divisions,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error saving divisions:", error);
     return NextResponse.json(
       { error: "Failed to save divisions" },

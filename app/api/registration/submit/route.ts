@@ -2,6 +2,7 @@
 // Complete registration submission - creates member, associations, club, and payment
 
 import { NextRequest, NextResponse } from "next/server";
+import type { Db } from 'mongodb';
 import clientPromise from "@/lib/mongodb";
 import type { FeeLineItem } from "@/types/registration";
 
@@ -173,7 +174,7 @@ export async function POST(request: NextRequest) {
           await db.collection("members").insertOne(newMember, { session });
         } else {
           // Update existing member if data provided
-          const updateData: any = {
+          const updateData: Record<string, unknown> = {
             updatedAt: new Date(),
           };
 
@@ -401,7 +402,7 @@ export async function POST(request: NextRequest) {
     } finally {
       await session.endSession();
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error submitting registration:", error);
     return NextResponse.json(
       { error: "Failed to submit registration", details: error.message },
@@ -414,7 +415,7 @@ export async function POST(request: NextRequest) {
 // HELPER: Get association hierarchy
 // ============================================================================
 
-async function getAssociationHierarchy(db: any, associationId: string) {
+async function getAssociationHierarchy(db: Db, associationId: string) {
   const hierarchy: any[] = [];
   let currentId: string | undefined = associationId;
 

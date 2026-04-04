@@ -53,7 +53,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const contentType = request.headers.get("content-type") || "";
-    let eventData: any = {};
+    let eventData: Record<string, unknown> = {};
     let featuredImage: string | null = null;
     let flyerPdf: string | null = null;
 

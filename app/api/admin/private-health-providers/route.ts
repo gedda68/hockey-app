@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
     const db = client.db(process.env.DB_NAME || "hockey-app");
 
     // Build query
-    const query: any = {};
+    const query: Record<string, unknown> = {};
     if (activeOnly) query.isActive = true;
     if (category) query.category = category;
 
@@ -26,9 +26,9 @@ export async function GET(request: NextRequest) {
       .toArray();
 
     return NextResponse.json(providers);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error fetching health providers:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: error instanceof Error ? error.message : String(error) }, { status: 500 });
   }
 }
 
@@ -74,9 +74,9 @@ export async function POST(request: NextRequest) {
     console.log(`✅ Created health provider: ${newProvider.name}`);
 
     return NextResponse.json(newProvider, { status: 201 });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error creating health provider:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: error instanceof Error ? error.message : String(error) }, { status: 500 });
   }
 }
 
@@ -106,9 +106,9 @@ export async function PUT(request: NextRequest) {
     console.log(`✅ Updated health provider: ${body.providerId}`);
 
     return NextResponse.json(updated);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error updating health provider:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: error instanceof Error ? error.message : String(error) }, { status: 500 });
   }
 }
 
@@ -148,8 +148,8 @@ export async function DELETE(request: NextRequest) {
     console.log(`✅ Deleted health provider: ${providerId}`);
 
     return NextResponse.json({ success: true, providerId });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error deleting health provider:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: error instanceof Error ? error.message : String(error) }, { status: 500 });
   }
 }

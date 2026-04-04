@@ -35,7 +35,20 @@ export default function RootLayout({
           <ConditionalBodyPadding>{children}</ConditionalBodyPadding>
 
           {/* Toast Notifications */}
-          <Toaster position="top-right" />
+          <Toaster
+            position="top-right"
+            richColors
+            closeButton
+            duration={4000}
+            toastOptions={{
+              classNames: {
+                toast: "font-sans rounded-2xl shadow-xl border",
+                title: "font-black text-sm",
+                description: "font-medium text-xs opacity-80",
+                closeButton: "rounded-xl",
+              },
+            }}
+          />
         </AuthProvider>
       </body>
     </html>

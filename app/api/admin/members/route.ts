@@ -2,6 +2,7 @@
 // Members API - List and Create
 
 import { NextRequest, NextResponse } from "next/server";
+import type { Db } from 'mongodb';
 import clientPromise from "@/lib/mongodb";
 import { escapeRegex } from "@/lib/utils/regex";
 import { getSession } from "@/lib/auth/session";
@@ -9,7 +10,7 @@ import { getSession } from "@/lib/auth/session";
 const MEMBERS_PER_PAGE = 20;
 
 // Generate member ID: CHC-0000001
-async function generateMemberId(db: any, clubId: string): Promise<string> {
+async function generateMemberId(db: Db, clubId: string): Promise<string> {
   const clubsCol = db.collection("clubs");
 
   // Find the club first to ensure it exists
@@ -77,20 +78,11 @@ export async function GET(request: NextRequest) {
     const role = searchParams.get("role");
     const search = searchParams.get("search");
 
-    console.log("🔍 GET members - Filters:", {
-      page,
-      limit,
-      clubId,
-      associationId,
-      status,
-      search,
-    });
-
     const client = await clientPromise;
     const db = client.db();
 
     // Build query
-    const query: any = {};
+    const query: Record<string, unknown> = {};
 
     if (clubId) query.clubId = clubId;
     if (associationId) query.associationId = associationId;
@@ -122,7 +114,6 @@ export async function GET(request: NextRequest) {
       .limit(limit)
       .toArray();
 
-    console.log(`✅ Found ${members.length} members (${total} total)`);
 
     return NextResponse.json({
       members,
@@ -133,9 +124,9 @@ export async function GET(request: NextRequest) {
         totalPages: Math.ceil(total / limit),
       },
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("💥 Error fetching members:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: error instanceof Error ? error.message : String(error) }, { status: 500 });
   }
 }
 
@@ -144,11 +135,6 @@ export async function POST(request: NextRequest) {
   try {
     const session = await getSession();
     const body = await request.json();
-
-    console.log("➕ Creating member:", {
-      clubId: body.clubId,
-      name: `${body.personalInfo?.firstName} ${body.personalInfo?.lastName}`,
-    });
 
     // Validate required fields
     if (!body.clubId) {
@@ -256,7 +242,6 @@ export async function POST(request: NextRequest) {
     // Insert member
     await db.collection("members").insertOne(newMember);
 
-    console.log(`✅ Created member: ${memberId}`);
 
     return NextResponse.json(
       {
@@ -265,9 +250,9 @@ export async function POST(request: NextRequest) {
       },
       { status: 201 },
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("💥 Error creating member:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: error instanceof Error ? error.message : String(error) }, { status: 500 });
   }
 }
 
@@ -307,7 +292,7 @@ export async function PUT(
       message: "Update successful",
       member: result.value || result,
     });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error: unknown) {
+    return NextResponse.json({ error: error instanceof Error ? error.message : String(error) }, { status: 500 });
   }
 }

@@ -44,7 +44,7 @@ export async function PUT(
     }
 
     // Get roster member IDs for validation
-    const rosterMemberIds = team.roster?.map((r: any) => r.memberId) || [];
+    const rosterMemberIds = team.roster?.map(() => r.memberId) || [];
 
     // Validate captain is in roster
     if (
@@ -82,7 +82,7 @@ export async function PUT(
     const currentViceCaptains = team.leadership?.viceCaptains || [];
 
     // Build update object
-    const updateFields: any = {
+    const updateFields: Record<string, unknown> = {
       updatedAt: new Date(),
     };
 
@@ -191,7 +191,7 @@ export async function PUT(
     } finally {
       await session.endSession();
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error updating leadership:", error);
 
     // Zod validation errors

@@ -18,7 +18,7 @@ export async function PUT(
   try {
     const { id } = await params;
     const contentType = request.headers.get("content-type") || "";
-    let updateData: any = {};
+    let updateData: Record<string, unknown> = {};
     let newFeaturedImage: string | null = null;
     let newFlyer: string | null = null;
 
@@ -73,7 +73,7 @@ export async function PUT(
     }
 
     // Prepare update
-    const update: any = {
+    const update: Record<string, unknown> = {
       ...updateData,
       updatedAt: new Date(),
     };

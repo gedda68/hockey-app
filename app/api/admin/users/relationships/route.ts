@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
     // Super admin sees all users
     // Association admin sees users in their association
     // Club admin sees users in their club
-    let query: any = {};
+    let query: Record<string, unknown> = {};
 
     if (user.role === "association-admin" && user.associationId) {
       query.associationId = user.associationId;
@@ -38,9 +38,9 @@ export async function GET(request: NextRequest) {
       .toArray();
 
     return NextResponse.json(users);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error fetching users:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: error instanceof Error ? error.message : String(error) }, { status: 500 });
   }
 }
 
@@ -115,8 +115,8 @@ export async function POST(request: NextRequest) {
       message: "User created successfully",
       user: userResponse,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error creating user:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: error instanceof Error ? error.message : String(error) }, { status: 500 });
   }
 }

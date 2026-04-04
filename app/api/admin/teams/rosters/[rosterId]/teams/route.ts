@@ -12,8 +12,6 @@ export async function PUT(
     const { rosterId } = await context.params;
     const body = await request.json();
 
-    console.log("📝 Roster update request:", rosterId);
-    console.log("📦 Body keys:", Object.keys(body));
 
     const client = await clientPromise;
     const db = client.db();
@@ -30,7 +28,7 @@ export async function PUT(
     const userName = "Admin User";
 
     // Prepare the update
-    const updates: any = {
+    const updates: Record<string, unknown> = {
       teams: body.teams || oldRoster.teams,
       shadowPlayers: body.shadowPlayers || oldRoster.shadowPlayers || [],
       withdrawn: body.withdrawn || oldRoster.withdrawn || [],
@@ -73,9 +71,6 @@ export async function PUT(
       const existingHistory = oldRoster.changeHistory || [];
       updates.changeHistory = [...existingHistory, historyEntry];
 
-      console.log(`📋 Move: ${player.firstName} ${player.lastName}`);
-      console.log(`   From: ${from.location} ${from.teamName || ""}`);
-      console.log(`   To: ${to.location} ${to.teamName || ""}`);
     }
 
     // Perform the update
@@ -89,13 +84,8 @@ export async function PUT(
     }
 
     if (result.modifiedCount === 0) {
-      console.warn("⚠️ Update matched but nothing changed");
     }
 
-    console.log(`✅ Roster updated successfully`);
-    console.log(`   Teams: ${updates.teams.length}`);
-    console.log(`   Emergency: ${updates.shadowPlayers.length}`);
-    console.log(`   Unavailable: ${updates.withdrawn.length}`);
 
     return NextResponse.json({
       success: true,
@@ -107,7 +97,7 @@ export async function PUT(
         withdrawn: updates.withdrawn,
       },
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("❌ Error updating roster:", error);
     console.error("Stack:", error.stack);
     return NextResponse.json(
@@ -147,7 +137,7 @@ export async function GET(
       roster,
       historyCount: roster.changeHistory?.length || 0,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("❌ Error fetching roster:", error);
     return NextResponse.json(
       { error: "Failed to fetch roster", details: error.message },

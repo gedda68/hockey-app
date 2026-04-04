@@ -99,7 +99,7 @@ export async function GET(request: NextRequest) {
       fixed,
       details: fixedDetails,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("❌ Error fixing duplicates:", error);
     return NextResponse.json(
       {

@@ -137,7 +137,7 @@ export async function POST(request: NextRequest) {
         status: member.membership?.status,
       },
 
-      previousRegistrations: previousRegistrations.map((reg: any) => ({
+      previousRegistrations: previousRegistrations.map(() => ({
         seasonYear: reg.seasonYear,
         clubId: reg.clubId,
         clubName: reg.clubName,
@@ -163,7 +163,7 @@ export async function POST(request: NextRequest) {
       isBanned,
       banDetails,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error checking returning player:", error);
     return NextResponse.json(
       { error: "Failed to check returning player", details: error.message },

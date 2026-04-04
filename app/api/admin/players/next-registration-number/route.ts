@@ -50,7 +50,7 @@ export async function GET() {
       nextNumber: "0000000001",
       message: "MOCK DATA - Implement database query to find highest playerId",
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("❌ Error getting next registration number:", error);
     return NextResponse.json(
       {

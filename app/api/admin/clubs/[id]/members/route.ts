@@ -29,7 +29,7 @@ export async function GET(
       .find({ clubId: club.id })
       .toArray();
 
-    const formatted = members.map((m: any) => ({
+    const formatted = members.map(() => ({
       id: m._id.toString(),
       firstName: m.personalInfo?.firstName || "Unknown",
       lastName: m.personalInfo?.lastName || "Unknown",
@@ -46,7 +46,7 @@ export async function GET(
       members: formatted,
       total: formatted.length,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error fetching club members:", error);
     return NextResponse.json(
       { error: "Failed to fetch members", details: error.message },

@@ -2,6 +2,7 @@
 // FINAL FIX: Make fee dates nullable
 
 import { NextResponse } from "next/server";
+import type { Db } from 'mongodb';
 import clientPromise from "@/lib/mongodb";
 import { z } from "zod";
 
@@ -98,7 +99,7 @@ const AssociationSchema = z.object({
 
 // Helper: Calculate hierarchy and level
 async function calculateHierarchy(
-  db: any,
+  db: Db,
   parentAssociationId?: string,
 ): Promise<{ level: number; hierarchy: string[] }> {
   if (!parentAssociationId) {
@@ -175,7 +176,7 @@ export async function GET(
         : null,
       childrenCount: children.length,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error fetching association:", error);
     return NextResponse.json(
       { error: error.message || "Failed to fetch association" },
@@ -276,7 +277,7 @@ export async function PUT(
       .findOne({ associationId });
 
     return NextResponse.json(updated);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error updating association:", error);
 
     if (error.name === "ZodError") {
@@ -355,7 +356,7 @@ export async function DELETE(
       message: "Association deleted successfully",
       associationId,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error deleting association:", error);
     return NextResponse.json(
       { error: error.message || "Failed to delete association" },

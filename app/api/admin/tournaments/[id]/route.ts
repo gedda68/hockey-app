@@ -31,7 +31,7 @@ export async function GET(
     }
 
     return NextResponse.json({ ...tournament, _id: tournament._id.toString() });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("GET /api/admin/tournaments/[id] error:", error);
     return NextResponse.json({ error: "Failed to fetch tournament" }, { status: 500 });
   }
@@ -91,7 +91,7 @@ export async function PUT(
     }
 
     return NextResponse.json({ ...result, _id: result!._id.toString() });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("PUT /api/admin/tournaments/[id] error:", error);
     return NextResponse.json({ error: "Failed to update tournament" }, { status: 500 });
   }
@@ -113,7 +113,7 @@ export async function DELETE(
     }
 
     return NextResponse.json({ success: true });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("DELETE /api/admin/tournaments/[id] error:", error);
     return NextResponse.json({ error: "Failed to delete tournament" }, { status: 500 });
   }

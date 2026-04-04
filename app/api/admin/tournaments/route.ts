@@ -3,6 +3,7 @@
 // POST – create a new tournament (auto-creates a nomination period when saved)
 
 import { NextRequest, NextResponse } from "next/server";
+import type { Db } from 'mongodb';
 import clientPromise from "@/lib/mongodb";
 import {
   friday8WeeksBefore,
@@ -33,7 +34,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(
       tournaments.map((t) => ({ ...t, _id: t._id.toString() })),
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("GET /api/admin/tournaments error:", error);
     return NextResponse.json(
       { error: "Failed to fetch tournaments" },
@@ -98,7 +99,7 @@ export async function POST(request: NextRequest) {
       { ...tournament, _id: result.insertedId.toString() },
       { status: 201 },
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("POST /api/admin/tournaments error:", error);
     return NextResponse.json(
       { error: "Failed to create tournament" },
@@ -109,7 +110,7 @@ export async function POST(request: NextRequest) {
 
 // ─── Helper: upsert nomination period ────────────────────────────────────────
 export async function upsertNominationPeriod(
-  db: any,
+  db: Db,
   opts: { season: string; ageGroup: string; tournamentStartDate: string; tournamentId: string },
 ) {
   const { season, ageGroup, tournamentStartDate, tournamentId } = opts;

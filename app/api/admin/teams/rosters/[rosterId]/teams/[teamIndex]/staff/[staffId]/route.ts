@@ -16,11 +16,6 @@ export async function PATCH(
     const teamIndex = parseInt(teamIndexStr);
     const body = await request.json();
 
-    console.log("\n=== UPDATE STAFF API ===");
-    console.log("📋 Roster ID:", rosterId);
-    console.log("📋 Team Index:", teamIndex);
-    console.log("📋 Staff ID:", staffId);
-    console.log("📦 Body:", JSON.stringify(body, null, 2));
 
     const client = await clientPromise;
     const db = client.db();
@@ -48,7 +43,7 @@ export async function PATCH(
 
     // Update staff fields
     const updatePath = `teams.${teamIndex}.staff.${staffIndex}`;
-    const updates: any = {};
+    const updates: Record<string, unknown> = {};
 
     if (body.role) updates[`${updatePath}.role`] = body.role;
     if (body.memberId) updates[`${updatePath}.memberId`] = body.memberId;
@@ -66,13 +61,12 @@ export async function PATCH(
       },
     );
 
-    console.log(`✅ Updated staff member ${body.memberName || staffId}\n`);
 
     return NextResponse.json({
       success: true,
       modified: result.modifiedCount > 0,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("❌ Error updating staff:", error);
     return NextResponse.json(
       { error: "Failed to update staff", details: error.message },
@@ -92,10 +86,6 @@ export async function DELETE(
     const { rosterId, teamIndex: teamIndexStr, staffId } = await context.params;
     const teamIndex = parseInt(teamIndexStr);
 
-    console.log("\n=== DELETE STAFF API ===");
-    console.log("📋 Roster ID:", rosterId);
-    console.log("📋 Team Index:", teamIndex);
-    console.log("📋 Staff ID:", staffId);
 
     const client = await clientPromise;
     const db = client.db();
@@ -106,14 +96,12 @@ export async function DELETE(
       return NextResponse.json({ error: "Roster not found" }, { status: 404 });
     }
 
-    console.log("✅ Found roster:", roster.clubName);
 
     if (!roster.teams || !roster.teams[teamIndex]) {
       console.error("❌ Team not found at index:", teamIndex);
       return NextResponse.json({ error: "Team not found" }, { status: 404 });
     }
 
-    console.log("✅ Found team:", roster.teams[teamIndex].name);
 
     // Check if staff exists
     const staffMember = roster.teams[teamIndex].staff?.find(
@@ -128,7 +116,6 @@ export async function DELETE(
       );
     }
 
-    console.log("✅ Found staff member:", staffMember.memberName);
 
     // HARD DELETE - Remove from array using $pull
     const result = await db.collection("teamRosters").updateOne(
@@ -143,9 +130,6 @@ export async function DELETE(
       },
     );
 
-    console.log("📊 Delete result:");
-    console.log("  Matched:", result.matchedCount);
-    console.log("  Modified:", result.modifiedCount);
 
     if (result.modifiedCount === 0) {
       console.error("❌ Staff not removed - no changes made");
@@ -155,7 +139,6 @@ export async function DELETE(
       );
     }
 
-    console.log(
       `✅ Successfully removed ${staffMember.memberName} from team ${roster.teams[teamIndex].name}\n`,
     );
 
@@ -163,7 +146,7 @@ export async function DELETE(
       success: true,
       removed: true,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("❌ Error deleting staff:", error);
     console.error("Stack:", error.stack);
     return NextResponse.json(

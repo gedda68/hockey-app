@@ -36,12 +36,10 @@ export async function GET(
   try {
     const { type } = await context.params;
 
-    console.log("🔍 GET request for type:", type);
 
     const mapping =
       CONFIG_TYPE_MAPPING[type as keyof typeof CONFIG_TYPE_MAPPING];
     if (!mapping) {
-      console.log("❌ Invalid type:", type);
       return NextResponse.json(
         { error: "Invalid configuration type" },
         { status: 400 },
@@ -51,7 +49,6 @@ export async function GET(
     const client = await clientPromise;
     const db = client.db();
 
-    console.log("📊 Querying collection:", mapping.collection);
 
     let items;
     if (mapping.configType) {
@@ -70,12 +67,11 @@ export async function GET(
         .toArray();
     }
 
-    console.log(`✅ Loaded ${items.length} items of type "${type}"`);
 
     return NextResponse.json(items);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("💥 Error fetching config items:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: error instanceof Error ? error.message : String(error) }, { status: 500 });
   }
 }
 
@@ -87,7 +83,6 @@ export async function POST(
   try {
     const { type } = await context.params;
 
-    console.log("➕ POST request for type:", type);
 
     const mapping =
       CONFIG_TYPE_MAPPING[type as keyof typeof CONFIG_TYPE_MAPPING];
@@ -99,7 +94,6 @@ export async function POST(
     }
 
     const body = await request.json();
-    console.log("📦 Body:", body);
 
     if (!body.name?.trim()) {
       return NextResponse.json({ error: "Name is required" }, { status: 400 });
@@ -115,7 +109,7 @@ export async function POST(
         sort: { displayOrder: -1 },
       });
 
-    const newItem: any = {
+    const newItem: Record<string, unknown> = {
       id: generateId(type),
       name: body.name.trim(),
       description: body.description?.trim() || null,
@@ -142,14 +136,13 @@ export async function POST(
 
     await db.collection(mapping.collection).insertOne(newItem);
 
-    console.log(`✅ Created: ${newItem.id}`);
     return NextResponse.json({
       message: "Item created successfully",
       item: newItem,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("💥 Error creating:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: error instanceof Error ? error.message : String(error) }, { status: 500 });
   }
 }
 
@@ -161,7 +154,6 @@ export async function PUT(
   try {
     const { type } = await context.params;
 
-    console.log("✏️ PUT request for type:", type);
 
     const mapping =
       CONFIG_TYPE_MAPPING[type as keyof typeof CONFIG_TYPE_MAPPING];
@@ -173,7 +165,6 @@ export async function PUT(
     }
 
     const body = await request.json();
-    console.log("📦 Body:", body);
 
     if (!body.id) {
       return NextResponse.json(
@@ -193,7 +184,7 @@ export async function PUT(
       return NextResponse.json({ error: "Item not found" }, { status: 404 });
     }
 
-    const updateData: any = {
+    const updateData: Record<string, unknown> = {
       updatedAt: new Date(),
       updatedBy: "system",
     };
@@ -213,13 +204,12 @@ export async function PUT(
       .collection(mapping.collection)
       .updateOne({ id: body.id }, { $set: updateData });
 
-    console.log(`✅ Updated: ${body.id}`);
     return NextResponse.json({
       message: "Item updated successfully",
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("💥 Error updating:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: error instanceof Error ? error.message : String(error) }, { status: 500 });
   }
 }
 
@@ -231,7 +221,6 @@ export async function DELETE(
   try {
     const { type } = await context.params;
 
-    console.log("🗑️ DELETE request for type:", type);
 
     const mapping =
       CONFIG_TYPE_MAPPING[type as keyof typeof CONFIG_TYPE_MAPPING];
@@ -245,7 +234,6 @@ export async function DELETE(
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");
 
-    console.log("🗑️ Deleting ID:", id);
 
     if (!id) {
       return NextResponse.json(
@@ -274,12 +262,11 @@ export async function DELETE(
 
     await db.collection(mapping.collection).deleteOne({ id });
 
-    console.log(`✅ Deleted: ${id}`);
     return NextResponse.json({
       message: "Item deleted successfully",
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("💥 Error deleting:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: error instanceof Error ? error.message : String(error) }, { status: 500 });
   }
 }

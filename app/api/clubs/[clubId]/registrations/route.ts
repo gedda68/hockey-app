@@ -44,7 +44,7 @@ export async function GET(
     }
 
     // Build query
-    const query: any = { clubId: club.id };
+    const query: Record<string, unknown> = { clubId: club.id };
 
     if (status !== "all") {
       query.status = status;
@@ -62,7 +62,7 @@ export async function GET(
       .toArray();
 
     // Enrich with member details
-    const memberIds = registrations.map((r: any) => r.memberId);
+    const memberIds = registrations.map(() => r.memberId);
     const members = await db
       .collection("members")
       .find({ memberId: { $in: memberIds } })
@@ -79,7 +79,7 @@ export async function GET(
     const memberMap = new Map(members.map((m) => [m.memberId, m]));
 
     // Add member details
-    const enrichedRegistrations = registrations.map((reg: any) => {
+    const enrichedRegistrations = registrations.map(() => {
       const member = memberMap.get(reg.memberId);
       return {
         ...reg,
@@ -97,7 +97,7 @@ export async function GET(
     });
 
     return NextResponse.json(enrichedRegistrations);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error fetching registrations:", error);
     return NextResponse.json(
       { error: "Failed to fetch registrations", details: error.message },
@@ -158,7 +158,7 @@ export async function approveRegistration(
     const adminId = session?.email || session?.userId || "system";
 
     // Prepare update
-    const updateData: any = {
+    const updateData: Record<string, unknown> = {
       status: "active",
       approvedDate: new Date(),
       approvedBy: adminId,
@@ -237,7 +237,7 @@ export async function approveRegistration(
     } finally {
       await session.endSession();
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error approving registration:", error);
 
     if (error.name === "ZodError") {
@@ -346,7 +346,7 @@ export async function rejectRegistration(
     } finally {
       await session.endSession();
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error rejecting registration:", error);
 
     if (error.name === "ZodError") {

@@ -35,7 +35,7 @@ export async function GET(
     const auditCollection = db.collection("member_audit_log");
 
     // Build query
-    const query: any = { memberId, clubId };
+    const query: Record<string, unknown> = { memberId, clubId };
     if (action && action !== "all") {
       query.action = action;
     }

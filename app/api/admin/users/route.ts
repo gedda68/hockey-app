@@ -2,6 +2,7 @@
 // User management API with username generation
 
 import { NextRequest, NextResponse } from "next/server";
+import type { Db } from 'mongodb';
 import clientPromise from "@/lib/mongodb";
 import { requirePermission } from "@/lib/auth/middleware";
 import bcrypt from "bcryptjs";
@@ -15,7 +16,7 @@ import bcrypt from "bcryptjs";
 async function generateUsername(
   firstName: string,
   lastName: string,
-  db: any
+  db: Db
 ): Promise<string> {
   // Get first initial (lowercase)
   const firstInitial = firstName.charAt(0).toLowerCase();
@@ -60,7 +61,7 @@ export async function GET(request: NextRequest) {
     const client = await clientPromise;
     const db = client.db();
 
-    let query: any = {};
+    let query: Record<string, unknown> = {};
 
     // Filter based on role
     if (user.role === "association-admin" && user.associationId) {
@@ -78,9 +79,9 @@ export async function GET(request: NextRequest) {
 
     console.log(`Loaded ${users.length} users from 'users' collection`);
     return NextResponse.json(users);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error fetching users:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: error instanceof Error ? error.message : String(error) }, { status: 500 });
   }
 }
 
@@ -163,8 +164,8 @@ export async function POST(request: NextRequest) {
       message: "User created successfully",
       user: userResponse,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error creating user:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: error instanceof Error ? error.message : String(error) }, { status: 500 });
   }
 }

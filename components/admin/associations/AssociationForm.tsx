@@ -38,9 +38,55 @@ interface ParentAssociation {
   level: number;
 }
 
+interface AssociationFee {
+  feeId: string;
+  name: string;
+  amount: number;
+  category?: string;
+  isActive: boolean;
+}
+
+interface AssociationPosition {
+  positionId: string;
+  title: string;
+  description?: string;
+  isActive: boolean;
+}
+
+interface AssociationInitialData {
+  associationId?: string;
+  code?: string;
+  name?: string;
+  fullName?: string;
+  acronym?: string;
+  parentAssociationId?: string;
+  status?: string;
+  level?: number;
+  region?: string;
+  state?: string;
+  country?: string;
+  timezone?: string;
+  contact?: { primaryEmail?: string; secondaryEmail?: string; phone?: string; mobile?: string; website?: string };
+  address?: { street?: string; suburb?: string; city?: string; state?: string; postcode?: string; country?: string };
+  socialMedia?: { facebook?: string; instagram?: string; twitter?: string };
+  branding?: { primaryColor?: string; secondaryColor?: string; accentColor?: string };
+  fees?: AssociationFee[];
+  positions?: AssociationPosition[];
+  settings?: {
+    requiresApproval?: boolean;
+    autoApproveReturningPlayers?: boolean;
+    allowMultipleClubs?: boolean;
+    seasonStartMonth?: number;
+    seasonEndMonth?: number;
+    requiresInsurance?: boolean;
+    requiresMedicalInfo?: boolean;
+    requiresEmergencyContact?: boolean;
+  };
+}
+
 interface AssociationFormProps {
   associationId?: string;
-  initialData?: any;
+  initialData?: AssociationInitialData;
   parentAssociations?: ParentAssociation[];
 }
 
@@ -139,8 +185,8 @@ const defaultFormData = {
   accentColor: "#ffd700",
 
   // Fees & Positions
-  fees: [] as any[],
-  positions: [] as any[],
+  fees: [] as AssociationFee[],
+  positions: [] as AssociationPosition[],
 
   // Settings
   requiresApproval: false,
@@ -278,19 +324,10 @@ export default function AssociationForm({
       setSelectedLevel(levelToSet);
       setCompletedSections(new Set(SECTIONS.map((s) => s.id as SectionId)));
 
-      console.log("🔍 EDIT MODE LOADED:", {
-        rawLevel: initialData.level,
-        levelType: typeof initialData.level,
-        levelToSet,
-        selectedLevelWillBe: levelToSet,
-        parentId: initialData.parentAssociationId,
-        fees: initialData.fees?.length || 0,
-        positions: initialData.positions?.length || 0,
-      });
     }
   }, [initialData]);
 
-  const handleChange = (field: string, value: any) => {
+  const handleChange = (field: string, value: unknown) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
     setSectionErrors((prev) => {
       const section = currentSection;
@@ -388,7 +425,7 @@ export default function AssociationForm({
           : Number(selectedLevel);
 
       // ✅ CLEAN FEES: Remove date fields that cause validation issues
-      const cleanedFees = (formData.fees || []).map((fee: any) => ({
+      const cleanedFees = (formData.fees || []).map((fee) => ({
         feeId: fee.feeId,
         name: fee.name,
         amount: fee.amount,
@@ -397,7 +434,7 @@ export default function AssociationForm({
       }));
 
       // ✅ CLEAN POSITIONS
-      const cleanedPositions = (formData.positions || []).map((pos: any) => ({
+      const cleanedPositions = (formData.positions || []).map((pos) => ({
         positionId: pos.positionId,
         title: pos.title,
         description: pos.description || undefined,
@@ -456,17 +493,6 @@ export default function AssociationForm({
         status: formData.status,
       };
 
-      console.log("💾 SAVING PAYLOAD:", {
-        selectedLevel,
-        levelValue,
-        levelType: typeof levelValue,
-        levelInPayload: payload.level,
-        parentId: formData.parentAssociationId,
-        feesCount: cleanedFees.length,
-        positionsCount: cleanedPositions.length,
-        fullPayload: payload,
-      });
-
       const url = isEdit
         ? `/api/admin/associations/${associationId}`
         : "/api/admin/associations";
@@ -479,11 +505,6 @@ export default function AssociationForm({
       });
 
       const responseData = await res.json();
-      console.log("📡 API RESPONSE:", {
-        ok: res.ok,
-        status: res.status,
-        data: responseData,
-      });
 
       if (!res.ok) {
         console.error("❌ VALIDATION ERROR:", responseData);
@@ -503,9 +524,9 @@ export default function AssociationForm({
         router.push("/admin/associations");
         router.refresh();
       }, 1200);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("❌ SAVE ERROR:", err);
-      toastError("Save failed", err.message);
+      toastError("Save failed", err instanceof Error ? err.message : String(err));
     } finally {
       setIsSaving(false);
     }
@@ -593,14 +614,6 @@ export default function AssociationForm({
           value={selectedLevel}
           onChange={(e) => {
             const val = e.target.value === "" ? "" : parseInt(e.target.value);
-            console.log("📊 LEVEL CHANGED:", {
-              from: selectedLevel,
-              to: val,
-              type: typeof val,
-              asNumber: Number(val),
-              eventValue: e.target.value,
-              willSetSelectedLevelTo: val,
-            });
             setSelectedLevel(val as number | "");
             // Reset parent when level changes
             setFormData((prev) => ({ ...prev, parentAssociationId: "" }));
@@ -873,14 +886,14 @@ export default function AssociationForm({
     const removeFee = (feeId: string) => {
       handleChange(
         "fees",
-        fees.filter((f: any) => f.feeId !== feeId),
+        fees.filter((f) => f.feeId !== feeId),
       );
     };
 
-    const updateFee = (feeId: string, field: string, value: any) => {
+    const updateFee = (feeId: string, field: string, value: unknown) => {
       handleChange(
         "fees",
-        fees.map((f: any) =>
+        fees.map((f) =>
           f.feeId === feeId ? { ...f, [field]: value } : f,
         ),
       );
@@ -912,7 +925,7 @@ export default function AssociationForm({
           </div>
         ) : (
           <div className="space-y-4">
-            {fees.map((fee: any) => (
+            {fees.map((fee) => (
               <div
                 key={fee.feeId}
                 className="p-6 bg-slate-50 rounded-2xl border-2 border-slate-100"
@@ -1003,14 +1016,14 @@ export default function AssociationForm({
     const removePosition = (positionId: string) => {
       handleChange(
         "positions",
-        positions.filter((p: any) => p.positionId !== positionId),
+        positions.filter((p) => p.positionId !== positionId),
       );
     };
 
-    const updatePosition = (positionId: string, field: string, value: any) => {
+    const updatePosition = (positionId: string, field: string, value: unknown) => {
       handleChange(
         "positions",
-        positions.map((p: any) =>
+        positions.map((p) =>
           p.positionId === positionId ? { ...p, [field]: value } : p,
         ),
       );
@@ -1042,7 +1055,7 @@ export default function AssociationForm({
           </div>
         ) : (
           <div className="space-y-4">
-            {positions.map((position: any) => (
+            {positions.map((position) => (
               <div
                 key={position.positionId}
                 className="p-6 bg-slate-50 rounded-2xl border-2 border-slate-100"

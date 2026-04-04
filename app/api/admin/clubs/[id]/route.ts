@@ -3,13 +3,14 @@
 // Auto-generates + persists slug if the club record doesn't have one yet.
 
 import { NextRequest, NextResponse } from "next/server";
+import type { Db } from 'mongodb';
 import clientPromise from "@/lib/mongodb";
 import { generateSlug } from "@/lib/utils/slug";
 
 type Ctx = { params: Promise<{ id: string }> };
 
 /** Find a club by slug first, then by id (backwards compat). */
-async function findClub(db: any, idOrSlug: string) {
+async function findClub(db: Db, idOrSlug: string) {
   return db.collection("clubs").findOne({
     $or: [{ slug: idOrSlug }, { id: idOrSlug }],
   });
@@ -44,9 +45,9 @@ export async function GET(req: NextRequest, ctx: Ctx) {
     console.log(`✅ Found club: ${clubData.name}`);
 
     return NextResponse.json({ club: clubData });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error fetching club:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: error instanceof Error ? error.message : String(error) }, { status: 500 });
   }
 }
 
@@ -87,8 +88,8 @@ export async function PUT(req: NextRequest, ctx: Ctx) {
       message: "Club updated",
       club: updatedData,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error updating club:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: error instanceof Error ? error.message : String(error) }, { status: 500 });
   }
 }

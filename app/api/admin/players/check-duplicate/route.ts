@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
       isDuplicate: false,
       message: "MOCK DATA - Implement database query to check for duplicates",
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("❌ Error checking duplicate player:", error);
     return NextResponse.json(
       { error: "Failed to check duplicate", details: error.message },

@@ -62,7 +62,7 @@ export async function PUT(
     }
 
     // Build update object for array element
-    const updateFields: any = {};
+    const updateFields: Record<string, unknown> = {};
 
     if (validatedData.position !== undefined) {
       updateFields["roster.$.position"] = validatedData.position;
@@ -160,7 +160,7 @@ export async function PUT(
     } finally {
       await session.endSession();
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error updating roster member:", error);
 
     // Zod validation errors
@@ -297,7 +297,7 @@ export async function DELETE(
     } finally {
       await session.endSession();
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error removing roster member:", error);
     return NextResponse.json(
       { error: "Failed to remove roster member", details: error.message },

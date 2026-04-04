@@ -12,8 +12,6 @@ export async function GET(
   try {
     const { clubId: clubIdOrSlug, memberId } = await params;
 
-    console.log("⚠️ WARNING: Auth is disabled for testing");
-    console.log(`🔍 Looking for member ${memberId} in club ${clubIdOrSlug}`);
 
     const client = await clientPromise;
     const db = client.db("hockey-app");
@@ -23,15 +21,12 @@ export async function GET(
 
     // Check if this is a slug (doesn't start with 'club-')
     if (!clubIdOrSlug.startsWith("club-")) {
-      console.log(`🔍 Converting slug "${clubIdOrSlug}" to clubId...`);
       const clubsCollection = db.collection("clubs");
       const club = await clubsCollection.findOne({ slug: clubIdOrSlug });
 
       if (club) {
         actualClubId = club.id;
-        console.log(`✅ Found club: ${club.name} (${actualClubId})`);
       } else {
-        console.log(`❌ No club found with slug: ${clubIdOrSlug}`);
       }
     }
 
@@ -42,11 +37,6 @@ export async function GET(
       // Check if member exists in a different club
       const memberInOtherClub = await collection.findOne({ memberId });
       if (memberInOtherClub) {
-        console.log(
-          `❌ Member ${memberId} found but in different club: ${memberInOtherClub.clubId}`,
-        );
-        console.log(`   Requested club: ${actualClubId}`);
-        console.log(`   Actual club: ${memberInOtherClub.clubId}`);
         return NextResponse.json(
           {
             error: "Member not found in this club",
@@ -56,13 +46,9 @@ export async function GET(
         );
       }
 
-      console.log(`❌ Member ${memberId} not found at all`);
       return NextResponse.json({ error: "Member not found" }, { status: 404 });
     }
 
-    console.log(
-      `✅ Member found: ${member.personalInfo?.firstName} ${member.personalInfo?.lastName}`,
-    );
     return NextResponse.json(member);
   } catch (error) {
     console.error("Error fetching member:", error);
@@ -82,7 +68,6 @@ export async function PUT(
     const { clubId: clubIdOrSlug, memberId } = await params;
     const updates = await request.json();
 
-    console.log("⚠️ WARNING: Auth is disabled for testing");
 
     const client = await clientPromise;
     const db = client.db("hockey-app");
@@ -94,7 +79,6 @@ export async function PUT(
       const club = await clubsCollection.findOne({ slug: clubIdOrSlug });
       if (club) {
         actualClubId = club.id;
-        console.log(`✅ Converted slug to clubId: ${actualClubId}`);
       }
     }
 
@@ -136,7 +120,6 @@ export async function DELETE(
   try {
     const { clubId: clubIdOrSlug, memberId } = await params;
 
-    console.log("⚠️ WARNING: Auth is disabled for testing");
 
     const client = await clientPromise;
     const db = client.db("hockey-app");
@@ -148,7 +131,6 @@ export async function DELETE(
       const club = await clubsCollection.findOne({ slug: clubIdOrSlug });
       if (club) {
         actualClubId = club.id;
-        console.log(`✅ Converted slug to clubId: ${actualClubId}`);
       }
     }
 

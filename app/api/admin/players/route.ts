@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
     const db = client.db();
 
     // Build query
-    const query: any = {};
+    const query: Record<string, unknown> = {};
 
     if (clubId) query.clubId = clubId;
 
@@ -40,7 +40,6 @@ export async function GET(request: NextRequest) {
       ];
     }
 
-    console.log("🏃 GET players - Query:", query);
 
     // Get total count
     const total = await db.collection("players").countDocuments(query);
@@ -54,12 +53,9 @@ export async function GET(request: NextRequest) {
       .limit(limit)
       .toArray();
 
-    console.log(`✅ Found ${players.length} players (${total} total)`);
 
     // Get all unique club IDs from players
     const clubIds = [...new Set(players.map((p) => p.clubId).filter(Boolean))];
-    console.log(`🔍 Looking up ${clubIds.length} clubs...`);
-    console.log(`🔍 Club IDs to find:`, clubIds);
 
     // Fetch club names - try both clubId and id fields
     const clubs = await db
@@ -69,26 +65,20 @@ export async function GET(request: NextRequest) {
       })
       .toArray();
 
-    console.log(`✅ Found ${clubs.length} clubs in database`);
 
     // Create club lookup map (check both clubId and id)
     const clubMap = new Map();
-    clubs.forEach((club: any) => {
+    clubs.forEach(() => {
       const id = club.clubId || club.id;
       if (id) {
         clubMap.set(id, club.name);
-        console.log(`📌 Club: ${id} → ${club.name}`);
       }
     });
 
     // Add club name to each player
-    const playersWithClubNames = players.map((player: any) => {
+    const playersWithClubNames = players.map(() => {
       const { _id, ...playerData } = player;
       const clubName = player.clubId ? clubMap.get(player.clubId) : null;
-
-      console.log(
-        `👤 ${player.firstName} ${player.lastName}: clubId=${player.clubId}, clubName=${clubName || "NOT FOUND"}`,
-      );
 
       return {
         ...playerData,
@@ -105,9 +95,9 @@ export async function GET(request: NextRequest) {
         totalPages: Math.ceil(total / limit),
       },
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("💥 Error fetching players:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: error instanceof Error ? error.message : String(error) }, { status: 500 });
   }
 }
 
@@ -144,7 +134,6 @@ export async function POST(request: NextRequest) {
     }
 
     const playerId = nextNumber.toString().padStart(10, "0");
-    console.log("🆔 Generated playerId:", playerId);
 
     const playerData = {
       ...body,
@@ -177,10 +166,6 @@ export async function POST(request: NextRequest) {
 
     await db.collection("players").insertOne(playerData);
 
-    console.log(
-      `✅ Created player: ${body.firstName} ${body.lastName} (${playerId})`,
-    );
-
     // Remove _id before returning
     const { _id, ...cleanPlayer } = playerData;
 
@@ -192,9 +177,9 @@ export async function POST(request: NextRequest) {
       },
       { status: 201 },
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("💥 Error creating player:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: error instanceof Error ? error.message : String(error) }, { status: 500 });
   }
 }
 
@@ -246,7 +231,6 @@ export async function PUT(request: NextRequest) {
 
     await db.collection("players").updateOne({ playerId }, { $set: newData });
 
-    console.log(`✅ Updated player: ${newData.firstName} ${newData.lastName}`);
 
     // Remove _id before returning
     const { _id, ...cleanPlayer } = newData;
@@ -255,9 +239,9 @@ export async function PUT(request: NextRequest) {
       message: "Player updated",
       player: cleanPlayer,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("💥 Error updating player:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: error instanceof Error ? error.message : String(error) }, { status: 500 });
   }
 }
 
@@ -285,11 +269,10 @@ export async function DELETE(request: NextRequest) {
 
     await db.collection("players").deleteOne({ playerId });
 
-    console.log(`✅ Deleted player: ${player.firstName} ${player.lastName}`);
 
     return NextResponse.json({ message: "Player deleted successfully" });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("💥 Error deleting player:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: error instanceof Error ? error.message : String(error) }, { status: 500 });
   }
 }

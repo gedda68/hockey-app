@@ -83,7 +83,7 @@ export async function GET(request: NextRequest) {
     opportunities.sort((a, b) => a.daysRemaining - b.daysRemaining);
 
     return NextResponse.json({ opportunities });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("GET /api/admin/nominations/available error:", error);
     return NextResponse.json(
       { error: "Failed to fetch available nominations" },

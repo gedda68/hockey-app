@@ -13,11 +13,10 @@ export async function GET(request: NextRequest) {
     const client = await clientPromise;
     const db = client.db();
 
-    const query: any = {};
+    const query: Record<string, unknown> = {};
     if (season) query.season = season;
     if (clubId && clubId !== "all") query.clubId = clubId;
 
-    console.log("🔍 Fetching rosters with query:", query);
 
     const rosters = await db
       .collection("teamRosters")
@@ -25,7 +24,6 @@ export async function GET(request: NextRequest) {
       .sort({ createdAt: -1 })
       .toArray();
 
-    console.log(`✅ Found ${rosters.length} rosters`);
 
     const userAccess = {
       clubId: null,
@@ -37,7 +35,7 @@ export async function GET(request: NextRequest) {
       rosters,
       userAccess,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("❌ Error fetching rosters:", error);
     return NextResponse.json(
       { error: "Failed to fetch rosters" },
@@ -51,7 +49,6 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { clubId, category, division, gender, season } = body;
 
-    console.log("📥 Received roster data:", body);
 
     if (!clubId || !category || !division || !gender || !season) {
       return NextResponse.json(
@@ -64,20 +61,16 @@ export async function POST(request: NextRequest) {
     const db = client.db();
 
     // DEBUG: Check what clubs exist in database
-    console.log("🔍 Looking for club with id:", clubId);
 
     // Try exact match on 'id' field
     let club = await db.collection("clubs").findOne({ id: clubId });
-    console.log(
       "Result from { id: clubId }:",
       club ? "✅ FOUND" : "❌ NOT FOUND",
     );
 
     if (!club) {
       // Try _id field
-      console.log("Trying _id field...");
       club = await db.collection("clubs").findOne({ _id: clubId });
-      console.log(
         "Result from { _id: clubId }:",
         club ? "✅ FOUND" : "❌ NOT FOUND",
       );
@@ -85,21 +78,16 @@ export async function POST(request: NextRequest) {
 
     if (!club) {
       // Try with $or for multiple fields
-      console.log("Trying multiple fields with $or...");
       club = await db.collection("clubs").findOne({
         $or: [{ id: clubId }, { _id: clubId }, { clubId: clubId }],
       });
-      console.log("Result from $or query:", club ? "✅ FOUND" : "❌ NOT FOUND");
     }
 
     if (!club) {
       // DEBUG: Show what clubs ARE in the database
-      console.log("❌ Club not found. Let me check what's in the database...");
       const allClubs = await db.collection("clubs").find({}).limit(5).toArray();
 
-      console.log("📋 First 5 clubs in database:");
-      allClubs.forEach((c: any) => {
-        console.log("  -", {
+      allClubs.forEach(() => {
           id: c.id,
           _id: c._id?.toString(),
           clubId: c.clubId,
@@ -107,8 +95,6 @@ export async function POST(request: NextRequest) {
         });
       });
 
-      console.log("\n🔍 Looking for match with:", clubId);
-      console.log("Type of clubId:", typeof clubId);
 
       return NextResponse.json(
         {
@@ -116,7 +102,7 @@ export async function POST(request: NextRequest) {
           clubId,
           debug: {
             searchedFor: clubId,
-            firstFiveClubs: allClubs.map((c: any) => ({
+            firstFiveClubs: allClubs.map(() => ({
               id: c.id,
               name: c.name,
             })),
@@ -126,7 +112,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log("✅ Found club:", {
       id: club.id,
       name: club.name,
       colors: club.colors,
@@ -154,7 +139,6 @@ export async function POST(request: NextRequest) {
       lastUpdated: new Date().toISOString(),
     };
 
-    console.log("💾 Saving roster:", {
       id: newRoster.id,
       clubId: newRoster.clubId,
       clubName: newRoster.clubName,
@@ -163,13 +147,12 @@ export async function POST(request: NextRequest) {
 
     const result = await db.collection("teamRosters").insertOne(newRoster);
 
-    console.log("✅ Roster created successfully:", result.insertedId);
 
     return NextResponse.json({
       success: true,
       roster: newRoster,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("❌ Error creating roster:", error);
     return NextResponse.json(
       { error: "Failed to create roster", details: error.message },

@@ -108,7 +108,7 @@ export async function POST(request: Request) {
       message:
         result.upsertedCount > 0 ? "New roster created" : "Roster updated",
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("POST Error:", error);
 
     // MongoDB Unique Index violation check

@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
     const now = new Date();
 
     // Build query
-    const query: any = {
+    const query: Record<string, unknown> = {
       deleted: { $ne: true },
       status: { $in: ["scheduled", "postponed"] },
     };

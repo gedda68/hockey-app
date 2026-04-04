@@ -121,7 +121,7 @@ export async function PUT(
       }
     }
 
-    const updates: any = {
+    const updates: Record<string, unknown> = {
       ...body,
       lastUpdated: new Date().toISOString(),
     };
@@ -155,7 +155,7 @@ export async function PUT(
       roster: updates,
       history: historyEntry,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("❌ Error updating roster:", error);
     return NextResponse.json(
       { error: "Failed to update roster", details: error.message },
@@ -191,7 +191,7 @@ export async function GET(
       roster,
       historyCount: roster.changeHistory?.length || 0,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("❌ Error fetching roster:", error);
     return NextResponse.json(
       { error: "Failed to fetch roster", details: error.message },

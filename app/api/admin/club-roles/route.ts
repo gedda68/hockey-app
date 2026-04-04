@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
     const db = client.db(process.env.DB_NAME || "hockey-app");
 
     // Build query
-    const query: any = {};
+    const query: Record<string, unknown> = {};
     if (activeOnly) query.isActive = true;
     if (category) query.category = category;
     if (clubId) {
@@ -35,9 +35,9 @@ export async function GET(request: NextRequest) {
       .toArray();
 
     return NextResponse.json(roles);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error fetching roles:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: error instanceof Error ? error.message : String(error) }, { status: 500 });
   }
 }
 
@@ -86,9 +86,9 @@ export async function POST(request: NextRequest) {
     console.log(`✅ Created role: ${newRole.name}`);
 
     return NextResponse.json(newRole, { status: 201 });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error creating role:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: error instanceof Error ? error.message : String(error) }, { status: 500 });
   }
 }
 
@@ -119,9 +119,9 @@ export async function PUT(request: NextRequest) {
     console.log(`✅ Updated role: ${body.roleId}`);
 
     return NextResponse.json(updated);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error updating role:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: error instanceof Error ? error.message : String(error) }, { status: 500 });
   }
 }
 
@@ -161,8 +161,8 @@ export async function DELETE(request: NextRequest) {
     console.log(`✅ Deleted role: ${roleId}`);
 
     return NextResponse.json({ success: true, roleId });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error deleting role:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: error instanceof Error ? error.message : String(error) }, { status: 500 });
   }
 }

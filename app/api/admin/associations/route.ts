@@ -2,6 +2,7 @@
 // Associations API with hierarchical filtering + comprehensive validation
 
 import { NextRequest, NextResponse } from "next/server";
+import type { Db } from 'mongodb';
 import clientPromise from "@/lib/mongodb";
 import { z } from "zod";
 import { escapeRegex } from "@/lib/utils/regex";
@@ -77,7 +78,7 @@ const AssociationSchema = z.object({
 
 // Helper: Calculate hierarchy and level
 async function calculateHierarchy(
-  db: any,
+  db: Db,
   parentAssociationId?: string,
 ): Promise<{ level: number; hierarchy: string[] }> {
   if (!parentAssociationId) {
@@ -131,7 +132,7 @@ export async function GET(request: NextRequest) {
     const db = client.db();
 
     // Build query
-    const query: any = {};
+    const query: Record<string, unknown> = {};
 
     if (status) {
       query.status = status;
@@ -174,7 +175,6 @@ export async function GET(request: NextRequest) {
       ];
     }
 
-    console.log("🏛️ GET associations - Query:", JSON.stringify(query, null, 2));
 
     // Get total count
     const total = await db.collection("associations").countDocuments(query);
@@ -187,10 +187,6 @@ export async function GET(request: NextRequest) {
       .skip(skip)
       .limit(limit)
       .toArray();
-
-    console.log(
-      `✅ Found ${associations.length} associations (${total} total)`,
-    );
 
     // For simple list (used by wizard), return minimal data
     if (searchParams.get("simple") === "true") {
@@ -255,7 +251,7 @@ export async function GET(request: NextRequest) {
         totalPages: Math.ceil(total / limit),
       },
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("💥 Error fetching associations:", error);
     return NextResponse.json(
       { error: error.message || "Failed to fetch associations" },
@@ -335,7 +331,6 @@ export async function POST(request: NextRequest) {
     // Insert
     await db.collection("associations").insertOne(association);
 
-    console.log(`✅ Created association: ${association.name} (Level ${level})`);
 
     return NextResponse.json(
       {
@@ -350,7 +345,7 @@ export async function POST(request: NextRequest) {
       },
       { status: 201 },
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("💥 Error creating association:", error);
 
     // Handle Zod validation errors

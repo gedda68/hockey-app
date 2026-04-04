@@ -51,9 +51,9 @@ export async function GET(
     }
 
     return NextResponse.json(user);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error fetching user:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: error instanceof Error ? error.message : String(error) }, { status: 500 });
   }
 }
 
@@ -115,7 +115,7 @@ export async function PATCH(
       "linkedMembers",
     ];
 
-    const updateData: any = {
+    const updateData: Record<string, unknown> = {
       updatedAt: new Date(),
       updatedBy: currentUser.userId,
     };
@@ -150,9 +150,9 @@ export async function PATCH(
       message: "User updated successfully",
       user: updatedUser,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error updating user:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: error instanceof Error ? error.message : String(error) }, { status: 500 });
   }
 }
 
@@ -233,8 +233,8 @@ export async function PUT(
       message: "User updated successfully",
       user: updatedUser,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error updating user:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: error instanceof Error ? error.message : String(error) }, { status: 500 });
   }
 }

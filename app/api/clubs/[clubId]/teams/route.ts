@@ -44,7 +44,7 @@ export async function GET(
     }
 
     // Build query
-    const query: any = { clubId: club.id };
+    const query: Record<string, unknown> = { clubId: club.id };
 
     if (ageCategory) {
       query.ageCategory = ageCategory;
@@ -75,7 +75,7 @@ export async function GET(
     }));
 
     return NextResponse.json(teamsWithId);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error fetching teams:", error);
     return NextResponse.json(
       { error: "Failed to fetch teams", details: error.message },
@@ -186,7 +186,7 @@ export async function POST(
       },
       { status: 201 }
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error creating team:", error);
 
     // Zod validation errors

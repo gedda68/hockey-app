@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
     const category = searchParams.get("category");
     const clubId = searchParams.get("clubId");
 
-    const query: any = {};
+    const query: Record<string, unknown> = {};
 
     if (activeOnly) {
       query.active = true;
@@ -38,9 +38,9 @@ export async function GET(request: NextRequest) {
       .toArray();
 
     return NextResponse.json(roles);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error fetching roles:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: error instanceof Error ? error.message : String(error) }, { status: 500 });
   }
 }
 
@@ -110,9 +110,9 @@ export async function POST(request: NextRequest) {
     console.log(`✅ Created role: ${role.name} (${roleId})`);
 
     return NextResponse.json(role, { status: 201 });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error creating role:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: error instanceof Error ? error.message : String(error) }, { status: 500 });
   }
 }
 
@@ -131,7 +131,7 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    const updateData: any = {
+    const updateData: Record<string, unknown> = {
       updatedAt: new Date().toISOString(),
     };
 
@@ -162,9 +162,9 @@ export async function PUT(request: NextRequest) {
     console.log(`✅ Updated role: ${body.roleId}`);
 
     return NextResponse.json(updated);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error updating role:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: error instanceof Error ? error.message : String(error) }, { status: 500 });
   }
 }
 
@@ -212,8 +212,8 @@ export async function DELETE(request: NextRequest) {
       roleId,
       deleted: true,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error deleting role:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: error instanceof Error ? error.message : String(error) }, { status: 500 });
   }
 }

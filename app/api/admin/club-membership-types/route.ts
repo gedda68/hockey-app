@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
     const db = client.db(process.env.DB_NAME || "hockey-app");
 
     // Build query
-    const query: any = {};
+    const query: Record<string, unknown> = {};
     if (activeOnly) query.isActive = true;
     if (category) query.category = category;
 
@@ -26,9 +26,9 @@ export async function GET(request: NextRequest) {
       .toArray();
 
     return NextResponse.json(types);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error fetching membership types:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: error instanceof Error ? error.message : String(error) }, { status: 500 });
   }
 }
 
@@ -75,9 +75,9 @@ export async function POST(request: NextRequest) {
     console.log(`✅ Created membership type: ${newType.name}`);
 
     return NextResponse.json(newType, { status: 201 });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error creating membership type:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: error instanceof Error ? error.message : String(error) }, { status: 500 });
   }
 }
 
@@ -107,9 +107,9 @@ export async function PUT(request: NextRequest) {
     console.log(`✅ Updated membership type: ${body.typeId}`);
 
     return NextResponse.json(updated);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error updating membership type:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: error instanceof Error ? error.message : String(error) }, { status: 500 });
   }
 }
 
@@ -149,8 +149,8 @@ export async function DELETE(request: NextRequest) {
     console.log(`✅ Deleted membership type: ${typeId}`);
 
     return NextResponse.json({ success: true, typeId });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error deleting membership type:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: error instanceof Error ? error.message : String(error) }, { status: 500 });
   }
 }

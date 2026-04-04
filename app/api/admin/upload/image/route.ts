@@ -76,7 +76,7 @@ export async function POST(request: Request) {
       size: file.size,
       type: file.type,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("❌ Upload error:", error);
     return NextResponse.json(
       { error: "Failed to upload file: " + error.message },
@@ -112,8 +112,8 @@ export async function GET(request: Request) {
       // Directory doesn't exist yet, return empty list
       return NextResponse.json({ images: [] });
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("❌ Error listing images:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: error instanceof Error ? error.message : String(error) }, { status: 500 });
   }
 }

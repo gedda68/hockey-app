@@ -14,7 +14,7 @@ export async function GET() {
     ]);
 
     return NextResponse.json({ roles, genders, relTypes, clubs });
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+  } catch (err: unknown) {
+    return NextResponse.json({ error: (err instanceof Error ? err.message : String(err)) }, { status: 500 });
   }
 }

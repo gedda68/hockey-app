@@ -2,18 +2,20 @@
 // Clubs API with hierarchical filtering + change logging + clubId mapping
 
 import { NextRequest, NextResponse } from "next/server";
+import type { Db } from "mongodb";
 import clientPromise from "@/lib/mongodb";
 import { generateSlug } from "@/lib/utils/slug";
 import { escapeRegex } from "@/lib/utils/regex";
+import type { ClubDoc } from "@/types/api";
 
 // --- HELPER: LOG CHANGES ---
 async function logClubChange(
-  db: any,
+  db: Db,
   clubId: string,
   clubName: string,
   changeType: string,
-  oldValues?: any,
-  newValues?: any,
+  oldValues?: Record<string, unknown>,
+  newValues?: Record<string, unknown>,
   reason?: string,
   userId?: string,
   userName?: string,
@@ -37,15 +39,21 @@ async function logClubChange(
     };
 
     await db.collection("club_change_logs").insertOne(changeLog);
-    console.log("✅ Change logged:", changeType, "for", clubName);
   } catch (error) {
     console.error("❌ Failed to log change:", error);
   }
 }
 
+interface FieldChange {
+  field: string;
+  displayName: string;
+  oldValue: unknown;
+  newValue: unknown;
+}
+
 // --- HELPER: DETECT CHANGES ---
-function getChangedFields(oldValues: any, newValues: any) {
-  const changes: any[] = [];
+function getChangedFields(oldValues: Record<string, unknown>, newValues: Record<string, unknown>) {
+  const changes: FieldChange[] = [];
   const compareFields = [
     { key: "name", display: "Club Name" },
     { key: "shortName", display: "Short Name" },
@@ -141,7 +149,7 @@ export async function GET(request: NextRequest) {
     const db = client.db("hockey-app");
 
     // Build query
-    const query: any = {};
+    const query: Record<string, unknown> = {};
 
     // Filter by association (priority - used by wizard)
     if (associationId || parentAssociationId) {
@@ -153,7 +161,6 @@ export async function GET(request: NextRequest) {
       const matchedRegion = getRegionFromSuburb(region);
       if (matchedRegion) {
         query.region = matchedRegion;
-        console.log(`📍 Mapped ${region} to region: ${matchedRegion}`);
       } else {
         // If no mapping found, search in club name or general area
         const safeRegion = escapeRegex(region);
@@ -184,7 +191,6 @@ export async function GET(request: NextRequest) {
       ];
     }
 
-    console.log("🏛️ GET clubs - Query:", query);
 
     // Get total count
     const total = await db.collection("clubs").countDocuments(query);
@@ -198,10 +204,9 @@ export async function GET(request: NextRequest) {
       .limit(limit)
       .toArray();
 
-    console.log(`✅ Found ${clubs.length} clubs (${total} total)`);
 
     // **NEW: Map 'id' to 'clubId' for teams modal compatibility**
-    const mappedClubs = clubs.map((club: any) => ({
+    const mappedClubs = (clubs as ClubDoc[]).map((club) => ({
       ...club,
       clubId: club.id, // Add clubId field mapped from id
     }));
@@ -239,9 +244,9 @@ export async function GET(request: NextRequest) {
         totalPages: Math.ceil(total / limit),
       },
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("💥 Error fetching clubs:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: error instanceof Error ? error.message : String(error) }, { status: 500 });
   }
 }
 
@@ -292,15 +297,14 @@ export async function POST(request: NextRequest) {
       body.userName,
     );
 
-    console.log(`✅ Created club: ${body.name}`);
 
     return NextResponse.json(
       { message: "Club created", club: clubData },
       { status: 201 },
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("💥 Error creating club:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: error instanceof Error ? error.message : String(error) }, { status: 500 });
   }
 }
 
@@ -346,12 +350,11 @@ export async function PUT(request: NextRequest) {
       userName,
     );
 
-    console.log(`✅ Updated club: ${oldData.name}`);
 
     return NextResponse.json({ message: "Club updated", club: newData });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("💥 Error updating club:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: error instanceof Error ? error.message : String(error) }, { status: 500 });
   }
 }
 
@@ -390,11 +393,10 @@ export async function DELETE(request: NextRequest) {
       userName || "Admin",
     );
 
-    console.log(`✅ Deleted club: ${club.name}`);
 
     return NextResponse.json({ message: "Club deleted successfully" });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("💥 Error deleting club:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: error instanceof Error ? error.message : String(error) }, { status: 500 });
   }
 }

@@ -140,7 +140,7 @@ export async function GET(request: NextRequest) {
       members,
       total: members.length,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("GET /api/admin/nominations/eligible error:", error);
     return NextResponse.json(
       { error: "Failed to fetch eligible members" },

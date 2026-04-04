@@ -73,7 +73,7 @@ export async function POST(request: NextRequest) {
       size: file.size,
       type: file.type,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("❌ Upload error:", error);
     return NextResponse.json(
       {
@@ -97,7 +97,7 @@ export async function GET(request: NextRequest) {
       maxSize: "10MB",
       allowedTypes: ["image/*", "application/pdf"],
     });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error: unknown) {
+    return NextResponse.json({ error: error instanceof Error ? error.message : String(error) }, { status: 500 });
   }
 }

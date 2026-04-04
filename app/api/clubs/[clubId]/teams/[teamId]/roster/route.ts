@@ -232,7 +232,7 @@ export async function POST(
     } finally {
       await session.endSession();
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error adding member to roster:", error);
 
     // Zod validation errors

@@ -2,6 +2,7 @@
 // Generate complete registration summary for review
 
 import { NextRequest, NextResponse } from "next/server";
+import type { Db } from 'mongodb';
 import clientPromise from "@/lib/mongodb";
 import type { FeeLineItem } from "@/types/registration";
 
@@ -68,7 +69,7 @@ export async function POST(request: NextRequest) {
     const lineItems: FeeLineItem[] = feesData.lineItems || [];
 
     // Group fees by association level
-    const associationFees = associations.map((assoc: any) => {
+    const associationFees = associations.map(() => {
       const assocFees = lineItems.filter(
         (f) =>
           f.type === "association" && f.associationId === assoc.associationId
@@ -166,7 +167,7 @@ export async function POST(request: NextRequest) {
       },
 
       // Roles
-      roles: roles.map((r: any) => ({
+      roles: roles.map(() => ({
         roleId: r.id,
         name: r.name,
         category: r.category,
@@ -206,7 +207,7 @@ export async function POST(request: NextRequest) {
         : "No approval required - registration will be active immediately",
 
       // Association hierarchy display
-      hierarchy: associations.map((a: any) => ({
+      hierarchy: associations.map(() => ({
         associationId: a.associationId,
         name: a.name,
         code: a.code,
@@ -215,7 +216,7 @@ export async function POST(request: NextRequest) {
     };
 
     return NextResponse.json(summary);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error generating summary:", error);
     return NextResponse.json(
       { error: "Failed to generate summary", details: error.message },
@@ -228,7 +229,7 @@ export async function POST(request: NextRequest) {
 // HELPER: Get association hierarchy
 // ============================================================================
 
-async function getAssociationHierarchy(db: any, associationId: string) {
+async function getAssociationHierarchy(db: Db, associationId: string) {
   const hierarchy: any[] = [];
   let currentId: string | undefined = associationId;
 

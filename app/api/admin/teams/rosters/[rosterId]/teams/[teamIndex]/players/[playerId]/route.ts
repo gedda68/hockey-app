@@ -21,11 +21,6 @@ export async function PATCH(
     const body = await request.json();
     const { number, position, leadership } = body;
 
-    console.log("\n=== UPDATE PLAYER API ===");
-    console.log("📝 Roster:", rosterId);
-    console.log("📝 Team Index:", teamIndex);
-    console.log("📝 Player ID:", playerId);
-    console.log("📦 Body:", JSON.stringify(body, null, 2));
 
     const client = await clientPromise;
     const db = client.db();
@@ -37,14 +32,12 @@ export async function PATCH(
       return NextResponse.json({ error: "Roster not found" }, { status: 404 });
     }
 
-    console.log("✅ Found roster:", roster.clubName);
 
     if (!roster.teams || !roster.teams[teamIndex]) {
       console.error("❌ Team not found at index:", teamIndex);
       return NextResponse.json({ error: "Team not found" }, { status: 404 });
     }
 
-    console.log("✅ Found team:", roster.teams[teamIndex].name);
 
     // Find player
     const playerIndex = roster.teams[teamIndex].players.findIndex(
@@ -60,29 +53,24 @@ export async function PATCH(
     }
 
     const player = roster.teams[teamIndex].players[playerIndex];
-    console.log("✅ Found player:", player.firstName, player.lastName);
 
     // Build updates
     const updatePath = `teams.${teamIndex}.players.${playerIndex}`;
-    const updates: any = {};
+    const updates: Record<string, unknown> = {};
 
     if (number !== undefined) {
       updates[`${updatePath}.number`] = number;
-      console.log("  Updating number:", number);
     }
 
     if (position !== undefined) {
       updates[`${updatePath}.position`] = position;
-      console.log("  Updating position:", position);
     }
 
     if (leadership !== undefined) {
       updates[`${updatePath}.leadership`] = leadership;
-      console.log("  Updating leadership:", JSON.stringify(leadership));
     }
 
     if (Object.keys(updates).length === 0) {
-      console.log("⚠️ No updates provided");
       return NextResponse.json(
         { error: "No updates provided" },
         { status: 400 },
@@ -100,24 +88,18 @@ export async function PATCH(
       },
     );
 
-    console.log("📊 Update result:");
-    console.log("  Matched:", result.matchedCount);
-    console.log("  Modified:", result.modifiedCount);
 
     if (result.modifiedCount === 0) {
       console.error("❌ Player not updated - no changes made");
       return NextResponse.json({ error: "No changes made" }, { status: 500 });
     }
 
-    console.log(
-      `✅ Successfully updated ${player.firstName} ${player.lastName}\n`,
-    );
 
     return NextResponse.json({
       success: true,
       modified: true,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("❌ Error updating player:", error);
     console.error("Stack:", error.stack);
     return NextResponse.json(
@@ -142,10 +124,6 @@ export async function DELETE(
     } = await context.params;
     const teamIndex = parseInt(teamIndexStr);
 
-    console.log("\n=== DELETE PLAYER API ===");
-    console.log("📝 Roster:", rosterId);
-    console.log("📝 Team Index:", teamIndex);
-    console.log("📝 Player ID:", playerId);
 
     const client = await clientPromise;
     const db = client.db();
@@ -167,7 +145,6 @@ export async function DELETE(
       return NextResponse.json({ error: "Player not found" }, { status: 404 });
     }
 
-    console.log("✅ Found player:", player.firstName, player.lastName);
 
     // Remove player from team using $pull
     const result = await db.collection("teamRosters").updateOne(
@@ -182,9 +159,6 @@ export async function DELETE(
       },
     );
 
-    console.log("📊 Delete result:");
-    console.log("  Matched:", result.matchedCount);
-    console.log("  Modified:", result.modifiedCount);
 
     if (result.modifiedCount === 0) {
       console.error("❌ Player not removed");
@@ -194,15 +168,12 @@ export async function DELETE(
       );
     }
 
-    console.log(
-      `✅ Successfully removed ${player.firstName} ${player.lastName}\n`,
-    );
 
     return NextResponse.json({
       success: true,
       removed: true,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("❌ Error deleting player:", error);
     return NextResponse.json(
       { error: "Failed to delete player", details: error.message },

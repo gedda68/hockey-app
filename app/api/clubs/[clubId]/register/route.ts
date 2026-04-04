@@ -140,7 +140,7 @@ export async function POST(
       },
       { status: 201 }
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error registering for club:", error);
 
     if (error.name === "ZodError") {

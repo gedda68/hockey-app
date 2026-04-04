@@ -51,7 +51,7 @@ export async function GET(
       new URL(request.url).searchParams.get("includeMembers") === "true";
 
     if (includeMembers && team.roster && team.roster.length > 0) {
-      const memberIds = team.roster.map((r: any) => r.memberId);
+      const memberIds = team.roster.map(() => r.memberId);
 
       const members = await db
         .collection("members")
@@ -100,7 +100,7 @@ export async function GET(
       ...team,
       _id: team._id.toString(),
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error fetching team:", error);
     return NextResponse.json(
       { error: "Failed to fetch team", details: error.message },
@@ -148,7 +148,7 @@ export async function PUT(
     }
 
     // Build update object
-    const updateData: any = {
+    const updateData: Record<string, unknown> = {
       updatedAt: new Date(),
     };
 
@@ -198,7 +198,7 @@ export async function PUT(
       ...result,
       _id: result._id.toString(),
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error updating team:", error);
 
     // Zod validation errors
@@ -251,7 +251,7 @@ export async function DELETE(
     }
 
     // Get all member IDs from roster
-    const memberIds = team.roster?.map((r: any) => r.memberId) || [];
+    const memberIds = team.roster?.map(() => r.memberId) || [];
 
     // Start a transaction to ensure consistency
     const session = client.startSession();
@@ -291,7 +291,7 @@ export async function DELETE(
     } finally {
       await session.endSession();
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error deleting team:", error);
     return NextResponse.json(
       { error: "Failed to delete team", details: error.message },

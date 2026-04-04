@@ -4,6 +4,7 @@
 // Returns: { imported, updated, skipped, errors }
 
 import { NextRequest, NextResponse } from "next/server";
+import type { Db } from 'mongodb';
 import clientPromise from "@/lib/mongodb";
 import { generateSlug } from "@/lib/utils/slug";
 import bcrypt from "bcryptjs";
@@ -50,7 +51,7 @@ function toBool(v: string): boolean {
 
 // ── importers ─────────────────────────────────────────────────────────────────
 
-async function importClubs(db: any, rows: ImportRow[]): Promise<ImportResult> {
+async function importClubs(db: Db, rows: ImportRow[]): Promise<ImportResult> {
   const result: ImportResult = { imported: 0, updated: 0, skipped: 0, errors: [] };
 
   for (let i = 0; i < rows.length; i++) {
@@ -95,7 +96,7 @@ async function importClubs(db: any, rows: ImportRow[]): Promise<ImportResult> {
   return result;
 }
 
-async function importAssociations(db: any, rows: ImportRow[]): Promise<ImportResult> {
+async function importAssociations(db: Db, rows: ImportRow[]): Promise<ImportResult> {
   const result: ImportResult = { imported: 0, updated: 0, skipped: 0, errors: [] };
 
   for (let i = 0; i < rows.length; i++) {
@@ -140,7 +141,7 @@ async function importAssociations(db: any, rows: ImportRow[]): Promise<ImportRes
   return result;
 }
 
-async function importMembers(db: any, rows: ImportRow[]): Promise<ImportResult> {
+async function importMembers(db: Db, rows: ImportRow[]): Promise<ImportResult> {
   const result: ImportResult = { imported: 0, updated: 0, skipped: 0, errors: [] };
 
   for (let i = 0; i < rows.length; i++) {
@@ -206,7 +207,7 @@ async function importMembers(db: any, rows: ImportRow[]): Promise<ImportResult> 
       : existing?.emergencyContacts ?? [];
 
     // ── Build document matching actual member DB schema ───────────────────────
-    const doc: any = {
+    const doc: Record<string, unknown> = {
       memberId,
       clubId,
 
@@ -348,7 +349,7 @@ async function importMembers(db: any, rows: ImportRow[]): Promise<ImportResult> 
   return result;
 }
 
-async function importPlayers(db: any, rows: ImportRow[]): Promise<ImportResult> {
+async function importPlayers(db: Db, rows: ImportRow[]): Promise<ImportResult> {
   const result: ImportResult = { imported: 0, updated: 0, skipped: 0, errors: [] };
 
   for (let i = 0; i < rows.length; i++) {
@@ -413,7 +414,7 @@ async function importPlayers(db: any, rows: ImportRow[]): Promise<ImportResult> 
       : existing?.emergencyContacts ?? [];
 
     // ── Flat document matching real DB schema ─────────────────────────────────
-    const doc: any = {
+    const doc: Record<string, unknown> = {
       // ── Personal (flat top-level) ──────────────────────────────────────────
       firstName,
       lastName,
@@ -519,7 +520,7 @@ async function importPlayers(db: any, rows: ImportRow[]): Promise<ImportResult> 
   return result;
 }
 
-async function importUsers(db: any, rows: ImportRow[]): Promise<ImportResult> {
+async function importUsers(db: Db, rows: ImportRow[]): Promise<ImportResult> {
   const result: ImportResult = { imported: 0, updated: 0, skipped: 0, errors: [] };
 
   for (let i = 0; i < rows.length; i++) {
@@ -588,7 +589,7 @@ async function importUsers(db: any, rows: ImportRow[]): Promise<ImportResult> {
   return result;
 }
 
-async function importTeams(db: any, rows: ImportRow[], isRep: boolean): Promise<ImportResult> {
+async function importTeams(db: Db, rows: ImportRow[], isRep: boolean): Promise<ImportResult> {
   const result: ImportResult = { imported: 0, updated: 0, skipped: 0, errors: [] };
   const collection = isRep ? "rep_teams" : "teams";
 
@@ -612,12 +613,12 @@ async function importTeams(db: any, rows: ImportRow[], isRep: boolean): Promise<
 
     if (!isRep && !clubId) { result.errors.push({ row: i + 2, message: "Cannot resolve club — provide clubId or clubName" }); continue; }
 
-    const query: any = { name, ageGroup, season };
+    const query: Record<string, unknown> = { name, ageGroup, season };
     if (!isRep) query.clubId = clubId;
 
     const existing = await db.collection(collection).findOne(query);
 
-    const doc: any = {
+    const doc: Record<string, unknown> = {
       name,
       ageGroup,
       season,
@@ -671,8 +672,8 @@ export async function POST(req: NextRequest, ctx: Ctx) {
     }
 
     return NextResponse.json(result);
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("Bulk import error:", err);
-    return NextResponse.json({ error: err.message }, { status: 500 });
+    return NextResponse.json({ error: (err instanceof Error ? err.message : String(err)) }, { status: 500 });
   }
 }

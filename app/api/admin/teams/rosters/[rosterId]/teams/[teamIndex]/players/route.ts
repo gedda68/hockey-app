@@ -145,7 +145,7 @@ export async function POST(
         playerSelection: playerSelectionEntry,
       },
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("❌ Error adding player to team:", error);
     return NextResponse.json(
       { error: "Failed to add player", details: error.message },

@@ -91,7 +91,7 @@ export async function PUT(
       imageUrl = existingImage;
     }
 
-    const updateData: any = {
+    const updateData: Record<string, unknown> = {
       title,
       content,
       image: imageUrl,

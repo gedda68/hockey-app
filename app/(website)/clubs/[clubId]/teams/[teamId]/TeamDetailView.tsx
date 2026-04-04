@@ -6,6 +6,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { toast } from "sonner";
 import {
   ArrowLeft,
   Edit,
@@ -138,10 +139,10 @@ export default function TeamDetailView({
 
       if (!res.ok) throw new Error("Failed to delete team");
 
-      alert("Team deleted successfully");
+      toast.success("Team deleted successfully");
       router.push(`/clubs/${clubId}/teams`);
     } catch (err: any) {
-      alert(`Error: ${err.message}`);
+      toast.error(err.message || "Failed to delete team");
     }
   };
 

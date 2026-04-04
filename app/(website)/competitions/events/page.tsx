@@ -3,6 +3,7 @@
 
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import {
   Calendar,
   MapPin,
@@ -165,15 +166,13 @@ export default function EventsPage() {
   };
 
   const handleCreateEvent = (date?: Date) => {
-    console.log("Create event for date:", date);
     // TODO: Open create event form/modal
-    alert(`Create event${date ? ` on ${date.toLocaleDateString()}` : ""}`);
+    toast.info(`Create event${date ? ` on ${date.toLocaleDateString()}` : ""}` );
   };
 
   const handleEditEvent = (event: Event) => {
-    console.log("Edit event:", event.name);
     // TODO: Open edit event form/modal
-    alert(`Edit event: ${event.name}`);
+    toast.info(`Edit event: ${event.name}`);
   };
 
   const handleDeleteEvent = async (event: Event) => {
@@ -184,13 +183,13 @@ export default function EventsPage() {
 
       if (response.ok) {
         setEvents(events.filter((e) => e.id !== event.id));
-        alert(`Event "${event.name}" deleted successfully`);
+        toast.success(`Event "${event.name}" deleted`);
       } else {
-        alert("Failed to delete event");
+        toast.error("Failed to delete event");
       }
     } catch (err) {
       console.error("Delete error:", err);
-      alert("Error deleting event");
+      toast.error("Error deleting event");
     }
   };
 

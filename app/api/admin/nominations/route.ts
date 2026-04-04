@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(
       nominations.map((n) => ({ ...n, _id: n._id.toString() })),
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("GET /api/admin/nominations error:", error);
     return NextResponse.json(
       { error: "Failed to fetch nominations" },
@@ -206,7 +206,7 @@ export async function POST(request: NextRequest) {
       { ...nomination, _id: result.insertedId.toString() },
       { status: 201 },
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("POST /api/admin/nominations error:", error);
     return NextResponse.json(
       { error: "Failed to create nomination" },

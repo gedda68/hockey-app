@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
     const collection = db.collection("config");
 
     // Build query filter
-    const filter: any = {};
+    const filter: Record<string, unknown> = {};
 
     if (activeOnly) {
       filter.isActive = true;

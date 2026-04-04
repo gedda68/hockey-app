@@ -60,7 +60,7 @@ export async function PUT(
       message: "Colors updated successfully",
       branding: validated.branding,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error updating colors:", error);
 
     if (error.name === "ZodError") {

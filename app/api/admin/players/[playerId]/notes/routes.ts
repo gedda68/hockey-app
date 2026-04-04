@@ -29,7 +29,7 @@ export async function GET(
     console.log(`✅ Retrieved ${notes.length} notes`);
 
     return NextResponse.json({ notes });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("❌ Error fetching notes:", error);
     return NextResponse.json(
       { error: "Failed to fetch notes", details: error.message },
@@ -78,7 +78,7 @@ export async function POST(
       note: newNote,
       message: "Note created successfully",
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("❌ Error creating note:", error);
     return NextResponse.json(
       { error: "Failed to create note", details: error.message },
@@ -98,7 +98,7 @@ export async function PUT(
     console.log("📝 Updating note for player:", playerId, noteId);
 
     // Add update timestamp
-    const updatedFields: any = {};
+    const updatedFields: Record<string, unknown> = {};
     Object.keys(updates).forEach((key) => {
       updatedFields[`notes.$.${key}`] = updates[key];
     });
@@ -130,7 +130,7 @@ export async function PUT(
       success: true,
       message: "Note updated successfully",
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("❌ Error updating note:", error);
     return NextResponse.json(
       { error: "Failed to update note", details: error.message },
@@ -178,7 +178,7 @@ export async function DELETE(
       success: true,
       message: "Note deleted successfully",
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("❌ Error deleting note:", error);
     return NextResponse.json(
       { error: "Failed to delete note", details: error.message },
