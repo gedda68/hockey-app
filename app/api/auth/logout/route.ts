@@ -1,9 +1,10 @@
 // app/api/auth/logout/route.ts
 // Logout endpoint
 
-import { NextRequest } from "next/server";
-import { clearSessionResponse } from "@/lib/auth";
+import { NextRequest, NextResponse } from "next/server";
+import { deleteSession } from "@/lib/auth/session";
 
-export async function POST(request: NextRequest) {
-  return clearSessionResponse();
+export async function POST(_request: NextRequest) {
+  await deleteSession();
+  return NextResponse.json({ success: true });
 }
