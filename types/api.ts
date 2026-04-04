@@ -3,6 +3,13 @@
  * Replaces ad-hoc `any` casts in route handlers.
  */
 
+export type {
+  MembershipCategory,
+  PlayingCategory,
+  UmpireQualification,
+  UmpireQualificationLevel,
+} from "@/lib/types/roles";
+
 /** Minimal shape returned by MongoDB for any document */
 export interface MongoDoc {
   _id: unknown;
@@ -60,12 +67,18 @@ export interface MemberDoc extends MongoDoc {
   };
   membership?: {
     status?: string;
-    membershipTypes?: string[];
+    /** One or more membership categories — use validateMembershipCategories() before saving */
+    membershipTypes?: import("@/lib/types/roles").MembershipCategory[];
+    /** Mutually exclusive playing-age bracket derived from membershipTypes */
+    playingCategory?: import("@/lib/types/roles").PlayingCategory;
     joinDate?: string;
     expiryDate?: string | null;
     renewalDate?: string | null;
   };
-  roles?: string[];
+  /** Scoped role assignments — see RoleAssignment in lib/types/roles.ts */
+  roles?: import("@/lib/types/roles").RoleAssignment[];
+  /** Umpire accreditations — only present when member holds an "umpire" membership category */
+  umpireQualifications?: import("@/lib/types/roles").UmpireQualification[];
   teams?: string[];
   userId?: string | null;
   medical?: unknown;

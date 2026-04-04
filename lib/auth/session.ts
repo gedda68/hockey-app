@@ -8,13 +8,31 @@ const SECRET_KEY = process.env.JWT_SECRET;
 if (!SECRET_KEY) throw new Error("JWT_SECRET environment variable is not set");
 const key = new TextEncoder().encode(SECRET_KEY);
 
+/**
+ * Minimal scoped role — stored in the JWT for middleware access checks.
+ * Mirrors RoleAssignment but without the heavy metadata to keep the cookie small.
+ */
+export interface ScopedRole {
+  role: string;
+  scopeType: "global" | "association" | "club" | "team";
+  scopeId?: string;  // associationId or clubId — absent for global roles
+}
+
 export interface SessionData {
   userId: string;
   email: string;
   name: string;
   firstName?: string;
   lastName?: string;
-  role: string; // full role string — e.g. "super-admin", "club-admin", "player"
+  /** Primary (highest-privilege) role — used for redirect decisions and display */
+  role: string;
+  /**
+   * All active scoped role assignments for this user.
+   * Populated from user.roles[] at login so the middleware can make fine-grained
+   * access decisions for multi-role members (e.g. a player who is also an
+   * association-level umpire or selector).
+   */
+  scopedRoles?: ScopedRole[];
   associationId?: string | null;
   clubId?: string | null;
   clubSlug?: string | null;  // URL-safe slug derived from club name

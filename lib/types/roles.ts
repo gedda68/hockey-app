@@ -24,7 +24,8 @@ export type UserRole =
   | "coach"                  // Coach an assigned team/s
   | "manager"                // Team manager / administrator
   | "registrar"              // Club registrations officer
-  | "umpire"                 // Match official
+  | "umpire"                 // Match official (may also hold umpire qualifications)
+  | "technical-official"     // Technical official (TM, scorer, shot-clock, etc.)
 
   // ── Volunteer / helper ────────────────────────────────────────────────────────
   | "volunteer"              // General club volunteer, basic read access
@@ -37,6 +38,85 @@ export type UserRole =
 
   // ── Public ────────────────────────────────────────────────────────────────────
   | "public";                // No account — uses name+DOB lookup only
+
+// ── Playing / age category ───────────────────────────────────────────────────
+// Mutually exclusive — a person is junior OR senior OR masters, never two at once.
+
+export type PlayingCategory = "junior" | "senior" | "masters";
+
+// ── Membership categories (non-exclusive) ────────────────────────────────────
+// A single member can hold several of these simultaneously.
+// e.g. ["senior-player", "umpire", "volunteer"] is valid.
+// But you may not mix junior-player + senior-player, or senior-player + masters-player.
+
+export type MembershipCategory =
+  // Playing
+  | "junior-player"       // Under 18 (or association-defined junior age)
+  | "senior-player"       // 18+ open-age competition
+  | "masters-player"      // Over-35 (or association-defined masters age)
+  // Officials
+  | "umpire"              // Accredited match umpire
+  | "technical-official"  // Technical official (TM, scorer, etc.)
+  | "coach"               // Accredited coach
+  // Club participation
+  | "volunteer"           // General volunteer / helper
+  | "committee"           // Club/association committee member
+  | "administrator"       // Paid or elected administrator
+  // Non-playing
+  | "social"              // Social / non-playing member
+  | "life"                // Life member (honorary, voted in)
+  | "honorary"            // Honorary member
+  | "supporter"           // Club supporter (follows the club, no playing rights)
+  | "sponsor"             // Financial sponsor of the club or association
+  | "parent"              // Parent/guardian (linked to junior players)
+  | "other";              // Catch-all
+
+/** Mutually exclusive playing-age groups — only one allowed per member */
+const PLAYING_AGE_CATEGORIES: MembershipCategory[] = [
+  "junior-player",
+  "senior-player",
+  "masters-player",
+];
+
+/**
+ * Validate that a member's category list doesn't mix incompatible playing ages.
+ * Returns an array of error strings (empty = valid).
+ */
+export function validateMembershipCategories(
+  categories: MembershipCategory[],
+): string[] {
+  const errors: string[] = [];
+  const playingAges = categories.filter((c) => PLAYING_AGE_CATEGORIES.includes(c));
+  if (playingAges.length > 1) {
+    errors.push(
+      `A member cannot hold more than one playing-age category. Found: ${playingAges.join(", ")}.`,
+    );
+  }
+  return errors;
+}
+
+// ── Umpire qualification levels ───────────────────────────────────────────────
+
+export type UmpireQualificationLevel =
+  | "club"            // Club-level only
+  | "regional"        // City / regional competitions
+  | "state"           // State-level competitions
+  | "national"        // National league / championships
+  | "international";  // FIH / international
+
+export interface UmpireQualification {
+  level: UmpireQualificationLevel;
+  /** Issuing body — e.g. "Hockey Australia", "BHA" */
+  issuedBy: string;
+  /** ISO date string */
+  issuedAt: string;
+  /** ISO date string — omit if no expiry */
+  expiresAt?: string;
+  /** Certificate or accreditation number */
+  certificateNumber?: string;
+  /** Short description, e.g. "Indoor Level 2", "Outdoor Level 3" */
+  notes?: string;
+}
 
 // ── Scope of a role assignment ────────────────────────────────────────────────
 
@@ -333,11 +413,22 @@ export const ROLE_DEFINITIONS: Record<UserRole, RoleDefinition> = {
   "umpire": {
     role: "umpire",
     label: "Umpire / Official",
-    description: "Match officials — limited read access to fixtures and teams",
+    description: "Match officials — limited read access to fixtures and teams. May also be a player, coach, or technical official.",
     scopeTypes: ["club", "association"],
     permissions: ["club.view", "team.view", "member.view", "profile.view"],
     color: "from-slate-500 to-slate-700",
     icon: "🎯",
+    adminAccess: false,
+  },
+
+  "technical-official": {
+    role: "technical-official",
+    label: "Technical Official",
+    description: "Technical officials — table officials, scorers, shot-clock operators, technical managers",
+    scopeTypes: ["club", "association"],
+    permissions: ["club.view", "team.view", "member.view", "profile.view"],
+    color: "from-zinc-500 to-zinc-700",
+    icon: "📊",
     adminAccess: false,
   },
 
@@ -421,7 +512,7 @@ export const ROLE_DEFINITIONS: Record<UserRole, RoleDefinition> = {
 export const ROLE_GROUPS = {
   "System": ["super-admin"],
   "Association": ["association-admin", "assoc-committee", "assoc-coach", "assoc-selector", "assoc-registrar"],
-  "Club": ["club-admin", "club-committee", "coach", "manager", "registrar", "umpire", "volunteer", "team-selector"],
+  "Club": ["club-admin", "club-committee", "coach", "manager", "registrar", "umpire", "technical-official", "volunteer", "team-selector"],
   "Member Portal": ["player", "member", "parent"],
   "Public": ["public"],
 } as const;
@@ -496,7 +587,7 @@ const ROLE_PRIORITY: UserRole[] = [
   "super-admin",
   "association-admin", "assoc-committee", "assoc-coach", "assoc-selector", "assoc-registrar",
   "club-admin", "club-committee", "coach", "manager", "registrar", "team-selector",
-  "umpire", "volunteer",
+  "umpire", "technical-official", "volunteer",
   "player", "member", "parent",
   "public",
 ];

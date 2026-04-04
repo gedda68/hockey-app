@@ -3,10 +3,25 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
-import { createSession } from "@/lib/auth/session";
+import { createSession, type ScopedRole } from "@/lib/auth/session";
 import { verifyPassword } from "@/lib/auth/username";
 import { generateSlug } from "@/lib/utils/slug";
+import { getPrimaryRole } from "@/lib/types/roles";
+import type { RoleAssignment } from "@/lib/types/roles";
 import bcrypt from "bcryptjs";
+
+/** Convert a DB roles[] array into the minimal ScopedRole[] for the JWT */
+function toScopedRoles(roles: RoleAssignment[]): ScopedRole[] {
+  const now = new Date();
+  return roles
+    .filter((r) => r.active !== false)
+    .filter((r) => !r.expiresAt || new Date(r.expiresAt) > now)
+    .map((r) => ({
+      role: r.role,
+      scopeType: r.scopeType,
+      ...(r.scopeId ? { scopeId: r.scopeId } : {}),
+    }));
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -52,7 +67,15 @@ export async function POST(request: NextRequest) {
       const firstName = (user.firstName || "").trim();
       const lastName  = (user.lastName  || "").trim();
       const fullName  = `${firstName} ${lastName}`.trim() || user.username;
-      const role: string = user.role || "player";
+
+      // Use the full roles[] array when present — derive the primary role from it
+      // so that a multi-role user (e.g. player + assoc-selector) gets the right
+      // primary role for dashboard redirect without losing the other assignments.
+      const dbRoles: RoleAssignment[] = Array.isArray(user.roles) ? user.roles as RoleAssignment[] : [];
+      const role: string = dbRoles.length > 0
+        ? getPrimaryRole(dbRoles)
+        : (user.role || "member");
+      const scopedRoles = toScopedRoles(dbRoles);
 
       // Resolve club name + slug
       let clubName: string | undefined;
@@ -85,6 +108,7 @@ export async function POST(request: NextRequest) {
         firstName,
         lastName,
         role,
+        scopedRoles:   scopedRoles.length > 0 ? scopedRoles : undefined,
         associationId: user.associationId || null,
         clubId:        user.clubId || null,
         clubSlug:      clubSlug || null,
@@ -148,10 +172,15 @@ export async function POST(request: NextRequest) {
       const fullName = `${firstName} ${lastName}`.trim() || member.auth.username;
       const memberEmail =
         member.contact?.email || member.email || `${member.auth.username}@local`;
-      const role: string = member.auth.role || "player";
       const memberClubId = member.clubId || member.membership?.clubId || null;
       const memberAssocId = member.associationId || null;
       const forcePasswordChange = member.auth.forcePasswordChange === true;
+
+      const memberDbRoles: RoleAssignment[] = Array.isArray(member.roles) ? member.roles as RoleAssignment[] : [];
+      const role: string = memberDbRoles.length > 0
+        ? getPrimaryRole(memberDbRoles)
+        : (member.auth.role || "player");
+      const memberScopedRoles = toScopedRoles(memberDbRoles);
 
       let clubName: string | undefined;
       let memberClubSlug: string | undefined;
@@ -180,6 +209,7 @@ export async function POST(request: NextRequest) {
         firstName,
         lastName,
         role,
+        scopedRoles:   memberScopedRoles.length > 0 ? memberScopedRoles : undefined,
         associationId: memberAssocId,
         clubId:        memberClubId,
         clubSlug:      memberClubSlug || null,

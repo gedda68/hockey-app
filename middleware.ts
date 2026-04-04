@@ -11,8 +11,15 @@ const SECRET_KEY = process.env.JWT_SECRET;
 if (!SECRET_KEY) throw new Error("JWT_SECRET environment variable is not set");
 const key = new TextEncoder().encode(SECRET_KEY);
 
+interface ScopedRole {
+  role: string;
+  scopeType: "global" | "association" | "club" | "team";
+  scopeId?: string;
+}
+
 interface SessionData {
   role: string;
+  scopedRoles?: ScopedRole[];
   clubId?: string | null;
   clubSlug?: string | null;
   associationId?: string | null;
@@ -104,6 +111,7 @@ const ANY_ADMIN = [
   "coach",
   "manager",
   "umpire",
+  "technical-official",
   "volunteer",
   "team-selector",
 ];
@@ -239,55 +247,109 @@ export async function middleware(request: NextRequest) {
   }
 
   const role = session.role || "public";
+  const scopedRoles = session.scopedRoles ?? [];
+
+  // ── Helpers ─────────────────────────────────────────────────────────────────
+
+  /**
+   * True if ANY scoped role in the session satisfies the allowed-roles list
+   * AND is correctly scoped to the association or club referenced in the path.
+   *
+   * This is the multi-role gate: a member whose primary role is "player" but
+   * who also holds "assoc-selector" at BHA will be allowed through
+   * /admin/representative when their selector assignment's scopeId matches.
+   */
+  function hasAccessViaScopedRoles(allowedRoles: string[], currentPath: string): boolean {
+    if (scopedRoles.length === 0) return false;
+    const clubMatch  = currentPath.match(/\/clubs\/([^/?\s]+)/);
+    const assocMatch = currentPath.match(/\/associations\/([^/?\s]+)/);
+
+    return scopedRoles.some((sr) => {
+      if (!allowedRoles.includes(sr.role)) return false;
+
+      // Global scope (super-admin) — always passes
+      if (sr.scopeType === "global") return true;
+
+      // Association-scoped path — require matching scopeId
+      if (assocMatch && assocMatch[1] !== "new") {
+        if (sr.scopeType === "association") return sr.scopeId === assocMatch[1];
+        // Global-ish roles (super-admin already handled above)
+        return false;
+      }
+
+      // Club-scoped path — require matching scopeId
+      if (clubMatch && clubMatch[1] !== "new") {
+        if (sr.scopeType === "club") return sr.scopeId === clubMatch[1];
+        // Association roles can access any club in their association (DB layer enforces further)
+        if (sr.scopeType === "association") return true;
+        return false;
+      }
+
+      // Non-scoped path (e.g. /admin/representative, /admin/teams) — any matching role passes
+      return true;
+    });
+  }
+
+  // Club-level roles that are scope-restricted to their own club
+  const CLUB_SCOPED_ROLES = [
+    "club-admin", "club-committee", "registrar", "coach", "manager", "team-selector",
+  ];
+
+  // Association-level roles that are scope-restricted to their own association
+  const ASSOC_SCOPED_ROLES = [
+    "association-admin", "assoc-committee", "assoc-coach", "assoc-selector", "assoc-registrar",
+  ];
 
   // 6. Match against route rules
   for (const rule of ROUTE_RULES) {
     if (!rule.pattern.test(path)) continue;
 
-    // Role check
-    if (!rule.allowedRoles.includes(role)) {
+    // ── Role check ─────────────────────────────────────────────────────────
+    // Pass if the primary role qualifies, OR if any scoped role qualifies
+    // (handles multi-role members whose primary role is lower-privilege).
+    const primaryRoleAllowed = rule.allowedRoles.includes(role);
+    const scopedRoleAllowed  = hasAccessViaScopedRoles(rule.allowedRoles, path);
+
+    if (!primaryRoleAllowed && !scopedRoleAllowed) {
       return NextResponse.redirect(new URL("/unauthorized", request.url));
     }
 
-    // Scope check — club-admin can only see their own club; association-admin their own association
+    // ── Scope check ────────────────────────────────────────────────────────
     if (rule.scopeCheck) {
-      const clubMatch = path.match(/\/clubs\/([^\/?\s]+)/);
-      const assocMatch = path.match(/\/associations\/([^\/?\s]+)/);
+      const clubMatch  = path.match(/\/clubs\/([^/?\s]+)/);
+      const assocMatch = path.match(/\/associations\/([^/?\s]+)/);
 
-      // Club-scoped path
+      // Club-scoped path: club-level roles must match their own club
       if (clubMatch && clubMatch[1] !== "new") {
         const pathClubId = clubMatch[1];
-        // club-admin must match their own clubId or clubSlug
-        if (
-          role === "club-admin" ||
-          role === "club-committee" ||
-          role === "registrar" ||
-          role === "coach" ||
-          role === "manager" ||
-          role === "team-selector"
-        ) {
-          const matchesById   = session.clubId   && session.clubId   === pathClubId;
-          const matchesBySlug = session.clubSlug && session.clubSlug === pathClubId;
+        if (CLUB_SCOPED_ROLES.includes(role)) {
+          const matchesById   = session.clubId   === pathClubId;
+          const matchesBySlug = session.clubSlug === pathClubId;
           if (session.clubId && !matchesById && !matchesBySlug) {
-            return NextResponse.redirect(new URL("/unauthorized", request.url));
+            // Allow through if a scoped role covers this club
+            if (!scopedRoleAllowed) {
+              return NextResponse.redirect(new URL("/unauthorized", request.url));
+            }
           }
         }
-        // association-admin: can access any club in their association (no restriction here — DB layer handles it)
+        // association-admin: any club in their association — DB layer enforces finer check
       }
 
-      // Association-scoped path
+      // Association-scoped path: association-level roles must match their own association
       if (assocMatch && assocMatch[1] !== "new") {
         const pathAssocId = assocMatch[1];
-        if (role === "association-admin") {
+        if (ASSOC_SCOPED_ROLES.includes(role)) {
           if (session.associationId && session.associationId !== pathAssocId) {
-            return NextResponse.redirect(new URL("/unauthorized", request.url));
+            // Allow through if a scoped role explicitly covers this association
+            if (!hasAccessViaScopedRoles(rule.allowedRoles, path)) {
+              return NextResponse.redirect(new URL("/unauthorized", request.url));
+            }
           }
         }
-        // assoc-committee, assoc-coach, assoc-selector, assoc-registrar
-        if (["assoc-committee","assoc-coach","assoc-selector","assoc-registrar"].includes(role)) {
-          if (session.associationId && session.associationId !== pathAssocId) {
-            return NextResponse.redirect(new URL("/unauthorized", request.url));
-          }
+        // Club-only roles trying to reach an association path → block
+        // (scopedRoleAllowed already checked above — if they got here they have a valid assoc role)
+        if (CLUB_SCOPED_ROLES.includes(role) && !scopedRoleAllowed) {
+          return NextResponse.redirect(new URL("/unauthorized", request.url));
         }
       }
     }
