@@ -179,6 +179,16 @@ export type Permission =
 
 // ── Role definition (metadata + permissions) ──────────────────────────────────
 
+// ── Approval configuration ────────────────────────────────────────────────────
+
+/**
+ * Which level of admin is required to approve a role at a given scope.
+ * "own-scope" means the admin responsible for that scope (e.g. club-admin for club roles).
+ * "association"  means an association-admin or above.
+ * "super-admin"  means only super-admin can approve.
+ */
+export type ApproverLevel = "own-scope" | "association" | "super-admin";
+
 export interface RoleDefinition {
   role: UserRole;
   label: string;
@@ -188,6 +198,23 @@ export interface RoleDefinition {
   color: string;
   icon: string;
   adminAccess: boolean;         // Whether this role grants any admin area access
+
+  // ── Approval workflow ──────────────────────────────────────────────────────
+  /** Roles always require explicit admin approval before becoming active */
+  requiresApproval: boolean;
+  /** Minimum approver level required */
+  approverLevel: ApproverLevel;
+  /**
+   * Whether a registration fee is typically required for this role.
+   * Actual fee amount is set per club/association in their settings.
+   * When true the request starts in "pending_payment" until fee is recorded.
+   */
+  requiresFee: boolean;
+  /**
+   * Whether this role must be re-approved each season (annual registration).
+   * false = one-time grant that persists until revoked.
+   */
+  seasonalRegistration: boolean;
 }
 
 export const ROLE_DEFINITIONS: Record<UserRole, RoleDefinition> = {
@@ -215,6 +242,10 @@ export const ROLE_DEFINITIONS: Record<UserRole, RoleDefinition> = {
     color: "from-purple-500 to-purple-700",
     icon: "👑",
     adminAccess: true,
+    requiresApproval: true,
+    approverLevel: "super-admin",
+    requiresFee: false,
+    seasonalRegistration: false,
   },
 
   // ── Association level ────────────────────────────────────────────────────────
@@ -239,6 +270,10 @@ export const ROLE_DEFINITIONS: Record<UserRole, RoleDefinition> = {
     color: "from-blue-500 to-blue-700",
     icon: "🏛️",
     adminAccess: true,
+    requiresApproval: true,
+    approverLevel: "super-admin",
+    requiresFee: false,
+    seasonalRegistration: false,
   },
 
   "assoc-committee": {
@@ -258,6 +293,10 @@ export const ROLE_DEFINITIONS: Record<UserRole, RoleDefinition> = {
     color: "from-sky-500 to-sky-700",
     icon: "🏛",
     adminAccess: true,
+    requiresApproval: true,
+    approverLevel: "association",
+    requiresFee: false,
+    seasonalRegistration: false,
   },
 
   "assoc-coach": {
@@ -277,6 +316,10 @@ export const ROLE_DEFINITIONS: Record<UserRole, RoleDefinition> = {
     color: "from-amber-500 to-amber-700",
     icon: "🎽",
     adminAccess: true,
+    requiresApproval: true,
+    approverLevel: "association",
+    requiresFee: false,
+    seasonalRegistration: true,
   },
 
   "assoc-selector": {
@@ -296,6 +339,10 @@ export const ROLE_DEFINITIONS: Record<UserRole, RoleDefinition> = {
     color: "from-violet-500 to-violet-700",
     icon: "🗂️",
     adminAccess: true,
+    requiresApproval: true,
+    approverLevel: "association",
+    requiresFee: false,
+    seasonalRegistration: true,
   },
 
   "assoc-registrar": {
@@ -315,6 +362,10 @@ export const ROLE_DEFINITIONS: Record<UserRole, RoleDefinition> = {
     color: "from-teal-500 to-teal-700",
     icon: "📋",
     adminAccess: true,
+    requiresApproval: true,
+    approverLevel: "association",
+    requiresFee: false,
+    seasonalRegistration: false,
   },
 
   // ── Club level ───────────────────────────────────────────────────────────────
@@ -335,6 +386,10 @@ export const ROLE_DEFINITIONS: Record<UserRole, RoleDefinition> = {
     color: "from-green-500 to-green-700",
     icon: "🏢",
     adminAccess: true,
+    requiresApproval: true,
+    approverLevel: "association",
+    requiresFee: false,
+    seasonalRegistration: false,
   },
 
   "club-committee": {
@@ -354,6 +409,10 @@ export const ROLE_DEFINITIONS: Record<UserRole, RoleDefinition> = {
     color: "from-emerald-500 to-emerald-700",
     icon: "🤝",
     adminAccess: true,
+    requiresApproval: true,
+    approverLevel: "own-scope",
+    requiresFee: false,
+    seasonalRegistration: false,
   },
 
   "coach": {
@@ -372,6 +431,10 @@ export const ROLE_DEFINITIONS: Record<UserRole, RoleDefinition> = {
     color: "from-yellow-500 to-yellow-700",
     icon: "🏃",
     adminAccess: true,
+    requiresApproval: true,
+    approverLevel: "own-scope",
+    requiresFee: false,
+    seasonalRegistration: true,
   },
 
   "manager": {
@@ -390,6 +453,10 @@ export const ROLE_DEFINITIONS: Record<UserRole, RoleDefinition> = {
     color: "from-orange-500 to-orange-700",
     icon: "📋",
     adminAccess: true,
+    requiresApproval: true,
+    approverLevel: "own-scope",
+    requiresFee: false,
+    seasonalRegistration: true,
   },
 
   "registrar": {
@@ -408,6 +475,10 @@ export const ROLE_DEFINITIONS: Record<UserRole, RoleDefinition> = {
     color: "from-cyan-500 to-cyan-700",
     icon: "📝",
     adminAccess: true,
+    requiresApproval: true,
+    approverLevel: "own-scope",
+    requiresFee: false,
+    seasonalRegistration: false,
   },
 
   "umpire": {
@@ -419,6 +490,10 @@ export const ROLE_DEFINITIONS: Record<UserRole, RoleDefinition> = {
     color: "from-slate-500 to-slate-700",
     icon: "🎯",
     adminAccess: false,
+    requiresApproval: true,
+    approverLevel: "own-scope",
+    requiresFee: false,
+    seasonalRegistration: false,   // Qualification-based, not seasonal
   },
 
   "technical-official": {
@@ -430,6 +505,10 @@ export const ROLE_DEFINITIONS: Record<UserRole, RoleDefinition> = {
     color: "from-zinc-500 to-zinc-700",
     icon: "📊",
     adminAccess: false,
+    requiresApproval: true,
+    approverLevel: "own-scope",
+    requiresFee: false,
+    seasonalRegistration: false,
   },
 
   "volunteer": {
@@ -441,6 +520,10 @@ export const ROLE_DEFINITIONS: Record<UserRole, RoleDefinition> = {
     color: "from-cyan-400 to-cyan-600",
     icon: "🙋",
     adminAccess: false,
+    requiresApproval: true,
+    approverLevel: "own-scope",
+    requiresFee: false,
+    seasonalRegistration: false,
   },
 
   "team-selector": {
@@ -458,6 +541,10 @@ export const ROLE_DEFINITIONS: Record<UserRole, RoleDefinition> = {
     color: "from-teal-500 to-teal-700",
     icon: "🏅",
     adminAccess: true,
+    requiresApproval: true,
+    approverLevel: "own-scope",
+    requiresFee: false,
+    seasonalRegistration: true,
   },
 
   // ── Member / portal ──────────────────────────────────────────────────────────
@@ -470,6 +557,10 @@ export const ROLE_DEFINITIONS: Record<UserRole, RoleDefinition> = {
     color: "from-indigo-500 to-indigo-600",
     icon: "🏑",
     adminAccess: false,
+    requiresApproval: true,
+    approverLevel: "own-scope",
+    requiresFee: true,             // Club registration fee required
+    seasonalRegistration: true,    // Must re-register each season
   },
 
   "member": {
@@ -481,6 +572,10 @@ export const ROLE_DEFINITIONS: Record<UserRole, RoleDefinition> = {
     color: "from-slate-400 to-slate-600",
     icon: "⭐",
     adminAccess: false,
+    requiresApproval: true,
+    approverLevel: "own-scope",
+    requiresFee: true,
+    seasonalRegistration: true,
   },
 
   "parent": {
@@ -492,6 +587,10 @@ export const ROLE_DEFINITIONS: Record<UserRole, RoleDefinition> = {
     color: "from-pink-500 to-pink-700",
     icon: "👨‍👩‍👧‍👦",
     adminAccess: false,
+    requiresApproval: true,
+    approverLevel: "own-scope",
+    requiresFee: false,
+    seasonalRegistration: false,
   },
 
   // ── Public ────────────────────────────────────────────────────────────────────
@@ -504,6 +603,10 @@ export const ROLE_DEFINITIONS: Record<UserRole, RoleDefinition> = {
     color: "from-gray-400 to-gray-500",
     icon: "🌐",
     adminAccess: false,
+    requiresApproval: false,
+    approverLevel: "own-scope",
+    requiresFee: false,
+    seasonalRegistration: false,
   },
 };
 
