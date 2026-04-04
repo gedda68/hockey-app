@@ -107,6 +107,13 @@ const myRegistrationsItem: MenuItem = {
   description: "Your role registration requests",
 };
 
+const myFeesItem: MenuItem = {
+  label: "My Fees & Payments",
+  href: "/admin/my-fees",
+  icon: "💳",
+  description: "View and pay your outstanding fees",
+};
+
 function buildMenuForUser(user: User | null): MenuItem[] {
   if (!user) return menuConfig;
 
@@ -149,41 +156,42 @@ function buildMenuForUser(user: User | null): MenuItem[] {
         nominationsItem,
         mc("Reports")!,
         myRegistrationsItem,
+        myFeesItem,
       ].filter((item): item is MenuItem => item !== undefined);
     }
 
     if (role === "club-committee") {
-      return [myClub, mc("Members")!, mc("Players")!, mc("Reports")!, myRegistrationsItem].filter(
+      return [myClub, mc("Members")!, mc("Players")!, mc("Reports")!, myRegistrationsItem, myFeesItem].filter(
         (item): item is MenuItem => item !== undefined,
       );
     }
 
     if (role === "registrar") {
-      return [myClub, mc("Members")!, mc("Role Approvals")!, mc("Players")!, feesItem, myRegistrationsItem].filter(
+      return [myClub, mc("Members")!, mc("Role Approvals")!, mc("Players")!, feesItem, myRegistrationsItem, myFeesItem].filter(
         (item): item is MenuItem => item !== undefined,
       );
     }
 
     if (role === "coach") {
-      return [myClub, mc("Players")!, mc("Teams")!, nominationsItem, myRegistrationsItem].filter(
+      return [myClub, mc("Players")!, mc("Teams")!, nominationsItem, myRegistrationsItem, myFeesItem].filter(
         (item): item is MenuItem => item !== undefined,
       );
     }
 
     if (role === "manager") {
-      return [myClub, mc("Players")!, mc("Teams")!, myRegistrationsItem].filter(
+      return [myClub, mc("Players")!, mc("Teams")!, myRegistrationsItem, myFeesItem].filter(
         (item): item is MenuItem => item !== undefined,
       );
     }
 
     if (role === "team-selector") {
-      return [myClub, mc("Players")!, nominationsItem, myRegistrationsItem].filter(
+      return [myClub, mc("Players")!, nominationsItem, myRegistrationsItem, myFeesItem].filter(
         (item): item is MenuItem => item !== undefined,
       );
     }
 
     if (role === "volunteer") {
-      return [myClub, myRegistrationsItem];
+      return [myClub, myRegistrationsItem, myFeesItem];
     }
 
     if (role === "umpire") {
@@ -195,6 +203,7 @@ function buildMenuForUser(user: User | null): MenuItem[] {
           description: "Overview and quick stats",
         },
         myRegistrationsItem,
+        myFeesItem,
       ];
     }
   }
@@ -209,6 +218,7 @@ function buildMenuForUser(user: User | null): MenuItem[] {
         description: "Overview and quick stats",
       },
       myRegistrationsItem,
+      myFeesItem,
     ];
   }
 
@@ -246,29 +256,30 @@ function buildMenuForUser(user: User | null): MenuItem[] {
         mc("Reports")!,
         mc("Settings")!,
         myRegistrationsItem,
+        myFeesItem,
       ].filter((item): item is MenuItem => item !== undefined);
     }
 
     if (role === "assoc-committee") {
-      return [myAssoc, mc("Representative")!, mc("Players")!, mc("Reports")!, myRegistrationsItem].filter(
+      return [myAssoc, mc("Representative")!, mc("Players")!, mc("Reports")!, myRegistrationsItem, myFeesItem].filter(
         (item): item is MenuItem => item !== undefined,
       );
     }
 
     if (role === "assoc-coach") {
-      return [myAssoc, mc("Representative")!, mc("Players")!, mc("Teams")!, myRegistrationsItem].filter(
+      return [myAssoc, mc("Representative")!, mc("Players")!, mc("Teams")!, myRegistrationsItem, myFeesItem].filter(
         (item): item is MenuItem => item !== undefined,
       );
     }
 
     if (role === "assoc-selector") {
-      return [myAssoc, mc("Representative")!, mc("Players")!, myRegistrationsItem].filter(
+      return [myAssoc, mc("Representative")!, mc("Players")!, myRegistrationsItem, myFeesItem].filter(
         (item): item is MenuItem => item !== undefined,
       );
     }
 
     if (role === "assoc-registrar") {
-      return [myAssoc, mc("Members")!, mc("Role Approvals")!, mc("Players")!, feesItem, myRegistrationsItem].filter(
+      return [myAssoc, mc("Members")!, mc("Role Approvals")!, mc("Players")!, feesItem, myRegistrationsItem, myFeesItem].filter(
         (item): item is MenuItem => item !== undefined,
       );
     }

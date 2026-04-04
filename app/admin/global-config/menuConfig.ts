@@ -231,6 +231,13 @@ export const menuConfig: MenuItem[] = [
     color: "from-amber-400 to-amber-500",
   },
   {
+    label: "My Fees & Payments",
+    href: "/admin/my-fees",
+    icon: "💳",
+    description: "View outstanding and paid fees across all levels",
+    color: "from-indigo-400 to-indigo-500",
+  },
+  {
     label: "Role Approvals",
     href: "/admin/role-requests",
     icon: "✅",

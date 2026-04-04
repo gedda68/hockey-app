@@ -159,8 +159,9 @@ const ROUTE_RULES: RouteRule[] = [
   // ── Nominations ───────────────────────────────────────────────────────────
   { pattern: /^\/admin\/nominations(\/|$)/, allowedRoles: NOMINATION_ACCESS, scopeCheck: true },
 
-  // ── My Registrations — accessible to all authenticated users ─────────────
+  // ── My Registrations / My Fees — accessible to all authenticated users ────
   { pattern: /^\/admin\/my-registrations(\/|$)/, allowedRoles: PORTAL_ROLES },
+  { pattern: /^\/admin\/my-fees(\/|$)/, allowedRoles: PORTAL_ROLES },
 
   // ── Catch-all admin (requires some admin role) ─────────────────────────────
   { pattern: /^\/admin(\/|$)/, allowedRoles: ANY_ADMIN },
@@ -192,6 +193,8 @@ function isPublicPath(path: string): boolean {
     "/api/auth/session",
     "/api/auth/me",
     "/api/auth/change-password",
+    "/api/member/my-fees",
+    "/api/member/payments/simulate",
     "/api/clubs",
     "/api/competitions",
     "/api/players/lookup",
