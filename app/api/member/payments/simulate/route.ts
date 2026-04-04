@@ -34,7 +34,7 @@ import clientPromise from "@/lib/mongodb";
 import { getSession } from "@/lib/auth/session";
 
 interface SimulatePaymentBody {
-  items: Array<{ type: "payment" | "role-request"; sourceId: string }>;
+  items: Array<{ type: "payment" | "role-request" | "tournament-allocation"; sourceId: string; itemId?: string }>;
 }
 
 interface ProcessedItem {
@@ -186,6 +186,78 @@ export async function POST(req: NextRequest) {
 
       totalCents += amountCents;
       receipts.push({ type: item.type, sourceId: item.sourceId, amountCents, status: "ok" });
+    } else if (item.type === "tournament-allocation") {
+      // ── Tournament member allocation ──────────────────────────────────────
+      const alloc = await db
+        .collection("member_tournament_fees")
+        .findOne({ allocationId: item.sourceId, memberId });
+
+      if (!alloc) {
+        receipts.push({ type: item.type, sourceId: item.sourceId, amountCents: 0, status: "error", reason: "Allocation not found or does not belong to this member" });
+        continue;
+      }
+
+      // Create a payment record covering the outstanding items
+      const outstandingItems = (alloc.items as Array<Record<string, unknown>>).filter(
+        (i) => i.status === "outstanding" && (!item.itemId || i.itemId === item.itemId)
+      );
+
+      if (outstandingItems.length === 0) {
+        receipts.push({ type: item.type, sourceId: item.sourceId, amountCents: 0, status: "skipped", reason: "No outstanding items" });
+        continue;
+      }
+
+      const amountCents = outstandingItems.reduce((s, i) => s + (i.amountCents as number), 0);
+      const newPaymentId = `PAY-${Date.now().toString(36).toUpperCase()}`;
+
+      await db.collection("payments").insertOne({
+        paymentId: newPaymentId,
+        memberId,
+        amount: amountCents / 100,
+        lineItems: outstandingItems.map((i) => ({
+          itemId:  i.itemId,
+          feeId:   i.itemId,
+          type:    "other",
+          name:    i.name,
+          amount:  (i.amountCents as number) / 100,
+          gstIncluded: false,
+        })),
+        status: "paid",
+        seasonYear: alloc.season,
+        paymentMethod: "simulated",
+        transactionId: paymentRef,
+        paidDate: now,
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      // Mark items as paid on the allocation
+      const paidItemIds = new Set(outstandingItems.map((i) => i.itemId as string));
+      const updatedItems = (alloc.items as Array<Record<string, unknown>>).map((i) =>
+        paidItemIds.has(i.itemId as string)
+          ? { ...i, status: "paid", paymentId: newPaymentId, paidDate: now.toISOString() }
+          : i
+      );
+      const newPaidCents = (alloc.paidCents as number) + amountCents;
+      const newOutstandingCents = Math.max(0, (alloc.outstandingCents as number) - amountCents);
+      const allPaid = newOutstandingCents === 0;
+
+      await db.collection("member_tournament_fees").updateOne(
+        { allocationId: item.sourceId },
+        {
+          $set: {
+            items: updatedItems,
+            paidCents: newPaidCents,
+            outstandingCents: newOutstandingCents,
+            status: allPaid ? "paid" : "partially-paid",
+            updatedAt: now,
+          },
+        }
+      );
+
+      totalCents += amountCents;
+      receipts.push({ type: item.type, sourceId: item.sourceId, amountCents, status: "ok" });
+
     } else {
       receipts.push({ type: (item as { type: string }).type as "payment", sourceId: item.sourceId, amountCents: 0, status: "error", reason: "Unknown item type" });
     }

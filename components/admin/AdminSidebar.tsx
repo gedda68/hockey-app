@@ -114,6 +114,13 @@ const myFeesItem: MenuItem = {
   description: "View and pay your outstanding fees",
 };
 
+const teamTournamentsItem: MenuItem = {
+  label: "Team Tournament Fees",
+  href: "/admin/team-tournaments",
+  icon: "🏆",
+  description: "Manage team entries and per-member cost allocations",
+};
+
 function buildMenuForUser(user: User | null): MenuItem[] {
   if (!user) return menuConfig;
 
@@ -154,6 +161,7 @@ function buildMenuForUser(user: User | null): MenuItem[] {
         mc("Role Approvals")!,
         feesItem,
         nominationsItem,
+        teamTournamentsItem,
         mc("Reports")!,
         myRegistrationsItem,
         myFeesItem,
@@ -167,7 +175,7 @@ function buildMenuForUser(user: User | null): MenuItem[] {
     }
 
     if (role === "registrar") {
-      return [myClub, mc("Members")!, mc("Role Approvals")!, mc("Players")!, feesItem, myRegistrationsItem, myFeesItem].filter(
+      return [myClub, mc("Members")!, mc("Role Approvals")!, mc("Players")!, feesItem, teamTournamentsItem, myRegistrationsItem, myFeesItem].filter(
         (item): item is MenuItem => item !== undefined,
       );
     }
@@ -253,6 +261,7 @@ function buildMenuForUser(user: User | null): MenuItem[] {
         mc("Teams")!,
         mc("Tournaments")!,
         feesItem,
+        teamTournamentsItem,
         mc("Reports")!,
         mc("Settings")!,
         myRegistrationsItem,
@@ -279,7 +288,7 @@ function buildMenuForUser(user: User | null): MenuItem[] {
     }
 
     if (role === "assoc-registrar") {
-      return [myAssoc, mc("Members")!, mc("Role Approvals")!, mc("Players")!, feesItem, myRegistrationsItem, myFeesItem].filter(
+      return [myAssoc, mc("Members")!, mc("Role Approvals")!, mc("Players")!, feesItem, teamTournamentsItem, myRegistrationsItem, myFeesItem].filter(
         (item): item is MenuItem => item !== undefined,
       );
     }

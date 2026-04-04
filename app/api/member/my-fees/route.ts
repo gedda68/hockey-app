@@ -34,7 +34,7 @@ export interface MyFeeItem {
 
 export interface MyFeeSection {
   sectionId: string;
-  entityType: "association" | "club" | "insurance" | "role";
+  entityType: "association" | "club" | "insurance" | "role" | "tournament";
   entityId?: string;
   entityName: string;
   /** Lower = higher in hierarchy. Associations walk from national downward. */
@@ -344,6 +344,57 @@ export async function GET(req: NextRequest) {
           }
         : undefined,
     });
+  }
+
+  // ── 5c. Process tournament fee allocations ────────────────────────────────
+  const tournamentAllocations = await db
+    .collection("member_tournament_fees")
+    .find({ memberId })
+    .sort({ createdAt: -1 })
+    .toArray();
+
+  for (const alloc of tournamentAllocations) {
+    const year = (alloc.season as string) ?? yearOf(alloc.createdAt);
+    const sectionId = `tournament-${alloc.entryId}`;
+
+    const section = getOrCreateSection(year, sectionId, {
+      sectionId,
+      entityType: "tournament",
+      entityId: alloc.entryId as string,
+      entityName: `${alloc.tournamentTitle} — ${alloc.teamName}`,
+      sortOrder: 500,
+    });
+
+    for (const item of (alloc.items ?? []) as Array<Record<string, unknown>>) {
+      const rawStatus = item.status as string;
+      const itemStatus: MyFeeItem["status"] =
+        rawStatus === "paid"
+          ? "paid"
+          : rawStatus === "waived"
+          ? "waived"
+          : "outstanding";
+
+      const rawWaiver = item.waiver as Record<string, unknown> | undefined;
+
+      addItem(section, {
+        itemId:      `${alloc.allocationId}-${item.itemId}`,
+        sourceType:  "tournament-allocation" as "payment", // cast for now; simulate handles it
+        sourceId:    alloc.allocationId as string,
+        name:        item.name as string,
+        description: item.category as string | undefined,
+        amountCents: item.amountCents as number,
+        status:      itemStatus,
+        paidDate:    item.paidDate as string | undefined,
+        paymentId:   item.paymentId as string | undefined,
+        waiver:      rawWaiver
+          ? {
+              reason:        rawWaiver.reason as string,
+              grantedAt:     rawWaiver.grantedAt as string,
+              grantedByName: rawWaiver.grantedByName as string,
+            }
+          : undefined,
+      });
+    }
   }
 
   // ── 6. Collect available years and filter ──────────────────────────────────

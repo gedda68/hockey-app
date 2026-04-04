@@ -57,18 +57,6 @@ export const menuConfig: MenuItem[] = [
         icon: "💵",
         description: "Outstanding fees, payments & reminders",
       },
-      {
-        label: "Shadow Players",
-        href: "/admin/shadow",
-        icon: "🌟",
-        description: "View shadow players",
-      },
-      {
-        label: "Withdrawn",
-        href: "/admin/withdrawn",
-        icon: "🔥",
-        description: "Withdrawn players",
-      },
     ],
   },
   {
@@ -236,6 +224,13 @@ export const menuConfig: MenuItem[] = [
     icon: "💳",
     description: "View outstanding and paid fees across all levels",
     color: "from-indigo-400 to-indigo-500",
+  },
+  {
+    label: "Team Tournament Fees",
+    href: "/admin/team-tournaments",
+    icon: "🏆",
+    description: "Manage team entries, cost breakdowns, and per-member allocations",
+    color: "from-violet-500 to-violet-600",
   },
   {
     label: "Role Approvals",

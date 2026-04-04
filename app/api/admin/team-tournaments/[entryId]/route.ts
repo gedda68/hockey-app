@@ -1,0 +1,149 @@
+/**
+ * GET    /api/admin/team-tournaments/[entryId]   — full entry with fee items
+ * PUT    /api/admin/team-tournaments/[entryId]   — update fee items, roster, status
+ * DELETE /api/admin/team-tournaments/[entryId]   — delete (draft/withdrawn only)
+ */
+
+import { NextRequest, NextResponse } from "next/server";
+import clientPromise from "@/lib/mongodb";
+import { getSession } from "@/lib/auth/session";
+import type { TeamTournamentEntry, UpdateEntryBody } from "@/types/teamTournament";
+
+const ADMIN_ROLES = [
+  "super-admin",
+  "association-admin",
+  "club-admin",
+  "registrar",
+  "assoc-registrar",
+];
+
+async function loadEntry(
+  db: Awaited<ReturnType<typeof import("mongodb").MongoClient.prototype.db>>,
+  entryId: string
+): Promise<TeamTournamentEntry | null> {
+  return db
+    .collection<TeamTournamentEntry>("team_tournament_entries")
+    .findOne({ entryId }) as Promise<TeamTournamentEntry | null>;
+}
+
+export async function GET(
+  _req: NextRequest,
+  { params }: { params: Promise<{ entryId: string }> }
+) {
+  const session = await getSession();
+  if (!session || !ADMIN_ROLES.includes(session.role)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { entryId } = await params;
+  const client = await clientPromise;
+  const db = client.db("hockey-app");
+
+  const entry = await loadEntry(db, entryId);
+  if (!entry) return NextResponse.json({ error: "Entry not found" }, { status: 404 });
+
+  // Enrich: look up attending member names from members + players collections
+  const memberDetails: Record<string, { name: string; jerseyNumber?: number }> = {};
+  if (entry.attendingMemberIds.length > 0) {
+    const members = await db
+      .collection("members")
+      .find({ memberId: { $in: entry.attendingMemberIds } })
+      .project({ memberId: 1, "personalInfo.firstName": 1, "personalInfo.lastName": 1 })
+      .toArray();
+    for (const m of members) {
+      memberDetails[m.memberId as string] = {
+        name: `${m.personalInfo?.firstName ?? ""} ${m.personalInfo?.lastName ?? ""}`.trim(),
+      };
+    }
+  }
+
+  // Attach member allocation summaries
+  const allocations = await db
+    .collection("member_tournament_fees")
+    .find({ entryId })
+    .toArray();
+
+  return NextResponse.json({ entry, memberDetails, allocations });
+}
+
+export async function PUT(
+  req: NextRequest,
+  { params }: { params: Promise<{ entryId: string }> }
+) {
+  const session = await getSession();
+  if (!session || !ADMIN_ROLES.includes(session.role)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { entryId } = await params;
+  const client = await clientPromise;
+  const db = client.db("hockey-app");
+
+  const entry = await loadEntry(db, entryId);
+  if (!entry) return NextResponse.json({ error: "Entry not found" }, { status: 404 });
+
+  // Scope check
+  if (["club-admin", "registrar"].includes(session.role) && session.clubId) {
+    if (entry.clubId !== session.clubId) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+  }
+
+  let body: UpdateEntryBody;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+  }
+
+  const now = new Date();
+  const updates: Partial<TeamTournamentEntry> & { updatedAt: Date } = { updatedAt: now };
+
+  if (body.status !== undefined)              updates.status              = body.status;
+  if (body.notes !== undefined)               updates.notes               = body.notes;
+  if (body.attendingMemberIds !== undefined)  updates.attendingMemberIds  = body.attendingMemberIds;
+
+  if (body.feeItems !== undefined) {
+    updates.feeItems = body.feeItems;
+    // Recalculate total fees
+    updates.totalFeesCents = body.feeItems.reduce((s, i) => s + i.totalAmountCents, 0);
+  }
+
+  await db
+    .collection("team_tournament_entries")
+    .updateOne({ entryId }, { $set: updates });
+
+  const updated = await loadEntry(db, entryId);
+  return NextResponse.json({ entry: updated });
+}
+
+export async function DELETE(
+  _req: NextRequest,
+  { params }: { params: Promise<{ entryId: string }> }
+) {
+  const session = await getSession();
+  if (!session || !ADMIN_ROLES.includes(session.role)) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { entryId } = await params;
+  const client = await clientPromise;
+  const db = client.db("hockey-app");
+
+  const entry = await loadEntry(db, entryId);
+  if (!entry) return NextResponse.json({ error: "Entry not found" }, { status: 404 });
+
+  if (!["draft", "withdrawn"].includes(entry.status)) {
+    return NextResponse.json(
+      { error: "Only draft or withdrawn entries can be deleted" },
+      { status: 400 }
+    );
+  }
+
+  await Promise.all([
+    db.collection("team_tournament_entries").deleteOne({ entryId }),
+    db.collection("member_tournament_fees").deleteMany({ entryId }),
+  ]);
+
+  return NextResponse.json({ success: true });
+}

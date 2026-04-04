@@ -163,6 +163,9 @@ const ROUTE_RULES: RouteRule[] = [
   { pattern: /^\/admin\/my-registrations(\/|$)/, allowedRoles: PORTAL_ROLES },
   { pattern: /^\/admin\/my-fees(\/|$)/, allowedRoles: PORTAL_ROLES },
 
+  // ── Team tournament fee management ───────────────────────────────────────
+  { pattern: /^\/admin\/team-tournaments(\/|$)/, allowedRoles: CLUB_MANAGEMENT, scopeCheck: true },
+
   // ── Catch-all admin (requires some admin role) ─────────────────────────────
   { pattern: /^\/admin(\/|$)/, allowedRoles: ANY_ADMIN },
 
