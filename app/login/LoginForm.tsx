@@ -186,8 +186,16 @@ function LoginFormInner() {
             </button>
           </form>
 
-          {/* Forgot username */}
+          {/* Footer links */}
           <div className="mt-5 pt-5 border-t border-slate-100 text-center space-y-3">
+            {/* Forgot password */}
+            <a
+              href="/login/forgot-password"
+              className="block text-sm font-black text-[#06054e] hover:text-yellow-600 transition-colors"
+            >
+              Forgot your password?
+            </a>
+
             <p className="text-xs text-slate-400 font-semibold">
               Forgotten your username? Contact your club administrator.
             </p>

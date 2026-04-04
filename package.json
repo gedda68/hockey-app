@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "next lint",
     "migrate:clubs": "tsx scripts/migrate-clubs.ts --replace",
+    "setup:indexes": "tsx --env-file=.env.local scripts/setup-indexes.ts",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage"
