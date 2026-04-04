@@ -21,6 +21,7 @@ import { ROLE_DEFINITIONS } from "@/lib/types/roles";
 import type { RoleAssignment, ScopeType } from "@/lib/types/roles";
 import type {
   RoleRequest,
+  FeeWaiver,
   ApproveRoleRequestBody,
   RejectRoleRequestBody,
   RecordPaymentBody,
@@ -230,13 +231,24 @@ export async function PATCH(
 
     // ── APPROVE ───────────────────────────────────────────────────────────────
     if (action === "approve") {
-      // Cannot approve if fee hasn't been paid (unless admin explicitly waives it)
-      const { reviewNotes, waiveFee } = body as ApproveRoleRequestBody;
-      if (req.requiresFee && !req.feePaid && !waiveFee) {
-        return NextResponse.json(
-          { error: "Fee must be paid (or waived) before this request can be approved" },
-          { status: 409 }
-        );
+      const { reviewNotes, waiveFee, waiverReason } = body as ApproveRoleRequestBody;
+
+      // ── Fee gate ───────────────────────────────────────────────────────────
+      if (req.requiresFee && !req.feePaid) {
+        if (!waiveFee) {
+          return NextResponse.json(
+            { error: "Fee must be paid before this request can be approved. To skip payment, set waiveFee: true and supply a waiverReason." },
+            { status: 409 }
+          );
+        }
+
+        // Waiver requested — reason is mandatory, must be substantive
+        if (!waiverReason || waiverReason.trim().length < 10) {
+          return NextResponse.json(
+            { error: "waiverReason is required when waiving a fee and must be a substantive explanation (min 10 characters)." },
+            { status: 400 }
+          );
+        }
       }
 
       if (req.status !== "awaiting_approval" && !(req.requiresFee && waiveFee)) {
@@ -246,13 +258,26 @@ export async function PATCH(
         );
       }
 
+      // ── Build the fee waiver audit record (if applicable) ─────────────────
+      const feeWaiver: FeeWaiver | undefined =
+        waiveFee && req.requiresFee && !req.feePaid
+          ? {
+              grantedBy:      session.userId,
+              grantedByName:  session.name,
+              grantedByRole:  session.role,
+              grantedByScope: session.clubName ?? session.associationId ?? "global",
+              grantedAt:      now,
+              reason:         waiverReason!.trim(),
+            }
+          : undefined;
+
       // ── Write the RoleAssignment to the member/user's roles[] ──────────────
       const roleDef = ROLE_DEFINITIONS[req.requestedRole];
       const assignment: RoleAssignment = {
         role: req.requestedRole,
         scopeType: req.scopeType as ScopeType,
-        ...(req.scopeId   ? { scopeId: req.scopeId }     : {}),
-        ...(req.scopeName ? { scopeName: req.scopeName }  : {}),
+        ...(req.scopeId   ? { scopeId: req.scopeId }    : {}),
+        ...(req.scopeName ? { scopeName: req.scopeName } : {}),
         grantedAt: now,
         grantedBy: session.userId,
         ...(req.seasonYear && roleDef?.seasonalRegistration
@@ -277,7 +302,7 @@ export async function PATCH(
         );
       }
 
-      // Mark request as approved
+      // ── Mark request as approved — include waiver record if present ─────────
       await db.collection("role_requests").updateOne(
         { requestId },
         {
@@ -287,8 +312,8 @@ export async function PATCH(
             reviewedBy: session.userId,
             reviewedByName: session.name,
             reviewerRole: session.role,
-            ...(reviewNotes ? { reviewNotes } : {}),
-            ...(waiveFee    ? { feePaid: true } : {}),
+            ...(reviewNotes ? { reviewNotes }          : {}),
+            ...(feeWaiver   ? { feeWaiver, feePaid: true } : {}),
             roleAssignmentCreatedAt: now,
             updatedAt: now,
           },
@@ -298,6 +323,7 @@ export async function PATCH(
       return NextResponse.json({
         message: `Role "${req.requestedRole}" approved and assigned to ${req.memberName}.`,
         status: "approved",
+        ...(feeWaiver ? { feeWaived: true } : {}),
       });
     }
 

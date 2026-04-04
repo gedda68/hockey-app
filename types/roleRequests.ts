@@ -31,6 +31,25 @@
 
 import type { UserRole, ScopeType } from "@/lib/types/roles";
 
+// ── Fee waiver audit record ───────────────────────────────────────────────────
+// Stored permanently on the request document whenever a fee is waived.
+// Required fields exist to satisfy governance / anti-nepotism scrutiny.
+
+export interface FeeWaiver {
+  /** userId of the person who granted the waiver */
+  grantedBy: string;
+  grantedByName: string;
+  /** The role they held AT THE TIME of granting — stored explicitly so it
+   *  remains accurate even if their role later changes */
+  grantedByRole: string;
+  /** Human-readable scope they held that role at, e.g. "Commercial Hockey Club" */
+  grantedByScope: string;
+  /** ISO datetime the waiver was granted */
+  grantedAt: string;
+  /** Mandatory plain-text reason — must be substantive, not blank */
+  reason: string;
+}
+
 // ── Workflow states ───────────────────────────────────────────────────────────
 
 export type RoleRequestStatus =
@@ -80,6 +99,8 @@ export interface RoleRequest {
   feePaid: boolean;
   paymentId?: string;       // References payments collection
   paymentDate?: string;     // ISO date string
+  /** Populated only when the fee was waived rather than paid — full audit trail */
+  feeWaiver?: FeeWaiver;
 
   // ── Workflow state ────────────────────────────────────────────────────────
   status: RoleRequestStatus;
@@ -116,8 +137,18 @@ export interface SubmitRoleRequestBody {
 /** Body for POST /api/admin/role-requests/[requestId]/approve */
 export interface ApproveRoleRequestBody {
   reviewNotes?: string;
-  /** Override the fee requirement (e.g. waived by an admin) */
+  /**
+   * Set to true to waive the fee instead of requiring payment.
+   * When true, waiverReason is MANDATORY — the endpoint will reject
+   * the request without it.
+   */
   waiveFee?: boolean;
+  /**
+   * Required when waiveFee is true.
+   * Must be a substantive explanation — e.g. "Life member — board resolution
+   * 2025-03-01", "Financial hardship — approved by committee", etc.
+   */
+  waiverReason?: string;
   /** If approving with a payment already recorded, pass the paymentId */
   paymentId?: string;
 }
