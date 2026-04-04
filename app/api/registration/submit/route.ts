@@ -5,6 +5,8 @@ import { NextRequest, NextResponse } from "next/server";
 import type { Db } from 'mongodb';
 import clientPromise from "@/lib/mongodb";
 import type { FeeLineItem } from "@/types/registration";
+import { sendEmail } from "@/lib/email/client";
+import { buildRegistrationConfirmationEmail } from "@/lib/email/templates/registrationConfirmation";
 
 // ============================================================================
 // POST /api/registration/submit
@@ -396,6 +398,31 @@ export async function POST(request: NextRequest) {
           ].filter(Boolean),
         };
       });
+
+      // ── Send registration confirmation email (best-effort, non-blocking) ──
+      if (result?.member && payload.personalInfo?.email) {
+        const clubName = result.clubRegistration?.clubName ?? "your club";
+        const membershipType =
+          (payload.membershipTypes ?? []).join(", ") || "Member";
+
+        const { subject, html, text } = buildRegistrationConfirmationEmail({
+          firstName: payload.personalInfo.firstName ?? "there",
+          memberId: result.memberId,
+          clubName,
+          membershipType,
+          season: payload.season ?? new Date().getFullYear().toString(),
+        });
+
+        // Fire-and-forget — don't let email failure block the 201 response
+        sendEmail({
+          to: payload.personalInfo.email,
+          subject,
+          html,
+          text,
+        }).catch((err) =>
+          console.error("Registration confirmation email failed:", err)
+        );
+      }
 
       // Transaction completed successfully
       return NextResponse.json(result, { status: 201 });

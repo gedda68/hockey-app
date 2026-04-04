@@ -7,7 +7,10 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "migrate:clubs": "tsx scripts/migrate-clubs.ts --replace"
+    "migrate:clubs": "tsx scripts/migrate-clubs.ts --replace",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
@@ -15,11 +18,11 @@
     "@dnd-kit/utilities": "^3.2.2",
     "@lexical/react": "^0.39.0",
     "bcryptjs": "^3.0.3",
-    "dompurify": "^3.2.6",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "daisyui": "^5.5.14",
     "DaisyUI": "npm:daisyui@^5.5.14",
+    "dompurify": "^3.2.6",
     "jose": "^6.1.3",
     "jsonwebtoken": "^9.0.3",
     "lexical": "^0.39.0",
@@ -30,6 +33,7 @@
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "react-icons": "^5.5.0",
+    "resend": "^6.10.0",
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.4.0",
     "uuid": "^13.0.0",
@@ -38,16 +42,22 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.1.18",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.1",
     "@types/bcryptjs": "^2.4.6",
     "@types/dompurify": "^3.0.5",
     "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^20.19.30",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@vitest/coverage-v8": "^4.1.2",
     "eslint": "^9",
     "eslint-config-next": "16.1.1",
+    "happy-dom": "^20.8.9",
     "tailwindcss": "^4.1.18",
     "tsx": "^4.21.0",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^4.1.2"
   }
 }
