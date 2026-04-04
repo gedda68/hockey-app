@@ -26,6 +26,7 @@ import type {
   RejectRoleRequestBody,
   RecordPaymentBody,
 } from "@/types/roleRequests";
+import type { Db } from "mongodb";
 
 // ── Scope check helpers ───────────────────────────────────────────────────────
 
@@ -36,7 +37,7 @@ import type {
 async function callerCanActOnRequest(
   session: Awaited<ReturnType<typeof getSession>>,
   req: RoleRequest,
-  db: Awaited<ReturnType<typeof (await import("@/lib/mongodb")).default.then(c => Promise.resolve(c.db("hockey-app")))>>
+  db: Db
 ): Promise<boolean> {
   if (!session) return false;
   if (session.role === "super-admin") return true;
@@ -61,7 +62,7 @@ async function checkRoleScope(
   role: string,
   session: { associationId?: string | null; clubId?: string | null },
   req: RoleRequest,
-  db: Parameters<typeof callerCanActOnRequest>[2]
+  db: Db
 ): Promise<boolean> {
   if (role === "super-admin") return true;
 

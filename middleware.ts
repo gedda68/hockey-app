@@ -159,6 +159,9 @@ const ROUTE_RULES: RouteRule[] = [
   // ── Nominations ───────────────────────────────────────────────────────────
   { pattern: /^\/admin\/nominations(\/|$)/, allowedRoles: NOMINATION_ACCESS, scopeCheck: true },
 
+  // ── My Registrations — accessible to all authenticated users ─────────────
+  { pattern: /^\/admin\/my-registrations(\/|$)/, allowedRoles: PORTAL_ROLES },
+
   // ── Catch-all admin (requires some admin role) ─────────────────────────────
   { pattern: /^\/admin(\/|$)/, allowedRoles: ANY_ADMIN },
 
