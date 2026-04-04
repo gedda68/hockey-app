@@ -224,6 +224,13 @@ export const menuConfig: MenuItem[] = [
     color: "from-cyan-500 to-cyan-600",
   },
   {
+    label: "Role Approvals",
+    href: "/admin/role-requests",
+    icon: "✅",
+    description: "Approve or reject role assignment requests",
+    color: "from-amber-500 to-amber-600",
+  },
+  {
     label: "Registration",
     href: "/admin/registrations",
     icon: "📝",

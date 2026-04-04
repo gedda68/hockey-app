@@ -137,6 +137,7 @@ function buildMenuForUser(user: User | null): MenuItem[] {
         mc("Players")!,
         mc("Teams")!,
         mc("Members")!,
+        mc("Role Approvals")!,
         feesItem,
         nominationsItem,
         mc("Reports")!,
@@ -150,7 +151,7 @@ function buildMenuForUser(user: User | null): MenuItem[] {
     }
 
     if (role === "registrar") {
-      return [myClub, mc("Members")!, mc("Players")!, feesItem].filter(
+      return [myClub, mc("Members")!, mc("Role Approvals")!, mc("Players")!, feesItem].filter(
         (item): item is MenuItem => item !== undefined,
       );
     }
@@ -228,6 +229,7 @@ function buildMenuForUser(user: User | null): MenuItem[] {
         mc("Players")!,
         mc("Clubs")!,
         mc("Members")!,
+        mc("Role Approvals")!,
         mc("Teams")!,
         mc("Tournaments")!,
         feesItem,
@@ -255,7 +257,7 @@ function buildMenuForUser(user: User | null): MenuItem[] {
     }
 
     if (role === "assoc-registrar") {
-      return [myAssoc, mc("Members")!, mc("Players")!, feesItem].filter(
+      return [myAssoc, mc("Members")!, mc("Role Approvals")!, mc("Players")!, feesItem].filter(
         (item): item is MenuItem => item !== undefined,
       );
     }
