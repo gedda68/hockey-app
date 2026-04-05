@@ -27,6 +27,8 @@ import type {
   RecordPaymentBody,
 } from "@/types/roleRequests";
 import type { Db } from "mongodb";
+import { sendEmail } from "@/lib/email/client";
+import { buildRoleRequestDecisionEmail } from "@/lib/email/templates/roleRequestDecision";
 
 // ── Scope check helpers ───────────────────────────────────────────────────────
 
@@ -82,6 +84,37 @@ async function checkRoleScope(
   }
 
   return false;
+}
+
+// ── Email helper ─────────────────────────────────────────────────────────────
+
+/**
+ * Looks up the email address and first name for a role request's subject.
+ * Returns null values when the record cannot be found.
+ */
+async function getRecipientInfo(
+  db: Db,
+  req: RoleRequest
+): Promise<{ email: string | null; firstName: string }> {
+  if (req.accountType === "user") {
+    const user = await db
+      .collection("users")
+      .findOne({ userId: req.memberId }, { projection: { email: 1, firstName: 1, name: 1 } });
+    return {
+      email:     user?.email ?? null,
+      firstName: user?.firstName ?? user?.name ?? req.memberName ?? "there",
+    };
+  }
+  const member = await db
+    .collection("members")
+    .findOne(
+      { memberId: req.memberId },
+      { projection: { "contact.primaryEmail": 1, "personalInfo.firstName": 1 } }
+    );
+  return {
+    email:     member?.contact?.primaryEmail ?? null,
+    firstName: member?.personalInfo?.firstName ?? req.memberName ?? "there",
+  };
 }
 
 // ── GET ───────────────────────────────────────────────────────────────────────
@@ -227,6 +260,24 @@ export async function PATCH(
         }
       );
 
+      // ── Send rejection email (fire-and-forget) ────────────────────────────
+      getRecipientInfo(db, req).then(({ email, firstName }) => {
+        if (!email) return;
+        const roleLabel = ROLE_DEFINITIONS[req.requestedRole]?.label ?? req.requestedRole;
+        const { subject, html, text } = buildRoleRequestDecisionEmail({
+          firstName,
+          decision:    "rejected",
+          roleLabel,
+          scopeName:   req.scopeName,
+          seasonYear:  req.seasonYear,
+          approverName: session.name ?? session.email,
+          reviewNotes: reviewNotes.trim(),
+        });
+        sendEmail({ to: email, subject, html, text }).catch((err) =>
+          console.error("Rejection email failed:", err)
+        );
+      }).catch((err) => console.error("Recipient lookup failed:", err));
+
       return NextResponse.json({ message: "Request rejected", status: "rejected" });
     }
 
@@ -321,6 +372,25 @@ export async function PATCH(
           },
         }
       );
+
+      // ── Send approval email (fire-and-forget) ─────────────────────────────
+      getRecipientInfo(db, req).then(({ email, firstName }) => {
+        if (!email) return;
+        const roleLabel = ROLE_DEFINITIONS[req.requestedRole]?.label ?? req.requestedRole;
+        const { subject, html, text } = buildRoleRequestDecisionEmail({
+          firstName,
+          decision:    "approved",
+          roleLabel,
+          scopeName:   req.scopeName,
+          seasonYear:  req.seasonYear,
+          approverName: session.name ?? session.email,
+          reviewNotes: reviewNotes,
+          feeWaived:   !!feeWaiver,
+        });
+        sendEmail({ to: email, subject, html, text }).catch((err) =>
+          console.error("Approval email failed:", err)
+        );
+      }).catch((err) => console.error("Recipient lookup failed:", err));
 
       return NextResponse.json({
         message: `Role "${req.requestedRole}" approved and assigned to ${req.memberName}.`,
