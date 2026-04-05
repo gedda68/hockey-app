@@ -1,16 +1,26 @@
 // app/admin/teams/types/teams.types.ts
 // Updated type definitions - FIXED GENDERS
 
+export type UnavailableType = "injury" | "personal" | "holiday" | "work" | "other";
+
 export interface Player {
   id: string;
   name: string;
+  firstName?: string;
+  lastName?: string;
   position?: string;
   number?: string;
   playerId?: string;
   dateOfBirth?: string;
   age?: number;
   eligible?: boolean;
-  reason?: string; // Reason for ineligibility
+  reason?: string; // Reason for ineligibility (legacy)
+  // Structured unavailability
+  unavailableType?: UnavailableType;
+  unavailableFrom?: string;   // ISO date — when they became unavailable
+  unavailableWeeks?: number;  // Total weeks out
+  unavailableUntil?: string;  // ISO date — calculated: from + weeks
+  unavailableNote?: string;   // Additional note (e.g. "torn hamstring")
 }
 
 export interface Staff {

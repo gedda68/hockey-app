@@ -15,13 +15,198 @@ import AddStaffModal from "@/components/admin/teams/modals/AddStaffModal";
 
 import EditPlayerModal from "@/components/admin/teams/modals/EditPlayerModal";
 import PlayerHistoryModal from "@/components/admin/teams/modals/PlayerHistoryModal";
-import type { TeamRoster, Player } from "@/types/admin/teams.types";
+import type { TeamRoster, Player, UnavailableType } from "@/types/admin/teams.types";
+
+// ── Unavailability helpers ────────────────────────────────────────────────────
+
+const UNAVAIL_ICONS: Record<UnavailableType, string> = {
+  injury:   "🤕",
+  personal: "🏠",
+  holiday:  "✈️",
+  work:     "💼",
+  other:    "📋",
+};
+
+const UNAVAIL_LABELS: Record<UnavailableType, string> = {
+  injury:   "Injury",
+  personal: "Personal",
+  holiday:  "Holiday",
+  work:     "Work",
+  other:    "Other",
+};
+
+/** Weeks remaining until return date (negative = overdue) */
+function weeksRemaining(unavailableUntil?: string): number | null {
+  if (!unavailableUntil) return null;
+  const diffMs = new Date(unavailableUntil).getTime() - Date.now();
+  return Math.ceil(diffMs / (7 * 24 * 60 * 60 * 1000));
+}
+
+// ── Shadow zone ───────────────────────────────────────────────────────────────
+
+function ShadowZone({ rosterId, players, onReturn }: {
+  rosterId: string;
+  players: Player[];
+  onReturn: (player: Player) => void;
+}) {
+  const { setNodeRef, isOver } = useDroppable({
+    id: `shadow-${rosterId}`,
+    data: { rosterId, location: "emergency" },
+  });
+
+  return (
+    <div
+      ref={setNodeRef}
+      className={`rounded-2xl border-2 border-dashed p-4 transition-all ${
+        isOver ? "border-amber-500 bg-amber-50" : "border-amber-200 bg-amber-50/50"
+      }`}
+    >
+      <div className="flex items-center gap-2 mb-3">
+        <span className="text-base">🔄</span>
+        <h5 className="text-xs font-black uppercase text-amber-800 tracking-wider">
+          Shadow / Train-On ({players.length})
+        </h5>
+        {isOver && (
+          <span className="ml-auto text-[10px] font-black text-amber-600 animate-pulse">DROP HERE</span>
+        )}
+      </div>
+
+      {players.length === 0 ? (
+        <p className="text-xs text-amber-600/60 text-center py-3">
+          Drag players here to add as shadow / train-on
+        </p>
+      ) : (
+        <div className="space-y-1.5">
+          {players.map((player) => {
+            const name = player.firstName && player.lastName
+              ? `${player.firstName} ${player.lastName}`
+              : player.name || "Player";
+            return (
+              <div
+                key={player.id}
+                draggable
+                className="flex items-center justify-between px-3 py-2 bg-white border border-amber-200 rounded-xl cursor-grab active:cursor-grabbing group hover:border-amber-400 transition-all"
+              >
+                <div className="flex items-center gap-2">
+                  <span className="text-amber-500">⋮⋮</span>
+                  <div>
+                    <p className="text-sm font-bold text-slate-800">{name}</p>
+                    {player.position && (
+                      <p className="text-[10px] text-slate-400">{player.position}</p>
+                    )}
+                  </div>
+                </div>
+                <button
+                  onClick={() => onReturn(player)}
+                  className="text-[10px] font-black text-amber-700 uppercase opacity-0 group-hover:opacity-100 transition-opacity hover:text-amber-900 px-2 py-1 rounded-lg hover:bg-amber-100"
+                  title="Move back to pool"
+                >
+                  Return
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Unavailable zone ──────────────────────────────────────────────────────────
+
+function UnavailableZone({ rosterId, players, onReturn }: {
+  rosterId: string;
+  players: Player[];
+  onReturn: (player: Player) => void;
+}) {
+  const { setNodeRef, isOver } = useDroppable({
+    id: `unavailable-${rosterId}`,
+    data: { rosterId, location: "unavailable" },
+  });
+
+  return (
+    <div
+      ref={setNodeRef}
+      className={`rounded-2xl border-2 border-dashed p-4 transition-all ${
+        isOver ? "border-red-400 bg-red-50" : "border-red-200 bg-red-50/40"
+      }`}
+    >
+      <div className="flex items-center gap-2 mb-3">
+        <span className="text-base">🚫</span>
+        <h5 className="text-xs font-black uppercase text-red-800 tracking-wider">
+          Unavailable ({players.length})
+        </h5>
+        {isOver && (
+          <span className="ml-auto text-[10px] font-black text-red-500 animate-pulse">DROP HERE</span>
+        )}
+      </div>
+
+      {players.length === 0 ? (
+        <p className="text-xs text-red-400/60 text-center py-3">
+          Drag players here to mark as unavailable
+        </p>
+      ) : (
+        <div className="space-y-1.5">
+          {players.map((player) => {
+            const name = player.firstName && player.lastName
+              ? `${player.firstName} ${player.lastName}`
+              : player.name || "Player";
+            const weeks = weeksRemaining(player.unavailableUntil);
+            const typeIcon = player.unavailableType ? UNAVAIL_ICONS[player.unavailableType] : "📋";
+            const typeLabel = player.unavailableType ? UNAVAIL_LABELS[player.unavailableType] : "Unavailable";
+
+            return (
+              <div
+                key={player.id}
+                className="flex items-start justify-between px-3 py-2.5 bg-white border border-red-200 rounded-xl group hover:border-red-300 transition-all"
+              >
+                <div className="flex items-start gap-2.5">
+                  <span className="text-base mt-0.5">{typeIcon}</span>
+                  <div>
+                    <p className="text-sm font-bold text-slate-800">{name}</p>
+                    <p className="text-[10px] text-slate-500 font-semibold">{typeLabel}</p>
+                    {player.unavailableNote && (
+                      <p className="text-[10px] text-slate-400 italic">{player.unavailableNote}</p>
+                    )}
+                    {player.unavailableUntil && (
+                      <div className="flex items-center gap-1.5 mt-1">
+                        {weeks !== null && weeks > 0 ? (
+                          <span className="inline-flex items-center px-1.5 py-0.5 bg-orange-100 text-orange-700 rounded-full text-[10px] font-black">
+                            {weeks} wk{weeks !== 1 ? "s" : ""} remaining
+                          </span>
+                        ) : weeks !== null && weeks <= 0 ? (
+                          <span className="inline-flex items-center px-1.5 py-0.5 bg-green-100 text-green-700 rounded-full text-[10px] font-black">
+                            Return due
+                          </span>
+                        ) : null}
+                        <span className="text-[10px] text-slate-400">
+                          Back {new Date(player.unavailableUntil).toLocaleDateString("en-AU", { day: "numeric", month: "short" })}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <button
+                  onClick={() => onReturn(player)}
+                  className="text-[10px] font-black text-slate-400 uppercase opacity-0 group-hover:opacity-100 transition-opacity hover:text-[#06054e] px-2 py-1 rounded-lg hover:bg-slate-100 flex-shrink-0 mt-0.5"
+                  title="Return to squad"
+                >
+                  Return
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
 
 interface RosterCardProps {
   roster: TeamRoster;
   onAddTeam: () => void;
   onAddPlayer: (rosterId: string, teamIndex: number) => void;
-  onRefresh?: () => void; // Made optional
+  onRefresh?: () => void;
 }
 
 export default function RosterCard({
@@ -349,7 +534,27 @@ export default function RosterCard({
         )}
 
         {roster.teams.length > 0 && (
-          <div className="mt-6 pt-6 border-t border-slate-200">
+          <div className="mt-6 pt-6 border-t border-slate-200 space-y-4">
+            {/* Shadow / Train-on zone */}
+            <ShadowZone
+              rosterId={roster.id!}
+              players={roster.shadowPlayers ?? []}
+              onReturn={(player) => {
+                // Move back to pool: just remove from shadow, page handleDragEnd won't fire
+                // Use a direct roster update via refresh (parent handles via drag)
+                refreshData();
+              }}
+            />
+
+            {/* Unavailable zone */}
+            <UnavailableZone
+              rosterId={roster.id!}
+              players={roster.withdrawn ?? []}
+              onReturn={(player) => {
+                refreshData();
+              }}
+            />
+
             <button
               onClick={onAddTeam}
               className="w-full px-6 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-black uppercase text-sm transition-all border-2 border-dashed border-slate-300"

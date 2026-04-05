@@ -24,6 +24,7 @@ import AddTeamModal from "@/components/admin/teams/modals/AddTeamModal";
 import AddPlayerModal from "@/components/admin/teams/modals/AddPlayerModal";
 import EditPlayerModal from "@/components/admin/teams/modals/EditPlayerModal";
 import EditStaffModal from "@/components/admin/teams/modals/EditStaffModal";
+import UnavailabilityModal from "@/components/admin/teams/modals/UnavailabilityModal";
 import SortablePlayer from "@/components/teams/SortablePlayer";
 import type { TeamRoster, Player } from "@/types/admin/teams.types";
 
@@ -86,6 +87,14 @@ export default function ClubTeamsPage() {
   const [activeTeamIndex, setActiveTeamIndex] = useState<number | null>(null);
 
   const [activePlayer, setActivePlayer] = useState<Player | null>(null);
+  // Pending unavailability — player awaiting modal confirmation
+  const [pendingUnavailable, setPendingUnavailable] = useState<{
+    player: Player;
+    fromRosterId: string;
+    fromLocation: string;
+    fromTeamIndex?: number;
+    updatedRoster: TeamRoster;
+  } | null>(null);
 
   useEffect(() => {
     fetchClubs();
@@ -296,35 +305,40 @@ export default function ClubTeamsPage() {
     } else if (toData.location === "emergency") {
       updatedRoster.shadowPlayers.push(playerCopy);
     } else if (toData.location === "unavailable") {
-      const reason = prompt("Reason for unavailability:", "Injured") || "Other";
-      playerCopy.unavailableReason = reason;
-      updatedRoster.withdrawn.push(playerCopy);
+      // Don't add yet — show modal to collect structured reason
+      setPendingUnavailable({
+        player: playerCopy,
+        fromRosterId: roster.id!,
+        fromLocation: fromData.location,
+        fromTeamIndex: fromData.teamIndex,
+        updatedRoster,  // already has player removed from source
+      });
+      return; // wait for modal confirmation
     }
 
+    await persistRosterMove(roster.id!, updatedRoster, player, fromData, toData, fromTeamName, toTeamName);
+  };
+
+  async function persistRosterMove(
+    rosterId: string,
+    updatedRoster: TeamRoster,
+    player: Player,
+    fromData: any,
+    toData: any,
+    fromTeamName: string,
+    toTeamName: string,
+  ) {
     const moveDetails = {
-      player: {
-        id: player.id,
-        firstName: player.firstName,
-        lastName: player.lastName,
-      },
-      from: {
-        location: fromData.location,
-        teamIndex: fromData.teamIndex,
-        teamName: fromTeamName,
-      },
-      to: {
-        location: toData.location,
-        teamIndex: toData.teamIndex,
-        teamName: toTeamName,
-      },
-      reason: playerCopy.unavailableReason || undefined,
+      player: { id: player.id, firstName: player.firstName, lastName: player.lastName },
+      from: { location: fromData.location, teamIndex: fromData.teamIndex, teamName: fromTeamName },
+      to:   { location: toData.location,   teamIndex: toData.teamIndex,   teamName: toTeamName   },
     };
 
     // Optimistically update UI
-    setRosters(rosters.map((r) => (r.id === roster.id ? updatedRoster : r)));
+    setRosters(rosters.map((r) => (r.id === rosterId ? updatedRoster : r)));
 
     try {
-      const response = await fetch(`/api/admin/teams/rosters/${roster.id}`, {
+      const response = await fetch(`/api/admin/teams/rosters/${rosterId}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -339,18 +353,44 @@ export default function ClubTeamsPage() {
         const error = await response.json();
         console.error("❌ Save failed:", error);
         alert(`Failed to save changes: ${error.details || error.error}`);
-        // Revert on failure
         await fetchRosters();
-      } else {
-        console.log("✅ Saved successfully");
       }
     } catch (error) {
       console.error("❌ Error updating roster:", error);
       alert("Failed to save changes. Please try again.");
-      // Revert on error
       await fetchRosters();
     }
-  };
+  }
+
+  async function handleUnavailabilityConfirm(data: {
+    unavailableType: any;
+    unavailableFrom: string;
+    unavailableWeeks: number;
+    unavailableUntil: string;
+    unavailableNote: string;
+  }) {
+    if (!pendingUnavailable) return;
+    const { player, fromRosterId, fromLocation, fromTeamIndex, updatedRoster } = pendingUnavailable;
+
+    const playerWithReason = {
+      ...player,
+      unavailableType:  data.unavailableType,
+      unavailableFrom:  data.unavailableFrom,
+      unavailableWeeks: data.unavailableWeeks,
+      unavailableUntil: data.unavailableUntil,
+      unavailableNote:  data.unavailableNote,
+    };
+    updatedRoster.withdrawn.push(playerWithReason);
+
+    const fromData = { location: fromLocation, teamIndex: fromTeamIndex };
+    const toData   = { location: "unavailable", teamIndex: undefined };
+    const fromTeamName = fromLocation === "team"
+      ? updatedRoster.teams[fromTeamIndex ?? 0]?.name ?? fromLocation
+      : fromLocation;
+
+    setPendingUnavailable(null);
+    await persistRosterMove(fromRosterId, updatedRoster, player, fromData, toData, fromTeamName, "unavailable");
+  }
 
   // Group rosters by division and SORT
   const divisionGroups = rosters.reduce(
@@ -501,6 +541,7 @@ export default function ClubTeamsPage() {
                       setShowAddTeam(true);
                     }}
                     onAddPlayer={handleAddPlayerClick}
+                    onRefresh={fetchRosters}
                   />
                 </div>
 
@@ -538,6 +579,15 @@ export default function ClubTeamsPage() {
             setActiveRoster(null);
           }}
           onSubmit={handleAddTeam}
+        />
+      )}
+
+      {/* Unavailability modal */}
+      {pendingUnavailable && (
+        <UnavailabilityModal
+          player={pendingUnavailable.player}
+          onConfirm={handleUnavailabilityConfirm}
+          onCancel={() => { setPendingUnavailable(null); fetchRosters(); }}
         />
       )}
 
