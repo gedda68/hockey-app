@@ -23,7 +23,11 @@ import {
   UserCheck,
   Trophy,
   ShieldCheck,
+  ArrowUp,
+  ArrowDown,
+  Star,
 } from "lucide-react";
+import WithdrawalModal from "@/components/admin/nominations/WithdrawalModal";
 import type {
   Nomination,
   NominationStatus,
@@ -328,6 +332,77 @@ function PeriodBanner({ period, season, ageGroup, onPeriodSaved }: PeriodBannerP
   );
 }
 
+// ── Squad panel (right column in Team Selection tab) ─────────────────────────
+
+function SquadPanel({
+  nominations,
+  onWithdraw,
+}: {
+  nominations: Nomination[];
+  onWithdraw: (nom: Nomination) => void;
+}) {
+  const mainSquad = nominations
+    .filter((n) => n.status === "accepted" && !n.isShadow)
+    .sort((a, b) => (a.squadOrder ?? 999) - (b.squadOrder ?? 999));
+  const shadows = nominations.filter((n) => n.status === "accepted" && n.isShadow);
+
+  return (
+    <div className="space-y-1.5">
+      {mainSquad.map((nom, i) => (
+        <div key={nom._id ?? nom.nominationId} className="flex items-center gap-3">
+          <span className="w-6 h-6 bg-[#06054e] text-white rounded-full text-[10px] font-black flex items-center justify-center flex-shrink-0">
+            {i + 1}
+          </span>
+          <div className="flex-1 min-w-0">
+            <p className="font-black text-sm text-[#06054e] truncate">
+              {nom.memberName ?? nom.nomineeName}
+            </p>
+            <p className="text-[10px] text-slate-400 font-bold truncate">{nom.clubName}</p>
+          </div>
+          <button
+            onClick={() => onWithdraw(nom)}
+            className="p-1 text-slate-300 hover:text-red-500 transition-colors flex-shrink-0"
+            title="Withdraw"
+          >
+            <X size={14} />
+          </button>
+        </div>
+      ))}
+      {shadows.length > 0 && (
+        <>
+          <div className="pt-2 pb-1 flex items-center gap-2">
+            <div className="flex-1 h-px bg-amber-200" />
+            <span className="text-[10px] font-black text-amber-600 uppercase tracking-wider flex items-center gap-1">
+              <Star size={9} /> Shadow / Train-on
+            </span>
+            <div className="flex-1 h-px bg-amber-200" />
+          </div>
+          {shadows.map((nom) => (
+            <div key={nom._id ?? nom.nominationId} className="flex items-center gap-3 opacity-80">
+              <span className="w-6 h-6 bg-amber-200 text-amber-800 rounded-full text-[10px] font-black flex items-center justify-center flex-shrink-0">
+                <Star size={10} />
+              </span>
+              <div className="flex-1 min-w-0">
+                <p className="font-black text-sm text-amber-800 truncate">
+                  {nom.memberName ?? nom.nomineeName}
+                </p>
+                <p className="text-[10px] text-slate-400 font-bold truncate">{nom.clubName}</p>
+              </div>
+              <button
+                onClick={() => onWithdraw(nom)}
+                className="p-1 text-slate-300 hover:text-red-500 transition-colors flex-shrink-0"
+                title="Withdraw"
+              >
+                <X size={14} />
+              </button>
+            </div>
+          ))}
+        </>
+      )}
+    </div>
+  );
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function NominationsPage() {
@@ -359,6 +434,8 @@ export default function NominationsPage() {
   // Reject notes prompt
   const [rejectTarget, setRejectTarget] = useState<Nomination | null>(null);
   const [rejectNotes, setRejectNotes] = useState("");
+  // Withdrawal modal (for accepted/shadow players being withdrawn from squad)
+  const [withdrawTarget, setWithdrawTarget] = useState<Nomination | null>(null);
 
   // ── Load seasons + age groups from rosters ──────────────────────────────
   useEffect(() => {
@@ -508,6 +585,66 @@ export default function NominationsPage() {
     } else {
       alert("Failed to reject nomination");
     }
+  }
+
+  // ── Toggle shadow / train-on status ─────────────────────────────────────
+  async function handleToggleShadow(nom: Nomination) {
+    const res = await fetch(`/api/admin/nominations/${nom._id ?? nom.nominationId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ isShadow: !nom.isShadow }),
+    });
+    if (res.ok) fetchNominations();
+    else alert("Failed to update shadow status");
+  }
+
+  // ── Withdraw accepted/shadow player from squad ──────────────────────────
+  async function handleConfirmWithdrawal(data: { reason: string; note: string }) {
+    if (!withdrawTarget) return;
+    const res = await fetch(`/api/admin/nominations/${withdrawTarget._id ?? withdrawTarget.nominationId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "withdraw",
+        withdrawalInfo: {
+          reason:      data.reason,
+          note:        data.note,
+          withdrawnAt: new Date().toISOString(),
+        },
+      }),
+    });
+    if (res.ok) {
+      setWithdrawTarget(null);
+      fetchNominations();
+    } else alert("Failed to withdraw player");
+  }
+
+  // ── Move player up/down in squad order ──────────────────────────────────
+  async function handleSquadReorder(nom: Nomination, direction: "up" | "down") {
+    const squad = nominations
+      .filter((n) => n.status === "accepted" && !n.isShadow)
+      .sort((a, b) => (a.squadOrder ?? 999) - (b.squadOrder ?? 999));
+
+    const idx = squad.findIndex((n) => (n._id ?? n.nominationId) === (nom._id ?? nom.nominationId));
+    if (idx < 0) return;
+    const swapIdx = direction === "up" ? idx - 1 : idx + 1;
+    if (swapIdx < 0 || swapIdx >= squad.length) return;
+
+    const a = squad[idx];
+    const b = squad[swapIdx];
+    await Promise.all([
+      fetch(`/api/admin/nominations/${a._id ?? a.nominationId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ squadOrder: swapIdx }),
+      }),
+      fetch(`/api/admin/nominations/${b._id ?? b.nominationId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ squadOrder: idx }),
+      }),
+    ]);
+    fetchNominations();
   }
 
   // ── Finalise squad — reject all remaining pending nominations ────────────
@@ -1058,101 +1195,163 @@ export default function NominationsPage() {
 
                   {[...nominations]
                     .sort((a, b) => {
-                      const order: Record<NominationStatus, number> = { pending: 0, accepted: 1, rejected: 2, withdrawn: 3 };
-                      return (order[a.status] ?? 9) - (order[b.status] ?? 9);
+                      const statusOrder: Record<NominationStatus, number> = {
+                        pending: 0, accepted: 1, rejected: 2, withdrawn: 3,
+                        "pending-acceptance": 0, "on-ballot": 0, elected: 1, unsuccessful: 2,
+                      };
+                      if (a.status === "accepted" && b.status === "accepted") {
+                        // Sort accepted by squadOrder, shadows last
+                        if (a.isShadow !== b.isShadow) return a.isShadow ? 1 : -1;
+                        return (a.squadOrder ?? 999) - (b.squadOrder ?? 999);
+                      }
+                      return (statusOrder[a.status] ?? 9) - (statusOrder[b.status] ?? 9);
                     })
-                    .map((nom) => (
-                      <div
-                        key={nom._id ?? nom.nominationId}
-                        className={`rounded-2xl border-2 p-5 transition-all ${
-                          nom.status === "accepted"
-                            ? "border-green-300 bg-green-50"
-                            : nom.status === "rejected"
-                              ? "border-slate-200 bg-slate-50 opacity-70"
-                              : nom.status === "withdrawn"
-                                ? "border-slate-200 bg-slate-50 opacity-50"
-                                : "border-slate-200 bg-white hover:border-[#06054e]/30"
-                        }`}
-                      >
-                        <div className="flex items-start justify-between gap-4">
-                          {/* Player info */}
-                          <div className="flex items-start gap-3">
-                            <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 text-sm font-black ${
-                              nom.status === "accepted" ? "bg-green-200 text-green-800"
-                              : nom.status === "rejected" ? "bg-slate-200 text-slate-500"
-                              : "bg-[#06054e]/10 text-[#06054e]"
-                            }`}>
-                              {(nom.memberName ?? "?").charAt(0).toUpperCase()}
+                    .map((nom) => {
+                      const isShadow = nom.isShadow;
+                      const accepted = nominations.filter((n) => n.status === "accepted" && !n.isShadow)
+                        .sort((a, b) => (a.squadOrder ?? 999) - (b.squadOrder ?? 999));
+                      const squadIdx = accepted.findIndex((n) => (n._id ?? n.nominationId) === (nom._id ?? nom.nominationId));
+                      return (
+                        <div
+                          key={nom._id ?? nom.nominationId}
+                          className={`rounded-2xl border-2 p-5 transition-all ${
+                            nom.status === "accepted" && isShadow
+                              ? "border-amber-200 bg-amber-50"
+                              : nom.status === "accepted"
+                                ? "border-green-300 bg-green-50"
+                                : nom.status === "rejected"
+                                  ? "border-slate-200 bg-slate-50 opacity-70"
+                                  : nom.status === "withdrawn"
+                                    ? "border-slate-200 bg-slate-50 opacity-50"
+                                    : "border-slate-200 bg-white hover:border-[#06054e]/30"
+                          }`}
+                        >
+                          <div className="flex items-start justify-between gap-4">
+                            {/* Player info */}
+                            <div className="flex items-start gap-3">
+                              <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 text-sm font-black ${
+                                nom.status === "accepted" && isShadow ? "bg-amber-200 text-amber-800"
+                                : nom.status === "accepted" ? "bg-green-200 text-green-800"
+                                : nom.status === "rejected" ? "bg-slate-200 text-slate-500"
+                                : "bg-[#06054e]/10 text-[#06054e]"
+                              }`}>
+                                {(nom.memberName ?? nom.nomineeName ?? "?").charAt(0).toUpperCase()}
+                              </div>
+                              <div>
+                                <div className="flex items-center gap-2">
+                                  <p className="font-black text-[#06054e] text-base leading-tight">
+                                    {nom.memberName ?? nom.nomineeName}
+                                  </p>
+                                  {nom.status === "accepted" && isShadow && (
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-100 text-amber-700 border border-amber-300 rounded-full text-[10px] font-black uppercase">
+                                      <Star size={9} />
+                                      Shadow
+                                    </span>
+                                  )}
+                                  {nom.status === "withdrawn" && nom.withdrawalInfo && (
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-slate-100 text-slate-500 border border-slate-200 rounded-full text-[10px] font-black uppercase">
+                                      {nom.withdrawalInfo.reason}
+                                    </span>
+                                  )}
+                                </div>
+                                <p className="text-xs text-slate-500 font-bold mt-0.5">
+                                  {nom.clubName}
+                                  {nom.ageAtSeason ? (
+                                    <span className="ml-2 px-1.5 py-0.5 bg-slate-100 rounded-md text-[10px] font-black text-slate-600">
+                                      Age {nom.ageAtSeason}
+                                    </span>
+                                  ) : null}
+                                </p>
+                                <p className="text-[10px] text-slate-400 mt-0.5">
+                                  Nominated {nom.nominatedAt ? new Date(nom.nominatedAt).toLocaleDateString("en-AU") : "—"}
+                                </p>
+                              </div>
                             </div>
-                            <div>
-                              <p className="font-black text-[#06054e] text-base leading-tight">
-                                {nom.memberName}
-                              </p>
-                              <p className="text-xs text-slate-500 font-bold mt-0.5">
-                                {nom.clubName}
-                                {nom.ageAtSeason ? (
-                                  <span className="ml-2 px-1.5 py-0.5 bg-slate-100 rounded-md text-[10px] font-black text-slate-600">
-                                    Age {nom.ageAtSeason}
-                                  </span>
-                                ) : null}
-                                {(nom as any).nominationType === "official" && (nom as any).role ? (
-                                  <span className="ml-2 px-1.5 py-0.5 bg-purple-100 rounded-md text-[10px] font-black text-purple-700 uppercase">
-                                    {(nom as any).role.replace("_", " ")}
-                                  </span>
-                                ) : null}
-                              </p>
-                              <p className="text-[10px] text-slate-400 mt-0.5">
-                                Nominated {nom.nominatedAt ? new Date(nom.nominatedAt).toLocaleDateString("en-AU") : "—"}
-                              </p>
-                            </div>
-                          </div>
 
-                          {/* Action buttons */}
-                          <div className="flex items-center gap-2 flex-shrink-0">
-                            {nom.status === "pending" && (
-                              <>
+                            {/* Action buttons */}
+                            <div className="flex items-center gap-2 flex-shrink-0 flex-wrap justify-end">
+                              {nom.status === "pending" && (
+                                <>
+                                  <button
+                                    onClick={() => handleStatusChange(nom, "accepted")}
+                                    className="flex items-center gap-1.5 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-xl text-xs font-black uppercase transition-all shadow-sm"
+                                  >
+                                    <UserCheck size={13} />
+                                    Select
+                                  </button>
+                                  <button
+                                    onClick={() => handleStatusChange(nom, "rejected")}
+                                    className="flex items-center gap-1.5 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-xl text-xs font-black uppercase transition-all shadow-sm"
+                                  >
+                                    <XCircle size={13} />
+                                    Decline
+                                  </button>
+                                </>
+                              )}
+                              {nom.status === "accepted" && (
+                                <>
+                                  {/* Reorder arrows (main squad only) */}
+                                  {!isShadow && (
+                                    <div className="flex flex-col gap-0.5">
+                                      <button
+                                        onClick={() => handleSquadReorder(nom, "up")}
+                                        disabled={squadIdx <= 0}
+                                        className="p-1 text-slate-300 hover:text-[#06054e] disabled:opacity-20 transition-colors"
+                                        title="Move up"
+                                      >
+                                        <ArrowUp size={13} />
+                                      </button>
+                                      <button
+                                        onClick={() => handleSquadReorder(nom, "down")}
+                                        disabled={squadIdx >= accepted.length - 1}
+                                        className="p-1 text-slate-300 hover:text-[#06054e] disabled:opacity-20 transition-colors"
+                                        title="Move down"
+                                      >
+                                        <ArrowDown size={13} />
+                                      </button>
+                                    </div>
+                                  )}
+                                  {/* Shadow toggle */}
+                                  <button
+                                    onClick={() => handleToggleShadow(nom)}
+                                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black uppercase transition-all border ${
+                                      isShadow
+                                        ? "border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-100"
+                                        : "border-slate-200 text-slate-500 hover:border-amber-300 hover:text-amber-700"
+                                    }`}
+                                    title={isShadow ? "Move to main squad" : "Set as shadow/train-on"}
+                                  >
+                                    <Star size={11} />
+                                    {isShadow ? "Main" : "Shadow"}
+                                  </button>
+                                  {/* Withdraw */}
+                                  <button
+                                    onClick={() => setWithdrawTarget(nom)}
+                                    className="flex items-center gap-1.5 px-3 py-1.5 border border-red-200 text-red-600 hover:bg-red-50 rounded-xl text-xs font-black uppercase transition-all"
+                                  >
+                                    <UserMinus size={11} />
+                                    Withdraw
+                                  </button>
+                                </>
+                              )}
+                              {nom.status === "rejected" && (
                                 <button
-                                  onClick={() => handleStatusChange(nom, "accepted")}
-                                  className="flex items-center gap-1.5 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-xl text-xs font-black uppercase transition-all shadow-sm"
+                                  onClick={() => handleStatusChange(nom, "pending")}
+                                  className="flex items-center gap-1.5 px-3 py-2 border-2 border-slate-200 text-slate-500 hover:border-[#06054e] hover:text-[#06054e] rounded-xl text-xs font-black uppercase transition-all"
                                 >
-                                  <UserCheck size={13} />
-                                  Select
+                                  Restore
                                 </button>
-                                <button
-                                  onClick={() => handleStatusChange(nom, "rejected")}
-                                  className="flex items-center gap-1.5 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-xl text-xs font-black uppercase transition-all shadow-sm"
-                                >
-                                  <XCircle size={13} />
-                                  Decline
-                                </button>
-                              </>
-                            )}
-                            {nom.status === "accepted" && (
-                              <button
-                                onClick={() => handleStatusChange(nom, "pending")}
-                                className="flex items-center gap-1.5 px-4 py-2 border-2 border-green-300 text-green-700 hover:bg-green-50 rounded-xl text-xs font-black uppercase transition-all"
-                              >
-                                <CheckCircle size={13} />
-                                Selected
-                              </button>
-                            )}
-                            {nom.status === "rejected" && (
-                              <button
-                                onClick={() => handleStatusChange(nom, "pending")}
-                                className="flex items-center gap-1.5 px-3 py-2 border-2 border-slate-200 text-slate-500 hover:border-[#06054e] hover:text-[#06054e] rounded-xl text-xs font-black uppercase transition-all"
-                              >
-                                Restore
-                              </button>
-                            )}
-                            {nom.status === "withdrawn" && (
-                              <span className="px-3 py-1.5 bg-slate-100 text-slate-400 rounded-xl text-xs font-black uppercase">
-                                Withdrawn
-                              </span>
-                            )}
+                              )}
+                              {nom.status === "withdrawn" && (
+                                <span className="px-3 py-1.5 bg-slate-100 text-slate-400 rounded-xl text-xs font-black uppercase">
+                                  Withdrawn
+                                </span>
+                              )}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                 </div>
 
                 {/* ── Right: Selected Squad panel ──────────────────────────── */}
@@ -1166,12 +1365,18 @@ export default function NominationsPage() {
                           Selected Squad
                         </h3>
                       </div>
-                      <div className="flex gap-3">
+                      <div className="flex gap-2">
                         <div className="flex-1 bg-white/10 rounded-xl px-3 py-2 text-center">
                           <p className="text-2xl font-black text-yellow-400">
-                            {nominations.filter((n) => n.status === "accepted").length}
+                            {nominations.filter((n) => n.status === "accepted" && !n.isShadow).length}
                           </p>
-                          <p className="text-[10px] text-white/60 font-black uppercase">Selected</p>
+                          <p className="text-[10px] text-white/60 font-black uppercase">Squad</p>
+                        </div>
+                        <div className="flex-1 bg-white/10 rounded-xl px-3 py-2 text-center">
+                          <p className="text-2xl font-black text-amber-300">
+                            {nominations.filter((n) => n.status === "accepted" && n.isShadow).length}
+                          </p>
+                          <p className="text-[10px] text-white/60 font-black uppercase">Shadow</p>
                         </div>
                         <div className="flex-1 bg-white/10 rounded-xl px-3 py-2 text-center">
                           <p className="text-2xl font-black text-white">
@@ -1183,7 +1388,7 @@ export default function NominationsPage() {
                     </div>
 
                     {/* Squad list */}
-                    <div className="px-4 py-4 max-h-80 overflow-y-auto">
+                    <div className="px-4 py-4 max-h-96 overflow-y-auto">
                       {nominations.filter((n) => n.status === "accepted").length === 0 ? (
                         <div className="text-center py-8">
                           <UserCheck size={28} className="mx-auto text-slate-200 mb-2" />
@@ -1195,37 +1400,10 @@ export default function NominationsPage() {
                           </p>
                         </div>
                       ) : (
-                        <div className="space-y-2">
-                          {nominations
-                            .filter((n) => n.status === "accepted")
-                            .map((nom, i) => (
-                              <div key={nom._id ?? nom.nominationId} className="flex items-center gap-3">
-                                <span className="w-6 h-6 bg-[#06054e] text-white rounded-full text-[10px] font-black flex items-center justify-center flex-shrink-0">
-                                  {i + 1}
-                                </span>
-                                <div className="flex-1 min-w-0">
-                                  <p className="font-black text-sm text-[#06054e] truncate">
-                                    {nom.memberName}
-                                  </p>
-                                  <p className="text-[10px] text-slate-400 font-bold truncate">
-                                    {nom.clubName}
-                                    {(nom as any).nominationType === "official" ? (
-                                      <span className="ml-1 text-purple-600">
-                                        · {((nom as any).role ?? "").replace("_", " ")}
-                                      </span>
-                                    ) : null}
-                                  </p>
-                                </div>
-                                <button
-                                  onClick={() => handleStatusChange(nom, "pending")}
-                                  className="p-1 text-slate-300 hover:text-red-500 transition-colors flex-shrink-0"
-                                  title="Remove from squad"
-                                >
-                                  <X size={14} />
-                                </button>
-                              </div>
-                            ))}
-                        </div>
+                        <SquadPanel
+                          nominations={nominations}
+                          onWithdraw={setWithdrawTarget}
+                        />
                       )}
                     </div>
 
@@ -1288,6 +1466,15 @@ export default function NominationsPage() {
           </>
         )}
       </div>
+
+      {/* ── Withdrawal modal ─────────────────────────────────────────────────── */}
+      {withdrawTarget && (
+        <WithdrawalModal
+          playerName={withdrawTarget.memberName ?? withdrawTarget.nomineeName ?? "Player"}
+          onConfirm={handleConfirmWithdrawal}
+          onCancel={() => setWithdrawTarget(null)}
+        />
+      )}
 
       {/* ── Reject notes modal ───────────────────────────────────────────────── */}
       {rejectTarget && (

@@ -162,6 +162,18 @@ export interface Nomination {
   reviewedAt?: string;
   reviewNotes?: string;
 
+  // Rep squad designations (set after acceptance)
+  /** true = shadow / train-on player (not full squad) */
+  isShadow?: boolean;
+  /** Structured withdrawal info when status changes to "withdrawn" */
+  withdrawalInfo?: {
+    reason: "injury" | "personal" | "holiday" | "work" | "other";
+    note?: string;
+    withdrawnAt: string;
+  };
+  /** Display order within the squad (lower = higher) */
+  squadOrder?: number;
+
   // Auto-linked role assignment when accepted/elected
   linkedRoleRequestId?: string;
   roleAssignedAt?: string;

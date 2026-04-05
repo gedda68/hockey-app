@@ -31,7 +31,14 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     if (!session) return NextResponse.json({ error: "Authentication required" }, { status: 401 });
 
     const { id } = await params;
-    const body = await request.json() as DecideNominationRequest & { notes?: string; nominatedBy?: string; status?: string };
+    const body = await request.json() as DecideNominationRequest & {
+      notes?: string;
+      nominatedBy?: string;
+      status?: string;
+      isShadow?: boolean;
+      squadOrder?: number;
+      withdrawalInfo?: { reason: string; note?: string; withdrawnAt: string };
+    };
     const { action } = body;
 
     const client = await clientPromise;
@@ -43,16 +50,27 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     const now = new Date().toISOString();
     const update: Record<string, unknown> = { updatedAt: now };
 
+    // ── Field-patch path: no action, no status — update squad fields directly ──
+    if (!action && body.status === undefined) {
+      if (body.isShadow !== undefined) update.isShadow = body.isShadow;
+      if (body.squadOrder !== undefined) update.squadOrder = body.squadOrder;
+      if (body.withdrawalInfo !== undefined) update.withdrawalInfo = body.withdrawalInfo;
+      if (body.notes !== undefined) update.notes = body.notes;
+      if (Object.keys(update).length === 1) {
+        // Only updatedAt — nothing to do
+        return NextResponse.json({ error: "No fields to update" }, { status: 400 });
+      }
+      await db.collection("rep_nominations").updateOne(nominationFilter(id), { $set: update });
+      const result = await db.collection("rep_nominations").findOne(nominationFilter(id));
+      return NextResponse.json({ ...result, _id: (result as any)?._id?.toString() });
+    }
+
     // ── Legacy path: direct status update (no action key) ──────────────────────
     if (!action && body.status) {
       update.status = body.status;
       if (body.notes !== undefined) update.notes = body.notes;
       if (body.nominatedBy !== undefined) update.nominatedBy = body.nominatedBy;
-      await db.collection("rep_nominations").findOneAndUpdate(
-        nominationFilter(id),
-        { $set: update },
-        { returnDocument: "after" }
-      );
+      await db.collection("rep_nominations").updateOne(nominationFilter(id), { $set: update });
       const result = await db.collection("rep_nominations").findOne(nominationFilter(id));
       return NextResponse.json({ ...result, _id: (result as any)?._id?.toString() });
     }
@@ -141,6 +159,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
       }
       update.status = "withdrawn";
+      if (body.withdrawalInfo) update.withdrawalInfo = body.withdrawalInfo;
     }
 
     // ── Third-party acceptance ─────────────────────────────────────────────────
