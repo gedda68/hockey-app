@@ -356,6 +356,9 @@ export default function NominationsPage() {
   const [statusFilter, setStatusFilter] = useState<NominationStatus | "all">("all");
   const [finalising, setFinalising] = useState(false);
   const [finaliseConfirm, setFinaliseConfirm] = useState(false);
+  // Reject notes prompt
+  const [rejectTarget, setRejectTarget] = useState<Nomination | null>(null);
+  const [rejectNotes, setRejectNotes] = useState("");
 
   // ── Load seasons + age groups from rosters ──────────────────────────────
   useEffect(() => {
@@ -465,13 +468,46 @@ export default function NominationsPage() {
 
   // ── Update nomination status ─────────────────────────────────────────────
   async function handleStatusChange(nom: Nomination, newStatus: NominationStatus) {
+    // "rejected" requires review notes — show prompt instead of acting immediately
+    if (newStatus === "rejected") {
+      setRejectTarget(nom);
+      setRejectNotes("");
+      return;
+    }
+
+    const actionMap: Partial<Record<NominationStatus, string>> = {
+      accepted: "accept",
+      withdrawn: "withdraw",
+    };
+    const action = actionMap[newStatus];
+    const body = action ? { action } : { status: newStatus };
+
     const res = await fetch(`/api/admin/nominations/${nom._id ?? nom.nominationId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: newStatus }),
+      body: JSON.stringify(body),
     });
     if (res.ok) fetchNominations();
     else alert("Failed to update status");
+  }
+
+  // ── Confirm reject with notes ────────────────────────────────────────────
+  async function handleConfirmReject() {
+    if (!rejectTarget) return;
+    const notes = rejectNotes.trim();
+    if (!notes) { alert("Please enter a reason for rejection."); return; }
+    const res = await fetch(`/api/admin/nominations/${rejectTarget._id ?? rejectTarget.nominationId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "reject", reviewNotes: notes }),
+    });
+    if (res.ok) {
+      setRejectTarget(null);
+      setRejectNotes("");
+      fetchNominations();
+    } else {
+      alert("Failed to reject nomination");
+    }
   }
 
   // ── Finalise squad — reject all remaining pending nominations ────────────
@@ -485,7 +521,7 @@ export default function NominationsPage() {
           fetch(`/api/admin/nominations/${n._id ?? n.nominationId}`, {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ status: "rejected" }),
+            body: JSON.stringify({ action: "reject", reviewNotes: "Not selected for squad" }),
           })
         )
       );
@@ -1252,6 +1288,41 @@ export default function NominationsPage() {
           </>
         )}
       </div>
+
+      {/* ── Reject notes modal ───────────────────────────────────────────────── */}
+      {rejectTarget && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl p-6">
+            <h3 className="text-lg font-black uppercase text-[#06054e] mb-1">Reject Nomination</h3>
+            <p className="text-sm text-slate-500 mb-4">
+              Rejecting <strong>{rejectTarget.memberName ?? rejectTarget.nomineeName}</strong> — please provide a reason.
+            </p>
+            <textarea
+              autoFocus
+              value={rejectNotes}
+              onChange={(e) => setRejectNotes(e.target.value)}
+              rows={3}
+              placeholder="Reason for rejection (required)"
+              className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-red-400 focus:border-transparent resize-none mb-4"
+            />
+            <div className="flex gap-3">
+              <button
+                onClick={handleConfirmReject}
+                disabled={!rejectNotes.trim()}
+                className="flex-1 py-2 bg-red-600 text-white rounded-xl text-xs font-black uppercase hover:bg-red-700 disabled:opacity-40 transition-colors"
+              >
+                Confirm Reject
+              </button>
+              <button
+                onClick={() => { setRejectTarget(null); setRejectNotes(""); }}
+                className="flex-1 py-2 border border-slate-200 text-slate-600 rounded-xl text-xs font-black uppercase hover:bg-slate-50 transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

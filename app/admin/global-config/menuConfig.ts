@@ -154,6 +154,17 @@ export const menuConfig: MenuItem[] = [
         allowedRoles: SELECTION_ROLES,
       },
       {
+        label: "Nomination Windows",
+        href: "/admin/nomination-windows",
+        icon: "🗓️",
+        description: "Manage nomination periods for rep teams and positions",
+        allowedRoles: [
+          "super-admin",
+          "association-admin", "assoc-registrar", "assoc-selector",
+          "club-admin", "registrar",
+        ],
+      },
+      {
         label: "Tournaments",
         href: "/admin/tournaments",
         icon: "🏆",
