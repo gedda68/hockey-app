@@ -165,6 +165,17 @@ export const menuConfig: MenuItem[] = [
         ],
       },
       {
+        label: "Ballots",
+        href: "/admin/nomination-windows",
+        icon: "🗳️",
+        description: "View and vote in active ballots",
+        allowedRoles: [
+          "super-admin",
+          "association-admin", "assoc-committee", "assoc-registrar", "assoc-selector",
+          "club-admin", "club-committee", "registrar",
+        ],
+      },
+      {
         label: "Tournaments",
         href: "/admin/tournaments",
         icon: "🏆",

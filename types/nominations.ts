@@ -199,6 +199,21 @@ export interface Ballot {
   completedAt?: string;
 }
 
+// ── Ballot vote ───────────────────────────────────────────────────────────────
+
+/**
+ * One vote cast in a ballot. Stored in `ballot_votes` collection.
+ * voterId is either a userId or memberId depending on the electorate.
+ */
+export interface BallotVote {
+  voteId: string;
+  ballotId: string;
+  voterId: string;        // userId or memberId
+  voterType: "user" | "member";
+  nominationId: string;   // the candidateNominationId they voted for
+  votedAt: string;
+}
+
 // ── Request bodies ────────────────────────────────────────────────────────────
 
 export interface CreateNominationRequest {

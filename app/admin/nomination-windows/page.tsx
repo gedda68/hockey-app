@@ -134,11 +134,12 @@ function StatusBadge({ status }: { status: WindowStatus }) {
 interface WindowCardProps {
   win: NominationWindow;
   onTransition: (windowId: string, status: WindowStatus) => void;
+  onStartBallot: (windowId: string) => void;
   onDelete: (windowId: string) => void;
   transitioning: string | null;
 }
 
-function WindowCard({ win, onTransition, onDelete, transitioning }: WindowCardProps) {
+function WindowCard({ win, onTransition, onStartBallot, onDelete, transitioning }: WindowCardProps) {
   const isActive = transitioning === win.windowId;
   const nowOpen  = isWindowCurrentlyOpen(win);
 
@@ -238,7 +239,7 @@ function WindowCard({ win, onTransition, onDelete, transitioning }: WindowCardPr
           <>
             {win.workflow === "ballot" && (
               <button
-                onClick={() => onTransition(win.windowId, "balloting")}
+                onClick={() => onStartBallot(win.windowId)}
                 disabled={isActive}
                 className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-50 text-purple-700 border border-purple-200 rounded-xl text-xs font-black uppercase hover:bg-purple-100 disabled:opacity-50 transition-colors"
               >
@@ -268,16 +269,27 @@ function WindowCard({ win, onTransition, onDelete, transitioning }: WindowCardPr
           </button>
         )}
 
-        {/* Link to nominations for this window */}
-        {win.status !== "draft" && (
-          <a
-            href={`/admin/nominations?windowId=${win.windowId}`}
-            className="flex items-center gap-1 px-3 py-1.5 text-[#06054e] text-xs font-bold hover:underline ml-auto"
-          >
-            View Nominations
-            <ChevronRight size={12} />
-          </a>
-        )}
+        {/* Links */}
+        <div className="flex items-center gap-3 ml-auto">
+          {win.status === "balloting" && (
+            <a
+              href={`/admin/windows/${win.windowId}/ballot`}
+              className="flex items-center gap-1 px-3 py-1.5 bg-purple-50 text-purple-700 border border-purple-200 rounded-xl text-xs font-black uppercase hover:bg-purple-100 transition-colors"
+            >
+              <Vote size={11} />
+              Manage Ballot
+            </a>
+          )}
+          {win.status !== "draft" && (
+            <a
+              href={`/admin/nominations?windowId=${win.windowId}`}
+              className="flex items-center gap-1 px-3 py-1.5 text-[#06054e] text-xs font-bold hover:underline"
+            >
+              View Nominations
+              <ChevronRight size={12} />
+            </a>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -658,6 +670,26 @@ export default function NominationWindowsPage() {
     }
   }
 
+  async function handleStartBallot(windowId: string) {
+    setTransitionError("");
+    setTransitioning(windowId);
+    try {
+      const res = await fetch("/api/admin/ballots", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ windowId }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        setTransitionError(err.error ?? "Failed to start ballot");
+        return;
+      }
+      await fetchWindows();
+    } finally {
+      setTransitioning(null);
+    }
+  }
+
   async function handleDelete(windowId: string) {
     if (!confirm("Delete this draft window? This cannot be undone.")) return;
     const res = await fetch(`/api/admin/nomination-windows/${windowId}`, { method: "DELETE" });
@@ -795,6 +827,7 @@ export default function NominationWindowsPage() {
                 key={win.windowId}
                 win={win}
                 onTransition={handleTransition}
+                onStartBallot={handleStartBallot}
                 onDelete={handleDelete}
                 transitioning={transitioning}
               />

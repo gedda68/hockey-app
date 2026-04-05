@@ -186,8 +186,15 @@ const ROUTE_RULES: RouteRule[] = [
   { pattern: /^\/admin\/players(\/|$)/,      allowedRoles: PLAYER_MANAGEMENT, scopeCheck: true },
   { pattern: /^\/admin\/teams(\/|$)/,        allowedRoles: TEAM_STAFF,        scopeCheck: true },
 
-  // ── Nominations ────────────────────────────────────────────────────────────
-  { pattern: /^\/admin\/nominations(\/|$)/, allowedRoles: NOMINATION_ACCESS, scopeCheck: true },
+  // ── Nominations + Nomination Windows ──────────────────────────────────────
+  { pattern: /^\/admin\/nominations(\/|$)/,         allowedRoles: NOMINATION_ACCESS,  scopeCheck: true },
+  { pattern: /^\/admin\/nomination-windows(\/|$)/,  allowedRoles: NOMINATION_ACCESS,  scopeCheck: true },
+  // Ballots: eligible voters (committee + admins) can access their ballot pages
+  { pattern: /^\/admin\/ballots(\/|$)/, allowedRoles: [
+    "super-admin",
+    "association-admin", "assoc-committee", "assoc-registrar", "assoc-selector",
+    "club-admin", "club-committee", "registrar",
+  ]},
 
   // ── My personal pages — accessible to all authenticated users ─────────────
   { pattern: /^\/admin\/my-registrations(\/|$)/, allowedRoles: PORTAL_ROLES },
