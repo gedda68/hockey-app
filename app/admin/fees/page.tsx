@@ -24,6 +24,8 @@ import {
   TrendingDown,
 } from "lucide-react";
 import type { EnrichedFeeRecord } from "@/app/api/admin/rep-fees/route";
+import ExportButton from "@/components/admin/ExportButton";
+import type { ExportColumn } from "@/lib/export";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 type FeeStatus = "pending" | "paid" | "overdue" | "waived" | "refunded";
@@ -484,15 +486,44 @@ export default function FeesPage() {
         : filteredFees.filter((f) => f.status === "pending" || f.status === "overdue"))
     : [];
 
+  // ── Export ──────────────────────────────────────────────────────────────────
+  const FEE_EXPORT_COLUMNS: ExportColumn[] = [
+    { header: "Player",       key: "playerName" },
+    { header: "Club",         key: "clubName" },
+    { header: "Tournament",   key: "tournamentTitle" },
+    { header: "Division",     key: "ageGroup" },
+    { header: "Description",  key: "description" },
+    { header: "Amount",       key: (r) => r.amount != null ? `$${Number(r.amount).toFixed(2)}` : "" },
+    { header: "Status",       key: "status" },
+    { header: "Due Date",     key: "date" },
+    { header: "Paid Date",    key: "paidDate" },
+    { header: "Method",       key: "paymentMethod" },
+    { header: "Transaction",  key: "transactionId" },
+    { header: "Notes",        key: "notes" },
+  ];
+
+  const feeExportRows = filteredFees as unknown as Record<string, unknown>[];
+
   // ── Render ──────────────────────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-slate-50">
       {/* Header */}
       <div className="bg-[#06054e] text-white px-6 pt-10 pb-20">
         <div className="max-w-7xl mx-auto">
-          <div className="flex items-center gap-3 mb-2">
-            <DollarSign size={28} className="text-yellow-400" />
-            <h1 className="text-3xl font-black uppercase tracking-tighter">Fee Management</h1>
+          <div className="flex items-center justify-between gap-3 mb-2">
+            <div className="flex items-center gap-3">
+              <DollarSign size={28} className="text-yellow-400" />
+              <h1 className="text-3xl font-black uppercase tracking-tighter">Fee Management</h1>
+            </div>
+            <ExportButton
+              rows={feeExportRows}
+              columns={FEE_EXPORT_COLUMNS}
+              filename={`fees-${season}`}
+              pdfTitle="Fee Management"
+              pdfSubtitle={`${season} Season${statusFilter !== "all" ? ` — ${statusFilter}` : ""}`}
+              pdfOrientation="landscape"
+              className="border-white/30 bg-white/10 text-white hover:bg-white/20"
+            />
           </div>
           <p className="text-white/60 font-bold text-sm">Representative nomination fees — track payments and send reminders</p>
         </div>

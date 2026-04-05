@@ -15,6 +15,8 @@ import {
 } from "lucide-react";
 import type { RoleRequest, RoleRequestStatus } from "@/types/roleRequests";
 import { ROLE_DEFINITIONS } from "@/lib/types/roles";
+import ExportButton from "@/components/admin/ExportButton";
+import type { ExportColumn } from "@/lib/export";
 
 // ── Status config ───────────────────────────────────────────────────────────���─
 
@@ -475,6 +477,31 @@ export default function RoleRequestsPage() {
   const pendingPaymentCount   = requests.filter(r => r.status === "pending_payment").length;
   const awaitingApprovalCount = requests.filter(r => r.status === "awaiting_approval").length;
 
+  const EXPORT_COLUMNS: ExportColumn[] = [
+    { header: "Member",        key: "memberName" },
+    { header: "Role",          key: "requestedRole" },
+    { header: "Organisation",  key: "scopeName" },
+    { header: "Season",        key: "seasonYear" },
+    { header: "Status",        key: "status" },
+    { header: "Requires Fee",  key: "requiresFee" },
+    { header: "Fee Amount",    key: "feeAmount" },
+    { header: "Fee Paid",      key: "feePaid" },
+    { header: "Payment Ref",   key: "paymentRef" },
+    { header: "Requested",     key: "requestedAt" },
+    { header: "Requested By",  key: "requestedBy" },
+    { header: "Reviewed By",   key: "reviewedBy" },
+    { header: "Review Notes",  key: "reviewNotes" },
+  ];
+
+  async function fetchExportRows() {
+    const params = new URLSearchParams();
+    if (activeTab !== "all") params.set("status", activeTab);
+    const res = await fetch(`/api/export/role-requests?${params}`);
+    if (!res.ok) throw new Error("Export fetch failed");
+    const data = await res.json();
+    return data.rows as Record<string, unknown>[];
+  }
+
   return (
     <div className="min-h-screen bg-slate-50">
       {/* Header */}
@@ -489,12 +516,23 @@ export default function RoleRequestsPage() {
                 Review and approve role assignment requests for your {user?.associationId ? "association and clubs" : "club"}
               </p>
             </div>
-            <button
-              onClick={() => fetchRequests(activeTab)}
-              className="flex items-center gap-2 px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-xl font-bold text-sm transition-colors"
-            >
-              <RefreshCw size={15} /> Refresh
-            </button>
+            <div className="flex items-center gap-2">
+              <ExportButton
+                rows={[]}
+                columns={EXPORT_COLUMNS}
+                filename={`role-requests-${activeTab === "all" ? "all" : activeTab}`}
+                pdfTitle="Role Requests"
+                pdfSubtitle={activeTab === "all" ? "All Statuses" : STATUS_CONFIG[activeTab as RoleRequestStatus]?.label}
+                fetchRows={fetchExportRows}
+                className="border-white/30 bg-white/10 text-white hover:bg-white/20"
+              />
+              <button
+                onClick={() => fetchRequests(activeTab)}
+                className="flex items-center gap-2 px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-xl font-bold text-sm transition-colors"
+              >
+                <RefreshCw size={15} /> Refresh
+              </button>
+            </div>
           </div>
 
           {/* Summary stats */}

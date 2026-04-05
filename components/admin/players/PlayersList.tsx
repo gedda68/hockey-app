@@ -20,6 +20,8 @@ import {
 } from "lucide-react";
 import NominationWorkflowModal from "./NominationWorkflowModal";
 import type { OpenOpportunity } from "@/types/tournaments";
+import ExportButton from "@/components/admin/ExportButton";
+import type { ExportColumn } from "@/lib/export";
 
 interface Player {
   playerId: string;
@@ -224,6 +226,18 @@ export default function PlayersList() {
     setShowClubSuggestions(false);
   };
 
+  const PLAYER_EXPORT_COLUMNS: ExportColumn[] = [
+    { header: "Player ID",   key: "playerId" },
+    { header: "First Name",  key: "firstName" },
+    { header: "Last Name",   key: "lastName" },
+    { header: "DOB",         key: "dateOfBirth" },
+    { header: "Gender",      key: "gender" },
+    { header: "Club",        key: "clubName" },
+    { header: "Status",      key: (r) => (r.status as { current?: string } | undefined)?.current ?? "" },
+    { header: "Reg. Date",   key: (r) => (r.status as { registrationDate?: string } | undefined)?.registrationDate ?? "" },
+    { header: "Expiry Date", key: (r) => (r.status as { expiryDate?: string } | undefined)?.expiryDate ?? "" },
+  ];
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center">
@@ -248,13 +262,23 @@ export default function PlayersList() {
                 {filteredPlayers.length === 1 ? "player" : "players"}
               </p>
             </div>
-            <button
-              onClick={() => router.push("/admin/players/new")}
-              className="px-6 py-3 bg-white text-blue-600 rounded-xl font-bold hover:bg-blue-50 transition-colors flex items-center gap-2 shadow-lg"
-            >
-              <UserPlus size={20} />
-              Add Player
-            </button>
+            <div className="flex items-center gap-3">
+              <ExportButton
+                rows={filteredPlayers as unknown as Record<string, unknown>[]}
+                columns={PLAYER_EXPORT_COLUMNS}
+                filename="players"
+                pdfTitle="Players"
+                pdfSubtitle={`${statusFilter !== "all" ? statusFilter + " · " : ""}${CURRENT_SEASON}`}
+                pdfOrientation="landscape"
+              />
+              <button
+                onClick={() => router.push("/admin/players/new")}
+                className="px-6 py-3 bg-white text-blue-600 rounded-xl font-bold hover:bg-blue-50 transition-colors flex items-center gap-2 shadow-lg"
+              >
+                <UserPlus size={20} />
+                Add Player
+              </button>
+            </div>
           </div>
         </div>
       </div>
