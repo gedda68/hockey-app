@@ -6,8 +6,8 @@ import clientPromise from "@/lib/mongodb";
 import { createSession, type ScopedRole } from "@/lib/auth/session";
 import { verifyPassword } from "@/lib/auth/username";
 import { generateSlug } from "@/lib/utils/slug";
-import { getPrimaryRole } from "@/lib/types/roles";
-import type { RoleAssignment } from "@/lib/types/roles";
+import { getPrimaryRole, numericLevelToString } from "@/lib/types/roles";
+import type { RoleAssignment, AssociationLevel } from "@/lib/types/roles";
 import bcrypt from "bcryptjs";
 
 /** Convert a DB roles[] array into the minimal ScopedRole[] for the JWT */
@@ -101,19 +101,32 @@ export async function POST(request: NextRequest) {
 
       const forcePasswordChange = user.forcePasswordChange === true;
 
+      // Resolve association level (national / state / city / district)
+      let associationLevel: AssociationLevel | undefined;
+      if (user.associationId) {
+        const assoc = await db.collection("associations").findOne(
+          { associationId: user.associationId },
+          { projection: { level: 1 } }
+        );
+        if (assoc && typeof assoc.level === "number") {
+          associationLevel = numericLevelToString(assoc.level);
+        }
+      }
+
       await createSession({
-        userId:        user.userId || user._id.toString(),
-        email:         user.email  || `${user.username}@local`,
-        name:          fullName,
+        userId:           user.userId || user._id.toString(),
+        email:            user.email  || `${user.username}@local`,
+        name:             fullName,
         firstName,
         lastName,
         role,
-        scopedRoles:   scopedRoles.length > 0 ? scopedRoles : undefined,
-        associationId: user.associationId || null,
-        clubId:        user.clubId || null,
-        clubSlug:      clubSlug || null,
+        scopedRoles:      scopedRoles.length > 0 ? scopedRoles : undefined,
+        associationId:    user.associationId || null,
+        associationLevel,
+        clubId:           user.clubId || null,
+        clubSlug:         clubSlug || null,
         clubName,
-        username:      user.username,
+        username:         user.username,
         forcePasswordChange,
       });
 
@@ -202,20 +215,33 @@ export async function POST(request: NextRequest) {
         }
       }
 
+      // Resolve association level for member (if they have an assoc scope)
+      let memberAssocLevel: AssociationLevel | undefined;
+      if (memberAssocId) {
+        const memberAssoc = await db.collection("associations").findOne(
+          { associationId: memberAssocId },
+          { projection: { level: 1 } }
+        );
+        if (memberAssoc && typeof memberAssoc.level === "number") {
+          memberAssocLevel = numericLevelToString(memberAssoc.level);
+        }
+      }
+
       await createSession({
-        userId:        member._id.toString(),
-        email:         memberEmail,
-        name:          fullName,
+        userId:           member._id.toString(),
+        email:            memberEmail,
+        name:             fullName,
         firstName,
         lastName,
         role,
-        scopedRoles:   memberScopedRoles.length > 0 ? memberScopedRoles : undefined,
-        associationId: memberAssocId,
-        clubId:        memberClubId,
-        clubSlug:      memberClubSlug || null,
+        scopedRoles:      memberScopedRoles.length > 0 ? memberScopedRoles : undefined,
+        associationId:    memberAssocId,
+        associationLevel: memberAssocLevel,
+        clubId:           memberClubId,
+        clubSlug:         memberClubSlug || null,
         clubName,
-        memberId:      member._id.toString(),
-        username:      member.auth.username,
+        memberId:         member._id.toString(),
+        username:         member.auth.username,
         forcePasswordChange,
       });
 

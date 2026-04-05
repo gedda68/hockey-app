@@ -34,6 +34,17 @@ export interface SessionData {
    */
   scopedRoles?: ScopedRole[];
   associationId?: string | null;
+  /**
+   * The hierarchical tier of the user's primary association.
+   * Derived from association.level at login and stored here so middleware and
+   * UI can make level-aware access decisions without a DB round-trip.
+   *   "national"  — level 0 (e.g. Hockey Australia)
+   *   "state"     — level 1 (e.g. Hockey QLD)
+   *   "city"      — level 2 (e.g. Brisbane Hockey)
+   *   "district"  — level 3+ (regional sub-bodies)
+   * Absent for club-scoped users and super-admin.
+   */
+  associationLevel?: "national" | "state" | "city" | "district";
   clubId?: string | null;
   clubSlug?: string | null;  // URL-safe slug derived from club name
   clubName?: string;

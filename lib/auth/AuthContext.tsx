@@ -23,6 +23,16 @@ export interface User {
   lastName: string;
   role: string;
   associationId?: string | null;
+  /**
+   * Hierarchical tier of the user's primary association.
+   * Populated at login from the association's numeric level field.
+   *   "national"  = level 0  (e.g. Hockey Australia)
+   *   "state"     = level 1  (e.g. Hockey QLD)
+   *   "city"      = level 2  (e.g. Brisbane Hockey)
+   *   "district"  = level 3+ (sub-regional bodies)
+   * Absent for club-scoped users and super-admin.
+   */
+  associationLevel?: "national" | "state" | "city" | "district";
   clubId?: string | null;
   clubSlug?: string | null;
   clubName?: string | null;
@@ -50,12 +60,14 @@ function roleHasPermission(role: string, permission: string): boolean {
     "assoc-coach",
     "assoc-selector",
     "assoc-registrar",
+    "media-marketing",
     "club-admin",
     "club-committee",
     "registrar",
     "coach",
     "manager",
     "umpire",
+    "technical-official",
     "volunteer",
     "team-selector",
   ];
@@ -67,7 +79,9 @@ function roleHasPermission(role: string, permission: string): boolean {
     "manage:members":      ["super-admin", "association-admin", "club-admin", "club-committee", "registrar"],
     "manage:players":      ["super-admin", "association-admin", "club-admin", "club-committee", "registrar", "coach", "manager"],
     "manage:teams":        ["super-admin", "association-admin", "club-admin", "coach", "manager"],
-    "manage:nominations":  ["super-admin", "association-admin", "assoc-selector", "club-admin", "team-selector", "coach"],
+    "manage:nominations":  ["super-admin", "association-admin", "assoc-selector", "assoc-coach", "club-admin", "team-selector", "coach"],
+    "manage:media":        ["super-admin", "association-admin", "assoc-committee", "media-marketing", "club-admin"],
+    "manage:finance":      ["super-admin", "association-admin", "assoc-committee", "assoc-registrar", "club-admin", "club-committee", "registrar"],
     "view:admin":          ADMIN_ROLES,
     "view:portal":         [...ADMIN_ROLES, "player", "member", "parent"],
   };

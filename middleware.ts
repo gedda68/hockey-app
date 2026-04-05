@@ -6,7 +6,6 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { jwtVerify } from "jose";
 
-// Must match lib/auth/session.ts
 const SECRET_KEY = process.env.JWT_SECRET;
 if (!SECRET_KEY) throw new Error("JWT_SECRET environment variable is not set");
 const key = new TextEncoder().encode(SECRET_KEY);
@@ -20,9 +19,10 @@ interface ScopedRole {
 interface SessionData {
   role: string;
   scopedRoles?: ScopedRole[];
+  associationId?: string | null;
+  associationLevel?: "national" | "state" | "city" | "district";
   clubId?: string | null;
   clubSlug?: string | null;
-  associationId?: string | null;
   memberId?: string | null;
   forcePasswordChange?: boolean;
 }
@@ -38,7 +38,8 @@ async function getSession(req: NextRequest): Promise<SessionData | null> {
   }
 }
 
-// ── Role sets ────────────────────────────────────────────────────────────────
+// ── Role sets ─────────────────────────────────────────────────────────────────
+// Keep in sync with menuConfig.ts and AuthContext.tsx
 
 const SUPER_ADMIN = ["super-admin"];
 
@@ -47,6 +48,7 @@ const ASSOCIATION_ROLES = [
   "association-admin",
 ];
 
+/** All association-level staff (includes media-marketing) */
 const ASSOC_STAFF_ROLES = [
   "super-admin",
   "association-admin",
@@ -54,6 +56,7 @@ const ASSOC_STAFF_ROLES = [
   "assoc-coach",
   "assoc-selector",
   "assoc-registrar",
+  "media-marketing",
 ];
 
 const CLUB_AND_ABOVE = [
@@ -92,12 +95,32 @@ const NOMINATION_ACCESS = [
   "super-admin",
   "association-admin",
   "assoc-selector",
+  "assoc-coach",
   "club-admin",
   "team-selector",
   "coach",
 ];
 
-// Any role that has admin-area access
+const FINANCE_ROLES = [
+  "super-admin",
+  "association-admin",
+  "assoc-committee",
+  "assoc-registrar",
+  "club-admin",
+  "club-committee",
+  "registrar",
+];
+
+const SETTINGS_ROLES = [
+  "super-admin",
+  "association-admin",
+  "assoc-committee",
+  "media-marketing",
+  "club-admin",
+  "club-committee",
+];
+
+/** Any role that has admin-area access */
 const ANY_ADMIN = [
   "super-admin",
   "association-admin",
@@ -105,6 +128,7 @@ const ANY_ADMIN = [
   "assoc-coach",
   "assoc-selector",
   "assoc-registrar",
+  "media-marketing",
   "club-admin",
   "club-committee",
   "registrar",
@@ -116,67 +140,89 @@ const ANY_ADMIN = [
   "team-selector",
 ];
 
-// Portal roles — access /portal/** and their own member pages
+/** Portal roles — access /portal/** and personal pages */
 const PORTAL_ROLES = ["player", "member", "parent", ...ANY_ADMIN];
 
-// ── Route table ──────────────────────────────────────────────────────────────
+// ── Route table ───────────────────────────────────────────────────────────────
 // Checked in order — first match wins.
 
 interface RouteRule {
   pattern: RegExp;
   allowedRoles: string[];
-  /** If true, also enforce scopeId check for club/association */
+  /** If true, also enforce scopeId check for club/association paths */
   scopeCheck?: boolean;
 }
 
 const ROUTE_RULES: RouteRule[] = [
-  // ── Super-admin only ────────────────────────────────────────────────────
-  { pattern: /^\/admin\/dashboard(\/|$)/, allowedRoles: SUPER_ADMIN },
-  { pattern: /^\/admin\/users(\/|$)/, allowedRoles: SUPER_ADMIN },
-  { pattern: /^\/admin\/global-config(\/|$)/, allowedRoles: SUPER_ADMIN },
-  { pattern: /^\/admin\/config(\/|$)/, allowedRoles: SUPER_ADMIN },
+  // ── Super-admin only ──────────────────────────────────────────────────────
+  { pattern: /^\/admin\/users(\/|$)/,        allowedRoles: SUPER_ADMIN },
+  { pattern: /^\/admin\/global-config(\/|$)/,allowedRoles: SUPER_ADMIN },
+  { pattern: /^\/admin\/config(\/|$)/,       allowedRoles: SUPER_ADMIN },
+  { pattern: /^\/admin\/dashboard(\/|$)/,    allowedRoles: SUPER_ADMIN },
 
-  // ── Association-level ────────────────────────────────────────────────────
-  { pattern: /^\/admin\/settings(\/|$)/, allowedRoles: ASSOCIATION_ROLES, scopeCheck: true },
+  // ── Association-level ──────────────────────────────────────────────────────
+  { pattern: /^\/admin\/settings(\/|$)/,     allowedRoles: SETTINGS_ROLES,    scopeCheck: true },
   { pattern: /^\/admin\/associations(\/|$)/, allowedRoles: ASSOCIATION_ROLES, scopeCheck: true },
-  { pattern: /^\/admin\/tournaments(\/|$)/, allowedRoles: ASSOCIATION_ROLES, scopeCheck: true },
+  { pattern: /^\/admin\/tournaments(\/|$)/,  allowedRoles: ASSOCIATION_ROLES, scopeCheck: true },
 
-  // ── Association staff ────────────────────────────────────────────────────
+  // ── Association staff ──────────────────────────────────────────────────────
   { pattern: /^\/admin\/representative(\/|$)/, allowedRoles: ASSOC_STAFF_ROLES, scopeCheck: true },
 
-  // ── Club + association + super ────────────────────────────────────────────
-  { pattern: /^\/admin\/clubs(\/|$)/, allowedRoles: CLUB_AND_ABOVE, scopeCheck: true },
-  { pattern: /^\/admin\/fees(\/|$)/, allowedRoles: CLUB_AND_ABOVE, scopeCheck: true },
-  { pattern: /^\/admin\/news(\/|$)/, allowedRoles: CLUB_AND_ABOVE, scopeCheck: true },
+  // ── News / Media ───────────────────────────────────────────────────────────
+  { pattern: /^\/admin\/news(\/|$)/, allowedRoles: [
+    "super-admin",
+    "association-admin", "assoc-committee", "media-marketing",
+    "club-admin", "club-committee",
+  ]},
 
-  // ── Club management ───────────────────────────────────────────────────────
-  { pattern: /^\/admin\/members(\/|$)/, allowedRoles: CLUB_MANAGEMENT, scopeCheck: true },
+  // ── Club + association + super ─────────────────────────────────────────────
+  { pattern: /^\/admin\/clubs(\/|$)/,        allowedRoles: CLUB_AND_ABOVE,   scopeCheck: true },
+  { pattern: /^\/admin\/fees(\/|$)/,         allowedRoles: FINANCE_ROLES,    scopeCheck: true },
 
-  // ── Player / team management ──────────────────────────────────────────────
-  { pattern: /^\/admin\/players(\/|$)/, allowedRoles: PLAYER_MANAGEMENT, scopeCheck: true },
-  { pattern: /^\/admin\/teams(\/|$)/, allowedRoles: TEAM_STAFF, scopeCheck: true },
+  // ── Club management ────────────────────────────────────────────────────────
+  { pattern: /^\/admin\/members(\/|$)/,      allowedRoles: CLUB_MANAGEMENT,  scopeCheck: true },
 
-  // ── Nominations ───────────────────────────────────────────────────────────
+  // ── Player / team management ───────────────────────────────────────────────
+  { pattern: /^\/admin\/players(\/|$)/,      allowedRoles: PLAYER_MANAGEMENT, scopeCheck: true },
+  { pattern: /^\/admin\/teams(\/|$)/,        allowedRoles: TEAM_STAFF,        scopeCheck: true },
+
+  // ── Nominations ────────────────────────────────────────────────────────────
   { pattern: /^\/admin\/nominations(\/|$)/, allowedRoles: NOMINATION_ACCESS, scopeCheck: true },
 
-  // ── My Registrations / My Fees — accessible to all authenticated users ────
+  // ── My personal pages — accessible to all authenticated users ─────────────
   { pattern: /^\/admin\/my-registrations(\/|$)/, allowedRoles: PORTAL_ROLES },
-  { pattern: /^\/admin\/my-fees(\/|$)/, allowedRoles: PORTAL_ROLES },
+  { pattern: /^\/admin\/my-fees(\/|$)/,           allowedRoles: PORTAL_ROLES },
 
-  // ── Team tournament fee management ───────────────────────────────────────
-  { pattern: /^\/admin\/team-tournaments(\/|$)/, allowedRoles: CLUB_MANAGEMENT, scopeCheck: true },
+  // ── Role approval / expiry management ─────────────────────────────────────
+  { pattern: /^\/admin\/role-requests(\/|$)/, allowedRoles: [
+    "super-admin",
+    "association-admin", "assoc-registrar",
+    "club-admin", "registrar",
+  ]},
+  { pattern: /^\/admin\/role-expiry(\/|$)/, allowedRoles: [
+    "super-admin",
+    "association-admin",
+    "club-admin", "registrar",
+  ]},
 
-  // ── Role expiry dashboard ─────────────────────────────────────────────────
-  { pattern: /^\/admin\/role-expiry(\/|$)/, allowedRoles: CLUB_MANAGEMENT, scopeCheck: true },
+  // ── Team tournament fees ───────────────────────────────────────────────────
+  { pattern: /^\/admin\/team-tournaments(\/|$)/, allowedRoles: [
+    "super-admin",
+    "association-admin", "assoc-registrar",
+    "club-admin", "registrar",
+  ], scopeCheck: true },
+
+  // ── Bulk import ────────────────────────────────────────────────────────────
+  { pattern: /^\/admin\/bulk-import(\/|$)/, allowedRoles: CLUB_AND_ABOVE },
 
   // ── Catch-all admin (requires some admin role) ─────────────────────────────
   { pattern: /^\/admin(\/|$)/, allowedRoles: ANY_ADMIN },
 
-  // ── Portal (authenticated members / players) ────────────────────────────
+  // ── Portal (authenticated members / players) ───────────────────────────────
   { pattern: /^\/portal(\/|$)/, allowedRoles: PORTAL_ROLES },
 ];
 
-// Routes that require the user to be logged in but have no role restriction
+// Routes requiring login but no role restriction
 const AUTH_REQUIRED_PATHS = ["/change-password"];
 
 // Fully public paths — skip all auth checks
@@ -216,9 +262,7 @@ function isPublicPath(path: string): boolean {
     "/public",
   ];
 
-  // Root is always public
   if (path === "/") return true;
-
   return PUBLIC_PREFIXES.some(
     (prefix) => path === prefix || path.startsWith(prefix + "/") || path.startsWith(prefix + "?")
   );
@@ -228,22 +272,19 @@ export async function middleware(request: NextRequest) {
   const path = request.nextUrl.pathname;
 
   // 1. Skip fully public paths
-  if (isPublicPath(path)) {
-    return NextResponse.next();
-  }
+  if (isPublicPath(path)) return NextResponse.next();
 
   // 2. Get session
   const session = await getSession(request);
 
-  // 3. Unauthenticated — redirect to login
+  // 3. Unauthenticated → redirect to login
   if (!session) {
-    // If they're trying to access a protected route, send to login
     const loginUrl = new URL("/login", request.url);
     loginUrl.searchParams.set("callbackUrl", request.nextUrl.href);
     return NextResponse.redirect(loginUrl);
   }
 
-  // 4. Force password change — only let through to /change-password (and all API routes)
+  // 4. Force password change
   if (
     session.forcePasswordChange &&
     !path.startsWith("/change-password") &&
@@ -254,23 +295,18 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(changeUrl);
   }
 
-  // 5. Auth-required paths (any logged-in user)
-  if (AUTH_REQUIRED_PATHS.some((p) => path.startsWith(p))) {
-    return NextResponse.next();
-  }
+  // 5. Auth-required (any logged-in user)
+  if (AUTH_REQUIRED_PATHS.some((p) => path.startsWith(p))) return NextResponse.next();
 
-  const role = session.role || "public";
+  const role       = session.role || "public";
   const scopedRoles = session.scopedRoles ?? [];
 
-  // ── Helpers ─────────────────────────────────────────────────────────────────
+  // ── Helpers ──────────────────────────────────────────────────────────────────
 
   /**
-   * True if ANY scoped role in the session satisfies the allowed-roles list
-   * AND is correctly scoped to the association or club referenced in the path.
-   *
-   * This is the multi-role gate: a member whose primary role is "player" but
-   * who also holds "assoc-selector" at BHA will be allowed through
-   * /admin/representative when their selector assignment's scopeId matches.
+   * True if ANY scoped role in the session satisfies allowedRoles AND is correctly
+   * scoped to the association or club referenced in the path.
+   * Handles multi-role members whose primary role is lower-privilege.
    */
   function hasAccessViaScopedRoles(allowedRoles: string[], currentPath: string): boolean {
     if (scopedRoles.length === 0) return false;
@@ -279,99 +315,82 @@ export async function middleware(request: NextRequest) {
 
     return scopedRoles.some((sr) => {
       if (!allowedRoles.includes(sr.role)) return false;
-
-      // Global scope (super-admin) — always passes
       if (sr.scopeType === "global") return true;
 
-      // Association-scoped path — require matching scopeId
       if (assocMatch && assocMatch[1] !== "new") {
         if (sr.scopeType === "association") return sr.scopeId === assocMatch[1];
-        // Global-ish roles (super-admin already handled above)
         return false;
       }
-
-      // Club-scoped path — require matching scopeId
       if (clubMatch && clubMatch[1] !== "new") {
         if (sr.scopeType === "club") return sr.scopeId === clubMatch[1];
-        // Association roles can access any club in their association (DB layer enforces further)
-        if (sr.scopeType === "association") return true;
+        if (sr.scopeType === "association") return true; // DB enforces further
         return false;
       }
-
-      // Non-scoped path (e.g. /admin/representative, /admin/teams) — any matching role passes
+      // Non-scoped path — any matching role passes
       return true;
     });
   }
 
-  // Club-level roles that are scope-restricted to their own club
+  // Club-level roles restricted to their own club
   const CLUB_SCOPED_ROLES = [
-    "club-admin", "club-committee", "registrar", "coach", "manager", "team-selector",
+    "club-admin", "club-committee", "registrar", "coach", "manager",
+    "team-selector", "volunteer", "umpire", "technical-official",
   ];
 
-  // Association-level roles that are scope-restricted to their own association
+  // Association-level roles restricted to their own association
   const ASSOC_SCOPED_ROLES = [
-    "association-admin", "assoc-committee", "assoc-coach", "assoc-selector", "assoc-registrar",
+    "association-admin", "assoc-committee", "assoc-coach",
+    "assoc-selector", "assoc-registrar", "media-marketing",
   ];
 
   // 6. Match against route rules
   for (const rule of ROUTE_RULES) {
     if (!rule.pattern.test(path)) continue;
 
-    // ── Role check ─────────────────────────────────────────────────────────
-    // Pass if the primary role qualifies, OR if any scoped role qualifies
-    // (handles multi-role members whose primary role is lower-privilege).
-    const primaryRoleAllowed = rule.allowedRoles.includes(role);
-    const scopedRoleAllowed  = hasAccessViaScopedRoles(rule.allowedRoles, path);
+    // Role check: primary OR scoped role must qualify
+    const primaryAllowed = rule.allowedRoles.includes(role);
+    const scopedAllowed  = hasAccessViaScopedRoles(rule.allowedRoles, path);
 
-    if (!primaryRoleAllowed && !scopedRoleAllowed) {
+    if (!primaryAllowed && !scopedAllowed) {
       return NextResponse.redirect(new URL("/unauthorized", request.url));
     }
 
-    // ── Scope check ────────────────────────────────────────────────────────
+    // Scope check: prevent cross-club / cross-association access
     if (rule.scopeCheck) {
       const clubMatch  = path.match(/\/clubs\/([^/?\s]+)/);
       const assocMatch = path.match(/\/associations\/([^/?\s]+)/);
 
-      // Club-scoped path: club-level roles must match their own club
+      // Club-scoped path
       if (clubMatch && clubMatch[1] !== "new") {
         const pathClubId = clubMatch[1];
         if (CLUB_SCOPED_ROLES.includes(role)) {
-          const matchesById   = session.clubId   === pathClubId;
-          const matchesBySlug = session.clubSlug === pathClubId;
-          if (session.clubId && !matchesById && !matchesBySlug) {
-            // Allow through if a scoped role covers this club
-            if (!scopedRoleAllowed) {
-              return NextResponse.redirect(new URL("/unauthorized", request.url));
-            }
+          const matchesById   = session.clubId    === pathClubId;
+          const matchesBySlug = session.clubSlug  === pathClubId;
+          if (session.clubId && !matchesById && !matchesBySlug && !scopedAllowed) {
+            return NextResponse.redirect(new URL("/unauthorized", request.url));
           }
         }
-        // association-admin: any club in their association — DB layer enforces finer check
       }
 
-      // Association-scoped path: association-level roles must match their own association
+      // Association-scoped path
       if (assocMatch && assocMatch[1] !== "new") {
         const pathAssocId = assocMatch[1];
         if (ASSOC_SCOPED_ROLES.includes(role)) {
-          if (session.associationId && session.associationId !== pathAssocId) {
-            // Allow through if a scoped role explicitly covers this association
-            if (!hasAccessViaScopedRoles(rule.allowedRoles, path)) {
-              return NextResponse.redirect(new URL("/unauthorized", request.url));
-            }
+          if (session.associationId && session.associationId !== pathAssocId && !scopedAllowed) {
+            return NextResponse.redirect(new URL("/unauthorized", request.url));
           }
         }
-        // Club-only roles trying to reach an association path → block
-        // (scopedRoleAllowed already checked above — if they got here they have a valid assoc role)
-        if (CLUB_SCOPED_ROLES.includes(role) && !scopedRoleAllowed) {
+        // Club-only roles cannot reach association paths (unless they have a scoped assoc role)
+        if (CLUB_SCOPED_ROLES.includes(role) && !scopedAllowed) {
           return NextResponse.redirect(new URL("/unauthorized", request.url));
         }
       }
     }
 
-    // Passed all checks
     return NextResponse.next();
   }
 
-  // 7. No rule matched — allow (catch-all fallback)
+  // 7. No rule matched — allow
   return NextResponse.next();
 }
 

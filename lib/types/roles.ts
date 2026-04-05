@@ -30,6 +30,9 @@ export type UserRole =
   // ── Volunteer / helper ────────────────────────────────────────────────────────
   | "volunteer"              // General club volunteer, basic read access
 
+  // ── Media / marketing ────────────────────────────────────────────────────────
+  | "media-marketing"        // Media, marketing, news, and sponsors at any org level
+
   // ── Member / portal roles ─────────────────────────────────────────────────────
   | "player"                 // Active player — portal, nominations, own profile
   | "member"                 // General member — own profile only
@@ -527,6 +530,28 @@ export const ROLE_DEFINITIONS: Record<UserRole, RoleDefinition> = {
     seasonalRegistration: false,
   },
 
+  "media-marketing": {
+    role: "media-marketing",
+    label: "Media & Marketing",
+    description: "Manages news, media content, marketing, and sponsorship at their organisation level",
+    scopeTypes: ["association", "club"],
+    permissions: [
+      "association.view",
+      "club.view",
+      "member.view",
+      "team.view",
+      "reports.view",
+      "profile.view",
+    ],
+    color: "from-pink-500 to-rose-600",
+    icon: "📣",
+    adminAccess: true,
+    requiresApproval: true,
+    approverLevel: "own-scope",
+    requiresFee: false,
+    seasonalRegistration: false,
+  },
+
   "team-selector": {
     role: "team-selector",
     label: "Team Selector",
@@ -613,12 +638,31 @@ export const ROLE_DEFINITIONS: Record<UserRole, RoleDefinition> = {
 
 // ── Role group labels (for UI grouping) ───────────────────────────────────────
 
+/**
+ * The organisational tier of an association.
+ * Derived from the numeric `level` field on the associations collection:
+ *   0 = national, 1 = state, 2 = city/regional, 3 = district/region
+ * Stored in the JWT so middleware and UI can make level-aware decisions
+ * without a DB round-trip.
+ */
+export type AssociationLevel = "national" | "state" | "city" | "district";
+
+/** Map numeric association.level → AssociationLevel string */
+export function numericLevelToString(level: number): AssociationLevel {
+  switch (level) {
+    case 0:  return "national";
+    case 1:  return "state";
+    case 2:  return "city";
+    default: return "district";
+  }
+}
+
 export const ROLE_GROUPS = {
-  "System": ["super-admin"],
-  "Association": ["association-admin", "assoc-committee", "assoc-coach", "assoc-selector", "assoc-registrar"],
-  "Club": ["club-admin", "club-committee", "coach", "manager", "registrar", "umpire", "technical-official", "volunteer", "team-selector"],
+  "System":        ["super-admin"],
+  "Association":   ["association-admin", "assoc-committee", "assoc-coach", "assoc-selector", "assoc-registrar", "media-marketing"],
+  "Club":          ["club-admin", "club-committee", "coach", "manager", "registrar", "umpire", "technical-official", "volunteer", "team-selector"],
   "Member Portal": ["player", "member", "parent"],
-  "Public": ["public"],
+  "Public":        ["public"],
 } as const;
 
 // ── Helpers ───────────────────────────────────────────────────────────────────

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { LogOut } from "lucide-react";
 import SidebarItem from "../../app/admin/components/SidebarItem";
 import { menuConfig, MenuItem } from "../../app/admin/global-config/menuConfig";
@@ -17,308 +17,146 @@ interface SidebarBranding {
   logo?: string;
 }
 
+// Roles that are scoped to a club
 const SIDEBAR_CLUB_ROLES = [
   "club-admin", "club-committee", "registrar", "coach", "manager",
-  "team-selector", "volunteer", "umpire",
+  "team-selector", "volunteer", "umpire", "technical-official",
 ];
 
+// Roles that are scoped to an association
 const SIDEBAR_ASSOC_ROLES = [
   "association-admin", "assoc-committee", "assoc-coach",
-  "assoc-selector", "assoc-registrar",
+  "assoc-selector", "assoc-registrar", "media-marketing",
 ];
 
-// Role → which top-level menu labels to show (fallback when no club/assoc context)
-const ROLE_MENU_FILTER: Record<string, string[]> = {
-  "super-admin": [], // empty = show all
-  "association-admin": [
-    "Dashboard", "Representative", "Players", "Clubs", "Associations",
-    "Members", "Nominations", "Teams", "Tournaments", "Fees", "Reports", "Settings",
-  ],
-  "assoc-committee": ["Dashboard", "Representative", "Players", "Reports"],
-  "assoc-coach":     ["Dashboard", "Representative", "Players", "Teams"],
-  "assoc-selector":  ["Dashboard", "Representative", "Players", "Nominations"],
-  "assoc-registrar": ["Dashboard", "Members", "Players", "Fees"],
-  "club-admin": [
-    "Dashboard", "Players", "Teams", "Members", "Nominations", "Fees", "Reports",
-  ],
-  "club-committee": ["Dashboard", "Members", "Players", "Reports"],
-  "registrar":      ["Dashboard", "Members", "Players", "Fees"],
-  "coach":          ["Dashboard", "Players", "Teams", "Nominations"],
-  "manager":        ["Dashboard", "Players", "Teams"],
-  "team-selector":  ["Dashboard", "Players", "Nominations"],
-  "umpire":         ["Dashboard"],
-  "volunteer":      ["Dashboard"],
-};
+// ── Menu building ─────────────────────────────────────────────────────────────
 
-/** Helper: get a menuConfig item by label, or undefined. */
-function mc(label: string): MenuItem | undefined {
-  return menuConfig.find((m) => m.label === label);
+/**
+ * Returns all roles the user effectively holds (primary + any scoped roles).
+ * Used to match against allowedRoles on menu items.
+ */
+function getUserRoles(user: User): string[] {
+  const roles = new Set<string>([user.role]);
+  // scopedRoles is not exposed on the client User type yet, but we check
+  // the primary role which covers most cases. Future: extend User with scopedRoles.
+  return Array.from(roles);
 }
 
-/** Returns the fees menu item with the correct href based on role/entity. */
-function getFeesItem(
+/**
+ * Returns true if the user should see a given menu item.
+ * Rules:
+ *   1. super-admin always sees everything.
+ *   2. If item.allowedRoles is absent/empty → visible to all admin-area users.
+ *   3. Otherwise → user's role(s) must intersect allowedRoles.
+ */
+function canSeeItem(item: MenuItem, userRoles: string[]): boolean {
+  if (userRoles.includes("super-admin")) return true;
+  if (!item.allowedRoles || item.allowedRoles.length === 0) return true;
+  return item.allowedRoles.some((r) => userRoles.includes(r));
+}
+
+/**
+ * Recursively filter the menu tree based on the user's roles.
+ * Items with sub-items are only included if at least one sub-item survives.
+ */
+function filterMenu(items: MenuItem[], userRoles: string[]): MenuItem[] {
+  return items
+    .filter((item) => canSeeItem(item, userRoles))
+    .map((item) => {
+      if (!item.subItems) return item;
+      const visibleSubs = filterMenu(item.subItems, userRoles);
+      return { ...item, subItems: visibleSubs };
+    })
+    .filter((item) => !item.subItems || item.subItems.length > 0);
+}
+
+/**
+ * Returns the "Fees" item with the correct href for the user's scope:
+ *   club role  → /admin/clubs/{clubRef}/fees
+ *   assoc role → /admin/associations/{assocId}/fees
+ *   fallback   → /admin/fees
+ */
+function resolvedFeesItem(
   role: string,
   clubRef: string | null | undefined,
   assocId: string | null | undefined
 ): MenuItem {
-  if (
-    ["club-admin", "club-committee", "registrar", "coach", "manager", "team-selector", "volunteer", "umpire"].includes(role) &&
-    clubRef
-  ) {
-    return {
-      label: "Fees",
-      href: `/admin/clubs/${clubRef}/fees`,
-      icon: "💵",
-      description: "Fee management",
-    };
+  if (SIDEBAR_CLUB_ROLES.includes(role) && clubRef) {
+    return { label: "Fees", href: `/admin/clubs/${clubRef}/fees`, icon: "💵", description: "Club fee management" };
   }
-
-  if (
-    ["association-admin", "assoc-committee", "assoc-coach", "assoc-selector", "assoc-registrar"].includes(role) &&
-    assocId
-  ) {
-    return {
-      label: "Fees",
-      href: `/admin/associations/${assocId}/fees`,
-      icon: "💵",
-      description: "Fee management",
-    };
+  if (SIDEBAR_ASSOC_ROLES.includes(role) && assocId) {
+    return { label: "Fees", href: `/admin/associations/${assocId}/fees`, icon: "💵", description: "Association fee management" };
   }
-
-  return {
-    label: "Fees",
-    href: "/admin/fees",
-    icon: "💵",
-    description: "Fee management",
-  };
+  return { label: "Fees", href: "/admin/fees", icon: "💵", description: "Fee management" };
 }
 
-const nominationsItem: MenuItem = {
-  label: "Nominations",
-  href: "/admin/nominations",
-  icon: "✋",
-  description: "Player nominations",
-};
-
-const myRegistrationsItem: MenuItem = {
-  label: "My Registrations",
-  href: "/admin/my-registrations",
-  icon: "🎫",
-  description: "Your role registration requests",
-};
-
-const myFeesItem: MenuItem = {
-  label: "My Fees & Payments",
-  href: "/admin/my-fees",
-  icon: "💳",
-  description: "View and pay your outstanding fees",
-};
-
-const teamTournamentsItem: MenuItem = {
-  label: "Team Tournament Fees",
-  href: "/admin/team-tournaments",
-  icon: "🏆",
-  description: "Manage team entries and per-member cost allocations",
-};
-
-const roleExpiryItem: MenuItem = {
-  label: "Role Expiry",
-  href: "/admin/role-expiry",
-  icon: "⏳",
-  description: "Monitor expiring roles and run seasonal cleanup",
-};
-
+/**
+ * Builds the full visible menu for a user:
+ *   1. Start from menuConfig (role-filtered).
+ *   2. Replace the generic "Fees" item with a scope-specific one.
+ *   3. Prepend a contextual "My Club" / "My Association" item.
+ */
 function buildMenuForUser(user: User | null): MenuItem[] {
-  if (!user) return menuConfig;
+  if (!user) return [];
 
   const role = user.role;
-
-  // ── Super-admin: full menu ──────────────────────────────────────────────────
-  if (role === "super-admin") return menuConfig;
-
-  // ── Club-scoped roles ───────────────────────────────────────────────────────
   const clubRef = user.clubSlug || user.clubId;
-  const clubScopedRoles = [
-    "club-admin",
-    "club-committee",
-    "registrar",
-    "coach",
-    "manager",
-    "team-selector",
-    "volunteer",
-    "umpire",
-  ];
+  const assocId = user.associationId;
+  const userRoles = getUserRoles(user);
 
-  if (clubScopedRoles.includes(role) && clubRef) {
+  // ── 1. Filter all items by allowedRoles ─────────────────────────────────────
+  let items = filterMenu(menuConfig, userRoles);
+
+  // ── 2. Replace generic Fees href with scope-specific one ────────────────────
+  const fees = resolvedFeesItem(role, clubRef, assocId);
+  items = items.map((item) => {
+    if (item.label === "Fees") return { ...item, href: fees.href };
+    // Also fix "Rep Fees" sub-item inside "Representative" for assoc roles
+    if (item.label === "Representative" && item.subItems) {
+      return {
+        ...item,
+        subItems: item.subItems.map((sub) =>
+          sub.label === "Rep Fees" ? sub : sub
+        ),
+      };
+    }
+    return item;
+  });
+
+  // ── 3. Prepend context item (My Club / My Association) ──────────────────────
+  if (SIDEBAR_CLUB_ROLES.includes(role) && clubRef) {
     const myClub: MenuItem = {
       label: "My Club",
       href: `/admin/clubs/${clubRef}/edit`,
       icon: "🏢",
-      description: "Club Management",
+      description: "Club management",
     };
-
-    const feesItem = getFeesItem(role, clubRef, user.associationId);
-
-    if (role === "club-admin") {
-      return [
-        myClub,
-        mc("Players")!,
-        mc("Teams")!,
-        mc("Members")!,
-        mc("Role Approvals")!,
-        feesItem,
-        nominationsItem,
-        teamTournamentsItem,
-        roleExpiryItem,
-        mc("Reports")!,
-        myRegistrationsItem,
-        myFeesItem,
-      ].filter((item): item is MenuItem => item !== undefined);
-    }
-
-    if (role === "club-committee") {
-      return [myClub, mc("Members")!, mc("Players")!, mc("Reports")!, myRegistrationsItem, myFeesItem].filter(
-        (item): item is MenuItem => item !== undefined,
-      );
-    }
-
-    if (role === "registrar") {
-      return [myClub, mc("Members")!, mc("Role Approvals")!, mc("Players")!, feesItem, teamTournamentsItem, roleExpiryItem, myRegistrationsItem, myFeesItem].filter(
-        (item): item is MenuItem => item !== undefined,
-      );
-    }
-
-    if (role === "coach") {
-      return [myClub, mc("Players")!, mc("Teams")!, nominationsItem, myRegistrationsItem, myFeesItem].filter(
-        (item): item is MenuItem => item !== undefined,
-      );
-    }
-
-    if (role === "manager") {
-      return [myClub, mc("Players")!, mc("Teams")!, myRegistrationsItem, myFeesItem].filter(
-        (item): item is MenuItem => item !== undefined,
-      );
-    }
-
-    if (role === "team-selector") {
-      return [myClub, mc("Players")!, nominationsItem, myRegistrationsItem, myFeesItem].filter(
-        (item): item is MenuItem => item !== undefined,
-      );
-    }
-
-    if (role === "volunteer") {
-      return [myClub, myRegistrationsItem, myFeesItem];
-    }
-
-    if (role === "umpire") {
-      return [
-        {
-          label: "Dashboard",
-          href: "/admin/representative",
-          icon: "📊",
-          description: "Overview and quick stats",
-        },
-        myRegistrationsItem,
-        myFeesItem,
-      ];
-    }
-  }
-
-  // ── Umpire without clubRef ──────────────────────────────────────────────────
-  if (role === "umpire") {
-    return [
-      {
-        label: "Dashboard",
-        href: "/admin/representative",
-        icon: "📊",
-        description: "Overview and quick stats",
-      },
-      myRegistrationsItem,
-      myFeesItem,
-    ];
-  }
-
-  // ── Association-scoped roles ────────────────────────────────────────────────
-  const assocScopedRoles = [
-    "association-admin",
-    "assoc-committee",
-    "assoc-coach",
-    "assoc-selector",
-    "assoc-registrar",
-  ];
-
-  if (assocScopedRoles.includes(role) && user.associationId) {
-    const assocId = user.associationId;
+    items = [myClub, ...items];
+  } else if (SIDEBAR_ASSOC_ROLES.includes(role) && assocId) {
     const myAssoc: MenuItem = {
       label: "My Association",
       href: `/admin/associations/${assocId}`,
       icon: "🏛️",
-      description: "Association Management",
+      description: "Association management",
     };
-
-    const feesItem = getFeesItem(role, clubRef, assocId);
-
-    if (role === "association-admin") {
-      return [
-        myAssoc,
-        mc("Representative")!,
-        mc("Players")!,
-        mc("Clubs")!,
-        mc("Members")!,
-        mc("Role Approvals")!,
-        mc("Teams")!,
-        mc("Tournaments")!,
-        feesItem,
-        teamTournamentsItem,
-        roleExpiryItem,
-        mc("Reports")!,
-        mc("Settings")!,
-        myRegistrationsItem,
-        myFeesItem,
-      ].filter((item): item is MenuItem => item !== undefined);
-    }
-
-    if (role === "assoc-committee") {
-      return [myAssoc, mc("Representative")!, mc("Players")!, mc("Reports")!, myRegistrationsItem, myFeesItem].filter(
-        (item): item is MenuItem => item !== undefined,
-      );
-    }
-
-    if (role === "assoc-coach") {
-      return [myAssoc, mc("Representative")!, mc("Players")!, mc("Teams")!, myRegistrationsItem, myFeesItem].filter(
-        (item): item is MenuItem => item !== undefined,
-      );
-    }
-
-    if (role === "assoc-selector") {
-      return [myAssoc, mc("Representative")!, mc("Players")!, myRegistrationsItem, myFeesItem].filter(
-        (item): item is MenuItem => item !== undefined,
-      );
-    }
-
-    if (role === "assoc-registrar") {
-      return [myAssoc, mc("Members")!, mc("Role Approvals")!, mc("Players")!, feesItem, teamTournamentsItem, roleExpiryItem, myRegistrationsItem, myFeesItem].filter(
-        (item): item is MenuItem => item !== undefined,
-      );
-    }
+    items = [myAssoc, ...items];
   }
 
-  // ── Fallback: filter menuConfig by ROLE_MENU_FILTER ────────────────────────
-  const allowed = ROLE_MENU_FILTER[role];
-  if (!allowed || allowed.length === 0) return menuConfig;
-  return menuConfig.filter((item) => allowed.includes(item.label));
+  return items;
 }
+
+// ── Component ─────────────────────────────────────────────────────────────────
 
 export default function AdminSidebar() {
   const pathname = usePathname();
-  const router = useRouter();
   const { user, logout } = useAuth();
 
-  const [expandedMenus, setExpandedMenus] = useState<string[]>(["Representative"]);
+  const [expandedMenus, setExpandedMenus]       = useState<string[]>(["Representative"]);
   const [expandedSubMenus, setExpandedSubMenus] = useState<string[]>([]);
-  const [mobileOpen, setMobileOpen] = useState(false);
-  const [branding, setBranding] = useState<SidebarBranding | null>(null);
+  const [mobileOpen, setMobileOpen]             = useState(false);
+  const [branding, setBranding]                 = useState<SidebarBranding | null>(null);
 
+  // Fetch branding for the user's club or association
   useEffect(() => {
     if (!user) return;
 
@@ -330,11 +168,11 @@ export default function AdminSidebar() {
           const club = data.club;
           if (club) {
             setBranding({
-              primaryColor: club.colors?.primaryColor || "#06054e",
+              primaryColor:   club.colors?.primaryColor  || "#06054e",
               secondaryColor: club.colors?.secondaryColor || "#1a1870",
-              name: club.name,
-              shortName: club.shortName,
-              logo: club.logo,
+              name:           club.name,
+              shortName:      club.shortName,
+              logo:           club.logo,
             });
           }
         })
@@ -346,11 +184,11 @@ export default function AdminSidebar() {
           const assoc = data.association || data;
           if (assoc?.name || assoc?.fullName) {
             setBranding({
-              primaryColor: assoc.branding?.primaryColor || "#06054e",
+              primaryColor:   assoc.branding?.primaryColor  || "#06054e",
               secondaryColor: assoc.branding?.secondaryColor || "#1a1870",
-              name: assoc.name || assoc.fullName,
-              shortName: assoc.code || assoc.acronym,
-              logo: assoc.branding?.logo,
+              name:           assoc.name || assoc.fullName,
+              shortName:      assoc.code || assoc.acronym,
+              logo:           assoc.branding?.logo,
             });
           }
         })
@@ -358,31 +196,29 @@ export default function AdminSidebar() {
     }
   }, [user?.clubId, user?.clubSlug, user?.associationId, user?.role]);
 
-  const toggleMenu = (label: string) => {
+  const toggleMenu    = (label: string) =>
     setExpandedMenus((prev) =>
       prev.includes(label) ? prev.filter((i) => i !== label) : [...prev, label]
     );
-  };
 
-  const toggleSubMenu = (label: string) => {
+  const toggleSubMenu = (label: string) =>
     setExpandedSubMenus((prev) =>
       prev.includes(label) ? prev.filter((i) => i !== label) : [...prev, label]
     );
-  };
 
   const handleLogout = async () => {
     await logout();
     toast.success("Logged out");
   };
 
-  const visibleMenu = buildMenuForUser(user);
-  const displayName = user
+  const visibleMenu  = buildMenuForUser(user);
+  const displayName  = user
     ? `${user.firstName || ""} ${user.lastName || ""}`.trim() || user.username
     : "Admin User";
-  const displayRole = user?.role
+  const displayRole  = user?.role
     ? user.role.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
     : "Admin";
-  const initials = user
+  const initials     = user
     ? `${user.firstName?.[0] || ""}${user.lastName?.[0] || ""}`.toUpperCase() || "AU"
     : "AU";
 
@@ -418,7 +254,7 @@ export default function AdminSidebar() {
         `}
         style={{ backgroundColor: branding?.primaryColor ?? "#06054e" }}
       >
-        {/* Sidebar entity header — logo + name */}
+        {/* Entity header — logo + name */}
         <div
           className="p-4 border-b border-white/10 flex items-center justify-between gap-3"
           style={{ backgroundColor: branding ? `${branding.primaryColor}cc` : "transparent" }}
@@ -474,7 +310,7 @@ export default function AdminSidebar() {
               className="w-9 h-9 rounded-full flex items-center justify-center font-black text-sm flex-shrink-0"
               style={{
                 backgroundColor: branding?.secondaryColor ?? "#FFD700",
-                color: branding?.primaryColor ?? "#06054e",
+                color:           branding?.primaryColor   ?? "#06054e",
               }}
             >
               {initials}
