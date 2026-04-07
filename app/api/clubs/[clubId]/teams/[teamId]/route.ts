@@ -5,6 +5,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
+import { requireResourceAccess } from "@/lib/auth/middleware";
 import {
   TeamSchema,
   UpdateTeamRequestSchema,
@@ -141,6 +142,10 @@ export async function PUT(
       return NextResponse.json({ error: "Club not found" }, { status: 404 });
     }
 
+    // AuthZ: user must have access to this club to update teams
+    const { response } = await requireResourceAccess(request, "club", club.id);
+    if (response) return response;
+
     // Check if team exists
     const existingTeam = await db.collection("teams").findOne({
       teamId,
@@ -155,6 +160,36 @@ export async function PUT(
     const updateData: Record<string, unknown> = {
       updatedAt: new Date(),
     };
+
+    // Validate canonical competition context if provided
+    if (validatedData.seasonCompetitionId !== undefined) {
+      if (validatedData.seasonCompetitionId) {
+        const seasonToValidate =
+          (validatedData.season ?? existingTeam.season) as string;
+        const seasonComp = await db.collection("season_competitions").findOne({
+          seasonCompetitionId: validatedData.seasonCompetitionId,
+        });
+        if (!seasonComp) {
+          return NextResponse.json(
+            { error: "seasonCompetitionId not found" },
+            { status: 400 },
+          );
+        }
+        if (seasonComp.season !== seasonToValidate) {
+          return NextResponse.json(
+            {
+              error:
+                "seasonCompetitionId does not match the provided season for this team",
+            },
+            { status: 400 },
+          );
+        }
+        updateData.seasonCompetitionId = validatedData.seasonCompetitionId;
+      } else {
+        // Explicit clear
+        updateData.seasonCompetitionId = undefined;
+      }
+    }
 
     // Only include fields that were provided
     if (validatedData.name !== undefined) updateData.name = validatedData.name;
@@ -245,6 +280,10 @@ export async function DELETE(
     if (!club) {
       return NextResponse.json({ error: "Club not found" }, { status: 404 });
     }
+
+    // AuthZ: user must have access to this club to delete teams
+    const { response } = await requireResourceAccess(request, "club", club.id);
+    if (response) return response;
 
     // Check if team exists
     const team = await db.collection("teams").findOne({

@@ -5,6 +5,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import type { Db } from 'mongodb';
 import clientPromise from "@/lib/mongodb";
+import { requirePermission } from "@/lib/auth/middleware";
 import {
   friday8WeeksBefore,
   defaultNominationStart,
@@ -13,6 +14,8 @@ import {
 
 // ─── GET /api/admin/tournaments ───────────────────────────────────────────────
 export async function GET(request: NextRequest) {
+  const { response } = await requirePermission(request, "selection.manage");
+  if (response) return response;
   try {
     const { searchParams } = new URL(request.url);
     const season = searchParams.get("season");
@@ -45,6 +48,8 @@ export async function GET(request: NextRequest) {
 
 // ─── POST /api/admin/tournaments ──────────────────────────────────────────────
 export async function POST(request: NextRequest) {
+  const { response } = await requirePermission(request, "selection.manage");
+  if (response) return response;
   try {
     const body: CreateTournamentRequest = await request.json();
     const { season, ageGroup, title, startDate, endDate, location, additionalInfo } = body;

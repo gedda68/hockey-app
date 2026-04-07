@@ -16,25 +16,17 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
-import { getSession } from "@/lib/auth/session";
+import { requirePermission, requireResourceAccess } from "@/lib/auth/middleware";
 import { sendEmail } from "@/lib/email/client";
 import { buildSquadSelectionEmail } from "@/lib/email/templates/squadSelection";
 import type { NominationWindow, WindowStatus, Nomination } from "@/types/nominations";
-
-const ALLOWED_ROLES = [
-  "super-admin",
-  "association-admin", "assoc-registrar", "assoc-selector",
-  "club-admin", "registrar",
-];
 
 type Params = { params: Promise<{ windowId: string }> };
 
 // ── GET ───────────────────────────────────────────────────────────────────────
 export async function GET(_req: NextRequest, { params }: Params) {
-  const session = await getSession();
-  if (!session || !ALLOWED_ROLES.includes(session.role)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const { response } = await requirePermission(_req, "selection.manage");
+  if (response) return response;
 
   const { windowId } = await params;
   const client = await clientPromise;
@@ -43,15 +35,16 @@ export async function GET(_req: NextRequest, { params }: Params) {
   const win = await db.collection("nomination_windows").findOne({ windowId }) as NominationWindow | null;
   if (!win) return NextResponse.json({ error: "Window not found" }, { status: 404 });
 
+  const scopeCheck = await requireResourceAccess(_req, win.scopeType, win.scopeId);
+  if (scopeCheck.response) return scopeCheck.response;
+
   return NextResponse.json({ window: { ...win, _id: (win as any)._id?.toString() } });
 }
 
 // ── PATCH ─────────────────────────────────────────────────────────────────────
 export async function PATCH(req: NextRequest, { params }: Params) {
-  const session = await getSession();
-  if (!session || !ALLOWED_ROLES.includes(session.role)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const { user, response } = await requirePermission(req, "selection.manage");
+  if (response) return response;
 
   const { windowId } = await params;
   const body = await req.json() as Partial<NominationWindow> & { status?: WindowStatus };
@@ -61,6 +54,9 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 
   const win = await db.collection("nomination_windows").findOne({ windowId }) as NominationWindow | null;
   if (!win) return NextResponse.json({ error: "Window not found" }, { status: 404 });
+
+  const scopeCheck = await requireResourceAccess(req, win.scopeType, win.scopeId);
+  if (scopeCheck.response) return scopeCheck.response;
 
   // Status transition validation
   const VALID_TRANSITIONS: Record<WindowStatus, WindowStatus[]> = {
@@ -115,13 +111,13 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     // Capture timestamps for rep-team lifecycle transitions
     if (body.status === "finalised") {
       updatable.finalisedAt = now;
-      updatable.finalisedBy = session.userId;
+      updatable.finalisedBy = user.userId;
     } else if (body.status === "ratified") {
       updatable.ratifiedAt = now;
-      updatable.ratifiedBy = session.userId;
+      updatable.ratifiedBy = user.userId;
     } else if (body.status === "published") {
       updatable.publishedAt = now;
-      updatable.publishedBy = session.userId;
+      updatable.publishedBy = user.userId;
     }
   }
 
@@ -168,10 +164,8 @@ export async function PATCH(req: NextRequest, { params }: Params) {
 
 // ── DELETE ────────────────────────────────────────────────────────────────────
 export async function DELETE(_req: NextRequest, { params }: Params) {
-  const session = await getSession();
-  if (!session || !ALLOWED_ROLES.includes(session.role)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const { response } = await requirePermission(_req, "selection.manage");
+  if (response) return response;
 
   const { windowId } = await params;
   const client = await clientPromise;
@@ -179,6 +173,9 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
 
   const win = await db.collection("nomination_windows").findOne({ windowId }) as NominationWindow | null;
   if (!win) return NextResponse.json({ error: "Window not found" }, { status: 404 });
+
+  const scopeCheck = await requireResourceAccess(_req, win.scopeType, win.scopeId);
+  if (scopeCheck.response) return scopeCheck.response;
 
   if (win.status !== "draft") {
     return NextResponse.json(

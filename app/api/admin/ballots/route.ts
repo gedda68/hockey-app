@@ -13,14 +13,8 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
-import { getSession } from "@/lib/auth/session";
+import { requirePermission, requireResourceAccess } from "@/lib/auth/middleware";
 import type { NominationWindow, Ballot } from "@/types/nominations";
-
-const ADMIN_ROLES = [
-  "super-admin",
-  "association-admin", "assoc-registrar", "assoc-selector",
-  "club-admin", "registrar",
-];
 
 // ── Helper: build voter id list ────────────────────────────────────────────────
 
@@ -73,16 +67,20 @@ async function buildEligibleVoterIds(
 // ── GET ─────────────────────────────────���───────────────────────────────��─────
 
 export async function GET(req: NextRequest) {
-  const session = await getSession();
-  if (!session || !ADMIN_ROLES.includes(session.role)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const { response } = await requirePermission(req, "selection.manage");
+  if (response) return response;
 
   const windowId = req.nextUrl.searchParams.get("windowId");
   if (!windowId) return NextResponse.json({ error: "windowId required" }, { status: 400 });
 
   const client = await clientPromise;
   const db = client.db("hockey-app");
+
+  // Scope check: ballot visibility is bound to its nomination window's scope
+  const win = await db.collection("nomination_windows").findOne({ windowId }) as NominationWindow | null;
+  if (!win) return NextResponse.json({ error: "Window not found" }, { status: 404 });
+  const scopeCheck = await requireResourceAccess(req, win.scopeType, win.scopeId);
+  if (scopeCheck.response) return scopeCheck.response;
 
   const ballots = await db
     .collection("ballots")
@@ -98,10 +96,8 @@ export async function GET(req: NextRequest) {
 // ── POST ────────────────────────────���──────────────────────────────────���──────
 
 export async function POST(req: NextRequest) {
-  const session = await getSession();
-  if (!session || !ADMIN_ROLES.includes(session.role)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const { user, response } = await requirePermission(req, "selection.manage");
+  if (response) return response;
 
   const body = await req.json() as {
     windowId: string;
@@ -120,6 +116,10 @@ export async function POST(req: NextRequest) {
   // Resolve window
   const win = await db.collection("nomination_windows").findOne({ windowId }) as NominationWindow | null;
   if (!win) return NextResponse.json({ error: "Window not found" }, { status: 404 });
+
+  // Scope check: must be allowed to manage selection for this scope
+  const scopeCheck = await requireResourceAccess(req, win.scopeType, win.scopeId);
+  if (scopeCheck.response) return scopeCheck.response;
 
   if (win.workflow !== "ballot") {
     return NextResponse.json({ error: "Only ballot-workflow windows can have a ballot" }, { status: 409 });
@@ -207,6 +207,12 @@ export async function POST(req: NextRequest) {
         updatedAt: now,
       },
     }
+  );
+
+  // Minimal audit info (who started the ballot)
+  await db.collection("ballots").updateOne(
+    { ballotId: ballot.ballotId },
+    { $set: { createdBy: user.userId ?? user.email } },
   );
 
   return NextResponse.json({ ballot }, { status: 201 });

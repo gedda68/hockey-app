@@ -8,10 +8,10 @@ Multi-level association → club → team operations, independent portals, compe
 
 ## Epic A — Hierarchy & domain model
 
-- [ ] **A1** Document canonical graph: Association (tree) → Club (single parent) → Team/Roster (club + season + competition context).
-- [ ] **A2** Enforce no orphan teams; define migration rules for club/association changes.
-- [ ] **A3** Persist association `level`, `parentAssociationId`, and geography/jurisdiction fields (e.g. region/city codes).
-- [ ] **A4** Model `materializedPath` or equivalent for fast subtree queries (optional but recommended at scale).
+- [X] **A1** Document canonical graph: Association (tree) → Club (single parent) → Team/Roster (club + season + competition context). See `docs/domain/CANONICAL_GRAPH.md`.
+- [X] **A2** Enforce no orphan teams; define migration rules for club/association changes. See `docs/domain/OWNERSHIP_MIGRATIONS.md`. Enforced: prevent hard-delete of referenced clubs; allow `mode=archive`.
+- [X] **A3** Persist association `level`, `parentAssociationId`, and geography/jurisdiction fields (e.g. region/city codes).
+- [X] **A4** Model `materializedPath` or equivalent for fast subtree queries (optional but recommended at scale). Implemented via `associations.hierarchy[]` path + `parentAssociationId`.
 - [ ] **A5** Rules for multi-club members, transfers, and which association’s fees/registrations apply.
 - [ ] **A6** Stable team identity across seasons; promotion/relegation history.
 - [ ] **A7** First-class dimensions: age group, gender, division/grade on team and competition entries.
@@ -22,7 +22,7 @@ Multi-level association → club → team operations, independent portals, compe
 
 - [ ] **B1** Clear URL/layout split: association admin/public vs club admin/member (including branding).
 - [ ] **B2** Role matrix: registrar, treasurer, competition manager, umpire coordinator, coach coordinator, media, committee read-only — mapped to API + UI.
-- [ ] **B3** Central policy layer: every mutating API validates `(user, associationId|clubId|resource)`; no trust of IDs from body alone.
+- [ ] **B3** Central policy layer: every mutating API validates `(user, associationId|clubId|resource)`; no trust of IDs from body alone. Progress: applied to team mutations and selection workflow routes (tournaments, nomination windows, ballots).
 - [ ] **B4** Extend middleware/route rules to all domains (not only admin shell): competitions, tournaments, results, fees.
 - [ ] **B5** Delegation / sub-permissions (e.g. fixtures without finance).
 - [ ] **B6** Audit log coverage for competitions, tournaments, results, ladder changes, fee rule changes (beyond member-only).
@@ -31,8 +31,9 @@ Multi-level association → club → team operations, independent portals, compe
 
 ## Epic C — Seasons & competitions (city/region league layer)
 
-- [ ] **C1** `Competition` / `SeasonCompetition` entity: owning association, geographic scope (city/region), season year, sport, format.
-- [ ] **C2** Explicit product rule: “primary season league” competition scope is **city/region association** (document in UI + API errors if violated).
+- [X] **C1** `Competition` / `SeasonCompetition` entity: owning association, geographic scope (city/region), season year, sport, format. Implemented: `lib/db/schemas/competition.schema.ts` + `/api/admin/competitions`.
+- [X] **C2** Explicit product rule: “primary season league” competition scope is **city/region association** (document in UI + API errors if violated). Enforced in `/api/admin/competitions` ownership checks.
+- [X] **C2a** Team competition context anchor: teams support `seasonCompetitionId` (validated against `season_competitions`) while retaining legacy `competition` string for back-compat.
 - [ ] **C3** Single source for divisions/grades and eligibility for a competition.
 - [ ] **C4** Lifecycle: draft → published → in progress → completed → archived; optional lock after deadline.
 - [ ] **C5** APIs and UI to create/edit/publish competitions scoped to the correct association level.

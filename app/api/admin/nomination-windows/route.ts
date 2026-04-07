@@ -5,22 +5,14 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
-import { getSession } from "@/lib/auth/session";
+import { requirePermission, requireResourceAccess } from "@/lib/auth/middleware";
 import type { CreateWindowRequest, NominationWindow } from "@/types/nominations";
 import { birthYearRangeForGroup } from "@/types/nominations";
 
-const ALLOWED_ROLES = [
-  "super-admin",
-  "association-admin", "assoc-registrar", "assoc-selector",
-  "club-admin", "registrar",
-];
-
 // ── GET ───────────────────────────────────────────────────────────────────────
 export async function GET(req: NextRequest) {
-  const session = await getSession();
-  if (!session || !ALLOWED_ROLES.includes(session.role)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const { user, response } = await requirePermission(req, "selection.manage");
+  if (response) return response;
 
   const { searchParams } = req.nextUrl;
   const seasonYear = searchParams.get("seasonYear") ?? undefined;
@@ -34,14 +26,11 @@ export async function GET(req: NextRequest) {
   const query: Record<string, unknown> = {};
 
   // Scope enforcement
-  if (session.role !== "super-admin") {
-    if (["association-admin", "assoc-registrar", "assoc-selector"].includes(session.role) && session.associationId) {
-      query.scopeId = session.associationId;
-    } else if (["club-admin", "registrar"].includes(session.role) && session.clubId) {
-      query.scopeId = session.clubId;
-    }
-  } else {
-    if (scopeId) query.scopeId = scopeId;
+  if (user.role !== "super-admin") {
+    const ownScope = user.clubId ?? user.associationId;
+    if (ownScope) query.scopeId = ownScope;
+  } else if (scopeId) {
+    query.scopeId = scopeId;
   }
 
   if (seasonYear) query.seasonYear = seasonYear;
@@ -62,10 +51,8 @@ export async function GET(req: NextRequest) {
 
 // ── POST ──────────────────────────────────────────────────────────────────────
 export async function POST(req: NextRequest) {
-  const session = await getSession();
-  if (!session || !ALLOWED_ROLES.includes(session.role)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const { user, response } = await requirePermission(req, "selection.manage");
+  if (response) return response;
 
   const body = await req.json() as CreateWindowRequest;
 
@@ -94,12 +81,18 @@ export async function POST(req: NextRequest) {
   }
 
   // Scope check: non-super-admin can only create windows for their own scope
-  if (session.role !== "super-admin") {
-    const ownScope = session.clubId || session.associationId;
+  if (user.role !== "super-admin") {
+    const ownScope = user.clubId ?? user.associationId;
     if (ownScope && scopeId !== ownScope) {
-      return NextResponse.json({ error: "Forbidden — can only create windows for your own scope" }, { status: 403 });
+      return NextResponse.json(
+        { error: "Forbidden — can only create windows for your own scope" },
+        { status: 403 }
+      );
     }
   }
+
+  const scopeCheck = await requireResourceAccess(req, scopeType, scopeId);
+  if (scopeCheck.response) return scopeCheck.response;
 
   const client = await clientPromise;
   const db = client.db("hockey-app");
@@ -142,7 +135,7 @@ export async function POST(req: NextRequest) {
     requiresStatement,
     electorateType,
     status: "draft",
-    createdBy: session.userId,
+    createdBy: user.userId,
     createdAt: now,
     updatedAt: now,
   };

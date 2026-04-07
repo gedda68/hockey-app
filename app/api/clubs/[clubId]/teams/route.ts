@@ -4,6 +4,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
+import { requireResourceAccess } from "@/lib/auth/middleware";
 import {
   TeamSchema,
   CreateTeamRequestSchema,
@@ -116,6 +117,10 @@ export async function POST(
       return NextResponse.json({ error: "Club not found" }, { status: 404 });
     }
 
+    // AuthZ: user must have access to this club to create teams
+    const { response } = await requireResourceAccess(request, "club", club.id);
+    if (response) return response;
+
     // Generate team ID
     const teamId = generateTeamId(
       club.slug || club.id,
@@ -135,6 +140,28 @@ export async function POST(
     // Generate display name
     const displayName = generateDisplayName(club.name, validatedData.name);
 
+    // Validate canonical competition context if provided
+    if (validatedData.seasonCompetitionId) {
+      const seasonComp = await db.collection("season_competitions").findOne({
+        seasonCompetitionId: validatedData.seasonCompetitionId,
+      });
+      if (!seasonComp) {
+        return NextResponse.json(
+          { error: "seasonCompetitionId not found" },
+          { status: 400 },
+        );
+      }
+      if (seasonComp.season !== validatedData.season) {
+        return NextResponse.json(
+          {
+            error:
+              "seasonCompetitionId does not match the provided season for this team",
+          },
+          { status: 400 },
+        );
+      }
+    }
+
     // Create team document
     const newTeam: Team = {
       teamId,
@@ -149,6 +176,7 @@ export async function POST(
         viceCaptains: [],
       },
       season: validatedData.season,
+      seasonCompetitionId: validatedData.seasonCompetitionId,
       competition: validatedData.competition,
       grade: validatedData.grade,
       homeGround: validatedData.homeGround,

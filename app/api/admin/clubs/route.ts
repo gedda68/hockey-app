@@ -374,6 +374,7 @@ export async function DELETE(request: NextRequest) {
     const id = searchParams.get("id");
     const userId = searchParams.get("userId");
     const userName = searchParams.get("userName");
+    const mode = searchParams.get("mode"); // "archive" | undefined
 
     if (!id) {
       return NextResponse.json({ error: "ID required" }, { status: 400 });
@@ -386,6 +387,63 @@ export async function DELETE(request: NextRequest) {
 
     if (!club) {
       return NextResponse.json({ error: "Club not found" }, { status: 404 });
+    }
+
+    // Prevent orphaned teams/members/registrations/payments.
+    // Clubs with history must be archived/disabled rather than hard-deleted.
+    const [teamCount, memberCount, clubRegCount, paymentCount] =
+      await Promise.all([
+        db.collection("teams").countDocuments({ clubId: id }, { limit: 1 }),
+        db.collection("members").countDocuments({ clubId: id }, { limit: 1 }),
+        db
+          .collection("club-registrations")
+          .countDocuments({ clubId: id }, { limit: 1 }),
+        db.collection("payments").countDocuments({ clubId: id }, { limit: 1 }),
+      ]);
+
+    if (teamCount || memberCount || clubRegCount || paymentCount) {
+      // If club is referenced, only archival is allowed.
+      if (mode === "archive") {
+        const archivedAt = new Date().toISOString();
+        await db.collection("clubs").updateOne(
+          { id },
+          {
+            $set: {
+              active: false,
+              archivedAt,
+              updatedAt: archivedAt,
+            },
+          },
+        );
+
+        await logClubChange(
+          db,
+          id,
+          club.name,
+          "updated",
+          club,
+          { ...club, active: false, archivedAt, updatedAt: archivedAt },
+          "Club archived (disabled)",
+          userId || "system",
+          userName || "Admin",
+        );
+
+        return NextResponse.json({ message: "Club archived successfully" });
+      }
+
+      return NextResponse.json(
+        {
+          error: "Club cannot be deleted because it is referenced",
+          details: {
+            teams: teamCount,
+            members: memberCount,
+            clubRegistrations: clubRegCount,
+            payments: paymentCount,
+          },
+          hint: 'Use `mode=archive` to disable instead of deleting.',
+        },
+        { status: 409 }
+      );
     }
 
     await db.collection("clubs").deleteOne({ id });

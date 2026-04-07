@@ -110,7 +110,12 @@ export const TeamSchema = z.object({
 
   // Competition Info
   season: z.string().min(1, "Season is required"),
-  competition: z.string().optional(),
+  /**
+   * Canonical competition context anchor (Epic C).
+   * Prefer this over the legacy free-text `competition` field.
+   */
+  seasonCompetitionId: z.string().optional(),
+  competition: z.string().optional(), // legacy/free-text (back-compat)
   grade: z.string().optional(),
 
   // Venue
@@ -181,7 +186,8 @@ export const CreateTeamRequestSchema = z.object({
   ageCategory: AgeCategorySchema,
   division: DivisionConfigSchema,
   season: z.string().min(1, "Season is required"),
-  competition: z.string().optional(),
+  seasonCompetitionId: z.string().optional(),
+  competition: z.string().optional(), // legacy/free-text (back-compat)
   grade: z.string().optional(),
   homeGround: z.string().optional(),
 });
@@ -191,7 +197,8 @@ export const UpdateTeamRequestSchema = z.object({
   gender: z.enum(["male", "female", "mixed"]).optional(),
   division: DivisionConfigSchema.optional(),
   season: z.string().min(1).optional(),
-  competition: z.string().optional(),
+  seasonCompetitionId: z.string().optional(),
+  competition: z.string().optional(), // legacy/free-text (back-compat)
   grade: z.string().optional(),
   homeGround: z.string().optional(),
   trainingVenue: z.string().optional(),

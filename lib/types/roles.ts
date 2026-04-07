@@ -158,6 +158,9 @@ export type Permission =
   | "association.view" | "association.create" | "association.edit"
   | "association.delete" | "association.settings" | "association.fees"
 
+  // Competitions (league layer)
+  | "competitions.manage"
+
   // Club
   | "club.view" | "club.create" | "club.edit" | "club.delete"
   | "club.settings" | "club.fees" | "club.members"
@@ -233,6 +236,7 @@ export const ROLE_DEFINITIONS: Record<UserRole, RoleDefinition> = {
       "system.manage", "system.settings", "system.users",
       "association.view", "association.create", "association.edit",
       "association.delete", "association.settings", "association.fees",
+      "competitions.manage",
       "club.view", "club.create", "club.edit", "club.delete",
       "club.settings", "club.fees", "club.members",
       "member.view", "member.create", "member.edit", "member.delete",
@@ -261,6 +265,7 @@ export const ROLE_DEFINITIONS: Record<UserRole, RoleDefinition> = {
     permissions: [
       "association.view", "association.edit", "association.settings",
       "association.fees",
+      "competitions.manage",
       "club.view", "club.create", "club.edit", "club.settings",
       "club.fees", "club.members",
       "member.view", "member.create", "member.edit",

@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ObjectId } from "mongodb";
 import clientPromise from "@/lib/mongodb";
+import { requirePermission } from "@/lib/auth/middleware";
 import { upsertNominationPeriod } from "../route";
 import type { CreateTournamentRequest } from "@/types/tournaments";
 
@@ -20,6 +21,8 @@ export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const { response } = await requirePermission(_request, "selection.manage");
+  if (response) return response;
   try {
     const { id } = await params;
     const client = await clientPromise;
@@ -42,6 +45,8 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const { response } = await requirePermission(request, "selection.manage");
+  if (response) return response;
   try {
     const { id } = await params;
     const body: Partial<CreateTournamentRequest> = await request.json();
@@ -102,6 +107,8 @@ export async function DELETE(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const { response } = await requirePermission(_request, "selection.manage");
+  if (response) return response;
   try {
     const { id } = await params;
     const client = await clientPromise;

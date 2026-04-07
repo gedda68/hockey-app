@@ -166,6 +166,65 @@ async function main() {
     await idx(payments, { clubId: 1, seasonYear: 1 }, {},
       "compound index on clubId + seasonYear");
 
+    // ── teams ─────────────────────────────────────────────────────────────
+    const teams = db.collection("teams");
+    console.log("\nteams:");
+
+    await idx(teams, { teamId: 1 }, { unique: true },
+      "unique index on teamId");
+
+    await idx(teams, { clubId: 1, ageCategory: 1, season: 1 }, {},
+      "compound index on clubId + ageCategory + season");
+
+    await idx(teams, { clubId: 1, status: 1 }, {},
+      "compound index on clubId + status");
+
+    await idx(teams, { "roster.memberId": 1 }, {},
+      "index on roster.memberId");
+
+    await idx(teams, { season: 1, status: 1 }, {},
+      "compound index on season + status");
+
+    // ── members (teamRegistrations) ───────────────────────────────────────
+    console.log("\nmembers (teamRegistrations):");
+
+    await idx(members, { "teamRegistrations.teamId": 1 }, {},
+      "index on teamRegistrations.teamId");
+
+    await idx(
+      members,
+      {
+        "teamRegistrations.clubId": 1,
+        "teamRegistrations.ageCategory": 1,
+        "teamRegistrations.status": 1,
+      },
+      {},
+      "compound index on teamRegistrations.clubId + ageCategory + status"
+    );
+
+    // ── competitions ──────────────────────────────────────────────────────
+    const competitions = db.collection("competitions");
+    console.log("\ncompetitions:");
+
+    await idx(competitions, { competitionId: 1 }, { unique: true },
+      "unique index on competitionId");
+
+    await idx(competitions, { owningAssociationId: 1, status: 1 }, {},
+      "compound index on owningAssociationId + status");
+
+    // ── season_competitions ───────────────────────────────────────────────
+    const seasonCompetitions = db.collection("season_competitions");
+    console.log("\nseason_competitions:");
+
+    await idx(seasonCompetitions, { seasonCompetitionId: 1 }, { unique: true },
+      "unique index on seasonCompetitionId");
+
+    await idx(seasonCompetitions, { competitionId: 1, season: 1 }, { unique: true },
+      "unique index on competitionId + season");
+
+    await idx(seasonCompetitions, { owningAssociationId: 1, season: 1, status: 1 }, {},
+      "compound index on owningAssociationId + season + status");
+
     console.log("\n🎉  Index setup complete.\n");
   } catch (err) {
     console.error("❌  Fatal error:", err);
