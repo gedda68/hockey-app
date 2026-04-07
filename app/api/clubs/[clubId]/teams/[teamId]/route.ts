@@ -38,6 +38,10 @@ export async function GET(
       return NextResponse.json({ error: "Club not found" }, { status: 404 });
     }
 
+    // AuthZ: user must have access to this club to read team data
+    const { response } = await requireResourceAccess(request, "club", club.id);
+    if (response) return response;
+
     // Fetch team
     const team = await db.collection("teams").findOne({
       teamId,

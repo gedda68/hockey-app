@@ -21,6 +21,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import { getSession } from "@/lib/auth/session";
+import { requirePermission } from "@/lib/auth/middleware";
 import { ROLE_DEFINITIONS } from "@/lib/types/roles";
 import type { RoleAssignment } from "@/lib/types/roles";
 
@@ -47,6 +48,9 @@ export interface RoleExpirySummary {
 }
 
 export async function GET(req: NextRequest) {
+  const { response } = await requirePermission(req, "registration.manage");
+  if (response) return response;
+
   const session = await getSession();
   if (!session || !ADMIN_ROLES.includes(session.role)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

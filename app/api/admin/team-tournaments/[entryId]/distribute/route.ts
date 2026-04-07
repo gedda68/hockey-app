@@ -16,6 +16,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import { getSession } from "@/lib/auth/session";
+import { requirePermission } from "@/lib/auth/middleware";
 import type {
   TeamTournamentEntry,
   MemberTournamentFee,
@@ -47,6 +48,9 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ entryId: string }> }
 ) {
+  const { response } = await requirePermission(req, "registration.payments");
+  if (response) return response;
+
   const session = await getSession();
   if (!session || !ADMIN_ROLES.includes(session.role)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

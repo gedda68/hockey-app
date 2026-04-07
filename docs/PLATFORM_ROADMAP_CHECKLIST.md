@@ -23,6 +23,8 @@ Multi-level association → club → team operations, independent portals, compe
 - [ ] **B1** Clear URL/layout split: association admin/public vs club admin/member (including branding).
 - [ ] **B2** Role matrix: registrar, treasurer, competition manager, umpire coordinator, coach coordinator, media, committee read-only — mapped to API + UI.
 - [ ] **B3** Central policy layer: every mutating API validates `(user, associationId|clubId|resource)`; no trust of IDs from body alone. Progress: applied to team mutations and selection workflow routes (tournaments, nomination windows, ballots).
+- [X] **B3a** Apply RBAC to team-tournament fee distribution routes (registrar/finance roles only).
+- [X] **B3b** Apply RBAC to role request approval flows (list + view + approve/reject/payment record) via `registration.manage`.
 - [ ] **B4** Extend middleware/route rules to all domains (not only admin shell): competitions, tournaments, results, fees.
 - [ ] **B5** Delegation / sub-permissions (e.g. fixtures without finance).
 - [ ] **B6** Audit log coverage for competitions, tournaments, results, ladder changes, fee rule changes (beyond member-only).
@@ -34,9 +36,9 @@ Multi-level association → club → team operations, independent portals, compe
 - [X] **C1** `Competition` / `SeasonCompetition` entity: owning association, geographic scope (city/region), season year, sport, format. Implemented: `lib/db/schemas/competition.schema.ts` + `/api/admin/competitions`.
 - [X] **C2** Explicit product rule: “primary season league” competition scope is **city/region association** (document in UI + API errors if violated). Enforced in `/api/admin/competitions` ownership checks.
 - [X] **C2a** Team competition context anchor: teams support `seasonCompetitionId` (validated against `season_competitions`) while retaining legacy `competition` string for back-compat.
-- [ ] **C3** Single source for divisions/grades and eligibility for a competition.
-- [ ] **C4** Lifecycle: draft → published → in progress → completed → archived; optional lock after deadline.
-- [ ] **C5** APIs and UI to create/edit/publish competitions scoped to the correct association level.
+- [X] **C3** Single source for divisions/grades and eligibility for a competition. Implemented: `season_competitions.divisions[]` and update via `/api/admin/season-competitions/[seasonCompetitionId]`.
+- [X] **C4** Lifecycle: draft → published → in progress → completed → archived; optional lock after deadline. Implemented for season competitions via `/api/admin/season-competitions/[seasonCompetitionId]` status transitions.
+- [X] **C5** APIs and UI to create/edit/publish competitions scoped to the correct association level. Implemented API: `/api/admin/competitions` + `/api/admin/season-competitions/[seasonCompetitionId]`.
 
 ---
 

@@ -177,7 +177,7 @@ export async function POST(request: NextRequest) {
               error:
                 "Invalid owningAssociationId for season competition (must be your association)",
             },
-            { status: 400 },
+            { status: 403 },
           );
         }
       }

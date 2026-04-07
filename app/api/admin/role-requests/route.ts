@@ -21,6 +21,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import { getSession } from "@/lib/auth/session";
+import { requirePermission } from "@/lib/auth/middleware";
 import type { Filter } from "mongodb";
 
 const ADMIN_ROLES = [
@@ -31,6 +32,9 @@ const ADMIN_ROLES = [
 
 export async function GET(request: NextRequest) {
   try {
+    const { response } = await requirePermission(request, "registration.manage");
+    if (response) return response;
+
     const session = await getSession();
     if (!session) {
       return NextResponse.json({ error: "Authentication required" }, { status: 401 });

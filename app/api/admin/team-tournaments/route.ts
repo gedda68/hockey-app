@@ -9,6 +9,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
+import { requirePermission } from "@/lib/auth/middleware";
 import { getSession } from "@/lib/auth/session";
 import type {
   TeamTournamentEntry,
@@ -25,6 +26,9 @@ const ADMIN_ROLES = [
 ];
 
 export async function GET(req: NextRequest) {
+  const { response } = await requirePermission(req, "registration.payments");
+  if (response) return response;
+
   const session = await getSession();
   if (!session || !ADMIN_ROLES.includes(session.role)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -78,6 +82,9 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const { response } = await requirePermission(req, "registration.payments");
+  if (response) return response;
+
   const session = await getSession();
   if (!session || !ADMIN_ROLES.includes(session.role)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

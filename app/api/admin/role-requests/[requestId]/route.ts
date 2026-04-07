@@ -17,6 +17,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import { getSession } from "@/lib/auth/session";
+import { requirePermission } from "@/lib/auth/middleware";
 import { ROLE_DEFINITIONS } from "@/lib/types/roles";
 import type { RoleAssignment, ScopeType } from "@/lib/types/roles";
 import type {
@@ -124,6 +125,9 @@ export async function GET(
   { params }: { params: Promise<{ requestId: string }> }
 ) {
   try {
+    const { response } = await requirePermission(_request, "registration.manage");
+    if (response) return response;
+
     const session = await getSession();
     if (!session) return NextResponse.json({ error: "Authentication required" }, { status: 401 });
 
@@ -155,6 +159,9 @@ export async function PATCH(
   { params }: { params: Promise<{ requestId: string }> }
 ) {
   try {
+    const { response } = await requirePermission(request, "registration.manage");
+    if (response) return response;
+
     const session = await getSession();
     if (!session) return NextResponse.json({ error: "Authentication required" }, { status: 401 });
 

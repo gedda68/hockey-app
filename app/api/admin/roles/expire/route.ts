@@ -18,6 +18,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import { getSession } from "@/lib/auth/session";
+import { requireRole } from "@/lib/auth/middleware";
 import { ROLE_DEFINITIONS } from "@/lib/types/roles";
 import type { RoleAssignment } from "@/lib/types/roles";
 
@@ -32,9 +33,15 @@ interface DeactivatedRole {
 }
 
 export async function POST(req: NextRequest) {
+  const { response } = await requireRole(req, ALLOWED_ROLES);
+  if (response) return response;
+
   const session = await getSession();
-  if (!session || !ALLOWED_ROLES.includes(session.role)) {
-    return NextResponse.json({ error: "Unauthorized — super-admin or association-admin required" }, { status: 401 });
+  if (!session) {
+    return NextResponse.json(
+      { error: "Unauthorized — super-admin or association-admin required" },
+      { status: 401 }
+    );
   }
 
   let dryRun = false;
