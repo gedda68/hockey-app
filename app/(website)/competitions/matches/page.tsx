@@ -15,7 +15,7 @@ import {
   getCurrentSeason,
   getMatchStatsData,
   getUmpireAllocationsMap,
-  getUmpireList,
+  getUmpireDetailsList,
 } from "../../../../lib/data";
 
 import {
@@ -58,17 +58,17 @@ export default async function MatchesPage({
   ] = await Promise.all([
     getSeasons(),
     getCurrentSeason(),
-    getDivisions(selectedView),
-    getRounds(selectedView),
+    getDivisions(),
+    getRounds(),
     filterMatches({
-      type: selectedView,
+      view: selectedView,
       division: selectedDiv,
       round: selectedRound,
       status: selectedStatus,
     }),
     getMatchStatsData(),
     getUmpireAllocationsMap(),
-    getUmpireList(),
+    getUmpireDetailsList(),
     getStandingsYears(),
   ]);
 

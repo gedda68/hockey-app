@@ -74,7 +74,6 @@ export default function StandingsTableClient({
             {availableYears.map((year) => (
               <Button
                 key={year}
-                variant="outline"
                 size="sm"
                 onClick={() => handleYearChange(year)}
                 className={cn(

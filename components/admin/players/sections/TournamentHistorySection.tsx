@@ -3,7 +3,7 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactElement } from "react";
 import { BaseSectionProps, TournamentHistoryEntry, RepOfficialNomination } from "@/types/player.types";
 import { Trophy, Calendar, MapPin, Info, CheckCircle, Clock, XCircle, AlertCircle, UserCog } from "lucide-react";
 
@@ -28,7 +28,7 @@ function StatusBadge({
     withdrawn: "bg-slate-100 text-slate-600 border-slate-200",
     rejected: "bg-red-100 text-red-700 border-red-200",
   };
-  const icons: Record<string, JSX.Element> = {
+  const icons: Record<string, ReactElement> = {
     pending: <Clock size={10} />,
     accepted: <CheckCircle size={10} />,
     played: <Trophy size={10} />,

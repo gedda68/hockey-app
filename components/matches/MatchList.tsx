@@ -3,19 +3,21 @@
 import { useState } from "react";
 import MatchCard from "./MatchCard";
 import MatchModal from "./MatchModal";
-import type { Match, UmpireDetails } from "../../types";
+import type { Match, MatchStats, UmpireDetails } from "../../types";
 
 interface MatchListProps {
   matches: Match[];
-  stats: any;
+  /** Per-match stats for the detail modal; omit when not loaded */
+  stats?: Record<string, MatchStats | null | undefined>;
   isUpcoming?: boolean;
-  umpireAllocations?: any;
+  /** Match id → allocation doc (shape varies by data source) */
+  umpireAllocations?: Record<string, unknown>;
   umpireList?: UmpireDetails[];
 }
 
 export default function MatchList({
   matches,
-  stats,
+  stats = {},
   isUpcoming = false,
   umpireAllocations = {},
   umpireList = [],
@@ -29,15 +31,19 @@ export default function MatchList({
 
   // Helper function to get allocated umpires for a match
   const getMatchUmpires = (matchId: string) => {
-    const allocation = umpireAllocations[matchId];
+    const allocation = umpireAllocations[matchId] as
+      | { umpires?: { umpireId: string; umpireType?: string; role?: string }[] }
+      | undefined;
     if (!allocation?.umpires) return null;
 
     const primaryUmpires = allocation.umpires
-      .filter((u: any) => u.umpireType === "primary")
-      .map((u: any) => getUmpireDetails(u.umpireId))
-      .filter(Boolean);
+      .filter(
+        (u) => u.umpireType === "primary" || u.role === "primary",
+      )
+      .map((u) => getUmpireDetails(u.umpireId))
+      .filter((u): u is UmpireDetails => u != null);
 
-    return primaryUmpires;
+    return primaryUmpires.length > 0 ? primaryUmpires : null;
   };
 
   if (!matches || matches.length === 0) {
@@ -70,7 +76,7 @@ export default function MatchList({
       {selectedMatch && (
         <MatchModal
           match={selectedMatch}
-          matchStats={stats[selectedMatch.matchId]}
+          matchStats={stats[selectedMatch.matchId] ?? null}
           onClose={() => setSelectedMatch(null)}
           isUpcoming={isUpcoming}
           umpires={getMatchUmpires(selectedMatch.matchId)}

@@ -14,23 +14,26 @@ export async function GET(
     console.log("📊 Fetching status data for player:", playerId);
 
     const client = await clientPromise;
-    const db = client.db();
+    const db = client.db("hockey-app");
 
-    const player = await db
-      .collection("players")
-      .findOne({ playerId }, { projection: { status: 1, _id: 0 } });
+    const member = await db
+      .collection("members")
+      .findOne({ memberId: playerId }, { projection: { membership: 1, _id: 0 } });
 
-    if (!player) {
+    if (!member) {
       return NextResponse.json({ error: "Player not found" }, { status: 404 });
     }
 
-    // Return status or default values
-    const status = player.status || {
-      current: "pending",
-      registrationDate: "",
-      expiryDate: "",
+    const mem = member.membership ?? {};
+    const statusMap: Record<string, string> = {
+      active: "active", life: "active", inactive: "inactive", suspended: "suspended",
+    };
+    const status = {
+      current:             statusMap[(mem.status ?? "").toLowerCase()] ?? "pending",
+      registrationDate:    mem.joinDate ?? mem.currentPeriodStart ?? "",
+      expiryDate:          mem.currentPeriodEnd ?? "",
       renewalReminderDate: "",
-      seasons: [],
+      seasons:             [],
     };
 
     console.log("✅ Status data retrieved");
@@ -39,7 +42,10 @@ export async function GET(
   } catch (error: unknown) {
     console.error("❌ Error fetching status:", error);
     return NextResponse.json(
-      { error: "Failed to fetch status", details: error.message },
+      {
+        error: "Failed to fetch status",
+        details: error instanceof Error ? error.message : String(error),
+      },
       { status: 500 },
     );
   }
@@ -62,13 +68,21 @@ export async function PUT(
     };
 
     const client = await clientPromise;
-    const db = client.db();
+    const db = client.db("hockey-app");
 
-    const result = await db.collection("players").updateOne(
-      { playerId },
+    // Map flat status to membership.status (Title Case)
+    const memberStatusMap: Record<string, string> = {
+      active: "Active", inactive: "Inactive", suspended: "Suspended",
+    };
+    const membershipStatus = memberStatusMap[updatedStatus.current] ?? "Active";
+
+    const result = await db.collection("members").updateOne(
+      { memberId: playerId },
       {
         $set: {
-          status: updatedStatus,
+          "membership.status":             membershipStatus,
+          "membership.currentPeriodStart": updatedStatus.registrationDate ?? undefined,
+          "membership.currentPeriodEnd":   updatedStatus.expiryDate       ?? undefined,
           updatedAt: new Date().toISOString(),
         },
       },
@@ -88,7 +102,10 @@ export async function PUT(
   } catch (error: unknown) {
     console.error("❌ Error updating status:", error);
     return NextResponse.json(
-      { error: "Failed to update status", details: error.message },
+      {
+        error: "Failed to update status",
+        details: error instanceof Error ? error.message : String(error),
+      },
       { status: 500 },
     );
   }

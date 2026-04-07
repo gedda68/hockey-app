@@ -20,15 +20,8 @@ export default function ClubCard({ club, onEdit, onDelete }: ClubCardProps) {
     return html.replace(/<[^>]*>/g, "").substring(0, 150);
   };
 
-  {
-    clubs.map((club) => {
-      if (!club.colors || !club.colors.primary) {
-        console.warn(
-          `Club ID ${club.id} (${club.name}) is missing color data!`
-        );
-      }
-      return <ClubCard key={club.id} club={club} />;
-    });
+  if (!club.colors?.primary) {
+    console.warn(`Club ID ${club.id} (${club.name}) is missing color data!`);
   }
 
   return (

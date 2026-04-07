@@ -2,7 +2,7 @@
 // Generate complete registration summary for review
 
 import { NextRequest, NextResponse } from "next/server";
-import type { Db } from 'mongodb';
+import type { Db, Document, WithId } from "mongodb";
 import clientPromise from "@/lib/mongodb";
 import type { FeeLineItem } from "@/types/registration";
 
@@ -69,13 +69,13 @@ export async function POST(request: NextRequest) {
     const lineItems: FeeLineItem[] = feesData.lineItems || [];
 
     // Group fees by association level
-    const associationFees = associations.map(() => {
+    const associationFees = associations.map((assoc: Record<string, unknown>) => {
+      const assocId = assoc.associationId as string;
       const assocFees = lineItems.filter(
-        (f) =>
-          f.type === "association" && f.associationId === assoc.associationId
+        (f) => f.type === "association" && f.associationId === assocId,
       );
       return {
-        associationId: assoc.associationId,
+        associationId: assocId,
         name: assoc.name,
         code: assoc.code,
         level: assoc.level,
@@ -167,7 +167,7 @@ export async function POST(request: NextRequest) {
       },
 
       // Roles
-      roles: roles.map(() => ({
+      roles: roles.map((r: Record<string, unknown>) => ({
         roleId: r.id,
         name: r.name,
         category: r.category,
@@ -207,7 +207,7 @@ export async function POST(request: NextRequest) {
         : "No approval required - registration will be active immediately",
 
       // Association hierarchy display
-      hierarchy: associations.map(() => ({
+      hierarchy: associations.map((a: Record<string, unknown>) => ({
         associationId: a.associationId,
         name: a.name,
         code: a.code,
@@ -219,7 +219,7 @@ export async function POST(request: NextRequest) {
   } catch (error: unknown) {
     console.error("Error generating summary:", error);
     return NextResponse.json(
-      { error: "Failed to generate summary", details: error.message },
+      { error: "Failed to generate summary", details: error instanceof Error ? error.message : String(error) },
       { status: 500 }
     );
   }
@@ -229,14 +229,19 @@ export async function POST(request: NextRequest) {
 // HELPER: Get association hierarchy
 // ============================================================================
 
-async function getAssociationHierarchy(db: Db, associationId: string) {
-  const hierarchy: any[] = [];
+async function getAssociationHierarchy(
+  db: Db,
+  associationId: string,
+): Promise<WithId<Document>[]> {
+  const hierarchy: WithId<Document>[] = [];
   let currentId: string | undefined = associationId;
 
   while (currentId) {
-    const association = await db.collection("associations").findOne({
-      associationId: currentId,
-    });
+    const association: WithId<Document> | null = await db
+      .collection("associations")
+      .findOne({
+        associationId: currentId,
+      });
 
     if (!association) break;
 

@@ -9,6 +9,7 @@ import { generateSlug } from "@/lib/utils/slug";
 import { getPrimaryRole, numericLevelToString } from "@/lib/types/roles";
 import type { RoleAssignment, AssociationLevel } from "@/lib/types/roles";
 import bcrypt from "bcryptjs";
+import { escapeRegex } from "@/lib/utils/regex";
 
 /** Convert a DB roles[] array into the minimal ScopedRole[] for the JWT */
 function toScopedRoles(roles: RoleAssignment[]): ScopedRole[] {
@@ -29,6 +30,7 @@ export async function POST(request: NextRequest) {
     const { username, email, password } = body;
 
     const loginIdentifier = (username || email || "").trim();
+    const loginRegex = escapeRegex(loginIdentifier);
 
     if (!loginIdentifier || !password) {
       return NextResponse.json(
@@ -43,7 +45,7 @@ export async function POST(request: NextRequest) {
     // ── 1. Check users collection (admin / staff accounts) ──────────────────
     const user = await db.collection("users").findOne({
       $or: [
-        { username: { $regex: `^${loginIdentifier}$`, $options: "i" } },
+        { username: { $regex: `^${loginRegex}$`, $options: "i" } },
         { email: loginIdentifier.toLowerCase() },
       ],
     });
@@ -156,7 +158,7 @@ export async function POST(request: NextRequest) {
 
     // ── 2. Check members collection (portal / player accounts) ──────────────
     const member = await db.collection("members").findOne({
-      "auth.username": { $regex: `^${loginIdentifier}$`, $options: "i" },
+      "auth.username": { $regex: `^${loginRegex}$`, $options: "i" },
     });
 
     if (member && member.auth?.passwordHash) {

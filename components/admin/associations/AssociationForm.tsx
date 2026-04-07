@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, type ReactElement } from "react";
 import { useRouter } from "next/navigation";
 import {
   Building2,
@@ -1224,7 +1224,7 @@ export default function AssociationForm({
     );
   };
 
-  const sectionRenderers: Record<SectionId, () => JSX.Element> = {
+  const sectionRenderers: Record<SectionId, () => ReactElement> = {
     identity: renderIdentity,
     contact: renderContact,
     address: renderAddress,

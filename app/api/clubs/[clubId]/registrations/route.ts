@@ -14,6 +14,7 @@ import {
   validateApproval,
   validateRejection,
 } from "@/lib/validation/club-registration-validation";
+import { ZodError } from "zod";
 
 // ============================================================================
 // GET /api/clubs/[clubId]/registrations
@@ -32,7 +33,7 @@ export async function GET(
     const registrationType = searchParams.get("registrationType");
 
     const client = await clientPromise;
-    const db = client.db();
+    const db = client.db("hockey-app");
 
     // Verify club exists
     const club = await db.collection("clubs").findOne({
@@ -62,7 +63,7 @@ export async function GET(
       .toArray();
 
     // Enrich with member details
-    const memberIds = registrations.map(() => r.memberId);
+    const memberIds = registrations.map((r) => r.memberId);
     const members = await db
       .collection("members")
       .find({ memberId: { $in: memberIds } })
@@ -79,7 +80,7 @@ export async function GET(
     const memberMap = new Map(members.map((m) => [m.memberId, m]));
 
     // Add member details
-    const enrichedRegistrations = registrations.map(() => {
+    const enrichedRegistrations = registrations.map((reg) => {
       const member = memberMap.get(reg.memberId);
       return {
         ...reg,
@@ -100,7 +101,10 @@ export async function GET(
   } catch (error: unknown) {
     console.error("Error fetching registrations:", error);
     return NextResponse.json(
-      { error: "Failed to fetch registrations", details: error.message },
+      {
+        error: "Failed to fetch registrations",
+        details: error instanceof Error ? error.message : String(error),
+      },
       { status: 500 }
     );
   }
@@ -123,7 +127,7 @@ export async function approveRegistration(
     // const validatedData = ApproveRegistrationRequestSchema.parse(body);
 
     const client = await clientPromise;
-    const db = client.db();
+    const db = client.db("hockey-app");
 
     // Verify club exists
     const club = await db.collection("clubs").findOne({
@@ -154,8 +158,8 @@ export async function approveRegistration(
     }
 
     // Get admin ID from session
-    const session = await getSession();
-    const adminId = session?.email || session?.userId || "system";
+    const userSession = await getSession();
+    const adminId = userSession?.email || userSession?.userId || "system";
 
     // Prepare update
     const updateData: Record<string, unknown> = {
@@ -182,17 +186,17 @@ export async function approveRegistration(
     // }
 
     // Start transaction
-    const session = client.startSession();
+    const mongoSession = client.startSession();
 
     try {
-      await session.withTransaction(async () => {
+      await mongoSession.withTransaction(async () => {
         // Update registration
         await db
           .collection("club-registrations")
           .updateOne(
             { registrationId, clubId: club.id },
             { $set: updateData },
-            { session }
+            { session: mongoSession }
           );
 
         // Update member's clubRegistrations array
@@ -207,7 +211,7 @@ export async function approveRegistration(
               updatedAt: new Date(),
             },
           },
-          { session }
+          { session: mongoSession }
         );
 
         // If this is primary club, set clubId on member
@@ -221,7 +225,7 @@ export async function approveRegistration(
                 updatedAt: new Date(),
               },
             },
-            { session }
+            { session: mongoSession }
           );
         }
       });
@@ -235,20 +239,23 @@ export async function approveRegistration(
         },
       });
     } finally {
-      await session.endSession();
+      await mongoSession.endSession();
     }
   } catch (error: unknown) {
     console.error("Error approving registration:", error);
 
-    if (error.name === "ZodError") {
+    if (error instanceof ZodError) {
       return NextResponse.json(
-        { error: "Validation failed", details: error.errors },
+        { error: "Validation failed", details: error.flatten() },
         { status: 400 }
       );
     }
 
     return NextResponse.json(
-      { error: "Failed to approve registration", details: error.message },
+      {
+        error: "Failed to approve registration",
+        details: error instanceof Error ? error.message : String(error),
+      },
       { status: 500 }
     );
   }
@@ -271,7 +278,7 @@ export async function rejectRegistration(
     //  const validatedData = RejectRegistrationRequestSchema.parse(body);
 
     const client = await clientPromise;
-    const db = client.db();
+    const db = client.db("hockey-app");
 
     // Verify club exists
     const club = await db.collection("clubs").findOne({
@@ -349,15 +356,18 @@ export async function rejectRegistration(
   } catch (error: unknown) {
     console.error("Error rejecting registration:", error);
 
-    if (error.name === "ZodError") {
+    if (error instanceof ZodError) {
       return NextResponse.json(
-        { error: "Validation failed", details: error.errors },
+        { error: "Validation failed", details: error.flatten() },
         { status: 400 }
       );
     }
 
     return NextResponse.json(
-      { error: "Failed to reject registration", details: error.message },
+      {
+        error: "Failed to reject registration",
+        details: error instanceof Error ? error.message : String(error),
+      },
       { status: 500 }
     );
   }

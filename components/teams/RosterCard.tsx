@@ -397,7 +397,7 @@ function TeamDropZone({
           {team.players.map((player: Player, playerIndex: number) => (
             <SortablePlayer
               key={`team-${rosterId}-${teamIndex}-${playerIndex}`}
-              id={`team-${rosterId}-${teamIndex}-${playerIndex}`}
+              sortableId={`team-${rosterId}-${teamIndex}-${playerIndex}`}
               player={player}
               onEdit={() => onEditPlayer(playerIndex, player)}
             />
@@ -442,7 +442,7 @@ function EmergencyTab({
           {roster.shadowPlayers.map((player, index) => (
             <SortablePlayer
               key={`emergency-${roster.id}-${index}`}
-              id={`emergency-${roster.id}-${index}`}
+              sortableId={`emergency-${roster.id}-${index}`}
               player={player}
               variant="emergency"
             />
@@ -493,7 +493,7 @@ function UnavailableTab({
           {roster.withdrawn.map((player, index) => (
             <SortablePlayer
               key={`unavailable-${roster.id}-${index}`}
-              id={`unavailable-${roster.id}-${index}`}
+              sortableId={`unavailable-${roster.id}-${index}`}
               player={player}
               variant="unavailable"
             />

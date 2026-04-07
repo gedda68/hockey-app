@@ -1,21 +1,14 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { usePathname } from "next/navigation";
 import { LogOut } from "lucide-react";
 import SidebarItem from "../../app/admin/components/SidebarItem";
 import { menuConfig, MenuItem } from "../../app/admin/global-config/menuConfig";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { User } from "@/lib/auth/AuthContext";
+import { useBrand } from "@/lib/contexts/BrandContext";
 import { toast } from "sonner";
-
-interface SidebarBranding {
-  primaryColor: string;
-  secondaryColor: string;
-  name: string;
-  shortName?: string;
-  logo?: string;
-}
 
 // Roles that are scoped to a club
 const SIDEBAR_CLUB_ROLES = [
@@ -150,51 +143,11 @@ function buildMenuForUser(user: User | null): MenuItem[] {
 export default function AdminSidebar() {
   const pathname = usePathname();
   const { user, logout } = useAuth();
+  const { brand: branding } = useBrand();
 
   const [expandedMenus, setExpandedMenus]       = useState<string[]>(["Representative"]);
   const [expandedSubMenus, setExpandedSubMenus] = useState<string[]>([]);
   const [mobileOpen, setMobileOpen]             = useState(false);
-  const [branding, setBranding]                 = useState<SidebarBranding | null>(null);
-
-  // Fetch branding for the user's club or association
-  useEffect(() => {
-    if (!user) return;
-
-    if (SIDEBAR_CLUB_ROLES.includes(user.role) && (user.clubSlug || user.clubId)) {
-      const clubRef = user.clubSlug || user.clubId;
-      fetch(`/api/admin/clubs/${clubRef}`)
-        .then((r) => r.json())
-        .then((data) => {
-          const club = data.club;
-          if (club) {
-            setBranding({
-              primaryColor:   club.colors?.primaryColor  || "#06054e",
-              secondaryColor: club.colors?.secondaryColor || "#1a1870",
-              name:           club.name,
-              shortName:      club.shortName,
-              logo:           club.logo,
-            });
-          }
-        })
-        .catch(() => {});
-    } else if (SIDEBAR_ASSOC_ROLES.includes(user.role) && user.associationId) {
-      fetch(`/api/admin/associations/${user.associationId}`)
-        .then((r) => r.json())
-        .then((data) => {
-          const assoc = data.association || data;
-          if (assoc?.name || assoc?.fullName) {
-            setBranding({
-              primaryColor:   assoc.branding?.primaryColor  || "#06054e",
-              secondaryColor: assoc.branding?.secondaryColor || "#1a1870",
-              name:           assoc.name || assoc.fullName,
-              shortName:      assoc.code || assoc.acronym,
-              logo:           assoc.branding?.logo,
-            });
-          }
-        })
-        .catch(() => {});
-    }
-  }, [user?.clubId, user?.clubSlug, user?.associationId, user?.role]);
 
   const toggleMenu    = (label: string) =>
     setExpandedMenus((prev) =>

@@ -788,7 +788,19 @@ export default function NominatePage() {
       {/* Nomination workflow modal */}
       {activeOpportunity && player && (
         <NominationWorkflowModal
-          player={player}
+          player={{
+            playerId: player.playerId,
+            firstName: player.firstName,
+            lastName: player.lastName,
+            dateOfBirth: player.dateOfBirth,
+            gender: player.gender ?? undefined,
+            email: player.email ?? undefined,
+            phone: player.phone ?? undefined,
+            clubId: player.clubId ?? undefined,
+            linkedMemberId: player.linkedMemberId ?? undefined,
+            emergencyContacts: player.emergencyContacts,
+            medical: player.medical ?? undefined,
+          }}
           opportunity={activeOpportunity}
           onClose={() => setActiveOpportunity(null)}
           onSuccess={() => handleNominationSuccess(activeOpportunity.ageGroup)}

@@ -1,7 +1,7 @@
 // components/ui/index.ts
 // Central export for all UI components
 
-// Card components
+// Card components — use `import Card from "@/components/ui/Card"` for default, or `{ Card }` from here
 export { Card, SectionCard, FormCard } from "./Card";
 export type { CardProps } from "./Card";
 
@@ -27,7 +27,7 @@ export type {
 } from "./FormField";
 
 // Button components
-export { Button, IconButton, ButtonGroup } from "./Button";
+export { Button } from "./Button";
 export type { ButtonProps } from "./Button";
 
 // Badge components

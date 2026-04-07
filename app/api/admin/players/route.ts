@@ -1,278 +1,291 @@
-// app/api/admin/players/route.ts
-// FIXED: POST now generates playerId automatically
+/**
+ * GET  /api/admin/players  — list players (sourced from members collection)
+ * POST /api/admin/players  — create player (creates a member record)
+ *
+ * Design note:
+ * The authoritative person record is the `members` collection.
+ * This route adapts it to the flat Player shape that PlayersList.tsx expects,
+ * using memberId as the playerId for URL routing.
+ *
+ * Membership status mapping (members use Title Case, PlayersList uses lowercase):
+ *   "Active" | "Life" → "active"
+ *   "Inactive"        → "inactive"
+ *   "Suspended"       → "suspended"
+ *   absent/other      → "pending"
+ */
+
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import { escapeRegex } from "@/lib/utils/regex";
+import { getSession } from "@/lib/auth/session";
 
-// GET: Fetch all players with filtering
+// ── Status mapping ────────────────────────────────────────────────────────────
+function mapStatus(membershipStatus?: string): string {
+  switch ((membershipStatus ?? "").toLowerCase()) {
+    case "active":
+    case "life":
+      return "active";
+    case "inactive":
+      return "inactive";
+    case "suspended":
+      return "suspended";
+    default:
+      return "pending";
+  }
+}
+
+// ── Field mapping: member doc → PlayersList Player shape ──────────────────────
+function memberToPlayer(m: Record<string, any>, clubName?: string | null) {
+  const pi = m.personalInfo ?? {};
+  const ct = m.contact ?? {};
+  const mem = m.membership ?? {};
+
+  return {
+    // Identity — memberId is used as playerId for URL routing
+    playerId:       m.memberId,
+    memberId:       m.memberId,
+
+    // Personal
+    firstName:      pi.firstName    ?? "",
+    lastName:       pi.lastName     ?? "",
+    preferredName:  pi.displayName  ?? undefined,
+    dateOfBirth:    pi.dateOfBirth  ?? "",
+    gender:         pi.gender       ?? "",
+    photo:          pi.photoUrl     ?? undefined,
+
+    // Contact
+    phone:          ct.mobile ?? ct.phone ?? "",
+    email:          ct.primaryEmail ?? ct.email ?? "",
+
+    // Club
+    clubId:         m.clubId        ?? "",
+    clubName:       clubName        ?? m.clubName ?? null,
+
+    // Roles
+    roles:          m.roles         ?? [],
+
+    // Status (flattened to match old players shape)
+    status: {
+      current:          mapStatus(mem.status),
+      registrationDate: mem.joinDate ?? mem.currentPeriodStart ?? undefined,
+      expiryDate:       mem.currentPeriodEnd ?? undefined,
+    },
+
+    // Medical
+    medical: m.medical
+      ? {
+          conditions:  m.medical.conditions  ?? "",
+          allergies:   m.medical.allergies   ?? "",
+          medications: m.medical.medications ?? "",
+          bloodType:   undefined,
+          doctorName:  m.medical.doctorName  ?? "",
+          doctorPhone: m.medical.doctorPhone ?? "",
+        }
+      : undefined,
+
+    // Emergency contacts — remap from members shape
+    emergencyContacts: (m.emergencyContacts ?? []).map((ec: Record<string, any>) => ({
+      id:           ec.contactId ?? ec.id ?? "",
+      name:         ec.name      ?? "",
+      relationship: ec.relationship ?? "",
+      phone:        ec.phone     ?? ec.mobile ?? "",
+      email:        ec.email     ?? "",
+    })),
+
+    // Player-specific
+    playerInfo: m.playerInfo ?? undefined,
+  };
+}
+
+// ── GET ───────────────────────────────────────────────────────────────────────
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
 
-    const clubId = searchParams.get("clubId");
-    const status = searchParams.get("status");
-    const gender = searchParams.get("gender");
-    const search = searchParams.get("search");
-    const page = parseInt(searchParams.get("page") || "1");
-    const limit = parseInt(searchParams.get("limit") || "100");
-    const skip = (page - 1) * limit;
+    const clubId  = searchParams.get("clubId");
+    const status  = searchParams.get("status");    // "active"|"inactive"|"suspended"|"pending"
+    const gender  = searchParams.get("gender");
+    const search  = searchParams.get("search");
+    const role    = searchParams.get("role");      // filter by specific role
+    const page    = parseInt(searchParams.get("page")  || "1");
+    const limit   = parseInt(searchParams.get("limit") || "100");
+    const skip    = (page - 1) * limit;
 
     const client = await clientPromise;
-    const db = client.db();
+    const db     = client.db("hockey-app");
 
-    // Build query
+    // ── Build query ───────────────────────────────────────────────────────────
     const query: Record<string, unknown> = {};
 
     if (clubId) query.clubId = clubId;
 
-    if (status) {
-      query.active = status === "active";
+    // Role filter — default to showing members who have a player-type role
+    if (role) {
+      query.roles = role;
+    }
+    // (No default role filter — show all members; admins can use the role filter)
+
+    // Status: map the lowercase player status back to Title Case for members query
+    if (status && status !== "all") {
+      const statusMap: Record<string, string | string[] | { $exists: boolean }> = {
+        active:    ["Active", "Life"],
+        inactive:  "Inactive",
+        suspended: "Suspended",
+        pending:   { $exists: false },
+      };
+      const mapped = statusMap[status];
+      if (mapped) {
+        if (Array.isArray(mapped)) {
+          query["membership.status"] = { $in: mapped };
+        } else if (typeof mapped === "object") {
+          query["membership.status"] = mapped;
+        } else {
+          query["membership.status"] = mapped;
+        }
+      }
     }
 
-    if (gender) query.gender = gender;
+    // Gender
+    if (gender) {
+      // Members store gender as "gender-male", "gender-female", etc.
+      // Accept both the full value and short forms
+      query["personalInfo.gender"] = { $regex: gender, $options: "i" };
+    }
 
+    // Search
     if (search) {
-      const safeSearch = escapeRegex(search);
+      const s = escapeRegex(search);
       query.$or = [
-        { firstName: { $regex: safeSearch, $options: "i" } },
-        { lastName: { $regex: safeSearch, $options: "i" } },
-        { preferredName: { $regex: safeSearch, $options: "i" } },
+        { memberId:                    { $regex: s, $options: "i" } },
+        { "personalInfo.firstName":    { $regex: s, $options: "i" } },
+        { "personalInfo.lastName":     { $regex: s, $options: "i" } },
+        { "personalInfo.displayName":  { $regex: s, $options: "i" } },
+        { "contact.primaryEmail":      { $regex: s, $options: "i" } },
+        { "contact.mobile":            { $regex: s, $options: "i" } },
       ];
     }
 
+    // ── Fetch ─────────────────────────────────────────────────────────────────
+    const [total, members] = await Promise.all([
+      db.collection("members").countDocuments(query),
+      db.collection("members")
+        .find(query)
+        .sort({ "personalInfo.lastName": 1, "personalInfo.firstName": 1 })
+        .skip(skip)
+        .limit(limit)
+        .toArray(),
+    ]);
 
-    // Get total count
-    const total = await db.collection("players").countDocuments(query);
+    // ── Join club names ───────────────────────────────────────────────────────
+    const clubIds = [...new Set(members.map((m) => m.clubId).filter(Boolean))];
+    const clubDocs = clubIds.length
+      ? await db.collection("clubs")
+          .find({ $or: [{ id: { $in: clubIds } }, { clubId: { $in: clubIds } }] })
+          .project({ id: 1, clubId: 1, name: 1 })
+          .toArray()
+      : [];
 
-    // Get players
-    const players = await db
-      .collection("players")
-      .find(query)
-      .sort({ lastName: 1, firstName: 1 })
-      .skip(skip)
-      .limit(limit)
-      .toArray();
+    const clubMap = new Map<string, string>();
+    for (const c of clubDocs) {
+      const key = c.id ?? c.clubId;
+      if (key) clubMap.set(key, c.name);
+    }
 
-
-    // Get all unique club IDs from players
-    const clubIds = [...new Set(players.map((p) => p.clubId).filter(Boolean))];
-
-    // Fetch club names - try both clubId and id fields
-    const clubs = await db
-      .collection("clubs")
-      .find({
-        $or: [{ clubId: { $in: clubIds } }, { id: { $in: clubIds } }],
-      })
-      .toArray();
-
-
-    // Create club lookup map (check both clubId and id)
-    const clubMap = new Map();
-    clubs.forEach(() => {
-      const id = club.clubId || club.id;
-      if (id) {
-        clubMap.set(id, club.name);
-      }
-    });
-
-    // Add club name to each player
-    const playersWithClubNames = players.map(() => {
-      const { _id, ...playerData } = player;
-      const clubName = player.clubId ? clubMap.get(player.clubId) : null;
-
-      return {
-        ...playerData,
-        clubName: clubName || null, // Include club name in response
-      };
-    });
+    // ── Map to Player shape ───────────────────────────────────────────────────
+    const players = members.map((m) =>
+      memberToPlayer(m as Record<string, any>, clubMap.get(m.clubId) ?? null)
+    );
 
     return NextResponse.json({
-      players: playersWithClubNames,
-      pagination: {
-        page,
-        limit,
-        total,
-        totalPages: Math.ceil(total / limit),
-      },
+      players,
+      pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
     });
   } catch (error: unknown) {
-    console.error("💥 Error fetching players:", error);
-    return NextResponse.json({ error: error instanceof Error ? error.message : String(error) }, { status: 500 });
+    console.error("GET /api/admin/players error:", error);
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : String(error) },
+      { status: 500 }
+    );
   }
 }
 
-// POST: Create new player
+// ── POST ──────────────────────────────────────────────────────────────────────
+// Creating a "player" means creating a member record with the player role.
+// Delegates to /api/admin/members for the actual creation logic.
 export async function POST(request: NextRequest) {
   try {
+    const session = await getSession();
+    if (!session) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const body = await request.json();
 
-    // ✅ FIXED: Only validate firstName and lastName (playerId is generated)
-    if (!body.firstName || !body.lastName) {
+    // Accept both flat (old players shape) and nested (members shape) payloads
+    const firstName = body.firstName ?? body.personalInfo?.firstName;
+    const lastName  = body.lastName  ?? body.personalInfo?.lastName;
+
+    if (!firstName || !lastName) {
       return NextResponse.json(
         { error: "First name and last name are required" },
-        { status: 400 },
+        { status: 400 }
       );
     }
 
-    const client = await clientPromise;
-    const db = client.db();
+    // Forward as a member creation request with "player" role
+    const memberPayload = body.personalInfo
+      ? body  // already in member shape
+      : {
+          clubId: body.clubId,
+          personalInfo: {
+            firstName:   body.firstName,
+            lastName:    body.lastName,
+            dateOfBirth: body.dateOfBirth ?? "",
+            gender:      body.gender      ?? "",
+            displayName: `${body.firstName} ${body.lastName}`,
+          },
+          contact: {
+            primaryEmail:  body.email ?? "",
+            mobile:        body.phone ?? "",
+            emailOwnership: "personal",
+          },
+          medical:     body.medical     ?? {},
+          roles:       body.roles       ?? ["player"],
+          membership:  body.membership  ?? {
+            membershipType:     "type-senior-playing",
+            status:             "Active",
+            joinDate:           new Date().toISOString().split("T")[0],
+            currentPeriodStart: new Date().toISOString().split("T")[0],
+            currentPeriodEnd:   `${new Date().getFullYear()}-12-31`,
+          },
+          emergencyContacts: body.emergencyContacts ?? [],
+        };
 
-    // ✅ Generate sequential playerId
-    const lastPlayer = await db
-      .collection("players")
-      .find({})
-      .sort({ playerId: -1 })
-      .limit(1)
-      .toArray();
-
-    let nextNumber = 1;
-    if (lastPlayer.length > 0 && lastPlayer[0].playerId) {
-      const lastNumber = parseInt(lastPlayer[0].playerId);
-      if (!isNaN(lastNumber)) {
-        nextNumber = lastNumber + 1;
-      }
-    }
-
-    const playerId = nextNumber.toString().padStart(10, "0");
-
-    const playerData = {
-      ...body,
-      playerId, // ✅ Add generated playerId
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      active: body.active !== undefined ? body.active : true,
-      registrationStatus: body.registrationStatus || "pending",
-
-      // Ensure arrays exist
-      emergencyContacts: body.emergencyContacts || [],
-      guardians: body.guardians || [],
-      teamIds: body.teamIds || [],
-      documents: body.documents || [],
-      playHistory: body.playHistory || [],
-
-      // Ensure medical object exists
-      medical: {
-        conditions: "",
-        allergies: "",
-        medications: "",
-        doctorName: "",
-        doctorPhone: "",
-        healthFundName: "",
-        healthFundNumber: "",
-        medicareNumber: "",
-        ...body.medical,
+    // Proxy to /api/admin/members
+    const base = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+    const res = await fetch(`${base}/api/admin/members`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Cookie: request.headers.get("cookie") ?? "",
       },
-    };
+      body: JSON.stringify(memberPayload),
+    });
 
-    await db.collection("players").insertOne(playerData);
+    const data = await res.json();
+    if (!res.ok) return NextResponse.json(data, { status: res.status });
 
-    // Remove _id before returning
-    const { _id, ...cleanPlayer } = playerData;
-
+    // Return in player shape
+    const created = data.member ?? data;
     return NextResponse.json(
-      {
-        message: "Player created",
-        player: cleanPlayer,
-        playerId, // ✅ Return playerId so client can use it
-      },
-      { status: 201 },
+      { player: memberToPlayer(created) },
+      { status: 201 }
     );
   } catch (error: unknown) {
-    console.error("💥 Error creating player:", error);
-    return NextResponse.json({ error: error instanceof Error ? error.message : String(error) }, { status: 500 });
-  }
-}
-
-// PUT: Update player
-export async function PUT(request: NextRequest) {
-  try {
-    const body = await request.json();
-    const { playerId } = body;
-
-    if (!playerId) {
-      return NextResponse.json(
-        { error: "Player ID required" },
-        { status: 400 },
-      );
-    }
-
-    const client = await clientPromise;
-    const db = client.db();
-
-    const oldData = await db.collection("players").findOne({ playerId });
-
-    if (!oldData) {
-      return NextResponse.json({ error: "Player not found" }, { status: 404 });
-    }
-
-    const newData = {
-      ...oldData,
-      ...body,
-      playerId, // Ensure playerId stays the same
-      updatedAt: new Date().toISOString(),
-
-      // Ensure arrays exist
-      emergencyContacts:
-        body.emergencyContacts || oldData.emergencyContacts || [],
-      guardians: body.guardians || oldData.guardians || [],
-      teamIds: body.teamIds || oldData.teamIds || [],
-      documents: body.documents || oldData.documents || [],
-      playHistory: body.playHistory || oldData.playHistory || [],
-
-      // Merge medical data
-      medical: {
-        ...oldData.medical,
-        ...body.medical,
-      },
-    };
-
-    // Cleanup internal MongoDB _id if present in body
-    delete (newData as any)._id;
-
-    await db.collection("players").updateOne({ playerId }, { $set: newData });
-
-
-    // Remove _id before returning
-    const { _id, ...cleanPlayer } = newData;
-
-    return NextResponse.json({
-      message: "Player updated",
-      player: cleanPlayer,
-    });
-  } catch (error: unknown) {
-    console.error("💥 Error updating player:", error);
-    return NextResponse.json({ error: error instanceof Error ? error.message : String(error) }, { status: 500 });
-  }
-}
-
-// DELETE: Remove player
-export async function DELETE(request: NextRequest) {
-  try {
-    const { searchParams } = new URL(request.url);
-    const playerId = searchParams.get("playerId");
-
-    if (!playerId) {
-      return NextResponse.json(
-        { error: "Player ID required" },
-        { status: 400 },
-      );
-    }
-
-    const client = await clientPromise;
-    const db = client.db();
-
-    const player = await db.collection("players").findOne({ playerId });
-
-    if (!player) {
-      return NextResponse.json({ error: "Player not found" }, { status: 404 });
-    }
-
-    await db.collection("players").deleteOne({ playerId });
-
-
-    return NextResponse.json({ message: "Player deleted successfully" });
-  } catch (error: unknown) {
-    console.error("💥 Error deleting player:", error);
-    return NextResponse.json({ error: error instanceof Error ? error.message : String(error) }, { status: 500 });
+    console.error("POST /api/admin/players error:", error);
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : String(error) },
+      { status: 500 }
+    );
   }
 }

@@ -1,7 +1,7 @@
 // utils/smartValidation.ts
 // Smart validation utilities for player forms
 
-import { PlayerFormData } from "../types/player.types";
+import { PlayerFormData } from "@/types/player.types";
 
 export interface ValidationWarning {
   field: string;
@@ -306,6 +306,3 @@ export function formatWarningMessage(warning: ValidationWarning): string {
   const icon = warning.severity === "warning" ? "⚠️" : "ℹ️";
   return `${icon} ${warning.message}`;
 }
-
-// Export types
-export type { ValidationWarning };

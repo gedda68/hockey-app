@@ -5,26 +5,31 @@
 
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import type { Player } from "../types/teams.types";
+import type { Player } from "@/types/admin/teams.types";
 
 interface SortablePlayerProps {
   player: Player;
+  /** Override @dnd-kit sortable id when `player.id` is not unique in this list */
+  sortableId?: string;
   rosterId?: string;
   location?: "team" | "emergency" | "unavailable";
   teamIndex?: number;
   teamName?: string;
   variant?: "normal" | "emergency" | "unavailable";
   isDragging?: boolean;
+  onEdit?: () => void;
 }
 
 export default function SortablePlayer({
   player,
+  sortableId,
   rosterId,
   location = "team",
   teamIndex,
   teamName,
   variant = "normal",
   isDragging = false,
+  onEdit,
 }: SortablePlayerProps) {
   const {
     attributes,
@@ -34,7 +39,7 @@ export default function SortablePlayer({
     transition,
     isDragging: isSortableDragging,
   } = useSortable({
-    id: player.id,
+    id: sortableId ?? player.id,
     data: {
       player,
       rosterId,
@@ -183,6 +188,19 @@ export default function SortablePlayer({
             {player.membershipNumber && <span>#{player.membershipNumber}</span>}
           </div>
         </div>
+
+        {onEdit && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onEdit();
+            }}
+            className="flex-shrink-0 text-xs font-black uppercase text-blue-600 hover:text-blue-800 px-2 py-1 rounded-lg border border-blue-200 hover:bg-blue-50"
+          >
+            Edit
+          </button>
+        )}
       </div>
     </div>
   );

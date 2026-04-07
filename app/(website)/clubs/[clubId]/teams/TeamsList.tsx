@@ -105,7 +105,7 @@ export default function TeamsList({ clubId }: TeamsListProps) {
       // Extract unique seasons
       const uniqueSeasons = [...new Set(data.map((t: Team) => t.season))]
         .sort()
-        .reverse();
+        .reverse() as string[];
       setSeasons(uniqueSeasons);
 
       // Set default season to most recent

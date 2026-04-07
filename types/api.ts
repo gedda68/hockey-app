@@ -27,6 +27,7 @@ export interface ClubDoc extends MongoDoc {
   region?: string;
   state?: string;
   colors: { primary: string; secondary: string; accent?: string };
+  logo?: string;
   address: { street?: string; suburb?: string; state?: string; postcode?: string; country?: string };
   contact: { email?: string; phone?: string; website?: string };
   memberSequence?: number;

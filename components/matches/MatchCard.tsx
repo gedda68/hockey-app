@@ -47,7 +47,7 @@ export default function MatchCard({
       <div className="flex flex-col md:flex-row items-center justify-between gap-6">
         {/* MATCH META (Left) */}
         <div className={matchMetaVariants()}>
-          <Badge variant="secondary" size="sm">
+          <Badge variant="default" size="sm">
             {match.round}
           </Badge>
           <Text variant="tiny" className="mt-1 uppercase">
@@ -75,14 +75,22 @@ export default function MatchCard({
             >
               {match.homeTeam}
             </Text>
-            <div className="relative w-12 h-12 shrink-0">
-              <Image
-                src={match.homeTeamIcon}
-                alt={match.homeTeam}
-                fill
-                className="object-contain"
+            {match.homeTeamIcon ? (
+              <div className="relative w-12 h-12 shrink-0">
+                <Image
+                  src={match.homeTeamIcon}
+                  alt={match.homeTeam}
+                  fill
+                  sizes="48px"
+                  className="object-contain"
+                />
+              </div>
+            ) : (
+              <div
+                className="w-12 h-12 shrink-0 rounded-lg bg-slate-100 border border-slate-200"
+                aria-hidden
               />
-            </div>
+            )}
           </div>
 
           {/* Score Area */}
@@ -95,7 +103,7 @@ export default function MatchCard({
 
             {/* SHOOTOUT BADGE */}
             {match.status === "Final (SO)" && (
-              <Badge variant="primary" size="md" className="mt-2 bg-blue-600">
+              <Badge variant="info" size="md" className="mt-2 bg-blue-600 text-white border-0">
                 <div className="flex flex-col items-center">
                   <span className="text-[7px] opacity-80 leading-none">
                     Shootout Result
@@ -120,14 +128,22 @@ export default function MatchCard({
 
           {/* Away Team */}
           <div className="flex flex-1 items-center justify-start gap-4">
-            <div className="relative w-12 h-12 shrink-0">
-              <Image
-                src={match.awayTeamIcon}
-                alt={match.awayTeam}
-                fill
-                className="object-contain"
+            {match.awayTeamIcon ? (
+              <div className="relative w-12 h-12 shrink-0">
+                <Image
+                  src={match.awayTeamIcon}
+                  alt={match.awayTeam}
+                  fill
+                  sizes="48px"
+                  className="object-contain"
+                />
+              </div>
+            ) : (
+              <div
+                className="w-12 h-12 shrink-0 rounded-lg bg-slate-100 border border-slate-200"
+                aria-hidden
               />
-            </div>
+            )}
             <Text variant="h4" className="text-sm md:text-lg leading-tight">
               {match.awayTeam}
             </Text>
@@ -137,9 +153,9 @@ export default function MatchCard({
         {/* STATUS / ACTION (Right) */}
         <div className="hidden md:flex flex-col items-end min-w-[100px]">
           <Badge
-            variant="outline"
+            variant="default"
             size="md"
-            className="group-hover:border-[#06054e] transition-colors"
+            className="border border-slate-200 bg-transparent group-hover:border-[#06054e] transition-colors"
           >
             Details →
           </Badge>
@@ -156,9 +172,9 @@ export default function MatchCard({
             {umpires.map((umpire, idx) => (
               <Badge
                 key={idx}
-                variant="ghost"
+                variant="default"
                 size="sm"
-                className="text-slate-600"
+                className="bg-transparent text-slate-600 font-bold"
               >
                 {umpire?.umpireName} ({umpire?.umpireLevel})
               </Badge>

@@ -15,6 +15,7 @@ import {
 
 interface Club {
   id: string;
+  slug?: string;
   name: string;
   shortName: string;
   logo: string;

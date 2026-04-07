@@ -1,16 +1,19 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
+import { usePathname, useSearchParams } from "next/navigation";
 import MatchList from "./MatchList";
-import MatchFilters from "./MatchFilters";
 import { EmptyStates } from "../shared/EmptyState";
+import { filterButtonVariants } from "../shared/FilterButton";
+import { cn } from "@/lib/utils";
 import type { Match } from "@/types";
 
 interface MatchListWrapperProps {
   initialMatches: Match[];
   divisions: string[];
   rounds: string[];
+  /** Defaults to common match statuses when omitted */
+  statuses?: string[];
   viewType?: "results" | "upcoming" | "all";
 }
 
@@ -28,13 +31,16 @@ interface MatchListWrapperProps {
  *   viewType="results"
  * />
  */
+const DEFAULT_STATUSES = ["All", "Live", "Final", "Scheduled"];
+
 export default function MatchListWrapper({
   initialMatches,
   divisions,
   rounds,
+  statuses = DEFAULT_STATUSES,
   viewType = "all",
 }: MatchListWrapperProps) {
-  const router = useRouter();
+  const pathname = usePathname() ?? "/";
   const searchParams = useSearchParams();
 
   // Get current filters from URL
@@ -62,32 +68,88 @@ export default function MatchListWrapper({
     return true;
   });
 
-  // Update URL when filter changes
-  const updateFilter = (key: string, value: string) => {
+  const buildHref = (patch: Record<string, string>) => {
     const params = new URLSearchParams(searchParams.toString());
-
-    if (value === "All") {
-      params.delete(key);
-    } else {
-      params.set(key, value);
+    for (const [key, value] of Object.entries(patch)) {
+      if (value === "All") {
+        params.delete(key);
+      } else {
+        params.set(key, value);
+      }
     }
-
-    router.push(`?${params.toString()}`);
+    const q = params.toString();
+    return q ? `${pathname}?${q}` : pathname;
   };
 
   return (
     <div className="space-y-6">
-      {/* Filters */}
-      <MatchFilters
-        divisions={divisions}
-        rounds={rounds}
-        selectedDiv={selectedDiv}
-        selectedRound={selectedRound}
-        selectedStatus={selectedStatus}
-        onDivisionChange={(div) => updateFilter("div", div)}
-        onRoundChange={(round) => updateFilter("round", round)}
-        onStatusChange={(status) => updateFilter("status", status)}
-      />
+      <div className="flex flex-wrap gap-x-12 gap-y-6">
+        <div className="flex flex-col gap-2">
+          <span className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em]">
+            Division
+          </span>
+          <div className="flex gap-2 flex-wrap">
+            {divisions.map((div) => (
+              <Link
+                key={div}
+                href={buildHref({ div })}
+                className={cn(
+                  filterButtonVariants({
+                    variant: "primary",
+                    isActive: selectedDiv === div,
+                  }),
+                )}
+              >
+                {div}
+              </Link>
+            ))}
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <span className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em]">
+            Round
+          </span>
+          <div className="flex gap-2 flex-wrap">
+            {rounds.map((round) => (
+              <Link
+                key={round}
+                href={buildHref({ round })}
+                className={cn(
+                  filterButtonVariants({
+                    variant: "secondary",
+                    isActive: selectedRound === round,
+                  }),
+                )}
+              >
+                {round}
+              </Link>
+            ))}
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <span className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em]">
+            Status
+          </span>
+          <div className="flex gap-2 flex-wrap">
+            {statuses.map((stat) => (
+              <Link
+                key={stat}
+                href={buildHref({ status: stat })}
+                className={cn(
+                  filterButtonVariants({
+                    variant: "status",
+                    isActive: selectedStatus === stat,
+                  }),
+                )}
+              >
+                {stat}
+              </Link>
+            ))}
+          </div>
+        </div>
+      </div>
 
       {/* Match List */}
       {filteredMatches.length === 0 ? (

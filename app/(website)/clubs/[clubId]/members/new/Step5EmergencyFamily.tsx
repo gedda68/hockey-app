@@ -2,6 +2,7 @@
 
 import { Shield, AlertCircle, Plus, Trash2 } from "lucide-react";
 import type { MemberDoc } from "@/types/api";
+import type { AddMemberFormData } from "./member-form-types";
 
 interface RelationshipOption { relationshipId: string; name: string }
 interface RelationshipTypeOption { typeId: string; name: string; forward: string; reverse: string }
@@ -25,15 +26,9 @@ interface FamilyRelationship {
   searchQuery: string;
 }
 
-interface FormData {
-  emergencyContacts: EmergencyContact[];
-  familyRelationships: FamilyRelationship[];
-  [key: string]: unknown;
-}
-
 interface Step5EmergencyFamilyProps {
-  formData: FormData;
-  setFormData: React.Dispatch<React.SetStateAction<FormData>>;
+  formData: AddMemberFormData;
+  setFormData: React.Dispatch<React.SetStateAction<AddMemberFormData>>;
   relationships: RelationshipOption[];
   relationshipTypes: RelationshipTypeOption[];
   hasFamilyMembers: boolean;

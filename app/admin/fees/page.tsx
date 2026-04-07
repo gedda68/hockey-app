@@ -42,7 +42,7 @@ interface Summary {
 
 interface PaymentForm {
   feeId: string;
-  playerId: string;
+  memberId: string;
   playerName: string;
   amount: number;
   description: string;
@@ -208,8 +208,8 @@ function ReminderModal({
 
   // Group by player to build email list
   const byPlayer = fees.reduce<Record<string, EnrichedFeeRecord[]>>((acc, f) => {
-    if (!acc[f.playerId]) acc[f.playerId] = [];
-    acc[f.playerId].push(f);
+    if (!acc[f.memberId]) acc[f.memberId] = [];
+    acc[f.memberId].push(f);
     return acc;
   }, {});
 
@@ -342,7 +342,7 @@ export default function FeesPage() {
   const [error, setError] = useState("");
 
   // Selection
-  const [selected, setSelected] = useState<Set<string>>(new Set()); // feeId::playerId
+  const [selected, setSelected] = useState<Set<string>>(new Set()); // feeId::memberId
 
   // Payment modal
   const [paymentForm, setPaymentForm] = useState<PaymentForm | null>(null);
@@ -390,7 +390,7 @@ export default function FeesPage() {
     : fees;
 
   // ── Selection helpers ───────────────────────────────────────────────────────
-  const selKey = (f: EnrichedFeeRecord) => `${f.feeId}::${f.playerId}`;
+  const selKey = (f: EnrichedFeeRecord) => `${f.feeId}::${f.memberId}`;
   const allOutstandingKeys = filteredFees
     .filter((f) => f.status === "pending" || f.status === "overdue")
     .map(selKey);
@@ -415,11 +415,11 @@ export default function FeesPage() {
   }
 
   // ── Update fee via API ──────────────────────────────────────────────────────
-  async function patchFee(playerId: string, feeId: string, updates: object) {
+  async function patchFee(memberId: string, feeId: string, updates: object) {
     const res = await fetch("/api/admin/rep-fees", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ playerId, feeId, ...updates }),
+      body: JSON.stringify({ memberId, feeId, ...updates }),
     });
     if (!res.ok) throw new Error("Failed to update fee");
   }
@@ -427,7 +427,7 @@ export default function FeesPage() {
   // ── Quick actions ───────────────────────────────────────────────────────────
   async function quickMarkOverdue(fee: EnrichedFeeRecord) {
     try {
-      await patchFee(fee.playerId, fee.feeId, { status: "overdue" });
+      await patchFee(fee.memberId, fee.feeId, { status: "overdue" });
       fetchFees();
     } catch { /* swallow */ }
   }
@@ -435,14 +435,14 @@ export default function FeesPage() {
   async function quickWaive(fee: EnrichedFeeRecord) {
     if (!confirm(`Waive $${fee.amount.toFixed(2)} for ${fee.playerName}?`)) return;
     try {
-      await patchFee(fee.playerId, fee.feeId, { status: "waived" });
+      await patchFee(fee.memberId, fee.feeId, { status: "waived" });
       fetchFees();
     } catch { /* swallow */ }
   }
 
   async function quickRestore(fee: EnrichedFeeRecord) {
     try {
-      await patchFee(fee.playerId, fee.feeId, { status: "pending" });
+      await patchFee(fee.memberId, fee.feeId, { status: "pending" });
       fetchFees();
     } catch { /* swallow */ }
   }
@@ -453,7 +453,7 @@ export default function FeesPage() {
     setSaving(true);
     setSaveError("");
     try {
-      await patchFee(paymentForm.playerId, paymentForm.feeId, {
+      await patchFee(paymentForm.memberId, paymentForm.feeId, {
         status: "paid",
         paymentMethod: paymentForm.method,
         transactionId: paymentForm.transactionId || undefined,
@@ -475,7 +475,7 @@ export default function FeesPage() {
     if (targets.length === 0) return;
     if (!confirm(`Mark ${targets.length} fee(s) as paid (Cash)?`)) return;
     const today = new Date().toISOString().split("T")[0];
-    await Promise.all(targets.map((f) => patchFee(f.playerId, f.feeId, { status: "paid", paymentMethod: "cash", paidDate: today })));
+    await Promise.all(targets.map((f) => patchFee(f.memberId, f.feeId, { status: "paid", paymentMethod: "cash", paidDate: today })));
     fetchFees();
   }
 
@@ -698,7 +698,7 @@ export default function FeesPage() {
                     const key = selKey(fee);
                     const isSelected = selected.has(key);
                     const isOutstanding = fee.status === "pending" || fee.status === "overdue";
-                    const rowKey = `${fee.feeId}-${fee.playerId}`;
+                    const rowKey = `${fee.feeId}-${fee.memberId}`;
                     const isExpanded = expandedRows.has(rowKey);
 
                     return (
@@ -775,7 +775,7 @@ export default function FeesPage() {
                                   <button
                                     onClick={() => setPaymentForm({
                                       feeId: fee.feeId,
-                                      playerId: fee.playerId,
+                                      memberId: fee.memberId,
                                       playerName: fee.playerName,
                                       amount: fee.amount,
                                       description: fee.description,

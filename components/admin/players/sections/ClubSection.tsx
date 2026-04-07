@@ -5,7 +5,7 @@
 
 import { useState, useEffect } from "react";
 import FormField from "../shared/FormField";
-import { BaseSectionProps } from "../types/player.types";
+import { BaseSectionProps } from "@/types/player.types";
 import {
   Building,
   Calendar,

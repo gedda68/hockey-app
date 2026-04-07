@@ -1,4 +1,13 @@
 import Link from "next/link";
+import type { MenuItem } from "../global-config/menuConfig";
+
+interface SidebarSubItemProps {
+  item: MenuItem;
+  pathname: string;
+  expandedSubMenus: string[];
+  toggleSubMenu: (label: string) => void;
+  level?: number;
+}
 
 export default function SidebarSubItem({
   item,
@@ -6,7 +15,7 @@ export default function SidebarSubItem({
   expandedSubMenus,
   toggleSubMenu,
   level = 1,
-}) {
+}: SidebarSubItemProps) {
   const isActive = pathname.startsWith(item.href);
   const hasNested = item.subItems && item.subItems.length > 0;
   const expanded = expandedSubMenus.includes(item.label);
@@ -46,7 +55,7 @@ export default function SidebarSubItem({
 
       {hasNested && expanded && (
         <ul>
-          {item.subItems.map((nested) => (
+          {(item.subItems ?? []).map((nested) => (
             <SidebarSubItem
               key={nested.label}
               item={nested}

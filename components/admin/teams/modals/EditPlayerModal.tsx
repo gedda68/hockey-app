@@ -4,14 +4,7 @@
 "use client";
 
 import { useState } from "react";
-
-interface Player {
-  id: string;
-  firstName: string;
-  lastName: string;
-  number: string;
-  position: string;
-}
+import type { Player } from "@/types/admin/teams.types";
 
 interface EditPlayerModalProps {
   player: Player;
@@ -39,8 +32,12 @@ export default function EditPlayerModal({
   onClose,
   onSave,
 }: EditPlayerModalProps) {
-  const [number, setNumber] = useState(player.number);
-  const [position, setPosition] = useState(player.position);
+  const [number, setNumber] = useState(player.number ?? "");
+  const [position, setPosition] = useState(player.position ?? "");
+  const displayName =
+    [player.firstName, player.lastName].filter(Boolean).join(" ").trim() ||
+    player.name ||
+    "Player";
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -74,7 +71,7 @@ export default function EditPlayerModal({
                     Edit Player
                   </h2>
                   <p className="text-sm text-blue-200 mt-1">
-                    {player.firstName} {player.lastName} · {teamName}
+                    {displayName} · {teamName}
                   </p>
                 </div>
                 <button
@@ -141,9 +138,9 @@ export default function EditPlayerModal({
                   Current
                 </div>
                 <div className="text-sm text-blue-900">
-                  <span className="font-bold">#{player.number}</span>
+                  <span className="font-bold">#{player.number ?? "—"}</span>
                   {" · "}
-                  <span>{player.position}</span>
+                  <span>{player.position ?? "—"}</span>
                 </div>
               </div>
             </div>

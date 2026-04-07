@@ -345,7 +345,9 @@ export async function PATCH(
 
       const updateResult = await db.collection(targetCollection).updateOne(
         { [idField]: req.memberId },
-        { $push: { roles: assignment as unknown as Record<string, unknown> } }
+        { $push: { roles: assignment } } as unknown as import("mongodb").UpdateFilter<
+          import("mongodb").Document
+        >,
       );
 
       if (updateResult.matchedCount === 0) {

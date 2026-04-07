@@ -263,12 +263,12 @@ async function seedConfigSalutations() {
         output: process.stdout,
       });
 
-      const answer = await new Promise((resolve) => {
+      const answer = await new Promise<string>((resolve) => {
         readline.question("   Continue and replace? (y/n): ", resolve);
       });
       readline.close();
 
-      if (answer.toLowerCase() !== "y") {
+      if (answer.trim().toLowerCase() !== "y") {
         console.log("\n❌ Seeding cancelled");
         return;
       }

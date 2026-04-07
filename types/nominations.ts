@@ -28,7 +28,11 @@ export type NominationWorkflow = "approval" | "ballot";
 
 // ── Nomination window status lifecycle ───────────────────────────────────────
 //   draft → open → closed → (balloting) → completed
-export type WindowStatus = "draft" | "open" | "closed" | "balloting" | "completed";
+//   Rep-team approval path: closed → finalised → ratified → published
+export type WindowStatus = "draft" | "open" | "closed" | "balloting" | "completed"
+  | "finalised"   // Chair has locked the squad — pending ratification
+  | "ratified"    // Approved members have ratified — pending publish
+  | "published";  // Squad publicly announced; emails sent
 
 // ── Nomination status lifecycle ───────────────────────────────────────────────
 export type NominationStatus =
@@ -103,6 +107,14 @@ export interface NominationWindow {
   createdBy: string;
   createdAt: string;
   updatedAt: string;
+
+  // Rep-team finalise → ratify → publish timestamps
+  finalisedAt?: string;
+  finalisedBy?: string;
+  ratifiedAt?: string;
+  ratifiedBy?: string;
+  publishedAt?: string;
+  publishedBy?: string;
 }
 
 // ── Nomination document ───────────────────────────────────────────────────────

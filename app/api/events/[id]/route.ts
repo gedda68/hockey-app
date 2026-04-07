@@ -20,13 +20,11 @@ export async function GET(
     const database = client.db(process.env.DB_NAME || "hockey-app");
     const eventsCollection = database.collection("events");
 
-    // Find by custom id field OR MongoDB _id
+    const idOrClauses: Record<string, unknown>[] = [{ id }];
+    if (ObjectId.isValid(id)) idOrClauses.push({ _id: new ObjectId(id) });
+
     const event = await eventsCollection.findOne({
-      $or: [
-        { id: id },
-        { _id: ObjectId.isValid(id) ? new ObjectId(id) : null },
-      ],
-      deleted: { $ne: true },
+      $and: [{ $or: idOrClauses }, { deleted: { $ne: true } }],
     });
 
     if (!event) {

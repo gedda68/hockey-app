@@ -63,8 +63,19 @@ export interface Club {
 
   // Status
   active: boolean;
+  deactivationReason?: string;
+  reactivationReason?: string;
+  deactivatedAt?: string;
+  deactivatedBy?: string;
+  reactivatedAt?: string;
 
   // Timestamps
   createdAt: string;
   updatedAt: string;
 }
+
+export type ClubColors = Club["colors"];
+export type ClubAddress = Club["address"];
+export type ClubContact = Club["contact"];
+export type CommitteeMember = Club["committee"][number];
+export type SocialMedia = NonNullable<Club["socialMedia"]>;

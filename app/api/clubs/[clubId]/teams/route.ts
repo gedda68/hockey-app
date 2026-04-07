@@ -12,6 +12,7 @@ import {
   calculateTeamStatistics,
   type Team,
 } from "@/lib/db/schemas/team.schema";
+import { ZodError } from "zod";
 
 // ============================================================================
 // GET /api/clubs/[clubId]/teams
@@ -78,7 +79,10 @@ export async function GET(
   } catch (error: unknown) {
     console.error("Error fetching teams:", error);
     return NextResponse.json(
-      { error: "Failed to fetch teams", details: error.message },
+      {
+        error: "Failed to fetch teams",
+        details: error instanceof Error ? error.message : String(error),
+      },
       { status: 500 }
     );
   }
@@ -164,8 +168,8 @@ export async function POST(
     // Validate the complete team document
     const validatedTeam = TeamSchema.parse(newTeam);
 
-    // Insert into database
-    const result = await db.collection("teams").insertOne(validatedTeam);
+    const { _id: _omitOptionalId, ...teamDoc } = validatedTeam;
+    const result = await db.collection("teams").insertOne(teamDoc);
 
     // Fetch the created team
     const createdTeam = await db
@@ -189,16 +193,18 @@ export async function POST(
   } catch (error: unknown) {
     console.error("Error creating team:", error);
 
-    // Zod validation errors
-    if (error.name === "ZodError") {
+    if (error instanceof ZodError) {
       return NextResponse.json(
-        { error: "Validation failed", details: error.errors },
+        { error: "Validation failed", details: error.flatten() },
         { status: 400 }
       );
     }
 
     return NextResponse.json(
-      { error: "Failed to create team", details: error.message },
+      {
+        error: "Failed to create team",
+        details: error instanceof Error ? error.message : String(error),
+      },
       { status: 500 }
     );
   }

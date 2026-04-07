@@ -4,6 +4,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import { UpdateLeadershipRequestSchema } from "@/lib/db/schemas/team.schema";
+import { ZodError } from "zod";
 
 // ============================================================================
 // PUT /api/clubs/[clubId]/teams/[teamId]/leadership
@@ -44,7 +45,8 @@ export async function PUT(
     }
 
     // Get roster member IDs for validation
-    const rosterMemberIds = team.roster?.map(() => r.memberId) || [];
+    const rosterMemberIds =
+      team.roster?.map((r: { memberId: string }) => r.memberId) || [];
 
     // Validate captain is in roster
     if (
@@ -194,16 +196,18 @@ export async function PUT(
   } catch (error: unknown) {
     console.error("Error updating leadership:", error);
 
-    // Zod validation errors
-    if (error.name === "ZodError") {
+    if (error instanceof ZodError) {
       return NextResponse.json(
-        { error: "Validation failed", details: error.errors },
+        { error: "Validation failed", details: error.flatten() },
         { status: 400 }
       );
     }
 
     return NextResponse.json(
-      { error: "Failed to update leadership", details: error.message },
+      {
+        error: "Failed to update leadership",
+        details: error instanceof Error ? error.message : String(error),
+      },
       { status: 500 }
     );
   }

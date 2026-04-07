@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
     console.error("❌ Error fetching relationship types:", error);
     return NextResponse.json(
       {
-        error: error.message,
+        error: error instanceof Error ? error.message : "Unknown error",
         relationshipTypes: [], // Return empty array on error
       },
       { status: 500 },

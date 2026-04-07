@@ -3,6 +3,23 @@
 
 export type UnavailableType = "injury" | "personal" | "holiday" | "work" | "other";
 
+export interface PlayerLeadership {
+  captain: boolean;
+  viceCaptain: boolean;
+  leadershipGroup: boolean;
+}
+
+export interface TeamSelectionHistoryEntry {
+  id: string;
+  season: string;
+  division: string;
+  teamName: string;
+  number: string;
+  position: string;
+  selectedDate: string;
+  deselectedDate?: string;
+}
+
 export interface Player {
   id: string;
   name: string;
@@ -10,6 +27,7 @@ export interface Player {
   lastName?: string;
   position?: string;
   number?: string;
+  membershipNumber?: string;
   playerId?: string;
   dateOfBirth?: string;
   age?: number;
@@ -21,6 +39,8 @@ export interface Player {
   unavailableWeeks?: number;  // Total weeks out
   unavailableUntil?: string;  // ISO date — calculated: from + weeks
   unavailableNote?: string;   // Additional note (e.g. "torn hamstring")
+  leadership?: PlayerLeadership;
+  teamSelectionHistory?: TeamSelectionHistoryEntry[];
 }
 
 export interface Staff {
@@ -39,6 +59,31 @@ export interface Team {
   manager?: Staff;
 }
 
+/** Row from `/api/admin/teams` — club roster / team directory card (not `Team` squad inside a roster). */
+export interface AdminTeamListItem {
+  teamId: string;
+  name: string;
+  displayName?: string;
+  clubId?: string;
+  clubName?: string;
+  division: string;
+  gender: string;
+  season: string;
+  active: boolean;
+  players?: unknown[];
+  coaches?: unknown[];
+  colors: { primary: string; secondary: string; tertiary?: string };
+  logo?: string | null;
+  grade?: string;
+  homeGround?: string;
+  stats?: {
+    won: number;
+    drawn: number;
+    lost: number;
+    points: number;
+  };
+}
+
 export interface TeamRoster {
   id?: string;
   clubId: string;
@@ -52,6 +97,8 @@ export interface TeamRoster {
   category: "junior" | "senior" | "masters" | "social";
   division: string;
   gender: "male" | "female" | "mixed"; // UPDATED: male, female, mixed
+  /** Optional display label (e.g. junior age band) */
+  grade?: string;
   season: string;
   teams: Team[];
   shadowPlayers: Player[]; // Emergency/Reserve players

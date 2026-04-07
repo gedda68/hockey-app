@@ -54,7 +54,7 @@ export async function GET(
   } catch (error: unknown) {
     console.error("Error fetching payment:", error);
     return NextResponse.json(
-      { error: "Failed to fetch payment", details: error.message },
+      { error: "Failed to fetch payment", details: error instanceof Error ? error.message : String(error) },
       { status: 500 }
     );
   }
@@ -136,7 +136,7 @@ export async function PATCH(
   } catch (error: unknown) {
     console.error("Error updating payment:", error);
     return NextResponse.json(
-      { error: "Failed to update payment", details: error.message },
+      { error: "Failed to update payment", details: error instanceof Error ? error.message : String(error) },
       { status: 500 }
     );
   }
@@ -193,7 +193,7 @@ export async function DELETE(
   } catch (error: unknown) {
     console.error("Error deleting payment:", error);
     return NextResponse.json(
-      { error: "Failed to delete payment", details: error.message },
+      { error: "Failed to delete payment", details: error instanceof Error ? error.message : String(error) },
       { status: 500 }
     );
   }

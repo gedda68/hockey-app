@@ -6,7 +6,8 @@
 //   string[]            → visible only to those specific roles
 //   (super-admin always sees everything regardless)
 //
-// The sidebar uses these to build the per-role navigation tree.
+// Rule: only add hrefs for pages that actually exist under app/admin/.
+// Planned-but-not-built items are commented out until pages are created.
 
 export interface MenuItem {
   label: string;
@@ -111,7 +112,7 @@ const APPROVALS_ROLES = [
 
 export const menuConfig: MenuItem[] = [
 
-  // ── Always visible to all admin-area users ───────────────────────────────────
+  // ── Dashboard ────────────────────────────────────────────────────────────────
   {
     label: "Dashboard",
     href: "/admin/dashboard",
@@ -126,7 +127,8 @@ export const menuConfig: MenuItem[] = [
     label: "Teams",
     href: "/admin/teams",
     icon: "👥",
-    description: "Manage teams",
+    description: "Manage teams and rosters",
+    color: "from-sky-500 to-sky-600",
     allowedRoles: TEAM_ROLES,
   },
 
@@ -166,7 +168,7 @@ export const menuConfig: MenuItem[] = [
       },
       {
         label: "Ballots",
-        href: "/admin/nomination-windows",
+        href: "/admin/ballots",
         icon: "🗳️",
         description: "View and vote in active ballots",
         allowedRoles: [
@@ -202,125 +204,65 @@ export const menuConfig: MenuItem[] = [
     allowedRoles: PLAYER_MGMT,
     subItems: [
       {
-        label: "Create Player",
+        label: "All Players",
+        href: "/admin/players",
+        icon: "👥",
+        description: "Complete player database",
+        allowedRoles: PLAYER_MGMT,
+      },
+      {
+        label: "Add Player",
         href: "/admin/players/new",
         icon: "👤",
         description: "Create a new player profile",
         allowedRoles: REGISTRATION_ROLES,
       },
       {
-        label: "All Players",
-        href: "/admin/players",
-        icon: "👤",
-        description: "Complete player database",
-        allowedRoles: PLAYER_MGMT,
-      },
-      {
-        label: "Nominations",
-        href: "/admin/players/nominations",
+        label: "Rep Nominations",
+        href: "/admin/nominations",
         icon: "✋",
-        badge: "5",
-        description: "Pending nominations",
+        description: "Rep team nominations and selections",
         allowedRoles: SELECTION_ROLES,
       },
+      // Future: /admin/players/history, /admin/players/stats
+    ],
+  },
+
+  // ── Members ──────────────────────────────────────────────────────────────────
+  {
+    label: "Members",
+    href: "/admin/members",
+    icon: "📝",
+    description: "Manage club members and registrations",
+    color: "from-cyan-500 to-cyan-600",
+    allowedRoles: [
+      "super-admin",
+      "association-admin", "assoc-committee", "assoc-registrar",
+      "club-admin", "club-committee", "registrar",
+    ],
+    subItems: [
       {
-        label: "Club History",
-        href: "/admin/players/history",
-        icon: "📜",
-        description: "Transfer history",
+        label: "All Members",
+        href: "/admin/members",
+        icon: "📝",
+        description: "Member directory",
+        allowedRoles: [
+          "super-admin",
+          "association-admin", "assoc-committee", "assoc-registrar",
+          "club-admin", "club-committee", "registrar",
+        ],
+      },
+      {
+        label: "Add Member",
+        href: "/admin/members/create",
+        icon: "➕",
+        description: "Register a new member",
         allowedRoles: REGISTRATION_ROLES,
       },
-      {
-        label: "Statistics",
-        href: "/admin/players/stats",
-        icon: "📈",
-        description: "Player statistics",
-        allowedRoles: REPORTING_ROLES,
-      },
     ],
   },
 
-  // ── Staff ────────────────────────────────────────────────────────────────────
-  {
-    label: "Staff",
-    href: "/admin/staff",
-    icon: "🎓",
-    description: "Coaches, managers, and officials",
-    color: "from-green-500 to-green-600",
-    allowedRoles: STAFF_ROLES,
-    subItems: [
-      {
-        label: "All Staff",
-        href: "/admin/staff",
-        icon: "👥",
-        description: "Complete staff list",
-        allowedRoles: STAFF_ROLES,
-      },
-      {
-        label: "Coaches",
-        href: "/admin/staff/coaches",
-        icon: "🏃",
-        description: "Team coaches",
-        allowedRoles: [...STAFF_ROLES, "coach"],
-      },
-      {
-        label: "Managers",
-        href: "/admin/staff/managers",
-        icon: "📋",
-        description: "Team managers",
-        allowedRoles: [...STAFF_ROLES, "manager"],
-      },
-      {
-        label: "Umpires",
-        href: "/admin/staff/umpires",
-        icon: "🎯",
-        description: "Match officials",
-        allowedRoles: [...STAFF_ROLES, "umpire"],
-      },
-      {
-        label: "Qualifications",
-        href: "/admin/staff/qualifications",
-        icon: "🎓",
-        description: "Certification tracking",
-        allowedRoles: ["super-admin", "association-admin", "club-admin"],
-      },
-    ],
-  },
-
-  // ── Clubs (association-level + super-admin) ──────────────────────────────────
-  {
-    label: "Clubs",
-    href: "/admin/clubs",
-    icon: "🏢",
-    description: "Club profiles and statistics",
-    color: "from-indigo-500 to-indigo-600",
-    allowedRoles: CLUBS_ROLES,
-    subItems: [
-      {
-        label: "All Clubs",
-        href: "/admin/clubs",
-        icon: "🏢",
-        description: "Club directory",
-        allowedRoles: CLUBS_ROLES,
-      },
-      {
-        label: "Club Profiles",
-        href: "/admin/clubs/profiles",
-        icon: "📋",
-        description: "Detailed profiles",
-        allowedRoles: CLUBS_ROLES,
-      },
-      {
-        label: "Club Statistics",
-        href: "/admin/clubs/stats",
-        icon: "📊",
-        description: "Performance metrics",
-        allowedRoles: CLUBS_ROLES,
-      },
-    ],
-  },
-
-  // ── Associations (super-admin + association-admin only) ──────────────────────
+  // ── Associations ─────────────────────────────────────────────────────────────
   {
     label: "Associations",
     href: "/admin/associations",
@@ -337,7 +279,7 @@ export const menuConfig: MenuItem[] = [
         allowedRoles: ["super-admin", "association-admin", "assoc-committee"],
       },
       {
-        label: "Create Association",
+        label: "Add Association",
         href: "/admin/associations/new",
         icon: "➕",
         description: "Add new association",
@@ -354,55 +296,50 @@ export const menuConfig: MenuItem[] = [
         label: "Positions",
         href: "/admin/associations/positions",
         icon: "👔",
-        description: "Association positions",
+        description: "Association governance positions",
         allowedRoles: ["super-admin", "association-admin", "assoc-committee"],
       },
       {
-        label: "Hierarchy View",
+        label: "Hierarchy",
         href: "/admin/associations/hierarchy",
         icon: "🌳",
-        description: "View full hierarchy",
+        description: "View full association hierarchy",
         allowedRoles: ["super-admin", "association-admin", "assoc-committee"],
       },
     ],
   },
 
-  // ── Members ──────────────────────────────────────────────────────────────────
+  // ── Clubs ────────────────────────────────────────────────────────────────────
   {
-    label: "Members",
-    href: "/admin/members",
-    icon: "📝",
-    description: "Manage club members and registrations",
-    color: "from-cyan-500 to-cyan-600",
-    allowedRoles: [
-      "super-admin",
-      "association-admin", "assoc-committee", "assoc-registrar",
-      "club-admin", "club-committee", "registrar",
+    label: "Clubs",
+    href: "/admin/clubs",
+    icon: "🏢",
+    description: "Club profiles and management",
+    color: "from-indigo-500 to-indigo-600",
+    allowedRoles: CLUBS_ROLES,
+    subItems: [
+      {
+        label: "All Clubs",
+        href: "/admin/clubs",
+        icon: "🏢",
+        description: "Club directory",
+        allowedRoles: CLUBS_ROLES,
+      },
+      {
+        label: "Add Club",
+        href: "/admin/clubs/new",
+        icon: "➕",
+        description: "Register a new club",
+        allowedRoles: ["super-admin", "association-admin"],
+      },
+      // Future: /admin/clubs/profiles, /admin/clubs/stats
     ],
   },
 
-  // ── My personal pages (all authenticated users in admin area) ────────────────
-  {
-    label: "My Registrations",
-    href: "/admin/my-registrations",
-    icon: "🎫",
-    description: "View and submit your role registration requests",
-    color: "from-amber-400 to-amber-500",
-    // No allowedRoles — any logged-in user in the admin area can see this
-  },
-  {
-    label: "My Fees & Payments",
-    href: "/admin/my-fees",
-    icon: "💳",
-    description: "View outstanding and paid fees across all levels",
-    color: "from-indigo-400 to-indigo-500",
-    // No allowedRoles — any logged-in user in the admin area can see this
-  },
-
-  // ── Finance / fees ───────────────────────────────────────────────────────────
+  // ── Finance / Fees ───────────────────────────────────────────────────────────
   {
     label: "Fees",
-    href: "/admin/fees",   // overridden per-role in sidebar
+    href: "/admin/fees",
     icon: "💵",
     description: "Fee management for your scope",
     color: "from-green-500 to-green-600",
@@ -443,182 +380,7 @@ export const menuConfig: MenuItem[] = [
     ],
   },
 
-  // ── Registration admin ───────────────────────────────────────────────────────
-  {
-    label: "Registration",
-    href: "/admin/registrations",
-    icon: "📝",
-    description: "Player registrations and payments",
-    color: "from-cyan-500 to-cyan-600",
-    allowedRoles: REGISTRATION_ROLES,
-    subItems: [
-      {
-        label: "All Registrations",
-        href: "/admin/registrations",
-        icon: "📝",
-        description: "View all registrations",
-        allowedRoles: REGISTRATION_ROLES,
-      },
-      {
-        label: "Pending Approval",
-        href: "/admin/registrations/pending",
-        icon: "⏳",
-        badge: "12",
-        description: "Awaiting approval",
-        allowedRoles: REGISTRATION_ROLES,
-      },
-      {
-        label: "Payments",
-        href: "/admin/registrations/payments",
-        icon: "💳",
-        description: "Payment tracking",
-        allowedRoles: FINANCE_ROLES,
-      },
-      {
-        label: "Season Management",
-        href: "/admin/registrations/seasons",
-        icon: "📅",
-        description: "Manage seasons",
-        allowedRoles: ["super-admin", "association-admin", "assoc-registrar", "club-admin"],
-      },
-    ],
-  },
-
-  // ── Selection ────────────────────────────────────────────────────────────────
-  {
-    label: "Selection",
-    href: "/admin/selection",
-    icon: "✅",
-    description: "Selection meetings and voting",
-    color: "from-red-500 to-red-600",
-    allowedRoles: SELECTION_ROLES,
-    subItems: [
-      {
-        label: "Meetings",
-        href: "/admin/selection/meetings",
-        icon: "📅",
-        description: "Schedule and minutes",
-        allowedRoles: SELECTION_ROLES,
-      },
-      {
-        label: "Voting",
-        href: "/admin/selection/voting",
-        icon: "🗳️",
-        description: "Selection voting",
-        allowedRoles: SELECTION_ROLES,
-      },
-      {
-        label: "Nominations",
-        href: "/admin/selection/nominations",
-        icon: "✋",
-        description: "Player nominations",
-        allowedRoles: SELECTION_ROLES,
-      },
-      {
-        label: "History",
-        href: "/admin/selection/history",
-        icon: "📜",
-        description: "Past selections",
-        allowedRoles: SELECTION_ROLES,
-      },
-    ],
-  },
-
-  // ── Reports ──────────────────────────────────────────────────────────────────
-  {
-    label: "Reports",
-    href: "/admin/reports",
-    icon: "📈",
-    description: "Analytics and data export",
-    color: "from-orange-500 to-orange-600",
-    allowedRoles: REPORTING_ROLES,
-    subItems: [
-      {
-        label: "Roster Reports",
-        href: "/admin/reports/rosters",
-        icon: "📋",
-        description: "Team and division reports",
-        allowedRoles: REPORTING_ROLES,
-      },
-      {
-        label: "Player Reports",
-        href: "/admin/reports/players",
-        icon: "⭐",
-        description: "Player statistics",
-        allowedRoles: REPORTING_ROLES,
-      },
-      {
-        label: "Registration Reports",
-        href: "/admin/reports/registrations",
-        icon: "📝",
-        description: "Registration analytics",
-        allowedRoles: REPORTING_ROLES,
-      },
-      {
-        label: "Financial Reports",
-        href: "/admin/reports/financial",
-        icon: "💰",
-        description: "Payment and fee reports",
-        allowedRoles: FINANCE_ROLES,
-      },
-      {
-        label: "Selection Reports",
-        href: "/admin/reports/selection",
-        icon: "✅",
-        description: "Selection analytics",
-        allowedRoles: SELECTION_ROLES,
-      },
-      {
-        label: "Export Data",
-        href: "/admin/reports/export",
-        icon: "💾",
-        description: "Data export tools",
-        allowedRoles: REPORTING_ROLES,
-      },
-    ],
-  },
-
-  // ── Settings ─────────────────────────────────────────────────────────────────
-  {
-    label: "Settings",
-    href: "/admin/settings",
-    icon: "⚙️",
-    description: "System configuration",
-    color: "from-slate-500 to-slate-600",
-    allowedRoles: SETTINGS_ROLES,
-    subItems: [
-      {
-        label: "General",
-        href: "/admin/settings",
-        icon: "🔧",
-        description: "General settings",
-        allowedRoles: SETTINGS_ROLES,
-      },
-      {
-        label: "Email Templates",
-        href: "/admin/settings/email",
-        icon: "📧",
-        description: "Email configuration",
-        allowedRoles: ["super-admin", "association-admin", "assoc-committee", "club-admin", "media-marketing"],
-      },
-      {
-        label: "Notifications",
-        href: "/admin/settings/notifications",
-        icon: "🔔",
-        description: "Notification preferences",
-        allowedRoles: SETTINGS_ROLES,
-      },
-      {
-        label: "Database",
-        href: "/admin/settings/database",
-        icon: "💾",
-        description: "Database management",
-        allowedRoles: ["super-admin"],
-      },
-    ],
-  },
-
-  // ── News / Media (media-marketing + admins) ──────────────────────────────────
+  // ── News / Media ─────────────────────────────────────────────────────────────
   {
     label: "News & Media",
     href: "/admin/news",
@@ -632,6 +394,22 @@ export const menuConfig: MenuItem[] = [
     ],
   },
 
+  // ── Reports & Analytics ──────────────────────────────────────────────────────
+  {
+    label: "Reports",
+    href: "/admin/reports",
+    icon: "📈",
+    description: "Member counts, gender/age breakdowns, historic trends and more",
+    color: "from-teal-500 to-teal-600",
+    allowedRoles: REPORTING_ROLES,
+    subItems: [
+      { label: "Member Analytics",  href: "/admin/reports",                   icon: "👥", description: "Total members, players, roles by gender & age group", allowedRoles: REPORTING_ROLES },
+      { label: "By Association",    href: "/admin/reports?scope=association",  icon: "🏛️", description: "Member breakdown per association",                   allowedRoles: ["super-admin","association-admin","assoc-committee"] },
+      { label: "By Club",           href: "/admin/reports?scope=club",         icon: "🏢", description: "Member breakdown per club",                          allowedRoles: REPORTING_ROLES },
+      { label: "Historic Trends",   href: "/admin/reports?view=historic",      icon: "📉", description: "Year-on-year growth and membership trends",           allowedRoles: REPORTING_ROLES },
+    ],
+  },
+
   // ── Bulk Import ──────────────────────────────────────────────────────────────
   {
     label: "Bulk Import",
@@ -641,14 +419,37 @@ export const menuConfig: MenuItem[] = [
     color: "from-emerald-500 to-emerald-600",
     allowedRoles: ["super-admin", "association-admin", "club-admin"],
     subItems: [
-      { label: "Members",      href: "/admin/bulk-import?tab=members",      icon: "📝", description: "Upload members via CSV/Excel",      allowedRoles: ["super-admin", "association-admin", "club-admin"] },
-      { label: "Players",      href: "/admin/bulk-import?tab=players",      icon: "⭐", description: "Upload players via CSV/Excel",       allowedRoles: ["super-admin", "association-admin", "club-admin"] },
-      { label: "Users",        href: "/admin/bulk-import?tab=users",        icon: "👤", description: "Upload user accounts via CSV/Excel", allowedRoles: ["super-admin", "association-admin"] },
-      { label: "Clubs",        href: "/admin/bulk-import?tab=clubs",        icon: "🏢", description: "Upload clubs via CSV/Excel",         allowedRoles: ["super-admin", "association-admin"] },
-      { label: "Associations", href: "/admin/bulk-import?tab=associations", icon: "🏛️", description: "Upload associations via CSV/Excel",  allowedRoles: ["super-admin"] },
-      { label: "Teams",        href: "/admin/bulk-import?tab=teams",        icon: "👥", description: "Upload club teams via CSV/Excel",    allowedRoles: ["super-admin", "association-admin", "club-admin"] },
-      { label: "Rep Teams",    href: "/admin/bulk-import?tab=rep-teams",    icon: "🏆", description: "Upload representative teams",        allowedRoles: ["super-admin", "association-admin"] },
+      { label: "Members",      href: "/admin/bulk-import?tab=members",      icon: "📝", description: "Upload members via CSV/Excel",       allowedRoles: ["super-admin", "association-admin", "club-admin"] },
+      { label: "Players",      href: "/admin/bulk-import?tab=players",      icon: "⭐", description: "Upload players via CSV/Excel",        allowedRoles: ["super-admin", "association-admin", "club-admin"] },
+      { label: "Users",        href: "/admin/bulk-import?tab=users",        icon: "👤", description: "Upload user accounts via CSV/Excel",  allowedRoles: ["super-admin", "association-admin"] },
+      { label: "Clubs",        href: "/admin/bulk-import?tab=clubs",        icon: "🏢", description: "Upload clubs via CSV/Excel",          allowedRoles: ["super-admin", "association-admin"] },
+      { label: "Associations", href: "/admin/bulk-import?tab=associations", icon: "🏛️", description: "Upload associations via CSV/Excel",   allowedRoles: ["super-admin"] },
+      { label: "Teams",        href: "/admin/bulk-import?tab=teams",        icon: "👥", description: "Upload club teams via CSV/Excel",     allowedRoles: ["super-admin", "association-admin", "club-admin"] },
+      { label: "Rep Teams",    href: "/admin/bulk-import?tab=rep-teams",    icon: "🏆", description: "Upload representative teams",         allowedRoles: ["super-admin", "association-admin"] },
     ],
+  },
+
+  // ── My personal pages (all authenticated users) ──────────────────────────────
+  {
+    label: "My Registrations",
+    href: "/admin/my-registrations",
+    icon: "🎫",
+    description: "View and submit your role registration requests",
+    color: "from-amber-400 to-amber-500",
+  },
+  {
+    label: "My Nominations",
+    href: "/nomination-status",
+    icon: "🏆",
+    description: "View your nomination status for teams and positions",
+    color: "from-yellow-400 to-yellow-500",
+  },
+  {
+    label: "My Fees & Payments",
+    href: "/admin/my-fees",
+    icon: "💳",
+    description: "View outstanding and paid fees across all levels",
+    color: "from-indigo-400 to-indigo-500",
   },
 
   // ── Users (super-admin only) ─────────────────────────────────────────────────
@@ -656,33 +457,61 @@ export const menuConfig: MenuItem[] = [
     label: "Users",
     href: "/admin/users",
     icon: "👥",
-    description: "User accounts and permissions",
+    description: "Admin user accounts and permissions",
     color: "from-pink-500 to-pink-600",
     allowedRoles: ["super-admin"],
+    // Sub-items (users/roles, users/activity) to be built
+  },
+
+  // ── Settings ─────────────────────────────────────────────────────────────────
+  {
+    label: "Settings",
+    href: "/admin/settings/fee-categories",
+    icon: "⚙️",
+    description: "System configuration",
+    color: "from-slate-500 to-slate-600",
+    allowedRoles: SETTINGS_ROLES,
     subItems: [
-      { label: "All Users",          href: "/admin/users",          icon: "👤", description: "User directory",         allowedRoles: ["super-admin"] },
-      { label: "Roles & Permissions", href: "/admin/users/roles",   icon: "🔐", description: "Access control",        allowedRoles: ["super-admin"] },
-      { label: "Activity Log",        href: "/admin/users/activity", icon: "📊", description: "User activity tracking", allowedRoles: ["super-admin"] },
+      {
+        label: "Fee Categories",
+        href: "/admin/settings/fee-categories",
+        icon: "💰",
+        description: "Manage fee category types",
+        allowedRoles: SETTINGS_ROLES,
+      },
+      {
+        label: "Committee Positions",
+        href: "/admin/settings/committee-positions",
+        icon: "👔",
+        description: "Define committee role positions",
+        allowedRoles: ["super-admin", "association-admin", "assoc-committee"],
+      },
+      {
+        label: "Gender Options",
+        href: "/admin/settings/gender",
+        icon: "👤",
+        description: "Manage gender classification options",
+        allowedRoles: ["super-admin"],
+      },
+      // Future: email templates, notifications, database
     ],
   },
 
   // ── Global Config (super-admin only) ─────────────────────────────────────────
   {
     label: "Global Config",
-    href: "/admin/config",
+    href: "/admin/config/gender",
     icon: "🎛️",
     description: "System-wide configuration lists",
     color: "from-violet-500 to-violet-600",
     allowedRoles: ["super-admin"],
     subItems: [
-      { label: "Gender Options",      href: "/admin/config/gender",           icon: "👤", description: "Manage gender types",              allowedRoles: ["super-admin"] },
-      { label: "Relationship Types",  href: "/admin/config/relationship-type",icon: "❤️", description: "Manage relationship types",        allowedRoles: ["super-admin"] },
-      { label: "Salutations",         href: "/admin/config/salutation",       icon: "🎩", description: "Manage name titles (Mr, Mrs, etc)", allowedRoles: ["super-admin"] },
-      { label: "Fee Categories",      href: "/admin/config/fee-category",     icon: "💰", description: "Manage fee category types",         allowedRoles: ["super-admin"] },
-      { label: "Role Types",          href: "/admin/config/role-type",        icon: "🏑", description: "Manage player positions",           allowedRoles: ["super-admin"] },
-      { label: "Skill Levels",        href: "/admin/config/skill-level",      icon: "📊", description: "Manage skill level types",          allowedRoles: ["super-admin"] },
-      { label: "Membership Types",    href: "/admin/config/membership-type",  icon: "🎫", description: "Manage membership categories",      allowedRoles: ["super-admin"] },
-      { label: "Member Roles",        href: "/admin/config/member-roles",     icon: "🎫", description: "Manage membership roles",           allowedRoles: ["super-admin"] },
+      { label: "Gender Options",     href: "/admin/config/gender",           icon: "👤", description: "Manage gender types",              allowedRoles: ["super-admin"] },
+      { label: "Relationship Types", href: "/admin/config/relationship-type",icon: "❤️", description: "Manage relationship types",        allowedRoles: ["super-admin"] },
+      { label: "Salutations",        href: "/admin/config/salutation",       icon: "🎩", description: "Manage name titles (Mr, Mrs, etc)", allowedRoles: ["super-admin"] },
+      { label: "Membership Types",   href: "/admin/config/membership-type",  icon: "🎫", description: "Manage membership categories",      allowedRoles: ["super-admin"] },
+      { label: "Member Roles",       href: "/admin/config/member-roles",     icon: "🏑", description: "Manage member role types",          allowedRoles: ["super-admin"] },
+      // Future: fee-categories, role-types, skill-levels
     ],
   },
 ];
@@ -694,7 +523,36 @@ export function getDashboardTiles(): MenuItem[] {
   return menuConfig.filter((item) => !item.subItems && item.color);
 }
 
+/** Get all top-level items — alias used by dashboard */
+export function getMainMenuItems(): MenuItem[] {
+  return menuConfig;
+}
+
 /** Find a menu item by label */
 export function findMenuItem(label: string): MenuItem | undefined {
   return menuConfig.find((m) => m.label === label);
+}
+
+/**
+ * Filter menu items visible to a given role (and optionally a set of scoped roles).
+ * super-admin always sees everything.
+ */
+export function filterMenuForRole(role: string, scopedRoles: string[] = []): MenuItem[] {
+  const allRoles = new Set([role, ...scopedRoles]);
+  if (allRoles.has("super-admin")) return menuConfig;
+
+  return menuConfig
+    .filter((item) => {
+      if (!item.allowedRoles || item.allowedRoles.length === 0) return true;
+      return item.allowedRoles.some((r) => allRoles.has(r));
+    })
+    .map((item) => {
+      if (!item.subItems) return item;
+      const visibleSubs = item.subItems.filter((sub) => {
+        if (!sub.allowedRoles || sub.allowedRoles.length === 0) return true;
+        return sub.allowedRoles.some((r) => allRoles.has(r));
+      });
+      return { ...item, subItems: visibleSubs };
+    })
+    .filter((item) => !item.subItems || item.subItems.length > 0);
 }

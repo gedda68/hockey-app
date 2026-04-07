@@ -60,11 +60,6 @@ export async function POST(
       return NextResponse.json({ error: "Club not found" }, { status: 404 });
     }
 
-      id: club.id,
-      name: club.name,
-      slug: club.slug,
-    });
-
     // Get form data
     const formData = await request.json();
 
@@ -119,7 +114,7 @@ export async function POST(
                   reverseRelation: rel.forwardRelation,
                 },
               },
-            }
+            } as unknown as import("mongodb").UpdateFilter<import("mongodb").Document>,
           );
         }
       }
@@ -133,7 +128,10 @@ export async function POST(
   } catch (error: unknown) {
     console.error("💥 Error creating member:", error);
     return NextResponse.json(
-      { error: error.message || "Failed to create member" },
+      {
+        error:
+          error instanceof Error ? error.message : "Failed to create member",
+      },
       { status: 500 }
     );
   }
@@ -158,11 +156,6 @@ export async function GET(
       console.error("❌ Club not found with slug:", clubId);
       return NextResponse.json({ error: "Club not found" }, { status: 404 });
     }
-
-      id: club.id,
-      name: club.name,
-      slug: club.slug,
-    });
 
     // ✅ Get all members using club.id
 

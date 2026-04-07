@@ -4,7 +4,7 @@
 import { NextResponse } from "next/server";
 import type { Db } from 'mongodb';
 import clientPromise from "@/lib/mongodb";
-import { z } from "zod";
+import { z, ZodError } from "zod";
 
 // Flexible schema for updates
 const AssociationSchema = z.object({
@@ -178,10 +178,9 @@ export async function GET(
     });
   } catch (error: unknown) {
     console.error("Error fetching association:", error);
-    return NextResponse.json(
-      { error: error.message || "Failed to fetch association" },
-      { status: 500 },
-    );
+    const message =
+      error instanceof Error ? error.message : "Failed to fetch association";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
 
@@ -280,17 +279,16 @@ export async function PUT(
   } catch (error: unknown) {
     console.error("Error updating association:", error);
 
-    if (error.name === "ZodError") {
+    if (error instanceof ZodError) {
       return NextResponse.json(
-        { error: "Validation error", details: error.errors },
+        { error: "Validation error", details: error.flatten() },
         { status: 400 },
       );
     }
 
-    return NextResponse.json(
-      { error: error.message || "Failed to update association" },
-      { status: 500 },
-    );
+    const message =
+      error instanceof Error ? error.message : "Failed to update association";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
 
@@ -358,9 +356,8 @@ export async function DELETE(
     });
   } catch (error: unknown) {
     console.error("Error deleting association:", error);
-    return NextResponse.json(
-      { error: error.message || "Failed to delete association" },
-      { status: 500 },
-    );
+    const message =
+      error instanceof Error ? error.message : "Failed to delete association";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

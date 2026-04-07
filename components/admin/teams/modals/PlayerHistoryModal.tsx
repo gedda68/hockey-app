@@ -3,23 +3,7 @@
 
 "use client";
 
-interface Player {
-  id: string;
-  firstName: string;
-  lastName: string;
-  number: string;
-  position: string;
-  teamSelectionHistory?: Array<{
-    id: string;
-    season: string;
-    division: string;
-    teamName: string;
-    number: string;
-    position: string;
-    selectedDate: string;
-    deselectedDate?: string;
-  }>;
-}
+import type { Player } from "@/types/admin/teams.types";
 
 interface PlayerHistoryModalProps {
   player: Player;
@@ -31,6 +15,10 @@ export default function PlayerHistoryModal({
   onClose,
 }: PlayerHistoryModalProps) {
   const history = player.teamSelectionHistory || [];
+  const displayName =
+    [player.firstName, player.lastName].filter(Boolean).join(" ").trim() ||
+    player.name ||
+    "Player";
 
   return (
     <>
@@ -54,7 +42,7 @@ export default function PlayerHistoryModal({
                   Selection History
                 </h2>
                 <p className="text-sm text-purple-200 mt-1">
-                  {player.firstName} {player.lastName}
+                  {displayName}
                 </p>
               </div>
               <button

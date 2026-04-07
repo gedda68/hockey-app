@@ -29,12 +29,10 @@ async function generateMemberId(db: Db, clubId: string): Promise<string> {
     },
   );
 
-  // Robust check for the sequence number
-  // In some driver versions, it's 'updateRes', in others 'updateRes.value'
-  const updatedDoc = updateRes.value || updateRes;
+  const updatedDoc = updateRes?.value;
   const sequence = updatedDoc?.memberSequence;
 
-  if (!sequence) {
+  if (!updatedDoc || sequence == null) {
     throw new Error("Failed to generate member sequence");
   }
 
@@ -63,42 +61,53 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
 
-    // Pagination
-    const page = parseInt(searchParams.get("page") || "1");
-    const limit = parseInt(
-      searchParams.get("limit") || MEMBERS_PER_PAGE.toString(),
-    );
-    const skip = (page - 1) * limit;
+    // Pagination — support both page-based and offset-based
+    const limit  = parseInt(searchParams.get("limit")  || MEMBERS_PER_PAGE.toString());
+    const offset = parseInt(searchParams.get("offset") || "0");
+    const page   = parseInt(searchParams.get("page")   || "1");
+    const skip   = offset > 0 ? offset : (page - 1) * limit;
+
+    // Sorting
+    const sortField = searchParams.get("sort") || "lastName";
+    const sortDir   = searchParams.get("dir")  === "desc" ? -1 : 1;
+    const SORT_MAP: Record<string, string> = {
+      lastName:  "personalInfo.lastName",
+      firstName: "personalInfo.firstName",
+      memberId:  "memberId",
+      status:    "membership.status",
+      joinDate:  "membership.joinDate",
+    };
+    const sortKey = SORT_MAP[sortField] ?? "personalInfo.lastName";
 
     // Filters
-    const clubId = searchParams.get("clubId");
+    const clubId        = searchParams.get("clubId");
     const associationId = searchParams.get("associationId");
-    const status = searchParams.get("status");
-    const membershipType = searchParams.get("membershipType");
-    const role = searchParams.get("role");
-    const search = searchParams.get("search");
+    const status        = searchParams.get("status");
+    const membershipType= searchParams.get("membershipType");
+    const role          = searchParams.get("role");
+    const search        = searchParams.get("search");
 
     const client = await clientPromise;
-    const db = client.db();
+    const db = client.db("hockey-app");
 
     // Build query
     const query: Record<string, unknown> = {};
 
-    if (clubId) query.clubId = clubId;
-    if (associationId) query.associationId = associationId;
-    if (status) query["membership.status"] = status;
-    if (membershipType) query["membership.membershipTypes"] = membershipType;
-    if (role) query.roles = role;
+    if (clubId)        query["membership.clubId"]       = clubId;
+    if (associationId) query["membership.associationId"] = associationId;
+    if (status)        query["membership.status"]        = status;
+    if (membershipType) query["membership.membershipType"] = membershipType;
+    if (role)          query.roles = role;
 
     // Search by name, email, or member ID
     if (search) {
       const safeSearch = escapeRegex(search);
       query.$or = [
         { memberId: { $regex: safeSearch, $options: "i" } },
-        { "personalInfo.firstName": { $regex: safeSearch, $options: "i" } },
-        { "personalInfo.lastName": { $regex: safeSearch, $options: "i" } },
+        { "personalInfo.firstName":   { $regex: safeSearch, $options: "i" } },
+        { "personalInfo.lastName":    { $regex: safeSearch, $options: "i" } },
         { "personalInfo.displayName": { $regex: safeSearch, $options: "i" } },
-        { "contact.email": { $regex: safeSearch, $options: "i" } },
+        { "contact.primaryEmail":     { $regex: safeSearch, $options: "i" } },
       ];
     }
 
@@ -109,7 +118,7 @@ export async function GET(request: NextRequest) {
     const members = await db
       .collection("members")
       .find(query)
-      .sort({ createdAt: -1 })
+      .sort({ [sortKey]: sortDir })
       .skip(skip)
       .limit(limit)
       .toArray();
@@ -173,7 +182,7 @@ export async function POST(request: NextRequest) {
     }
 
     const client = await clientPromise;
-    const db = client.db();
+    const db = client.db("hockey-app");
 
     // Generate member ID
     const memberId = await generateMemberId(db, body.clubId);
@@ -252,47 +261,6 @@ export async function POST(request: NextRequest) {
     );
   } catch (error: unknown) {
     console.error("💥 Error creating member:", error);
-    return NextResponse.json({ error: error instanceof Error ? error.message : String(error) }, { status: 500 });
-  }
-}
-
-// app/api/admin/members/[id]/route.ts
-
-export async function PUT(
-  request: NextRequest,
-  context: { params: Promise<{ id: string }> },
-) {
-  try {
-    const session = await getSession();
-    const { id } = await context.params;
-    const body = await request.json();
-    const client = await clientPromise;
-    const db = client.db();
-
-    // Remove immutable fields if present in body
-    const { _id, memberId, createdAt, ...updateData } = body;
-
-    const result = await db.collection("members").findOneAndUpdate(
-      { memberId: id },
-      {
-        $set: {
-          ...updateData,
-          updatedAt: new Date().toISOString(),
-          updatedBy: session?.email || session?.userId || "system",
-        },
-      },
-      { returnDocument: "after" },
-    );
-
-    if (!result) {
-      return NextResponse.json({ error: "Member not found" }, { status: 404 });
-    }
-
-    return NextResponse.json({
-      message: "Update successful",
-      member: result.value || result,
-    });
-  } catch (error: unknown) {
     return NextResponse.json({ error: error instanceof Error ? error.message : String(error) }, { status: 500 });
   }
 }

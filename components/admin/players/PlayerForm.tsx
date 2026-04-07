@@ -19,7 +19,7 @@ import DisciplinarySection from "./sections/DisciplinarySection";
 import RepresentativeSection from "./sections/RepresentativeSection";
 import InjuriesSection from "./sections/InjuriesSection";
 import StatsSection from "./sections/StatsSection";
-import { PlayerFormData } from "./types/player.types";
+import { PlayerFormData } from "@/types/player.types";
 import {
   User,
   Building,
@@ -52,6 +52,9 @@ export default function PlayerForm({
   const [currentSection, setCurrentSection] = useState("personal");
   const [formData, setFormData] = useState<PlayerFormData>(
     existingPlayer || {
+      playerId: "",
+      photo: "",
+
       // Personal
       firstName: "",
       lastName: "",
@@ -85,15 +88,15 @@ export default function PlayerForm({
         conditions: "",
         allergies: "",
         medications: "",
+        bloodType: "",
         doctorName: "",
         doctorPhone: "",
-        medicareNumber: "",
-        healthFund: "",
+        doctorPractice: "",
+        healthFundName: "",
         healthFundNumber: "",
+        medicareNumber: "",
+        injuryHistory: [],
       },
-      conditions: [],
-      allergies: [],
-      medications: [],
 
       // Emergency
       emergencyContacts: [],

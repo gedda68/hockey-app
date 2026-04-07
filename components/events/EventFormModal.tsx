@@ -5,7 +5,13 @@
 // Pass `event` to edit an existing event; omit for create mode.
 // Pass `defaultDate` to pre-fill the start date when creating from a calendar day.
 
-import { useState, useEffect, useRef } from "react";
+import {
+  useState,
+  useEffect,
+  useRef,
+  forwardRef,
+  type InputHTMLAttributes,
+} from "react";
 import { X, Loader, CalendarDays, Clock, MapPin, Tag } from "lucide-react";
 import { Event, EventCategory, EventScope, EventStatus } from "@/types/event";
 
@@ -115,16 +121,17 @@ function Label({ children }: { children: React.ReactNode }) {
   );
 }
 
-function Input({
-  ...props
-}: React.InputHTMLAttributes<HTMLInputElement>) {
-  return (
-    <input
-      {...props}
-      className={`w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-800 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none transition-all ${props.className ?? ""}`}
-    />
-  );
-}
+const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputElement>>(
+  function Input({ className, ...props }, ref) {
+    return (
+      <input
+        ref={ref}
+        {...props}
+        className={`w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-800 focus:ring-2 focus:ring-blue-400 focus:border-blue-400 outline-none transition-all ${className ?? ""}`}
+      />
+    );
+  },
+);
 
 function Select({
   children,

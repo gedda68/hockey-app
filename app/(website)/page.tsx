@@ -373,19 +373,22 @@ export default async function HomePage() {
                     className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 hover:shadow-md transition-all text-center group"
                   >
                     <div className="relative w-16 h-16 mx-auto mb-3">
-                      {club.iconSrc ? (
+                      {club.logo || club.iconSrc ? (
                         <Image
-                          src={club.iconSrc}
-                          alt={club.title}
+                          src={(club.logo || club.iconSrc) as string}
+                          alt={club.name || club.title || "Club"}
                           fill
                           className="object-contain group-hover:scale-110 transition-transform"
                         />
                       ) : (
-                        <span className="text-4xl">{club.icon}</span>
+                        <span className="text-4xl" aria-hidden>
+                          {club.icon ?? "🏑"}
+                        </span>
                       )}
                     </div>
                     <div className="text-xs font-black uppercase text-slate-900">
-                      {club.title.split(" ")[0]}
+                      {(club.shortName || club.name || club.title || "")
+                        .split(" ")[0]}
                     </div>
                   </Link>
                 ))}

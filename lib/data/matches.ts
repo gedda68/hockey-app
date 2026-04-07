@@ -6,6 +6,7 @@
 
 // Direct import from /data folder
 import matchesData from "../../data/matches/matches.json";
+import type { Match as PublicMatch, Season, ViewType } from "@/types";
 
 // Types
 interface MatchRaw {
@@ -51,6 +52,26 @@ interface Match {
   };
   status: string;
   isFeatureGame?: boolean;
+}
+
+function mapStoredMatchToPublic(m: Match): PublicMatch {
+  return {
+    matchId: m.matchId,
+    division: m.division,
+    round: m.round,
+    status: m.status,
+    homeTeam: m.homeTeam.name,
+    homeTeamIcon: m.homeTeam.icon,
+    awayTeam: m.awayTeam.name,
+    awayTeamIcon: m.awayTeam.icon,
+    homeScore: m.score?.home ?? null,
+    awayScore: m.score?.away ?? null,
+    homeShootOutScore: m.shootoutScore?.home ?? null,
+    awayShootOutScore: m.shootoutScore?.away ?? null,
+    dateTime: m.dateTime,
+    location: m.venue,
+    isFeatureGame: m.isFeatureGame,
+  };
 }
 
 /**
@@ -221,20 +242,25 @@ export async function getDivisions(): Promise<string[]> {
 /**
  * Get all seasons
  */
-export async function getSeasons(): Promise<number[]> {
+export async function getSeasons(): Promise<Season[]> {
   const matches = await getMatches();
+  const currentYear = await getCurrentSeason();
 
   if (!Array.isArray(matches) || matches.length === 0) {
-    // Return current year as fallback
-    return [new Date().getFullYear()];
+    const y = new Date().getFullYear();
+    return [{ year: y, isCurrent: y === currentYear }];
   }
 
-  const seasons = new Set(matches.map((m) => m.season));
-  const currentYear = new Date().getFullYear();
+  const seasonYears = new Set(matches.map((m) => m.season));
+  const now = new Date().getFullYear();
 
-  return Array.from(seasons)
-    .filter((s) => s && s >= 2020 && s <= currentYear + 1)
-    .sort((a, b) => b - a);
+  return Array.from(seasonYears)
+    .filter((s) => s && s >= 2020 && s <= now + 1)
+    .sort((a, b) => b - a)
+    .map((year) => ({
+      year,
+      isCurrent: year === currentYear,
+    }));
 }
 
 /**
@@ -298,10 +324,23 @@ export async function filterMatches(filters: {
   season?: number;
   round?: string;
   status?: string;
-}): Promise<Match[]> {
+  view?: ViewType;
+}): Promise<PublicMatch[]> {
   let matches = await getMatches();
 
-  if (filters.division) {
+  if (filters.view === "upcoming") {
+    const now = new Date();
+    matches = matches.filter(
+      (m) =>
+        m.status === "Scheduled" || new Date(m.dateTime).getTime() >= now.getTime(),
+    );
+  } else if (filters.view === "results") {
+    matches = matches.filter((m) =>
+      ["Final", "Live"].includes(String(m.status)),
+    );
+  }
+
+  if (filters.division && filters.division !== "All") {
     matches = matches.filter((m) => m.division === filters.division);
   }
 
@@ -309,15 +348,15 @@ export async function filterMatches(filters: {
     matches = matches.filter((m) => m.season === filters.season);
   }
 
-  if (filters.round) {
+  if (filters.round && filters.round !== "All") {
     matches = matches.filter((m) => m.round.toString() === filters.round);
   }
 
-  if (filters.status) {
+  if (filters.status && filters.status !== "All") {
     matches = matches.filter((m) => m.status === filters.status);
   }
 
-  return matches;
+  return matches.map(mapStoredMatchToPublic);
 }
 
 /**

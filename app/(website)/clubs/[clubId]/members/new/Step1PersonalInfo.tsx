@@ -2,32 +2,18 @@
 
 import { User, Upload, X, Camera } from "lucide-react";
 import TypeAheadSelect from "@/components/admin/TypeAheadSelect";
+import type { AddMemberFormData } from "./member-form-types";
 
 interface SalutationOption { salutationId: string; name: string }
 interface GenderOption { genderId: string; name: string }
 
-interface PersonalInfo {
-  salutation: string;
-  firstName: string;
-  lastName: string;
-  displayName: string;
-  dateOfBirth: string;
-  gender: string;
-  photoUrl: string | null;
-}
-
-interface FormData {
-  personalInfo: PersonalInfo;
-  [key: string]: unknown;
-}
-
 interface Step1PersonalInfoProps {
-  formData: FormData;
-  setFormData: React.Dispatch<React.SetStateAction<FormData>>;
+  formData: AddMemberFormData;
+  setFormData: React.Dispatch<React.SetStateAction<AddMemberFormData>>;
   salutations: SalutationOption[];
   genders: GenderOption[];
   photoPreview: string | null;
-  fileInputRef: React.RefObject<HTMLInputElement>;
+  fileInputRef: React.RefObject<HTMLInputElement | null>;
   handlePhotoChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   removePhoto: () => void;
 }
@@ -207,7 +193,7 @@ export function Step1PersonalInfo({
           >
             <option value="">Select gender</option>
             {genders.map((g) => (
-              <option key={g.id} value={g.id}>
+              <option key={g.genderId} value={g.genderId}>
                 {g.name}
               </option>
             ))}

@@ -14,18 +14,17 @@ export async function GET(
     console.log("📋 Fetching consent data for player:", playerId);
 
     const client = await clientPromise;
-    const db = client.db();
+    const db = client.db("hockey-app");
 
-    const player = await db
-      .collection("players")
-      .findOne({ playerId }, { projection: { consents: 1, _id: 0 } });
+    const member = await db
+      .collection("members")
+      .findOne({ memberId: playerId }, { projection: { consents: 1, _id: 0 } });
 
-    if (!player) {
+    if (!member) {
       return NextResponse.json({ error: "Player not found" }, { status: 404 });
     }
 
-    // Return consents or default values
-    const consents = player.consents || {
+    const consents = member.consents ?? {
       photoConsent: false,
       mediaConsent: false,
       transportConsent: false,
@@ -39,7 +38,10 @@ export async function GET(
   } catch (error: unknown) {
     console.error("❌ Error fetching consent:", error);
     return NextResponse.json(
-      { error: "Failed to fetch consent", details: error.message },
+      {
+        error: "Failed to fetch consent",
+        details: error instanceof Error ? error.message : String(error),
+      },
       { status: 500 },
     );
   }
@@ -62,13 +64,13 @@ export async function PUT(
     };
 
     const client = await clientPromise;
-    const db = client.db();
+    const db = client.db("hockey-app");
 
-    const result = await db.collection("players").updateOne(
-      { playerId },
+    const result = await db.collection("members").updateOne(
+      { memberId: playerId },
       {
         $set: {
-          consents: updatedConsents,
+          consents:  updatedConsents,
           updatedAt: new Date().toISOString(),
         },
       },
@@ -88,7 +90,10 @@ export async function PUT(
   } catch (error: unknown) {
     console.error("❌ Error updating consent:", error);
     return NextResponse.json(
-      { error: "Failed to update consent", details: error.message },
+      {
+        error: "Failed to update consent",
+        details: error instanceof Error ? error.message : String(error),
+      },
       { status: 500 },
     );
   }

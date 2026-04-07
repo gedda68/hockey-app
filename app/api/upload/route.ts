@@ -77,7 +77,9 @@ export async function POST(request: NextRequest) {
     console.error("❌ Upload error:", error);
     return NextResponse.json(
       {
-        error: error.message || "Upload failed",
+        error:
+          (error instanceof Error ? error.message : String(error)) ||
+          "Upload failed",
       },
       { status: 500 },
     );

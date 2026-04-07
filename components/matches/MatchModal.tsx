@@ -2,68 +2,12 @@
 
 import React, { useMemo } from "react";
 import Image from "next/image";
-
-interface Goal {
-  team: string;
-  playerNum: string;
-  playerName: string;
-  time: number;
-  type: string;
-}
-
-interface Card {
-  team: string;
-  playerNum: string;
-  playerName: string;
-  time: number;
-  type: string;
-}
-
-interface ShootoutAttempt {
-  playerNum: string;
-  playerName: string;
-  type: string;
-  result: "Goal" | "Miss";
-}
-
-interface MatchStats {
-  goals?: Goal[];
-  cards?: Card[];
-  shootout?: {
-    home: ShootoutAttempt[];
-    away: ShootoutAttempt[];
-  } | null;
-}
-
-interface Match {
-  homeTeam: string;
-  homeTeamIcon: string;
-  awayTeam: string;
-  awayTeamIcon: string;
-  homeScore: number;
-  awayScore: number;
-  status: string;
-  homeShootOutScore?: number;
-  awayShootOutScore?: number;
-}
-
-interface TimelineEvent {
-  team: string;
-  playerNum: string;
-  playerName: string;
-  time: number;
-  type: "GOAL" | "CARD";
-  cardType?: string;
-  goalType?: string;
-}
-
-interface UmpireDetails {
-  umpireName: string;
-  umpireNumber: string;
-  club: string;
-  umpireLevel: string;
-  isActive: boolean;
-}
+import type {
+  Match,
+  MatchStats,
+  TimelineEvent,
+  UmpireDetails,
+} from "@/types";
 
 export default function MatchModal({
   match,
@@ -170,7 +114,7 @@ export default function MatchModal({
                         key={idx}
                         className="bg-white/10 px-2 py-1 rounded-full font-bold text-[10px]"
                       >
-                        {umpire.umpireName} ({umpire.umpireLevel})
+                        {umpire.umpireName} ({umpire.umpireLevel ?? "—"})
                       </span>
                     ))}
                   </div>
@@ -200,13 +144,20 @@ export default function MatchModal({
           {/* SCOREBOARD */}
           <div className="flex justify-between items-center mb-10 pb-8 border-b-2">
             <div className="text-center w-1/3">
-              <Image
-                src={match.homeTeamIcon}
-                alt={match.homeTeam}
-                width={50}
-                height={50}
-                className="mx-auto mb-2"
-              />
+              {match.homeTeamIcon ? (
+                <Image
+                  src={match.homeTeamIcon}
+                  alt={match.homeTeam}
+                  width={50}
+                  height={50}
+                  className="mx-auto mb-2"
+                />
+              ) : (
+                <div
+                  className="mx-auto mb-2 h-[50px] w-[50px] rounded-lg bg-slate-100 border border-slate-200"
+                  aria-hidden
+                />
+              )}
               <p className="text-[10px] font-black uppercase">
                 {match.homeTeam}
               </p>
@@ -223,13 +174,20 @@ export default function MatchModal({
                 )}
             </div>
             <div className="text-center w-1/3">
-              <Image
-                src={match.awayTeamIcon}
-                alt={match.awayTeam}
-                width={50}
-                height={50}
-                className="mx-auto mb-2"
-              />
+              {match.awayTeamIcon ? (
+                <Image
+                  src={match.awayTeamIcon}
+                  alt={match.awayTeam}
+                  width={50}
+                  height={50}
+                  className="mx-auto mb-2"
+                />
+              ) : (
+                <div
+                  className="mx-auto mb-2 h-[50px] w-[50px] rounded-lg bg-slate-100 border border-slate-200"
+                  aria-hidden
+                />
+              )}
               <p className="text-[10px] font-black uppercase">
                 {match.awayTeam}
               </p>

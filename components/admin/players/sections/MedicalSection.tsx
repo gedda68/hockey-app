@@ -4,7 +4,7 @@
 "use client";
 
 import FormField from "../shared/FormField";
-import { BaseSectionProps } from "../types/player.types";
+import { BaseSectionProps } from "@/types/player.types";
 import { Heart, AlertCircle } from "lucide-react";
 
 export default function MedicalSection({
@@ -17,11 +17,14 @@ export default function MedicalSection({
     conditions: "",
     allergies: "",
     medications: "",
+    bloodType: "",
     doctorName: "",
     doctorPhone: "",
-    medicareNumber: "",
-    healthFund: "",
+    doctorPractice: "",
+    healthFundName: "",
     healthFundNumber: "",
+    medicareNumber: "",
+    injuryHistory: [],
   };
 
   const hasAllergies = medical.allergies?.trim().length > 0;
@@ -166,9 +169,9 @@ export default function MedicalSection({
 
           <FormField
             label="Health Fund"
-            name="healthFund"
-            value={medical.healthFund || ""}
-            onChange={(val) => updateMedical("healthFund", val)}
+            name="healthFundName"
+            value={medical.healthFundName || ""}
+            onChange={(val) => updateMedical("healthFundName", val)}
             placeholder="e.g., Bupa, HCF, Medibank"
           />
 

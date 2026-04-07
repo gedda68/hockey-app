@@ -79,7 +79,7 @@ export async function POST(
         $push: {
           "membership.renewalHistory": renewalRecord,
         },
-      },
+      } as unknown as import("mongodb").UpdateFilter<import("mongodb").Document>,
     );
 
     if (updateResult.matchedCount === 0) {

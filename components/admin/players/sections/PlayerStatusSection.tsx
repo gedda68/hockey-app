@@ -5,7 +5,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { BaseSectionProps } from "../types/player.types";
+import { BaseSectionProps } from "@/types/player.types";
 import {
   Activity,
   Clock,
@@ -23,12 +23,17 @@ export default function PlayerStatusSection({
   onChange,
   errors,
 }: BaseSectionProps) {
-  const status = formData.status || {
-    current: "pending",
+  const statusDefaults = {
+    current: "pending" as const,
     registrationDate: "",
     expiryDate: "",
     renewalReminderDate: "",
-    seasons: [],
+    seasons: [] as Array<Record<string, unknown>>,
+  };
+  const status = {
+    ...statusDefaults,
+    ...formData.status,
+    seasons: formData.status?.seasons ?? statusDefaults.seasons,
   };
 
   // ✨ AUTO-CALCULATE DATES ON MOUNT
@@ -421,7 +426,7 @@ export default function PlayerStatusSection({
                 startDate: status.registrationDate,
                 endDate: status.expiryDate,
               };
-              updateStatus("seasons", [...status.seasons, newSeason]);
+              updateStatus("seasons", [...(status.seasons ?? []), newSeason]);
             }}
             className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700"
           >

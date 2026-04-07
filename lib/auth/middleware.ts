@@ -1,43 +1,68 @@
 // lib/auth/middleware.ts
-// Permission middleware for API routes
+// Permission helpers for API routes — uses the same `session` cookie as lib/auth/session.ts
 
 import { NextRequest, NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import jwt from "jsonwebtoken";
+import { getSession, type SessionData } from "@/lib/auth/session";
 import type { UserSession } from "@/lib/db/schemas/user";
-import type { Permission } from "@/lib/types/roles";
-import { hasPermission } from "@/lib/types/roles";
-
-const JWT_SECRET =
-  process.env.JWT_SECRET || "your-secret-key-change-in-production";
+import type { Permission, RoleAssignment, UserRole } from "@/lib/types/roles";
+import { getEffectivePermissions } from "@/lib/types/roles";
 
 export interface AuthenticatedRequest extends NextRequest {
   user?: UserSession;
 }
 
-// Verify JWT token and extract user session
-export async function verifyToken(token: string): Promise<UserSession | null> {
-  try {
-    const decoded = jwt.verify(token, JWT_SECRET) as UserSession;
-    return decoded;
-  } catch (error) {
-    return null;
+function sessionDataToAssignments(s: SessionData): RoleAssignment[] {
+  const grantedAt = new Date().toISOString();
+  if (s.scopedRoles && s.scopedRoles.length > 0) {
+    return s.scopedRoles.map((sr) => ({
+      role: sr.role as UserRole,
+      scopeType: sr.scopeType,
+      scopeId: sr.scopeId,
+      grantedAt,
+      active: true,
+    }));
   }
+  return [
+    {
+      role: s.role as UserRole,
+      scopeType: s.clubId
+        ? "club"
+        : s.associationId
+          ? "association"
+          : "global",
+      scopeId: s.clubId ?? s.associationId ?? undefined,
+      grantedAt,
+      active: true,
+    },
+  ];
 }
 
-// Get user from request
+export async function sessionToUserSession(s: SessionData): Promise<UserSession> {
+  const assignments = sessionDataToAssignments(s);
+  const perms = getEffectivePermissions(assignments);
+  return {
+    userId: s.userId,
+    email: s.email,
+    firstName: s.firstName ?? "",
+    lastName: s.lastName ?? "",
+    role: s.role as UserRole,
+    associationId: s.associationId ?? null,
+    clubId: s.clubId ?? null,
+    assignedTeams: [],
+    linkedMembers: [],
+    permissions: [...perms] as string[],
+  };
+}
+
+/** Load user from the HttpOnly `session` JWT (same as the rest of the app). */
 export async function getUserFromRequest(
-  request: NextRequest
+  _request: NextRequest,
 ): Promise<UserSession | null> {
-  const cookieStore = await cookies();
-  const token = cookieStore.get("auth-token")?.value;
-
-  if (!token) return null;
-
-  return verifyToken(token);
+  const session = await getSession();
+  if (!session) return null;
+  return sessionToUserSession(session);
 }
 
-// Middleware to require authentication
 export async function requireAuth(request: NextRequest): Promise<{
   user: UserSession;
   response?: NextResponse;
@@ -46,10 +71,10 @@ export async function requireAuth(request: NextRequest): Promise<{
 
   if (!user) {
     return {
-      user: null as any,
+      user: null as unknown as UserSession,
       response: NextResponse.json(
         { error: "Unauthorized - Please log in" },
-        { status: 401 }
+        { status: 401 },
       ),
     };
   }
@@ -57,10 +82,9 @@ export async function requireAuth(request: NextRequest): Promise<{
   return { user };
 }
 
-// Middleware to require specific permission
 export async function requirePermission(
   request: NextRequest,
-  permission: Permission
+  permission: Permission,
 ): Promise<{
   user: UserSession;
   response?: NextResponse;
@@ -69,12 +93,12 @@ export async function requirePermission(
 
   if (response) return { user, response };
 
-  if (!hasPermission(user.role, permission)) {
+  if (!(user.permissions as string[]).includes(permission)) {
     return {
       user,
       response: NextResponse.json(
         { error: "Forbidden - Insufficient permissions" },
-        { status: 403 }
+        { status: 403 },
       ),
     };
   }
@@ -82,11 +106,10 @@ export async function requirePermission(
   return { user };
 }
 
-// Middleware to require resource ownership
 export async function requireResourceAccess(
   request: NextRequest,
   resourceType: "association" | "club",
-  resourceId: string
+  resourceId: string,
 ): Promise<{
   user: UserSession;
   response?: NextResponse;
@@ -95,12 +118,10 @@ export async function requireResourceAccess(
 
   if (response) return { user, response };
 
-  // Super admin can access everything
   if (user.role === "super-admin") {
     return { user };
   }
 
-  // Check association access
   if (resourceType === "association") {
     if (
       user.role === "association-admin" &&
@@ -110,7 +131,6 @@ export async function requireResourceAccess(
     }
   }
 
-  // Check club access
   if (resourceType === "club") {
     if (
       (user.role === "club-admin" ||
@@ -121,11 +141,8 @@ export async function requireResourceAccess(
       return { user };
     }
 
-    // Association admin can access child clubs
     if (user.role === "association-admin") {
-      // Need to verify club belongs to their association
-      // This will be done with a database query
-      return { user }; // Will validate in actual route
+      return { user };
     }
   }
 
@@ -133,15 +150,14 @@ export async function requireResourceAccess(
     user,
     response: NextResponse.json(
       { error: "Forbidden - You don't have access to this resource" },
-      { status: 403 }
+      { status: 403 },
     ),
   };
 }
 
-// Middleware to require specific role
 export async function requireRole(
   request: NextRequest,
-  allowedRoles: string[]
+  allowedRoles: string[],
 ): Promise<{
   user: UserSession;
   response?: NextResponse;
@@ -155,32 +171,10 @@ export async function requireRole(
       user,
       response: NextResponse.json(
         { error: "Forbidden - Insufficient role" },
-        { status: 403 }
+        { status: 403 },
       ),
     };
   }
 
   return { user };
-}
-
-// Helper to create JWT token
-export function createToken(user: UserSession): string {
-  return jwt.sign(user, JWT_SECRET, {
-    expiresIn: "7d",
-  });
-}
-
-// Helper to set auth cookie
-export function setAuthCookie(response: NextResponse, token: string) {
-  response.cookies.set("auth-token", token, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    maxAge: 60 * 60 * 24 * 7, // 7 days
-  });
-}
-
-// Helper to clear auth cookie
-export function clearAuthCookie(response: NextResponse) {
-  response.cookies.delete("auth-token");
 }

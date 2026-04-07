@@ -49,13 +49,11 @@ export async function PUT(
     const database = client.db(process.env.DB_NAME || "hockey-app");
     const eventsCollection = database.collection("events");
 
+    const idOrClauses: Record<string, unknown>[] = [{ id }];
+    if (ObjectId.isValid(id)) idOrClauses.push({ _id: new ObjectId(id) });
+
     // Get existing event
-    const existing = await eventsCollection.findOne({
-      $or: [
-        { id: id },
-        { _id: ObjectId.isValid(id) ? new ObjectId(id) : null },
-      ],
-    });
+    const existing = await eventsCollection.findOne({ $or: idOrClauses });
 
     if (!existing) {
       return NextResponse.json({ error: "Event not found" }, { status: 404 });
@@ -78,8 +76,12 @@ export async function PUT(
       updatedAt: new Date(),
     };
 
-    if (updateData.startDate) update.startDate = new Date(updateData.startDate);
-    if (updateData.endDate) update.endDate = new Date(updateData.endDate);
+    if (updateData.startDate != null && updateData.startDate !== "") {
+      update.startDate = new Date(String(updateData.startDate));
+    }
+    if (updateData.endDate != null && updateData.endDate !== "") {
+      update.endDate = new Date(String(updateData.endDate));
+    }
     if (newFeaturedImage) {
       update["images.featured"] = newFeaturedImage;
     }
@@ -128,12 +130,10 @@ export async function DELETE(
     const database = client.db(process.env.DB_NAME || "hockey-app");
     const eventsCollection = database.collection("events");
 
-    const event = await eventsCollection.findOne({
-      $or: [
-        { id: id },
-        { _id: ObjectId.isValid(id) ? new ObjectId(id) : null },
-      ],
-    });
+    const idOrClausesDel: Record<string, unknown>[] = [{ id }];
+    if (ObjectId.isValid(id)) idOrClausesDel.push({ _id: new ObjectId(id) });
+
+    const event = await eventsCollection.findOne({ $or: idOrClausesDel });
 
     if (!event) {
       return NextResponse.json({ error: "Event not found" }, { status: 404 });

@@ -82,7 +82,7 @@ export async function getMemberAuditHistory(
       .skip(options?.skip || 0)
       .toArray();
 
-    return logs as AuditLogEntry[];
+    return logs as unknown as AuditLogEntry[];
   } catch (error) {
     console.error("❌ Failed to fetch audit history:", error);
     return [];
@@ -96,8 +96,8 @@ export function detectChanges(
   oldData: any,
   newData: any,
   prefix = "",
-): AuditLogEntry["changes"] {
-  const changes: AuditLogEntry["changes"] = [];
+): NonNullable<AuditLogEntry["changes"]> {
+  const changes: NonNullable<AuditLogEntry["changes"]> = [];
 
   function compareObjects(old: any, updated: any, path: string) {
     // Handle null/undefined

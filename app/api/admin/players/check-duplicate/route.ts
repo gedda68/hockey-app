@@ -55,7 +55,10 @@ export async function POST(request: NextRequest) {
   } catch (error: unknown) {
     console.error("❌ Error checking duplicate player:", error);
     return NextResponse.json(
-      { error: "Failed to check duplicate", details: error.message },
+      {
+        error: "Failed to check duplicate",
+        details: error instanceof Error ? error.message : String(error),
+      },
       { status: 500 },
     );
   }

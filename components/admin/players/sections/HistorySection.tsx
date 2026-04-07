@@ -4,7 +4,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { BaseSectionProps, PlayerHistory } from "../types/player.types";
+import { BaseSectionProps, PlayerHistory } from "@/types/player.types";
 import {
   History,
   Calendar,

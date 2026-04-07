@@ -79,7 +79,11 @@ export async function POST(request: Request) {
   } catch (error: unknown) {
     console.error("❌ Upload error:", error);
     return NextResponse.json(
-      { error: "Failed to upload file: " + error.message },
+      {
+        error:
+          "Failed to upload file: " +
+          (error instanceof Error ? error.message : String(error)),
+      },
       { status: 500 }
     );
   }

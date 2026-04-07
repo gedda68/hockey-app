@@ -19,7 +19,7 @@ export async function GET(
 
   try {
     const client = await clientPromise;
-    const db = client.db();
+    const db = client.db("hockey-app");
 
     const user = await db
       .collection("users")
@@ -72,7 +72,7 @@ export async function PATCH(
   try {
     const body = await request.json();
     const client = await clientPromise;
-    const db = client.db();
+    const db = client.db("hockey-app");
 
     // Get existing user
     const existingUser = await db.collection("users").findOne({ userId });
@@ -171,7 +171,7 @@ export async function PUT(
   try {
     const body = await request.json();
     const client = await clientPromise;
-    const db = client.db();
+    const db = client.db("hockey-app");
 
     // Get existing user
     const existingUser = await db.collection("users").findOne({ userId });

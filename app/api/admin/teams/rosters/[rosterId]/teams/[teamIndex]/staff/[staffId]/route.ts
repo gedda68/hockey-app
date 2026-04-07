@@ -18,7 +18,7 @@ export async function PATCH(
 
 
     const client = await clientPromise;
-    const db = client.db();
+    const db = client.db("hockey-app");
 
     const roster = await db.collection("teamRosters").findOne({ id: rosterId });
     if (!roster) {
@@ -69,7 +69,10 @@ export async function PATCH(
   } catch (error: unknown) {
     console.error("❌ Error updating staff:", error);
     return NextResponse.json(
-      { error: "Failed to update staff", details: error.message },
+      {
+        error: "Failed to update staff",
+        details: error instanceof Error ? error.message : String(error),
+      },
       { status: 500 },
     );
   }
@@ -88,7 +91,7 @@ export async function DELETE(
 
 
     const client = await clientPromise;
-    const db = client.db();
+    const db = client.db("hockey-app");
 
     const roster = await db.collection("teamRosters").findOne({ id: rosterId });
     if (!roster) {
@@ -127,7 +130,7 @@ export async function DELETE(
         $set: {
           lastUpdated: new Date().toISOString(),
         },
-      },
+      } as unknown as import("mongodb").UpdateFilter<import("mongodb").Document>,
     );
 
 
@@ -139,7 +142,8 @@ export async function DELETE(
       );
     }
 
-      `✅ Successfully removed ${staffMember.memberName} from team ${roster.teams[teamIndex].name}\n`,
+    console.log(
+      `✅ Successfully removed ${staffMember.memberName} from team ${roster.teams[teamIndex].name}`,
     );
 
     return NextResponse.json({
@@ -147,10 +151,10 @@ export async function DELETE(
       removed: true,
     });
   } catch (error: unknown) {
-    console.error("❌ Error deleting staff:", error);
-    console.error("Stack:", error.stack);
+    const err = error instanceof Error ? error : new Error(String(error));
+    console.error("❌ Error deleting staff:", err);
     return NextResponse.json(
-      { error: "Failed to delete staff", details: error.message },
+      { error: "Failed to delete staff", details: err.message },
       { status: 500 },
     );
   }

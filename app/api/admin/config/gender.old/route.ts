@@ -170,7 +170,7 @@ export async function DELETE(request: NextRequest) {
 
     const result = await db
       .collection("config")
-      .deleteOne({ Id: Id, configType: "gender" });
+      .deleteOne({ Id: genderId, configType: "gender" });
     if (result.deletedCount === 0) {
       return NextResponse.json(
         { error: "Gender option not found" },
@@ -178,7 +178,7 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    console.log(`✅ Deleted gender: ${Id}`);
+    console.log(`✅ Deleted gender: ${genderId}`);
 
     return NextResponse.json({
       success: true,

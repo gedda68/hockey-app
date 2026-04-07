@@ -101,9 +101,12 @@ export async function PATCH(
     });
   } catch (error: unknown) {
     console.error("❌ Error updating player:", error);
-    console.error("Stack:", error.stack);
+    if (error instanceof Error) console.error("Stack:", error.stack);
     return NextResponse.json(
-      { error: "Failed to update player", details: error.message },
+      {
+        error: "Failed to update player",
+        details: error instanceof Error ? error.message : String(error),
+      },
       { status: 500 },
     );
   }
@@ -156,7 +159,7 @@ export async function DELETE(
         $set: {
           lastUpdated: new Date().toISOString(),
         },
-      },
+      } as unknown as import("mongodb").UpdateFilter<import("mongodb").Document>,
     );
 
 
@@ -176,7 +179,10 @@ export async function DELETE(
   } catch (error: unknown) {
     console.error("❌ Error deleting player:", error);
     return NextResponse.json(
-      { error: "Failed to delete player", details: error.message },
+      {
+        error: "Failed to delete player",
+        details: error instanceof Error ? error.message : String(error),
+      },
       { status: 500 },
     );
   }

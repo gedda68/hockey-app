@@ -22,7 +22,7 @@ const ADMIN_ROLES = [
   "club-admin", "registrar",
 ];
 
-// ── Helper: build voter id list ─────────────────────────────��─────────────────
+// ── Helper: build voter id list ────────────────────────────────────────────────
 
 async function buildEligibleVoterIds(
   db: ReturnType<import("mongodb").MongoClient["db"]>,
@@ -30,13 +30,24 @@ async function buildEligibleVoterIds(
 ): Promise<string[]> {
   if (win.electorateType === "all-members") {
     // All financially registered members for this scope/season
-    const members = await db.collection("members").find({
-      $or: [{ clubId: win.scopeId }, { associationId: win.scopeId }],
-      $or: [
-        { "membership.status": { $in: ["financial", "active"] }, "membership.seasonYear": win.seasonYear },
-        { status: "active" },
-      ],
-    }).project({ memberId: 1, _id: 0 }).toArray();
+    const members = await db
+      .collection("members")
+      .find({
+        $and: [
+          { $or: [{ clubId: win.scopeId }, { associationId: win.scopeId }] },
+          {
+            $or: [
+              {
+                "membership.status": { $in: ["financial", "active"] },
+                "membership.seasonYear": win.seasonYear,
+              },
+              { status: "active" },
+            ],
+          },
+        ],
+      })
+      .project({ memberId: 1, _id: 0 })
+      .toArray();
     return members.map((m: any) => m.memberId).filter(Boolean);
   }
 

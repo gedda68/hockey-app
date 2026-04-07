@@ -4,17 +4,10 @@
 "use client";
 
 import { useState } from "react";
+import type { TeamRoster } from "@/types/admin/teams.types";
 
 interface AddTeamModalProps {
-  roster: {
-    id: string;
-    clubId: string;
-    clubName: string;
-    division: string;
-    category: string;
-    gender: string;
-    teams: any[];
-  };
+  roster: TeamRoster;
   onClose: () => void;
   onSubmit: (data: { name: string }) => void;
 }
@@ -61,7 +54,7 @@ export default function AddTeamModal({
                     Add Team
                   </h2>
                   <p className="text-sm text-slate-500 mt-1">
-                    {roster.clubName} · {roster.division} {roster.category}{" "}
+                    {roster.clubName ?? "Club"} · {roster.division} {roster.category}{" "}
                     {roster.gender}
                   </p>
                 </div>
@@ -110,7 +103,7 @@ export default function AddTeamModal({
                       />
                     </svg>
                     <span className="font-bold text-slate-700">
-                      {roster.clubName}
+                      {roster.clubName ?? "—"}
                     </span>
                   </div>
                 </div>
@@ -186,7 +179,7 @@ export default function AddTeamModal({
                   Team Preview
                 </div>
                 <div className="text-lg font-black text-blue-900">
-                  {roster.clubName} - {teamName.trim() || roster.division}
+                  {roster.clubName ?? "Club"} - {teamName.trim() || roster.division}
                 </div>
                 <div className="text-sm text-blue-700 mt-1">
                   {roster.division} {roster.category} {roster.gender}

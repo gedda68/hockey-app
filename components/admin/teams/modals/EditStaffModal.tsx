@@ -2,8 +2,8 @@
 // Modal to edit coaching staff (coach, assistant coach, manager)
 
 import { User, Mail, Phone, Award } from "lucide-react";
-import type { Staff, StaffRole } from "../../types/team.types";
-import { STAFF_ROLE_LABELS } from "../../types/team.types";
+import type { Staff, StaffRole } from "../types/team.types";
+import { STAFF_ROLE_LABELS } from "../types/team.types";
 
 interface EditStaffModalProps {
   staff: Staff;

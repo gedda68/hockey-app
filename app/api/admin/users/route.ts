@@ -59,7 +59,7 @@ export async function GET(request: NextRequest) {
 
   try {
     const client = await clientPromise;
-    const db = client.db();
+    const db = client.db("hockey-app");
 
     let query: Record<string, unknown> = {};
 
@@ -106,7 +106,7 @@ export async function POST(request: NextRequest) {
     }
 
     const client = await clientPromise;
-    const db = client.db();
+    const db = client.db("hockey-app");
 
     // Generate unique username
     const username = await generateUsername(body.firstName, body.lastName, db);

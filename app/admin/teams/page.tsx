@@ -240,6 +240,7 @@ export default function ClubTeamsPage() {
 
     const fromData = active.data.current;
     const toData = over.data.current;
+    if (!fromData || !toData) return;
 
     if (fromData.rosterId !== toData.rosterId) {
       console.log("Cross-roster drag not yet implemented");

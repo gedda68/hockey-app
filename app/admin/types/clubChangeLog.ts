@@ -1,6 +1,8 @@
 // app/admin/types/clubChangeLog.ts
 // Club change logging types
 
+import type { ClubColors, ClubAddress, ClubContact, CommitteeMember } from "./clubs";
+
 export interface ClubChange {
   id: string;
   clubId: string;

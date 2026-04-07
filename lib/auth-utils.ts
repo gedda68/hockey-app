@@ -1,12 +1,12 @@
 // lib/auth-utils.ts
 // Authorization utilities for member access control
 
-import { User, AccessControlContext } from "@/types/member";
+import type { AuthUser } from "@/types/member";
 
 /**
  * Check if user can view a member list for a club
  */
-export function canViewMemberList(user: User, clubId: string): boolean {
+export function canViewMemberList(user: AuthUser, clubId: string): boolean {
   // Super admins can view all clubs
   if (user.role === "superadmin") {
     return true;
@@ -25,7 +25,7 @@ export function canViewMemberList(user: User, clubId: string): boolean {
  * Check if user can view a specific member
  */
 export function canViewMember(
-  user: User,
+  user: AuthUser,
   clubId: string,
   memberId: string,
 ): boolean {
@@ -52,7 +52,7 @@ export function canViewMember(
  * Returns object with full/limited edit permissions
  */
 export function canEditMember(
-  user: User,
+  user: AuthUser,
   clubId: string,
   memberId: string,
 ): {
@@ -81,7 +81,7 @@ export function canEditMember(
  * Check if user can delete a member
  */
 export function canDeleteMember(
-  user: User,
+  user: AuthUser,
   clubId: string,
   memberId: string,
 ): boolean {
@@ -103,7 +103,7 @@ export function canDeleteMember(
  * Check if user can renew a membership
  */
 export function canRenewMembership(
-  user: User,
+  user: AuthUser,
   clubId: string,
   memberId: string,
 ): boolean {
@@ -127,7 +127,7 @@ export function canRenewMembership(
  * Used when members edit their own profile
  */
 export function getEditableFields(
-  user: User,
+  user: AuthUser,
   isLimitedEdit: boolean,
 ): string[] {
   if (!isLimitedEdit) {
@@ -159,7 +159,7 @@ export function getEditableFields(
  * Filter member data based on user permissions
  * Removes sensitive fields if user shouldn't see them
  */
-export function filterMemberData(member: any, user: User, clubId: string): any {
+export function filterMemberData(member: any, user: AuthUser, clubId: string): any {
   const { canEdit, isLimitedEdit } = canEditMember(
     user,
     clubId,

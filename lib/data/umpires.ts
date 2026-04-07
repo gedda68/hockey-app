@@ -7,6 +7,7 @@
 // Direct imports from /data folder
 import umpireListData from "../../data/umpires/umpire-list.json";
 import umpireAllocationsData from "../../data/umpires/umpire-allocations.json";
+import type { UmpireDetails } from "@/types";
 
 // Types
 interface UmpireRaw {
@@ -102,6 +103,20 @@ export async function getUmpireList(): Promise<Umpire[]> {
     console.error("Failed to load umpire list:", error);
     return [];
   }
+}
+
+/** Public shape for MatchList / UI (uses display name field). */
+export async function getUmpireDetailsList(): Promise<UmpireDetails[]> {
+  const umpires = await getUmpireList();
+  return umpires.map((u) => ({
+    umpireName: u.fullName,
+    umpireNumber: u.umpireNumber,
+    club: u.club,
+    gender: u.gender as UmpireDetails["gender"],
+    dateOfBirth: u.dateOfBirth,
+    umpireLevel: u.umpireLevel,
+    isActive: u.isActive,
+  }));
 }
 
 /**

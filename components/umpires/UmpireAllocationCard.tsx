@@ -1,4 +1,4 @@
-import { Calendar, MapPin, Users, Whistle } from "lucide-react";
+import { Calendar, MapPin, Users } from "lucide-react";
 import { GiWhistle } from "react-icons/gi";
 
 interface UmpireAllocationCardProps {
@@ -156,7 +156,7 @@ export default function UmpireAllocationCard({
       {/* Umpires Section */}
       <div>
         <div className="flex items-center gap-2 mb-3">
-          <GiWhistleWhistle className="w-4 h-4 text-[#06054e]" />
+          <GiWhistle className="w-4 h-4 text-[#06054e]" />
           <h4 className="text-xs font-black uppercase text-[#06054e]">
             Assigned Umpires
           </h4>

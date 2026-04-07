@@ -2,39 +2,11 @@
 
 import { Mail } from "lucide-react";
 import SocialMediaEditor from "@/components/SocialMediaEditor";
-
-interface SocialMediaLink {
-  platform: string;
-  username?: string;
-  url: string;
-  isPrivate: boolean;
-  displayOrder: number;
-}
-
-interface Contact {
-  primaryEmail: string;
-  emailOwnership: string;
-  phone: string;
-  mobile: string;
-}
-
-interface Address {
-  street: string;
-  suburb: string;
-  state: string;
-  postcode: string;
-  country: string;
-}
-
-interface FormData {
-  contact: Contact;
-  address: Address;
-  [key: string]: unknown;
-}
+import type { AddMemberFormData, SocialMediaLink } from "./member-form-types";
 
 interface Step2ContactAddressProps {
-  formData: FormData;
-  setFormData: React.Dispatch<React.SetStateAction<FormData>>;
+  formData: AddMemberFormData;
+  setFormData: React.Dispatch<React.SetStateAction<AddMemberFormData>>;
   socialMedia: SocialMediaLink[];
   setSocialMedia: React.Dispatch<React.SetStateAction<SocialMediaLink[]>>;
 }

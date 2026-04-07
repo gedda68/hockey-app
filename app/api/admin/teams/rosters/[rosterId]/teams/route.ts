@@ -99,12 +99,13 @@ export async function PUT(
     });
   } catch (error: unknown) {
     console.error("❌ Error updating roster:", error);
-    console.error("Stack:", error.stack);
+    const msg = error instanceof Error ? error.message : String(error);
+    const stack = error instanceof Error ? error.stack : undefined;
     return NextResponse.json(
       {
         error: "Failed to update roster",
-        details: error.message,
-        stack: error.stack,
+        details: msg,
+        stack,
       },
       { status: 500 },
     );
@@ -140,7 +141,10 @@ export async function GET(
   } catch (error: unknown) {
     console.error("❌ Error fetching roster:", error);
     return NextResponse.json(
-      { error: "Failed to fetch roster", details: error.message },
+      {
+        error: "Failed to fetch roster",
+        details: error instanceof Error ? error.message : String(error),
+      },
       { status: 500 },
     );
   }

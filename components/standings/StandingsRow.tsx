@@ -3,6 +3,7 @@ import { cva } from "class-variance-authority";
 import { cn } from "../../lib/utils";
 import Text from "../ui/Text";
 import type { Team } from "../../types";
+import EntityColorBar from "@/components/ui/EntityColorBar";
 
 const rowVariants = cva(
   "grid grid-cols-12 items-center bg-white/5 hover:bg-white/10 p-2 rounded-lg text-xs transition-colors cursor-pointer"
@@ -56,8 +57,10 @@ export default function StandingsRow({
 
   // Determine position zone
   const getPositionZone = () => {
-    if (team.pos <= promotionZone) return "promotion";
-    if (team.pos > totalTeams - relegationZone) return "relegation";
+    const pos = team.pos;
+    if (pos == null) return "safe";
+    if (pos <= promotionZone) return "promotion";
+    if (pos > totalTeams - relegationZone) return "relegation";
     return "safe";
   };
 
@@ -69,21 +72,32 @@ export default function StandingsRow({
   };
 
   return (
-    <div className={rowVariants()}>
+    <div className={cn(rowVariants(), "flex items-center gap-0 overflow-hidden rounded-lg")}>
+      {/* Club colour stripe */}
+      {(team.primaryColor || team.secondaryColor) && (
+        <EntityColorBar
+          primary={team.primaryColor}
+          secondary={team.secondaryColor}
+          className="mr-2"
+        />
+      )}
+
       {/* Position */}
-      <div className={positionVariants({ zone: getPositionZone() })}>
-        {team.pos}
+      <div className={cn(positionVariants({ zone: getPositionZone() }), "w-6 shrink-0")}>
+        {team.pos ?? "—"}
       </div>
 
       {/* Team Name & Logo */}
-      <div className="col-span-5 flex items-center gap-2">
-        <Image
-          src={team.icon}
-          alt={team.club}
-          width={16}
-          height={16}
-          className="shrink-0"
-        />
+      <div className="flex-1 flex items-center gap-2 min-w-0">
+        {team.icon && (
+          <Image
+            src={team.icon}
+            alt={team.club}
+            width={16}
+            height={16}
+            className="shrink-0"
+          />
+        )}
         <Text className="font-bold uppercase text-[10px] truncate text-white">
           {team.club}
         </Text>

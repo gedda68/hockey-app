@@ -10,7 +10,7 @@ import type {
   FeeLineItem,
 } from "@/types/registration";
 import type { Association } from "@/lib/db/schemas/association.schema";
-import { Db } from "mongodb";
+import { Db, type Document } from "mongodb";
 
 // ============================================================================
 // REGISTRATION WORKFLOW SERVICE
@@ -475,14 +475,14 @@ export class RegistrationWorkflowService {
     let currentId: string | undefined = associationId;
 
     while (currentId) {
-      const association = await this.db
+      const association: Document | null = await this.db
         .collection("associations")
         .findOne({ associationId: currentId });
 
       if (!association) break;
 
-      hierarchy.push(association as any);
-      currentId = association.parentAssociationId;
+      hierarchy.push(association as unknown as Association);
+      currentId = association.parentAssociationId as string | undefined;
     }
 
     return hierarchy;

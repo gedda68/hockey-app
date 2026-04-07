@@ -1,585 +1,433 @@
 // app/(admin)/admin/members/page.tsx
 "use client";
 
-import { useState, useEffect } from "react";
-import {
-  Users,
-  Plus,
-  Search,
-  Filter,
-  UserCheck,
-  UserX,
-  Eye,
-  Edit2,
-  KeyRound,
-  Loader2,
-  Check,
-  Copy,
-} from "lucide-react";
-import { toast } from "sonner";
-import Link from "next/link";
+import { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth/AuthContext";
-
-const CLUB_SCOPED_ROLES = [
-  "club-admin",
-  "club-committee",
-  "registrar",
-  "coach",
-  "manager",
-  "team-selector",
-  "volunteer",
-];
+import {
+  Users, Search, Plus, Edit, Trash2, Eye, Loader2, X,
+  ChevronDown, ChevronUp, Download, Upload,
+} from "lucide-react";
+import Link from "next/link";
 
 interface Member {
   memberId: string;
-  clubId: string;
   personalInfo: {
-    firstName: string;
-    lastName: string;
-    displayName: string;
-    dateOfBirth: string;
-    gender: string;
+    firstName?: string;
+    lastName?: string;
+    dateOfBirth?: string;
+    gender?: string;
   };
   contact: {
-    email: string;
-    mobile?: string;
+    primaryEmail?: string;
+    primaryPhone?: string;
   };
   membership: {
-    status: string;
-    membershipTypes: string[];
+    status?: string;
+    membershipType?: string;
+    clubId?: string;
+    clubName?: string;
+    joinDate?: string;
   };
   roles: string[];
-  createdAt: string;
 }
 
-interface BulkResult {
-  processed: number;
-  created: Array<{ memberId: string; memberName: string; username: string; tempPassword: string }>;
+const STATUS_COLORS: Record<string, string> = {
+  Active:    "bg-green-100 text-green-700 border-green-200",
+  Life:      "bg-blue-100 text-blue-700 border-blue-200",
+  Inactive:  "bg-slate-100 text-slate-600 border-slate-200",
+  Suspended: "bg-red-100 text-red-700 border-red-200",
+};
+
+const ROLE_LABELS: Record<string, string> = {
+  "player":        "Player",
+  "role-player":   "Player",
+  "coach":         "Coach",
+  "umpire":        "Umpire",
+  "technical-official": "Tech Official",
+  "club-admin":    "Club Admin",
+  "registrar":     "Registrar",
+  "volunteer":     "Volunteer",
+  "manager":       "Manager",
+  "member":        "Member",
+};
+
+function primaryRole(roles: string[]): string {
+  for (const r of ["club-admin","association-admin","registrar","coach","umpire","technical-official","manager","player","role-player","volunteer","member"]) {
+    if (roles.includes(r)) return ROLE_LABELS[r] ?? r;
+  }
+  return roles[0] ?? "Member";
 }
 
 export default function MembersPage() {
   const { user } = useAuth();
-  const isClubScoped = !!(user && CLUB_SCOPED_ROLES.includes(user.role) && user.clubId);
+  const router   = useRouter();
 
-  const [members, setMembers] = useState<Member[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [total, setTotal] = useState(0);
+  const [members, setMembers]   = useState<Member[]>([]);
+  const [loading, setLoading]   = useState(true);
+  const [search, setSearch]     = useState("");
+  const [statusFilter, setStatus] = useState("Active");
+  const [roleFilter, setRole]   = useState("");
+  const [page, setPage]         = useState(1);
+  const [total, setTotal]       = useState(0);
+  const [sortField, setSortField] = useState("lastName");
+  const [sortDir, setSortDir]   = useState<"asc" | "desc">("asc");
+  const [deleting, setDeleting] = useState<string | null>(null);
+  const PER_PAGE = 50;
 
-  // Bulk username generation
-  const [bulkModalOpen, setBulkModalOpen] = useState(false);
-  const [bulkLoading, setBulkLoading] = useState(false);
-  const [bulkDryRun, setBulkDryRun] = useState(true);
-  const [bulkResult, setBulkResult] = useState<BulkResult | null>(null);
-  const [copiedRow, setCopiedRow] = useState<string | null>(null);
+  const isReadonly = !["super-admin","association-admin","club-admin","registrar","assoc-registrar"].includes(user?.role ?? "");
 
-  const handleBulkGenerate = async (dryRun: boolean) => {
-    setBulkLoading(true);
-    setBulkResult(null);
-    try {
-      const res = await fetch("/api/admin/members/bulk-auth", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ dryRun }),
-      });
-      const data = await res.json();
-      setBulkResult(data);
-      if (!dryRun) {
-        setBulkDryRun(false);
-        toast.success(`${data.processed} member accounts created`);
-      }
-    } catch {
-      toast.error("Failed to generate usernames");
-    } finally {
-      setBulkLoading(false);
-    }
-  };
-
-  const copyCredentials = (row: BulkResult["created"][number]) => {
-    navigator.clipboard.writeText(`Username: ${row.username}\nPassword: ${row.tempPassword} (must change on first login)`);
-    setCopiedRow(row.memberId);
-    setTimeout(() => setCopiedRow(null), 2000);
-  };
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      fetchMembers();
-    }, 300);
-
-    return () => clearTimeout(timer);
-  }, [page, statusFilter, searchTerm, isClubScoped]);
-
-  const fetchMembers = async () => {
-    setIsLoading(true);
+  const fetchMembers = useCallback(async () => {
+    setLoading(true);
     try {
       const params = new URLSearchParams({
-        page: page.toString(),
-        limit: "20",
+        limit:  String(PER_PAGE),
+        offset: String((page - 1) * PER_PAGE),
+        sort:   sortField,
+        dir:    sortDir,
       });
+      if (search)       params.set("search", search);
+      if (statusFilter) params.set("status", statusFilter);
+      if (roleFilter)   params.set("role",   roleFilter);
 
-      if (statusFilter !== "all") {
-        params.append("status", statusFilter);
+      // Scope to club if user is club-level
+      const CLUB_ROLES = ["club-admin","club-committee","registrar","coach","manager","team-selector"];
+      if (CLUB_ROLES.includes(user?.role ?? "") && user?.clubId) {
+        params.set("clubId", user.clubId);
+      } else if (user?.associationId && !["super-admin"].includes(user?.role ?? "")) {
+        params.set("associationId", user.associationId);
       }
 
-      if (searchTerm.trim()) {
-        params.append("search", searchTerm.trim());
-      }
-
-      if (isClubScoped && user?.clubId) {
-        params.append("clubId", user.clubId);
-      }
-
-      console.log("🔍 Fetching members with params:", params.toString());
-
-      const res = await fetch(`/api/admin/members?${params}`);
-      if (!res.ok) {
-        const errorText = await res.text();
-        console.error("API Error:", errorText);
-        throw new Error("Failed to fetch members");
-      }
-
+      const res  = await fetch(`/api/admin/members?${params}`);
       const data = await res.json();
-      console.log("📥 Received members:", data);
-
-      setMembers(data.members || []);
-      setTotalPages(data.pagination?.totalPages || 1);
-      setTotal(data.pagination?.total || 0);
-    } catch (error) {
-      console.error("Error fetching members:", error);
-      toast.error("Failed to load members");
+      setMembers(data.members  ?? []);
+      setTotal(data.total ?? 0);
+    } catch {
       setMembers([]);
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
+  }, [search, statusFilter, roleFilter, page, sortField, sortDir, user]);
+
+  useEffect(() => { fetchMembers(); }, [fetchMembers]);
+  useEffect(() => { setPage(1); }, [search, statusFilter, roleFilter]);
+
+  const handleSort = (field: string) => {
+    if (sortField === field) setSortDir(d => d === "asc" ? "desc" : "asc");
+    else { setSortField(field); setSortDir("asc"); }
   };
 
-  const handleToggleStatus = async (
-    memberId: string,
-    currentStatus: string,
-  ) => {
+  const handleDelete = async (memberId: string) => {
+    if (!confirm("Deactivate this member? Their record will be retained.")) return;
+    setDeleting(memberId);
     try {
-      const isActive = (currentStatus ?? "").toLowerCase() === "active";
-      const newStatus = isActive ? "Inactive" : "Active";
-
-      const res = await fetch(`/api/admin/members/${memberId}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          membership: { status: newStatus },
-        }),
-      });
-
-      if (!res.ok) throw new Error("Failed to update status");
-
-      toast.success(`Member ${newStatus.toLowerCase()}`);
+      await fetch(`/api/admin/players/${memberId}`, { method: "DELETE" });
       fetchMembers();
-    } catch (error) {
-      toast.error("Failed to update member status");
+    } finally {
+      setDeleting(null);
     }
   };
 
-  const calculateAge = (dob: string): string => {
-    if (!dob) return "-";
-
-    try {
-      const birthDate = new Date(dob);
-
-      if (isNaN(birthDate.getTime())) return "-";
-
-      const today = new Date();
-      let age = today.getFullYear() - birthDate.getFullYear();
-      const monthDiff = today.getMonth() - birthDate.getMonth();
-
-      if (
-        monthDiff < 0 ||
-        (monthDiff === 0 && today.getDate() < birthDate.getDate())
-      ) {
-        age--;
-      }
-
-      return age.toString();
-    } catch (error) {
-      return "-";
-    }
+  const exportCSV = () => {
+    const rows = [
+      ["Member ID","First Name","Last Name","DOB","Gender","Email","Phone","Status","Type","Role","Club","Joined"],
+      ...members.map(m => [
+        m.memberId,
+        m.personalInfo.firstName ?? "",
+        m.personalInfo.lastName  ?? "",
+        m.personalInfo.dateOfBirth ?? "",
+        m.personalInfo.gender ?? "",
+        m.contact.primaryEmail ?? "",
+        m.contact.primaryPhone ?? "",
+        m.membership.status ?? "",
+        m.membership.membershipType ?? "",
+        primaryRole(m.roles),
+        m.membership.clubName ?? "",
+        m.membership.joinDate ?? "",
+      ])
+    ];
+    const csv  = rows.map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement("a");
+    a.href     = url;
+    a.download = `members-${new Date().toISOString().slice(0,10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
+
+  const SortIcon = ({ field }: { field: string }) =>
+    sortField === field
+      ? sortDir === "asc" ? <ChevronUp size={12} /> : <ChevronDown size={12} />
+      : null;
+
+  const totalPages = Math.ceil(total / PER_PAGE);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 p-8">
-      <div className="max-w-7xl mx-auto space-y-6">
+    <div className="min-h-screen bg-slate-50 p-6">
+      <div className="max-w-350 mx-auto space-y-5">
+
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-4xl font-black uppercase text-[#06054e] flex items-center gap-3">
-              <Users className="text-yellow-500" size={40} />
-              Members
-            </h1>
-            <p className="text-slate-600 mt-2 font-bold">
-              Manage club members and registrations
-            </p>
-          </div>
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => { setBulkModalOpen(true); setBulkResult(null); setBulkDryRun(true); }}
-              className="flex items-center gap-2 px-4 py-3 border-2 border-slate-200 text-slate-600 rounded-xl font-black hover:border-[#06054e] hover:text-[#06054e] transition-all"
-              title="Bulk generate login usernames for members without accounts"
-            >
-              <KeyRound size={18} />
-              Generate Logins
-            </button>
-            <Link
-              href="/admin/members/create"
-              className="flex items-center gap-2 px-6 py-3 bg-[#06054e] text-white rounded-xl font-black hover:bg-yellow-400 hover:text-[#06054e] transition-all shadow-lg"
-            >
-              <Plus size={20} />
-              Add Member
-            </Link>
-          </div>
-        </div>
-
-        {/* ── Bulk Login Generation Modal ── */}
-        {bulkModalOpen && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[80vh] flex flex-col">
-              <div className="flex items-center justify-between p-6 border-b border-slate-100">
-                <div>
-                  <h2 className="text-xl font-black text-[#06054e] flex items-center gap-2">
-                    <KeyRound size={20} className="text-yellow-500" />
-                    Bulk Generate Member Logins
-                  </h2>
-                  <p className="text-sm text-slate-500 font-bold mt-1">
-                    Auto-creates usernames and temporary passwords for members without accounts.
-                    Temp password: <code className="bg-slate-100 px-2 py-0.5 rounded font-mono text-xs">Hockey{new Date().getFullYear()}!</code>
-                  </p>
-                </div>
-                <button onClick={() => setBulkModalOpen(false)} className="p-2 text-slate-400 hover:text-slate-700 rounded-xl">✕</button>
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+          <div className="flex items-center justify-between flex-wrap gap-4">
+            <div className="flex items-center gap-4">
+              <div className="w-14 h-14 rounded-2xl bg-[#06054e] text-white flex items-center justify-center">
+                <Users size={28} />
               </div>
-
-              <div className="p-6 overflow-y-auto flex-1 space-y-4">
-                {!bulkResult && (
-                  <div className="space-y-3">
-                    <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl text-sm text-amber-800 font-semibold">
-                      <strong>Preview first</strong> — run a dry run to see which members will get accounts before committing.
-                    </div>
-                    <div className="flex gap-3">
-                      <button
-                        onClick={() => handleBulkGenerate(true)}
-                        disabled={bulkLoading}
-                        className="flex-1 py-3 border-2 border-[#06054e] text-[#06054e] rounded-2xl font-black uppercase text-sm hover:bg-[#06054e]/5 transition-all disabled:opacity-60 flex items-center justify-center gap-2"
-                      >
-                        {bulkLoading ? <Loader2 size={16} className="animate-spin" /> : <Search size={16} />}
-                        Preview (Dry Run)
-                      </button>
-                      <button
-                        onClick={() => handleBulkGenerate(false)}
-                        disabled={bulkLoading}
-                        className="flex-1 py-3 bg-[#06054e] text-white rounded-2xl font-black uppercase text-sm hover:bg-[#0a0870] transition-all disabled:opacity-60 flex items-center justify-center gap-2"
-                      >
-                        {bulkLoading ? <Loader2 size={16} className="animate-spin" /> : <KeyRound size={16} />}
-                        Create Accounts
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {bulkResult && (
-                  <div className="space-y-3">
-                    <div className={`p-4 rounded-2xl border text-sm font-bold ${bulkDryRun ? "bg-blue-50 border-blue-200 text-blue-800" : "bg-green-50 border-green-200 text-green-800"}`}>
-                      {bulkDryRun
-                        ? `Preview: ${bulkResult.processed} member(s) would receive accounts. Review below, then click Create Accounts to commit.`
-                        : `✓ ${bulkResult.processed} member account(s) created. Note the credentials below — passwords are only shown once.`
-                      }
-                    </div>
-
-                    {bulkResult.created.length === 0 && (
-                      <p className="text-center text-slate-400 font-bold py-8">All members already have login accounts.</p>
-                    )}
-
-                    {bulkResult.created.length > 0 && (
-                      <>
-                        <div className="text-[10px] font-black uppercase text-slate-400 grid grid-cols-12 gap-2 px-2">
-                          <span className="col-span-4">Member</span>
-                          <span className="col-span-4">Username</span>
-                          <span className="col-span-3">Temp Password</span>
-                        </div>
-                        <div className="space-y-1.5 max-h-72 overflow-y-auto">
-                          {bulkResult.created.map((row) => (
-                            <div key={row.memberId} className="grid grid-cols-12 gap-2 items-center bg-slate-50 rounded-xl px-3 py-2 text-sm">
-                              <span className="col-span-4 font-bold text-slate-700 truncate">{row.memberName}</span>
-                              <span className="col-span-4 font-mono text-[#06054e] font-black">{row.username}</span>
-                              <span className="col-span-3 font-mono text-slate-600">{row.tempPassword}</span>
-                              <button
-                                onClick={() => copyCredentials(row)}
-                                className="col-span-1 flex items-center justify-center text-slate-400 hover:text-[#06054e] transition-colors"
-                                title="Copy credentials"
-                              >
-                                {copiedRow === row.memberId ? <Check size={14} className="text-green-500" /> : <Copy size={14} />}
-                              </button>
-                            </div>
-                          ))}
-                        </div>
-
-                        {bulkDryRun && (
-                          <button
-                            onClick={() => handleBulkGenerate(false)}
-                            disabled={bulkLoading}
-                            className="w-full py-3 bg-[#06054e] text-white rounded-2xl font-black uppercase text-sm hover:bg-[#0a0870] transition-all disabled:opacity-60 flex items-center justify-center gap-2"
-                          >
-                            {bulkLoading ? <Loader2 size={16} className="animate-spin" /> : <KeyRound size={16} />}
-                            Confirm — Create {bulkResult.created.length} Account(s)
-                          </button>
-                        )}
-                      </>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Search and Filters */}
-        <div className="bg-white p-6 rounded-[2rem] shadow-xl border border-slate-100">
-          <div className="flex gap-4 items-end">
-            {/* Search */}
-            <div className="flex-1">
-              <label className="text-[10px] font-black uppercase text-slate-400 ml-2">
-                Search Members
-              </label>
-              <div className="relative">
-                <Search
-                  className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
-                  size={20}
-                />
-                <input
-                  type="text"
-                  value={searchTerm}
-                  onChange={(e) => {
-                    setSearchTerm(e.target.value);
-                    setPage(1);
-                  }}
-                  placeholder="Search by name, email, or member ID..."
-                  className="w-full pl-12 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl outline-none font-bold focus:ring-2 ring-yellow-400"
-                />
-              </div>
-            </div>
-
-            {/* Status Filter */}
-            <div className="w-48">
-              <label className="text-[10px] font-black uppercase text-slate-400 ml-2">
-                Status
-              </label>
-              <select
-                value={statusFilter}
-                onChange={(e) => {
-                  setStatusFilter(e.target.value);
-                  setPage(1);
-                }}
-                className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none font-bold focus:ring-2 ring-yellow-400"
-              >
-                <option value="all">All Status</option>
-                <option value="Active">Active</option>
-                <option value="Inactive">Inactive</option>
-                <option value="Suspended">Suspended</option>
-                <option value="Life">Life Member</option>
-              </select>
-            </div>
-          </div>
-        </div>
-
-        {/* Members Table */}
-        <div className="bg-white rounded-[2rem] shadow-xl border border-slate-100 overflow-hidden">
-          <div className="bg-gradient-to-r from-[#06054e] to-[#090836] p-6">
-            <h2 className="text-2xl font-black uppercase text-white flex items-center gap-2">
-              <Users size={24} />
-              All Members ({total})
-            </h2>
-          </div>
-
-          <div className="overflow-x-auto">
-            {isLoading ? (
-              <div className="p-12 text-center">
-                <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-[#06054e]"></div>
-                <p className="mt-4 text-slate-600 font-bold">
-                  Loading members...
+              <div>
+                <h1 className="text-2xl font-black text-[#06054e]">Members</h1>
+                <p className="text-slate-500 font-bold text-sm">
+                  {total.toLocaleString()} member{total !== 1 ? "s" : ""} found
                 </p>
               </div>
-            ) : members.length > 0 ? (
+            </div>
+
+            <div className="flex items-center gap-2 flex-wrap">
+              <button
+                onClick={exportCSV}
+                className="flex items-center gap-2 px-4 py-2 border-2 border-slate-200 text-slate-700 rounded-xl font-bold text-sm hover:bg-slate-50 transition-all"
+              >
+                <Download size={16} />
+                Export CSV
+              </button>
+
+              {!isReadonly && (
+                <>
+                  <Link
+                    href="/admin/bulk-import?tab=members"
+                    className="flex items-center gap-2 px-4 py-2 border-2 border-slate-200 text-slate-700 rounded-xl font-bold text-sm hover:bg-slate-50 transition-all"
+                  >
+                    <Upload size={16} />
+                    Bulk Import
+                  </Link>
+                  <Link
+                    href="/admin/members/create"
+                    className="flex items-center gap-2 px-5 py-2 bg-[#06054e] text-white rounded-xl font-bold text-sm hover:bg-yellow-400 hover:text-[#06054e] transition-all"
+                  >
+                    <Plus size={16} />
+                    Add Member
+                  </Link>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Filters */}
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {/* Search */}
+            <div className="sm:col-span-2 relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+              <input
+                type="text"
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                placeholder="Search name, email, member ID…"
+                className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border-2 border-slate-100 rounded-xl text-sm font-bold focus:border-[#06054e] outline-none"
+              />
+              {search && (
+                <button className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" onClick={() => setSearch("")}>
+                  <X size={14} />
+                </button>
+              )}
+            </div>
+
+            {/* Status */}
+            <select
+              value={statusFilter}
+              onChange={e => setStatus(e.target.value)}
+              className="px-4 py-2.5 bg-slate-50 border-2 border-slate-100 rounded-xl text-sm font-bold focus:border-[#06054e] outline-none"
+            >
+              <option value="">All Status</option>
+              <option value="Active">Active</option>
+              <option value="Life">Life Member</option>
+              <option value="Inactive">Inactive</option>
+              <option value="Suspended">Suspended</option>
+            </select>
+
+            {/* Role */}
+            <select
+              value={roleFilter}
+              onChange={e => setRole(e.target.value)}
+              className="px-4 py-2.5 bg-slate-50 border-2 border-slate-100 rounded-xl text-sm font-bold focus:border-[#06054e] outline-none"
+            >
+              <option value="">All Roles</option>
+              <option value="player">Players</option>
+              <option value="coach">Coaches</option>
+              <option value="umpire">Umpires</option>
+              <option value="technical-official">Technical Officials</option>
+              <option value="manager">Managers</option>
+              <option value="volunteer">Volunteers</option>
+              <option value="registrar">Registrars</option>
+            </select>
+          </div>
+        </div>
+
+        {/* Table */}
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+          {loading ? (
+            <div className="flex items-center justify-center py-20">
+              <Loader2 className="animate-spin text-[#06054e]" size={36} />
+            </div>
+          ) : members.length === 0 ? (
+            <div className="py-20 text-center">
+              <Users size={48} className="mx-auto text-slate-300 mb-3" />
+              <p className="text-slate-500 font-bold">No members found</p>
+              {(search || statusFilter || roleFilter) && (
+                <button
+                  onClick={() => { setSearch(""); setStatus("Active"); setRole(""); }}
+                  className="mt-3 text-[#06054e] font-bold text-sm hover:underline"
+                >
+                  Clear filters
+                </button>
+              )}
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
-                  <tr className="border-b-2 border-slate-200 bg-slate-50">
-                    <th className="text-left py-4 px-6 text-xs font-black text-slate-700 uppercase">
-                      Member ID
-                    </th>
-                    <th className="text-left py-4 px-6 text-xs font-black text-slate-700 uppercase">
-                      Name
-                    </th>
-                    <th className="text-left py-4 px-6 text-xs font-black text-slate-700 uppercase">
-                      Age
-                    </th>
-                    <th className="text-left py-4 px-6 text-xs font-black text-slate-700 uppercase">
-                      Email
-                    </th>
-                    <th className="text-left py-4 px-6 text-xs font-black text-slate-700 uppercase">
-                      Mobile
-                    </th>
-                    <th className="text-center py-4 px-6 text-xs font-black text-slate-700 uppercase">
-                      Status
-                    </th>
-                    <th className="text-right py-4 px-6 text-xs font-black text-slate-700 uppercase">
-                      Actions
-                    </th>
+                  <tr className="bg-slate-50 border-b-2 border-slate-100">
+                    {[
+                      { label: "Name",       field: "lastName" },
+                      { label: "Member ID",  field: "memberId" },
+                      { label: "Email",      field: null },
+                      { label: "Role",       field: null },
+                      { label: "Status",     field: "status" },
+                      { label: "Type",       field: null },
+                      { label: "Club",       field: null },
+                      { label: "Joined",     field: "joinDate" },
+                      { label: "Actions",    field: null },
+                    ].map(({ label, field }) => (
+                      <th
+                        key={label}
+                        onClick={() => field && handleSort(field)}
+                        className={`px-5 py-3 text-left text-xs font-black uppercase text-slate-500 whitespace-nowrap ${field ? "cursor-pointer hover:text-slate-800 select-none" : ""}`}
+                      >
+                        <span className="inline-flex items-center gap-1">
+                          {label}
+                          {field && <SortIcon field={field} />}
+                        </span>
+                      </th>
+                    ))}
                   </tr>
                 </thead>
-                <tbody>
-                  {members.map((member, index) => (
-                    <tr
-                      key={member.memberId}
-                      className={`border-b border-slate-100 hover:bg-slate-50 transition-colors ${
-                        index % 2 === 0 ? "bg-white" : "bg-slate-50/50"
-                      }`}
-                    >
-                      <td className="py-4 px-6">
-                        <span className="font-mono font-bold text-slate-900">
-                          {member.memberId}
-                        </span>
-                      </td>
-                      <td className="py-4 px-6">
-                        <div>
-                          <div className="font-bold text-slate-900">
-                            {member.personalInfo?.displayName ||
-                              `${member.personalInfo?.firstName ?? ""} ${member.personalInfo?.lastName ?? ""}`.trim() ||
-                              "—"}
-                          </div>
-                          <div className="text-sm text-slate-500">
-                            {member.roles && member.roles.length > 0
-                              ? member.roles.join(", ")
-                              : "No roles"}
-                          </div>
-                        </div>
-                      </td>
-                      <td className="py-4 px-6">
-                        <span className="text-slate-600 font-bold">
-                          {calculateAge(member.personalInfo?.dateOfBirth)}
-                        </span>
-                      </td>
-                      <td className="py-4 px-6">
-                        <span className="text-slate-600">
-                          {member.contact?.email ||
-                            (member.personalInfo as any)?.email ||
-                            "—"}
-                        </span>
-                      </td>
-                      <td className="py-4 px-6">
-                        <span className="text-slate-600">
-                          {member.contact?.mobile ||
-                            (member.personalInfo as any)?.phone ||
-                            "-"}
-                        </span>
-                      </td>
-                      <td className="py-4 px-6 text-center">
-                        <button
-                          onClick={() =>
-                            handleToggleStatus(
-                              member.memberId,
-                              member.membership.status,
-                            )
-                          }
-                          className={`inline-block px-3 py-1 rounded-full text-xs font-black uppercase transition-all ${
-                            (member.membership?.status ?? "").toLowerCase() === "active"
-                              ? "bg-green-100 text-green-700 hover:bg-green-200"
-                              : (member.membership?.status ?? "").toLowerCase() === "inactive"
-                                ? "bg-red-100 text-red-700 hover:bg-red-200"
-                                : (member.membership?.status ?? "").toLowerCase() === "life"
-                                  ? "bg-purple-100 text-purple-700 hover:bg-purple-200"
-                                  : "bg-orange-100 text-orange-700 hover:bg-orange-200"
-                          }`}
-                        >
-                          {member.membership?.status ?? "Unknown"}
-                        </button>
-                      </td>
-                      <td className="py-4 px-6">
-                        <div className="flex justify-end gap-2">
-                          <Link
-                            href={`/admin/members/${member.memberId}`}
-                            className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                            title="View Details"
-                          >
-                            <Eye size={16} />
-                          </Link>
-                          <Link
-                            href={`/admin/members/${member.memberId}/edit`}
-                            className="p-2 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
-                            title="Edit"
-                          >
-                            <Edit2 size={16} />
-                          </Link>
-                          <button
-                            onClick={() =>
-                              handleToggleStatus(
-                                member.memberId,
-                                member.membership.status,
-                              )
-                            }
-                            className="p-2 text-orange-600 hover:bg-orange-50 rounded-lg transition-colors"
-                            title={
-                              (member.membership?.status ?? "").toLowerCase() === "active"
-                                ? "Deactivate"
-                                : "Activate"
-                            }
-                          >
-                            {(member.membership?.status ?? "").toLowerCase() === "active" ? (
-                              <UserX size={16} />
-                            ) : (
-                              <UserCheck size={16} />
+                <tbody className="divide-y divide-slate-50">
+                  {members.map(m => {
+                    const name  = `${m.personalInfo.firstName ?? ""} ${m.personalInfo.lastName ?? ""}`.trim() || m.memberId;
+                    const status = m.membership.status ?? "Unknown";
+                    return (
+                      <tr key={m.memberId} className="hover:bg-slate-50 transition-colors">
+                        {/* Name */}
+                        <td className="px-5 py-3">
+                          <div className="font-bold text-slate-900 text-sm">{name}</div>
+                          <div className="text-xs text-slate-400">{m.personalInfo.gender ?? ""}</div>
+                        </td>
+
+                        {/* Member ID */}
+                        <td className="px-5 py-3">
+                          <code className="text-xs font-mono text-slate-600 bg-slate-100 px-2 py-0.5 rounded">
+                            {m.memberId}
+                          </code>
+                        </td>
+
+                        {/* Email */}
+                        <td className="px-5 py-3 text-sm text-slate-600">
+                          {m.contact.primaryEmail ?? "—"}
+                        </td>
+
+                        {/* Role */}
+                        <td className="px-5 py-3">
+                          <span className="text-xs font-bold text-slate-700">
+                            {primaryRole(m.roles)}
+                          </span>
+                        </td>
+
+                        {/* Status */}
+                        <td className="px-5 py-3">
+                          <span className={`px-2 py-0.5 rounded-full text-xs font-black border ${STATUS_COLORS[status] ?? STATUS_COLORS.Inactive}`}>
+                            {status}
+                          </span>
+                        </td>
+
+                        {/* Type */}
+                        <td className="px-5 py-3 text-xs text-slate-600 capitalize">
+                          {m.membership.membershipType ?? "—"}
+                        </td>
+
+                        {/* Club */}
+                        <td className="px-5 py-3 text-sm text-slate-600">
+                          {m.membership.clubName ?? "—"}
+                        </td>
+
+                        {/* Joined */}
+                        <td className="px-5 py-3 text-xs text-slate-500">
+                          {m.membership.joinDate
+                            ? new Date(m.membership.joinDate).toLocaleDateString("en-AU", { day:"2-digit", month:"short", year:"numeric" })
+                            : "—"}
+                        </td>
+
+                        {/* Actions */}
+                        <td className="px-5 py-3">
+                          <div className="flex items-center gap-1">
+                            <Link
+                              href={`/admin/players/${m.memberId}`}
+                              className="p-1.5 hover:bg-blue-50 rounded-lg transition-colors"
+                              title="View"
+                            >
+                              <Eye size={15} className="text-blue-600" />
+                            </Link>
+                            {!isReadonly && (
+                              <>
+                                <Link
+                                  href={`/admin/players/${m.memberId}/edit`}
+                                  className="p-1.5 hover:bg-yellow-50 rounded-lg transition-colors"
+                                  title="Edit"
+                                >
+                                  <Edit size={15} className="text-yellow-600" />
+                                </Link>
+                                <button
+                                  onClick={() => handleDelete(m.memberId)}
+                                  disabled={deleting === m.memberId}
+                                  className="p-1.5 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-40"
+                                  title="Deactivate"
+                                >
+                                  {deleting === m.memberId
+                                    ? <Loader2 size={15} className="animate-spin text-red-500" />
+                                    : <Trash2 size={15} className="text-red-500" />}
+                                </button>
+                              </>
                             )}
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
-            ) : (
-              <div className="p-12 text-center">
-                <Users className="mx-auto mb-4 text-slate-300" size={48} />
-                <p className="text-slate-600 font-bold">
-                  {searchTerm
-                    ? "No members found matching your search"
-                    : "No members found"}
-                </p>
-                <Link
-                  href="/admin/members/create"
-                  className="mt-4 inline-block text-indigo-600 hover:text-indigo-800 font-bold text-sm"
-                >
-                  Create your first member
-                </Link>
-              </div>
-            )}
-          </div>
+            </div>
+          )}
 
           {/* Pagination */}
           {totalPages > 1 && (
-            <div className="border-t border-slate-200 p-6 flex items-center justify-between">
-              <div className="text-sm text-slate-600 font-bold">
-                Page {page} of {totalPages}
-              </div>
-              <div className="flex gap-2">
+            <div className="px-5 py-4 border-t border-slate-100 flex items-center justify-between text-sm">
+              <span className="text-slate-500 font-bold">
+                Page {page} of {totalPages} · {total.toLocaleString()} total
+              </span>
+              <div className="flex items-center gap-2">
                 <button
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  disabled={page === 1}
-                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-lg font-bold disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  disabled={page <= 1}
+                  onClick={() => setPage(p => p - 1)}
+                  className="px-4 py-2 border-2 border-slate-200 rounded-xl font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-40"
                 >
-                  Previous
+                  ← Prev
                 </button>
                 <button
-                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                  disabled={page === totalPages}
-                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-lg font-bold disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  disabled={page >= totalPages}
+                  onClick={() => setPage(p => p + 1)}
+                  className="px-4 py-2 border-2 border-slate-200 rounded-xl font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-40"
                 >
-                  Next
+                  Next →
                 </button>
               </div>
             </div>

@@ -510,7 +510,6 @@ export default function EventsPage() {
         onClose={closeEventModal}
         onEdit={handleEditEvent}
         onDelete={handleDeleteEvent}
-        currentUser={currentUser}
       />
     </div>
   );

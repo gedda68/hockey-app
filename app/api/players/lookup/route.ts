@@ -23,50 +23,52 @@ export async function GET(request: NextRequest) {
     const client = await clientPromise;
     const db = client.db("hockey-app");
 
-    // Case-insensitive name match + exact DOB
-    const player = await db.collection("players").findOne({
-      firstName: { $regex: `^${escapeRegex(firstName)}$`, $options: "i" },
-      lastName: { $regex: `^${escapeRegex(lastName)}$`, $options: "i" },
-      dateOfBirth: dob,
+    // Case-insensitive name match + exact DOB — query members collection
+    const member = await db.collection("members").findOne({
+      "personalInfo.firstName": { $regex: `^${escapeRegex(firstName)}$`, $options: "i" },
+      "personalInfo.lastName":  { $regex: `^${escapeRegex(lastName)}$`,  $options: "i" },
+      "personalInfo.dateOfBirth": dob,
     });
 
-    if (!player) {
+    if (!member) {
       return NextResponse.json({ player: null });
     }
 
+    const pi = member.personalInfo ?? {};
+    const ct = member.contact ?? {};
+
     // Return fields needed for nomination.
-    // Emergency contacts and medical are returned so the player can confirm/update their own data.
     return NextResponse.json({
       player: {
-        playerId: player.playerId,
-        firstName: player.firstName,
-        lastName: player.lastName,
-        preferredName: player.preferredName ?? null,
-        dateOfBirth: player.dateOfBirth,
-        gender: player.gender ?? null,
-        email: player.email ?? null,
-        phone: player.phone ?? null,
-        clubId: player.clubId ?? null,
-        clubName: player.clubName ?? null,
-        linkedMemberId: player.linkedMemberId ?? null,
-        photo: player.photo ?? null,
-        status: player.status?.current ?? "active",
-        // Returned so the player can verify and update their own contact/medical details
-        emergencyContacts: (player.emergencyContacts ?? []).map(() => ({
-          id: c.id ?? "",
-          name: c.name ?? "",
+        playerId:       member.memberId,
+        memberId:       member.memberId,
+        firstName:      pi.firstName ?? null,
+        lastName:       pi.lastName ?? null,
+        preferredName:  pi.preferredName ?? null,
+        dateOfBirth:    pi.dateOfBirth ?? null,
+        gender:         pi.gender ?? null,
+        email:          ct.primaryEmail ?? null,
+        phone:          ct.primaryPhone ?? null,
+        clubId:         member.membership?.clubId ?? null,
+        clubName:       member.membership?.clubName ?? null,
+        linkedMemberId: member.memberId,
+        photo:          pi.photo ?? null,
+        status:         member.membership?.status?.toLowerCase() ?? "active",
+        emergencyContacts: (member.emergencyContacts ?? []).map((c: Record<string, any>) => ({
+          id:           c.id ?? "",
+          name:         c.name ?? "",
           relationship: c.relationship ?? "",
-          phone: c.phone ?? "",
-          email: c.email ?? "",
+          phone:        c.phone ?? "",
+          email:        c.email ?? "",
         })),
-        medical: player.medical
+        medical: member.medical
           ? {
-              conditions: player.medical.conditions ?? "",
-              allergies: player.medical.allergies ?? "",
-              medications: player.medical.medications ?? "",
-              bloodType: player.medical.bloodType ?? "",
-              doctorName: player.medical.doctorName ?? "",
-              doctorPhone: player.medical.doctorPhone ?? "",
+              conditions:  member.medical.conditions  ?? "",
+              allergies:   member.medical.allergies   ?? "",
+              medications: member.medical.medications ?? "",
+              bloodType:   member.medical.bloodType   ?? "",
+              doctorName:  member.medical.doctorName  ?? "",
+              doctorPhone: member.medical.doctorPhone ?? "",
             }
           : null,
       },

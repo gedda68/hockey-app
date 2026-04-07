@@ -11,6 +11,7 @@ import {
   calculateTeamStatistics,
   type Team,
 } from "@/lib/db/schemas/team.schema";
+import { ZodError } from "zod";
 
 // ============================================================================
 // GET /api/clubs/[clubId]/teams/[teamId]
@@ -51,7 +52,7 @@ export async function GET(
       new URL(request.url).searchParams.get("includeMembers") === "true";
 
     if (includeMembers && team.roster && team.roster.length > 0) {
-      const memberIds = team.roster.map(() => r.memberId);
+      const memberIds = team.roster.map((r: { memberId: string }) => r.memberId);
 
       const members = await db
         .collection("members")
@@ -103,7 +104,10 @@ export async function GET(
   } catch (error: unknown) {
     console.error("Error fetching team:", error);
     return NextResponse.json(
-      { error: "Failed to fetch team", details: error.message },
+      {
+        error: "Failed to fetch team",
+        details: error instanceof Error ? error.message : String(error),
+      },
       { status: 500 }
     );
   }
@@ -201,16 +205,18 @@ export async function PUT(
   } catch (error: unknown) {
     console.error("Error updating team:", error);
 
-    // Zod validation errors
-    if (error.name === "ZodError") {
+    if (error instanceof ZodError) {
       return NextResponse.json(
-        { error: "Validation failed", details: error.errors },
+        { error: "Validation failed", details: error.flatten() },
         { status: 400 }
       );
     }
 
     return NextResponse.json(
-      { error: "Failed to update team", details: error.message },
+      {
+        error: "Failed to update team",
+        details: error instanceof Error ? error.message : String(error),
+      },
       { status: 500 }
     );
   }
@@ -251,7 +257,8 @@ export async function DELETE(
     }
 
     // Get all member IDs from roster
-    const memberIds = team.roster?.map(() => r.memberId) || [];
+    const memberIds =
+      team.roster?.map((r: { memberId: string }) => r.memberId) || [];
 
     // Start a transaction to ensure consistency
     const session = client.startSession();
@@ -294,7 +301,10 @@ export async function DELETE(
   } catch (error: unknown) {
     console.error("Error deleting team:", error);
     return NextResponse.json(
-      { error: "Failed to delete team", details: error.message },
+      {
+        error: "Failed to delete team",
+        details: error instanceof Error ? error.message : String(error),
+      },
       { status: 500 }
     );
   }

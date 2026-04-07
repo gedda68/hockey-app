@@ -10,7 +10,10 @@ interface EditPlayerPageProps {
 
 async function getPlayerData(playerId: string, cookie: string) {
   const base = process.env.NEXTAUTH_URL || "http://localhost:3000";
-  const opts = { cache: "no-store" as const, headers: cookie ? { cookie } : {} };
+  const opts: RequestInit = {
+    cache: "no-store",
+    ...(cookie ? { headers: { cookie } } : {}),
+  };
 
   try {
     const playerRes = await fetch(`${base}/api/admin/players/${playerId}`, opts);

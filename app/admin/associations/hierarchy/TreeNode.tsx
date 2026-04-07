@@ -33,7 +33,8 @@ export type HierarchyNode =
         secondary?: string;
         accent?: string;
       };
-      children: [];
+      /** Always empty for leaf clubs; kept as array for a single node shape */
+      children: HierarchyNode[];
     };
 
 export default function TreeNode({

@@ -19,6 +19,13 @@ export async function POST(request: Request) {
       .collection("associations")
       .findOne({ associationId });
 
+    if (!updated) {
+      return NextResponse.json(
+        { error: "Association not found" },
+        { status: 404 },
+      );
+    }
+
     return NextResponse.json({
       success: true,
       matchedCount: result.matchedCount,

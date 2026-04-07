@@ -80,7 +80,7 @@ export async function PUT(
                 affectedDivisions: [oldRoster.division],
               },
             },
-          },
+          } as unknown as import("mongodb").UpdateFilter<import("mongodb").Document>,
         );
       }
 
@@ -116,7 +116,7 @@ export async function PUT(
                 reason: `Moved from ${from.teamName}`,
               },
             },
-          },
+          } as unknown as import("mongodb").UpdateFilter<import("mongodb").Document>,
         );
       }
     }
@@ -127,10 +127,13 @@ export async function PUT(
     };
 
     if (historyEntry) {
-      if (!body.changeHistory) {
-        updates.changeHistory = oldRoster.changeHistory || [];
-      }
-      updates.changeHistory.push(historyEntry);
+      const prior = Array.isArray(updates.changeHistory)
+        ? [...(updates.changeHistory as object[])]
+        : Array.isArray(oldRoster.changeHistory)
+          ? [...oldRoster.changeHistory]
+          : [];
+      prior.push(historyEntry);
+      updates.changeHistory = prior;
     }
 
     delete updates.moveDetails;
@@ -158,7 +161,10 @@ export async function PUT(
   } catch (error: unknown) {
     console.error("❌ Error updating roster:", error);
     return NextResponse.json(
-      { error: "Failed to update roster", details: error.message },
+      {
+        error: "Failed to update roster",
+        details: error instanceof Error ? error.message : String(error),
+      },
       { status: 500 },
     );
   }
@@ -194,7 +200,10 @@ export async function GET(
   } catch (error: unknown) {
     console.error("❌ Error fetching roster:", error);
     return NextResponse.json(
-      { error: "Failed to fetch roster", details: error.message },
+      {
+        error: "Failed to fetch roster",
+        details: error instanceof Error ? error.message : String(error),
+      },
       { status: 500 },
     );
   }

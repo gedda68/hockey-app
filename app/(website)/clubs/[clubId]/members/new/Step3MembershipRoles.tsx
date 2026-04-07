@@ -1,6 +1,7 @@
 "use client";
 
 import { Award } from "lucide-react";
+import type { AddMemberFormData } from "./member-form-types";
 
 interface RoleOption {
   roleId: string;
@@ -23,22 +24,9 @@ interface PlayerInfo {
   position: string;
 }
 
-interface Membership {
-  membershipType: string;
-  status: string;
-  joinDate: string;
-}
-
-interface FormData {
-  membership: Membership;
-  roles: string[];
-  playerInfo: PlayerInfo | null;
-  [key: string]: unknown;
-}
-
 interface Step3MembershipRolesProps {
-  formData: FormData;
-  setFormData: React.Dispatch<React.SetStateAction<FormData>>;
+  formData: AddMemberFormData;
+  setFormData: React.Dispatch<React.SetStateAction<AddMemberFormData>>;
   membershipTypes: MembershipTypeOption[];
   roles: RoleOption[];
   rolesByCategory: Record<string, RoleOption[]>;
@@ -102,7 +90,7 @@ export function Step3MembershipRoles({
                   {category}
                 </h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {categoryRoles.map((role) => (
+                  {categoryRoles.map((role: RoleOption) => (
                     <button
                       key={role.roleId}
                       type="button"

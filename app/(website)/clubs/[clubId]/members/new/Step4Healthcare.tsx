@@ -1,6 +1,7 @@
 "use client";
 
 import { Heart } from "lucide-react";
+import type { AddMemberFormData } from "./member-form-types";
 
 interface HealthProviderOption { providerId: string; name: string }
 
@@ -28,15 +29,9 @@ interface Medical {
   allergies: string;
 }
 
-interface FormData {
-  healthcare: Healthcare;
-  medical: Medical;
-  [key: string]: unknown;
-}
-
 interface Step4HealthcareProps {
-  formData: FormData;
-  setFormData: React.Dispatch<React.SetStateAction<FormData>>;
+  formData: AddMemberFormData;
+  setFormData: React.Dispatch<React.SetStateAction<AddMemberFormData>>;
   healthProviders: HealthProviderOption[];
   hasMedicare: boolean;
   setHasMedicare: React.Dispatch<React.SetStateAction<boolean>>;

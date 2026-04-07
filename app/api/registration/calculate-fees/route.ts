@@ -2,7 +2,7 @@
 // Calculate all fees from association hierarchy and club
 
 import { NextRequest, NextResponse } from "next/server";
-import type { Db } from 'mongodb';
+import type { Db, Document, WithId } from "mongodb";
 import clientPromise from "@/lib/mongodb";
 import type { FeeLineItem } from "@/types/registration";
 
@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
       .find({ id: { $in: roleIds } })
       .toArray();
 
-    const roleCategories = roles.map(() => r.category);
+    const roleCategories = roles.map((r) => r.category);
 
     // Calculate age from DOB if member exists
     let calculatedAge: number | undefined;
@@ -73,7 +73,7 @@ export async function POST(request: NextRequest) {
     for (const association of associations) {
       if (!association.fees || association.fees.length === 0) continue;
 
-      const applicableFees = association.fees.filter(() => {
+      const applicableFees = association.fees.filter((fee: Record<string, any>) => {
         // Must be active
         if (!fee.isActive) return false;
 
@@ -132,7 +132,7 @@ export async function POST(request: NextRequest) {
     // ========================================================================
 
     if (club.fees && club.fees.length > 0) {
-      const applicableClubFees = club.fees.filter(() => {
+      const applicableClubFees = club.fees.filter((fee: Record<string, any>) => {
         if (!fee.isActive) return false;
 
         const now = new Date();
@@ -243,7 +243,7 @@ export async function POST(request: NextRequest) {
         total,
         itemCount: lineItems.length,
       },
-      associations: associations.map(() => ({
+      associations: associations.map((a) => ({
         associationId: a.associationId,
         name: a.name,
         level: a.level,
@@ -256,7 +256,10 @@ export async function POST(request: NextRequest) {
   } catch (error: unknown) {
     console.error("Error calculating fees:", error);
     return NextResponse.json(
-      { error: "Failed to calculate fees", details: error.message },
+      {
+        error: "Failed to calculate fees",
+        details: error instanceof Error ? error.message : String(error),
+      },
       { status: 500 }
     );
   }
@@ -266,14 +269,19 @@ export async function POST(request: NextRequest) {
 // HELPER: Get association hierarchy
 // ============================================================================
 
-async function getAssociationHierarchy(db: Db, associationId: string) {
-  const hierarchy: any[] = [];
+async function getAssociationHierarchy(
+  db: Db,
+  associationId: string,
+): Promise<WithId<Document>[]> {
+  const hierarchy: WithId<Document>[] = [];
   let currentId: string | undefined = associationId;
 
   while (currentId) {
-    const association = await db.collection("associations").findOne({
-      associationId: currentId,
-    });
+    const association: WithId<Document> | null = await db
+      .collection("associations")
+      .findOne({
+        associationId: currentId,
+      });
 
     if (!association) break;
 

@@ -398,28 +398,3 @@ export type MemberWithTeams = {
   teamRegistrations: MemberTeamRegistration[];
 };
 
-// ============================================================================
-// EXPORT ALL
-// ============================================================================
-
-export type {
-  DivisionConfig,
-  TeamRosterMember,
-  TeamLeadership,
-  TeamStatistics,
-  Team,
-  MemberTeamRegistration,
-  ValidationResult,
-  TeamSizeValidation,
-  PlayingUpValidation,
-  AgeCategoryValidation,
-  TeamQuery,
-  TeamRosterQuery,
-  CreateTeamRequest,
-  UpdateTeamRequest,
-  AddRosterMemberRequest,
-  UpdateRosterMemberRequest,
-  UpdateLeadershipRequest,
-  TeamWithMemberDetails,
-  MemberWithTeams,
-};

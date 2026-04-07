@@ -31,6 +31,9 @@ export interface Team {
   pos?: number;
   club: string;
   icon?: string;
+  /** Club brand colours — enriched from the clubs collection at load time */
+  primaryColor?: string;
+  secondaryColor?: string;
   pts: number;
   // prefer canonical names; keep legacy aliases optional for compatibility
   played?: number; // canonical

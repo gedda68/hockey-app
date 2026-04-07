@@ -4,7 +4,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import type { Db } from 'mongodb';
 import clientPromise from "@/lib/mongodb";
-import { z } from "zod";
+import { z, ZodError } from "zod";
 import { escapeRegex } from "@/lib/utils/regex";
 
 // Schema for creating/updating associations
@@ -253,10 +253,9 @@ export async function GET(request: NextRequest) {
     });
   } catch (error: unknown) {
     console.error("💥 Error fetching associations:", error);
-    return NextResponse.json(
-      { error: error.message || "Failed to fetch associations" },
-      { status: 500 },
-    );
+    const message =
+      error instanceof Error ? error.message : "Failed to fetch associations";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
 
@@ -348,20 +347,18 @@ export async function POST(request: NextRequest) {
   } catch (error: unknown) {
     console.error("💥 Error creating association:", error);
 
-    // Handle Zod validation errors
-    if (error.name === "ZodError") {
+    if (error instanceof ZodError) {
       return NextResponse.json(
         {
           error: "Validation failed",
-          details: error.errors,
+          details: error.flatten(),
         },
         { status: 400 },
       );
     }
 
-    return NextResponse.json(
-      { error: error.message || "Failed to create association" },
-      { status: 500 },
-    );
+    const message =
+      error instanceof Error ? error.message : "Failed to create association";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

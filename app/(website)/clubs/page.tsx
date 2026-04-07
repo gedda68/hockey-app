@@ -2,7 +2,7 @@
 // Server component that fetches data and passes to ClubsGrid client component
 
 import ClubsGrid from "@/components/clubs/ClubsGrid";
-import { Club } from "../admin/types/clubs";
+import type { Club } from "@/app/admin/types/clubs";
 
 async function getClubsFromDB(): Promise<Club[]> {
   try {

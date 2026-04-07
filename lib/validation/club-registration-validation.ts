@@ -1,12 +1,24 @@
 // lib/validation/club-registration-validation.ts
 // Club registration validation functions
 
+import { z } from "zod";
 import type {
   ClubRegistration,
   RegistrationValidation,
   RegistrationType,
   RegistrationStatus,
 } from "@/types/club-registration";
+
+/** Re-export for API routes that validate bodies against shared types */
+export type { ClubRegistration } from "@/types/club-registration";
+
+/** Request body for POST /api/clubs/[clubId]/register */
+export const RegisterForClubRequestSchema = z.object({
+  registrationType: z.enum(["primary", "secondary"]),
+  roleIds: z.array(z.string()).default([]),
+  membershipType: z.string().optional(),
+  registrationNotes: z.string().optional(),
+});
 
 // ============================================================================
 // REGISTRATION VALIDATION

@@ -1,5 +1,15 @@
 import Link from "next/link";
 import SidebarSubItem from "./SidebarSubItem";
+import type { MenuItem } from "../global-config/menuConfig";
+
+interface SidebarItemProps {
+  item: MenuItem;
+  pathname: string;
+  expandedMenus: string[];
+  toggleMenu: (label: string) => void;
+  expandedSubMenus: string[];
+  toggleSubMenu: (label: string) => void;
+}
 
 export default function SidebarItem({
   item,
@@ -8,7 +18,7 @@ export default function SidebarItem({
   toggleMenu,
   expandedSubMenus,
   toggleSubMenu,
-}) {
+}: SidebarItemProps) {
   const isActive = pathname.startsWith(item.href);
   const hasSubItems = item.subItems && item.subItems.length > 0;
   const expanded = expandedMenus.includes(item.label);
@@ -51,7 +61,7 @@ export default function SidebarItem({
       {/* Render subItems */}
       {hasSubItems && expanded && (
         <ul className="bg-white/5">
-          {item.subItems.map((sub) => (
+          {(item.subItems ?? []).map((sub) => (
             <SidebarSubItem
               key={sub.label}
               item={sub}

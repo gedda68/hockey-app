@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { ToastContainer, useToast } from "@/components/ui/Toast";
+import EntityColorBar, { EntityColorDot } from "@/components/ui/EntityColorBar";
 
 // 5-level system
 export const LEVEL_MAP: Record<
@@ -60,6 +61,11 @@ interface Association {
   parent?: { name: string; code: string };
   childrenCount: number;
   clubsCount: number;
+  branding?: {
+    primaryColor?: string;
+    secondaryColor?: string;
+    accentColor?: string;
+  };
 }
 
 interface DeleteModalProps {
@@ -423,6 +429,7 @@ export default function AssociationsList() {
               <table className="w-full">
                 <thead>
                   <tr className="bg-slate-50 border-b-2 border-slate-200">
+                    <th className="w-1.5 p-0" />
                     <th className="px-6 py-4 text-left text-sm font-black uppercase text-slate-600">
                       Association
                     </th>
@@ -455,13 +462,25 @@ export default function AssociationsList() {
                       key={assoc.associationId}
                       className="border-b border-slate-100 hover:bg-slate-50 transition-colors"
                     >
+                      {/* Brand colour stripe */}
+                      <td className="w-1.5 p-0">
+                        <EntityColorBar
+                          primary={assoc.branding?.primaryColor}
+                          secondary={assoc.branding?.secondaryColor}
+                        />
+                      </td>
                       <td className="px-6 py-4">
-                        <div className="font-bold text-slate-900">
-                          {assoc.name}
+                        <div className="flex items-center gap-2">
+                          <EntityColorDot
+                            primary={assoc.branding?.primaryColor}
+                            secondary={assoc.branding?.secondaryColor}
+                            size={10}
+                          />
+                          <span className="font-bold text-slate-900">{assoc.name}</span>
                         </div>
                       </td>
                       <td className="px-6 py-4">
-                        <div className="font-black text-[#06054e]">
+                        <div className="font-black" style={{ color: assoc.branding?.primaryColor ?? "#06054e" }}>
                           {assoc.code}
                         </div>
                       </td>

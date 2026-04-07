@@ -5,7 +5,7 @@
 "use client";
 
 import { useState } from "react";
-import { BaseSectionProps } from "../types/player.types";
+import { BaseSectionProps } from "@/types/player.types";
 import {
   FileText,
   AlertCircle,

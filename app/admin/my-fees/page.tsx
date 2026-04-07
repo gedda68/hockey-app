@@ -79,6 +79,7 @@ const STATUS_CONFIG: Record<
 const ENTITY_ICONS: Record<MyFeeSection["entityType"], string> = {
   association: "🏒",
   club: "🏑",
+  tournament: "🏆",
   insurance: "🛡️",
   role: "🎫",
 };

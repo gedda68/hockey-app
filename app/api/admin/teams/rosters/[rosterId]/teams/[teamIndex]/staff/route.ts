@@ -25,7 +25,7 @@ export async function POST(
     }
 
     const client = await clientPromise;
-    const db = client.db();
+    const db = client.db("hockey-app");
 
     // Get roster
     const roster = await db.collection("teamRosters").findOne({ id: rosterId });
@@ -41,10 +41,6 @@ export async function POST(
       return NextResponse.json({ error: "Team not found" }, { status: 404 });
     }
 
-
-    // Initialize staff array if it doesn't exist
-    if (!roster.teams[teamIndex].staff) {
-    }
 
     // Create new staff member
     const newStaff = {
@@ -67,7 +63,7 @@ export async function POST(
       {
         $push: { [updatePath]: newStaff },
         $set: { lastUpdated: new Date().toISOString() },
-      },
+      } as unknown as import("mongodb").UpdateFilter<import("mongodb").Document>,
     );
 
 
@@ -84,7 +80,8 @@ export async function POST(
       );
     }
 
-      `✅ Successfully added ${role} ${memberName} to team ${roster.teams[teamIndex].name}\n`,
+    console.log(
+      `✅ Successfully added ${role} ${memberName} to team ${roster.teams[teamIndex].name}`,
     );
 
     return NextResponse.json({
@@ -92,13 +89,13 @@ export async function POST(
       staff: newStaff,
     });
   } catch (error: unknown) {
-    console.error("❌ Error adding staff:", error);
-    console.error("Stack:", error.stack);
+    const err = error instanceof Error ? error : new Error(String(error));
+    console.error("❌ Error adding staff:", err);
     return NextResponse.json(
       {
         error: "Failed to add staff",
-        details: error.message,
-        stack: error.stack,
+        details: err.message,
+        stack: err.stack,
       },
       { status: 500 },
     );

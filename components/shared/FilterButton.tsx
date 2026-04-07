@@ -10,6 +10,8 @@ const filterButtonVariants = cva(
       variant: {
         primary: "",
         secondary: "",
+        /** Match status chips (same look as secondary; separate token for clarity) */
+        status: "",
       },
       isActive: {
         true: "",
@@ -37,6 +39,17 @@ const filterButtonVariants = cva(
       },
       {
         variant: "secondary",
+        isActive: false,
+        className:
+          "bg-white text-slate-500 border-slate-200 hover:border-[#06054e]",
+      },
+      {
+        variant: "status",
+        isActive: true,
+        className: "bg-[#06054e] text-white border-[#06054e] shadow-md",
+      },
+      {
+        variant: "status",
         isActive: false,
         className:
           "bg-white text-slate-500 border-slate-200 hover:border-[#06054e]",

@@ -8,6 +8,7 @@ import {
   UpdateRosterMemberRequestSchema,
   calculateTeamStatistics,
 } from "@/lib/db/schemas/team.schema";
+import { ZodError } from "zod";
 
 // ============================================================================
 // PUT /api/clubs/[clubId]/teams/[teamId]/roster/[memberId]
@@ -163,16 +164,15 @@ export async function PUT(
   } catch (error: unknown) {
     console.error("Error updating roster member:", error);
 
-    // Zod validation errors
-    if (error.name === "ZodError") {
+    if (error instanceof ZodError) {
       return NextResponse.json(
-        { error: "Validation failed", details: error.errors },
+        { error: "Validation failed", details: error.flatten() },
         { status: 400 }
       );
     }
 
     return NextResponse.json(
-      { error: "Failed to update roster member", details: error.message },
+      { error: "Failed to update roster member", details: error instanceof Error ? error.message : String(error) },
       { status: 500 }
     );
   }
@@ -300,7 +300,7 @@ export async function DELETE(
   } catch (error: unknown) {
     console.error("Error removing roster member:", error);
     return NextResponse.json(
-      { error: "Failed to remove roster member", details: error.message },
+      { error: "Failed to remove roster member", details: error instanceof Error ? error.message : String(error) },
       { status: 500 }
     );
   }

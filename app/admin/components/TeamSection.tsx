@@ -174,7 +174,7 @@ export default function TeamSection({
         onEdit={onEditStaff}
         onDelete={(role) => {
           // This should trigger the same handleUpdateStaff logic but with null values
-          onEditStaff(role, { name: "", email: "", phone: "" });
+          onEditStaff(role, { name: "", club: "", icon: "" });
         }}
       />
     </div>

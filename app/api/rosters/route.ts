@@ -1,6 +1,7 @@
 //app/api/rosters/route.ts
 
 import { NextResponse } from "next/server";
+import { MongoServerError } from "mongodb";
 import clientPromise from "@/lib/mongodb";
 
 // Helper to extract numbers for sorting (e.g., "Under 12" -> 12)
@@ -111,8 +112,7 @@ export async function POST(request: Request) {
   } catch (error: unknown) {
     console.error("POST Error:", error);
 
-    // MongoDB Unique Index violation check
-    if (error.code === 11000) {
+    if (error instanceof MongoServerError && error.code === 11000) {
       return NextResponse.json(
         {
           error:

@@ -19,7 +19,7 @@ import {
   Shield,
   ChevronRight,
 } from "lucide-react";
-import { Team } from "@/types/admin/teams.types";
+import type { AdminTeamListItem } from "@/types/admin/teams.types";
 
 interface Club {
   clubId: string;
@@ -28,7 +28,7 @@ interface Club {
 
 export default function TeamsList() {
   const router = useRouter();
-  const [teams, setTeams] = useState<Team[]>([]);
+  const [teams, setTeams] = useState<AdminTeamListItem[]>([]);
   const [clubs, setClubs] = useState<Club[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");

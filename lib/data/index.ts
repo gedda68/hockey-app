@@ -27,6 +27,7 @@ export {
 // Export all umpires functions
 export {
   getUmpireList,
+  getUmpireDetailsList,
   getUmpireByNumber,
   getUmpireAllocations,
   getUmpireAllocationsMap,

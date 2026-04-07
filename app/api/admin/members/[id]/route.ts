@@ -16,7 +16,7 @@ export async function GET(
     console.log("🔍 GET member:", id);
 
     const client = await clientPromise;
-    const db = client.db();
+    const db = client.db("hockey-app");
 
     const member = await db.collection("members").findOne({ memberId: id });
 
@@ -45,7 +45,7 @@ export async function PUT(
     const body = await request.json();
 
     const client = await clientPromise;
-    const db = client.db();
+    const db = client.db("hockey-app");
 
     // Extract change log if provided
     const changeLog = body._changeLog;
@@ -88,7 +88,10 @@ export async function PUT(
   } catch (error: unknown) {
     console.error("Error updating member:", error);
     return NextResponse.json(
-      { error: error.message || "Failed to update member" },
+      {
+        error:
+          error instanceof Error ? error.message : "Failed to update member",
+      },
       { status: 500 },
     );
   }
@@ -106,7 +109,7 @@ export async function DELETE(
     console.log("🗑️ Deactivating member:", id);
 
     const client = await clientPromise;
-    const db = client.db();
+    const db = client.db("hockey-app");
 
     // Check if member exists
     const member = await db.collection("members").findOne({ memberId: id });

@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
       .toArray();
 
     // Enrich with member details
-    const memberIds = [...new Set(payments.map(() => p.memberId))];
+    const memberIds = [...new Set(payments.map((p) => p.memberId).filter(Boolean))];
     const members = await db
       .collection("members")
       .find(
@@ -55,11 +55,11 @@ export async function GET(request: NextRequest) {
 
     const memberMap = new Map(members.map((m) => [m.memberId, m]));
 
-    const enriched = payments.map(() => {
+    const enriched = payments.map((payment) => {
       const member = memberMap.get(payment.memberId);
       return {
         ...payment,
-        _id: payment._id.toString(),
+        _id: payment._id?.toString(),
         memberDetails: member
           ? {
               firstName: member.personalInfo?.firstName,
@@ -74,7 +74,7 @@ export async function GET(request: NextRequest) {
   } catch (error: unknown) {
     console.error("Error fetching payments:", error);
     return NextResponse.json(
-      { error: "Failed to fetch payments", details: error.message },
+      { error: "Failed to fetch payments", details: error instanceof Error ? error.message : String(error) },
       { status: 500 }
     );
   }
@@ -133,7 +133,7 @@ export async function POST(request: NextRequest) {
   } catch (error: unknown) {
     console.error("Error creating payment:", error);
     return NextResponse.json(
-      { error: "Failed to create payment", details: error.message },
+      { error: "Failed to create payment", details: error instanceof Error ? error.message : String(error) },
       { status: 500 }
     );
   }

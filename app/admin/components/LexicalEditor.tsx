@@ -9,6 +9,7 @@ import {
   $getSelection,
   $createParagraphNode,
   $createTextNode,
+  $isRangeSelection,
   EditorState,
   LexicalEditor as LexicalEditorType,
 } from "lexical";
@@ -61,7 +62,7 @@ function ToolbarPlugin() {
     return editor.registerUpdateListener(({ editorState }) => {
       editorState.read(() => {
         const selection = $getSelection();
-        if (!selection) return;
+        if (!selection || !$isRangeSelection(selection)) return;
 
         // Update format state
         setIsBold(selection.hasFormat("bold"));

@@ -66,8 +66,9 @@ export default function ConfigTable({
 
   const initializeForm = (item?: ConfigItem) => {
     const data: any = { isActive: true };
+    const row = item as unknown as Record<string, unknown> | undefined;
     fields.forEach((field) => {
-      data[field.name] = item ? item[field.name] || "" : "";
+      data[field.name] = row ? String(row[field.name] ?? "") : "";
     });
     return data;
   };
@@ -88,8 +89,9 @@ export default function ConfigTable({
 
     setEditingId(item.id);
     const data: any = { isActive: item.isActive };
+    const row = item as unknown as Record<string, unknown>;
     fields.forEach((field) => {
-      data[field.name] = item[field.name] || "";
+      data[field.name] = String(row[field.name] ?? "");
     });
     setFormData(data);
 
@@ -376,7 +378,13 @@ export default function ConfigTable({
                               </div>
                             ) : (
                               <span className="font-bold text-slate-900">
-                                {item[field.name] || "-"}
+                                {(() => {
+                                  const v = (
+                                    item as unknown as Record<string, unknown>
+                                  )[field.name];
+                                  if (v == null || v === "") return "-";
+                                  return String(v);
+                                })()}
                               </span>
                             )}
                           </td>

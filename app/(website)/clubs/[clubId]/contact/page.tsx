@@ -3,6 +3,14 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 
+type CommitteeMember = {
+  id: string;
+  name: string;
+  position?: string;
+  email?: string;
+  phone?: string;
+};
+
 // Generate slug from club name
 function generateSlug(name: string): string {
   return name
@@ -298,7 +306,7 @@ export default async function ClubContactPage({
                     </tr>
                   </thead>
                   <tbody>
-                    {club.committee.map((member, index) => (
+                    {club.committee.map((member: CommitteeMember, index: number) => (
                       <tr
                         key={member.id}
                         className={`border-b border-slate-100 hover:bg-slate-50 transition-colors ${

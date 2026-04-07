@@ -9,6 +9,7 @@ import {
   validateClubRegistration,
   type ClubRegistration,
 } from "@/lib/validation/club-registration-validation";
+import { ZodError } from "zod";
 
 // ============================================================================
 // POST /api/clubs/[clubId]/register
@@ -27,7 +28,7 @@ export async function POST(
     const validatedData = RegisterForClubRequestSchema.parse(body);
 
     const client = await clientPromise;
-    const db = client.db();
+    const db = client.db("hockey-app");
 
     // Verify club exists
     const club = await db.collection("clubs").findOne({
@@ -143,15 +144,18 @@ export async function POST(
   } catch (error: unknown) {
     console.error("Error registering for club:", error);
 
-    if (error.name === "ZodError") {
+    if (error instanceof ZodError) {
       return NextResponse.json(
-        { error: "Validation failed", details: error.errors },
+        { error: "Validation failed", details: error.flatten() },
         { status: 400 }
       );
     }
 
     return NextResponse.json(
-      { error: "Failed to register for club", details: error.message },
+      {
+        error: "Failed to register for club",
+        details: error instanceof Error ? error.message : String(error),
+      },
       { status: 500 }
     );
   }

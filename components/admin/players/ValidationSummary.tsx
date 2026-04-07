@@ -3,7 +3,7 @@
 
 "use client";
 
-import { PlayerFormData } from "../types/player.types";
+import { PlayerFormData } from "@/types/player.types";
 import {
   AlertTriangle,
   XCircle,

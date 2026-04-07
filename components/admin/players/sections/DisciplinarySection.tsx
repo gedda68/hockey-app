@@ -4,7 +4,7 @@
 "use client";
 
 import { useState } from "react";
-import { BaseSectionProps, DisciplinaryRecord } from "../types/player.types";
+import { BaseSectionProps, DisciplinaryRecord } from "@/types/player.types";
 import {
   AlertTriangle,
   Plus,

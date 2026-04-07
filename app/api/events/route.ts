@@ -43,9 +43,10 @@ export async function GET(request: NextRequest) {
     if (upcoming) {
       query.startDate = { $gte: now };
     } else if (from || to) {
-      query.startDate = {};
-      if (from) query.startDate.$gte = new Date(from);
-      if (to) query.startDate.$lte = new Date(to);
+      const startRange: Record<string, Date> = {};
+      if (from) startRange.$gte = new Date(from);
+      if (to) startRange.$lte = new Date(to);
+      query.startDate = startRange;
     }
 
     // Category filter

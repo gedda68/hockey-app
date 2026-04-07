@@ -15,7 +15,13 @@ import AddStaffModal from "@/components/admin/teams/modals/AddStaffModal";
 
 import EditPlayerModal from "@/components/admin/teams/modals/EditPlayerModal";
 import PlayerHistoryModal from "@/components/admin/teams/modals/PlayerHistoryModal";
-import type { TeamRoster, Player, UnavailableType } from "@/types/admin/teams.types";
+import type {
+  TeamRoster,
+  Player,
+  PlayerLeadership,
+  Staff,
+  UnavailableType,
+} from "@/types/admin/teams.types";
 
 // ── Unavailability helpers ────────────────────────────────────────────────────
 
@@ -246,7 +252,7 @@ export default function RosterCard({
   const handleUpdateLeadership = async (
     player: Player,
     teamIndex: number,
-    leadership: any,
+    leadership: PlayerLeadership,
   ) => {
     try {
       const response = await fetch(
@@ -461,28 +467,28 @@ export default function RosterCard({
                 rosterId={roster.id!}
                 clubId={roster.clubId}
                 onAddPlayer={onAddPlayer}
-                onEditPlayer={(player) => {
+                onEditPlayer={(player: Player) => {
                   setEditingPlayer({ player, teamIndex });
                 }}
-                onUpdateLeadership={(player, leadership) =>
+                onUpdateLeadership={(player: Player, leadership: PlayerLeadership) =>
                   handleUpdateLeadership(player, teamIndex, leadership)
                 }
-                onViewHistory={(player) => {
+                onViewHistory={(player: Player) => {
                   setViewingHistory(player);
                 }}
-                onRemovePlayer={(player) =>
+                onRemovePlayer={(player: Player) =>
                   handleRemovePlayer(player, teamIndex)
                 }
                 onAddStaff={() => {
                   setActiveTeamIndex(teamIndex);
                   setShowAddStaff(true);
                 }}
-                onEditStaff={(staff) => {
+                onEditStaff={(staff: Staff) => {
                   setActiveTeamIndex(teamIndex);
                   setEditingStaff(staff);
                   setShowAddStaff(true);
                 }}
-                onDeleteStaff={(staffId) =>
+                onDeleteStaff={(staffId: string) =>
                   handleDeleteStaff(staffId, teamIndex)
                 }
               />
@@ -569,7 +575,7 @@ export default function RosterCard({
       {showAddStaff && activeTeamIndex !== null && (
         <AddStaffModal
           teamName={roster.teams[activeTeamIndex].name}
-          clubId={roster.clubId}
+          id={roster.clubId}
           editingStaff={editingStaff}
           onClose={() => {
             setShowAddStaff(false);

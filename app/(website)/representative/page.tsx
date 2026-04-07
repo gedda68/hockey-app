@@ -383,7 +383,8 @@ export default function RepresentativePage() {
             },
           ].map(
             (btn) =>
-              btn.info?.length > 0 && (
+              Array.isArray(btn.info) &&
+              btn.info.length > 0 && (
                 <button
                   key={btn.id}
                   onClick={() =>

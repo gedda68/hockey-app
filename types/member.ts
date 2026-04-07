@@ -99,6 +99,13 @@ export interface FamilyRelationship {
   reverseRelation: string;
 }
 
+/** Session user fields used for authorization (aligned with `types/next-auth.d.ts`). */
+export interface AuthUser {
+  role: "superadmin" | "clubadmin" | "member";
+  clubId?: string | null;
+  memberId?: string | null;
+}
+
 export interface Member {
   _id?: string;
   memberId: string;
@@ -140,4 +147,16 @@ export function isMemberWithPlayerInfo(
   member: Member,
 ): member is Member & { playerInfo: PlayerInfo } {
   return member.playerInfo !== undefined && member.playerInfo !== null;
+}
+
+/** Default renewal period for the current calendar year (ISO date strings). */
+export function getRenewalDates(asOf: Date = new Date()): {
+  periodStart: string;
+  periodEnd: string;
+} {
+  const y = asOf.getFullYear();
+  return {
+    periodStart: `${y}-01-01`,
+    periodEnd: `${y}-12-31`,
+  };
 }

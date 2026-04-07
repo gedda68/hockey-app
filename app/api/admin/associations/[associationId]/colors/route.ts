@@ -3,7 +3,7 @@
 
 import { NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
-import { z } from "zod";
+import { z, ZodError } from "zod";
 
 const ColorSchema = z.object({
   branding: z.object({
@@ -63,19 +63,17 @@ export async function PUT(
   } catch (error: unknown) {
     console.error("Error updating colors:", error);
 
-    if (error.name === "ZodError") {
+    if (error instanceof ZodError) {
       return NextResponse.json(
         {
           error: "Invalid color format",
-          details: error.errors,
+          details: error.flatten(),
         },
         { status: 400 }
       );
     }
 
-    return NextResponse.json(
-      { error: error.message || "Failed to update colors" },
-      { status: 500 }
-    );
+    const message = error instanceof Error ? error.message : "Failed to update colors";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

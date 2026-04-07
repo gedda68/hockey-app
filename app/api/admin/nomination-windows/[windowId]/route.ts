@@ -8,13 +8,18 @@
  *   open  → closed      (manual override or auto on closeDate passing)
  *   closed → balloting  (ballot workflow only — admin triggers ballot)
  *   balloting → completed
- *   closed → completed  (approval workflow — admin marks complete)
+ *   closed → completed  (non-rep approval workflow — admin marks complete)
+ *   closed → finalised  (rep-team approval — selector locks squad)
+ *   finalised → ratified   (committee ratifies squad)
+ *   ratified  → published  (squad announced; congratulations emails sent)
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import { getSession } from "@/lib/auth/session";
-import type { NominationWindow, WindowStatus } from "@/types/nominations";
+import { sendEmail } from "@/lib/email/client";
+import { buildSquadSelectionEmail } from "@/lib/email/templates/squadSelection";
+import type { NominationWindow, WindowStatus, Nomination } from "@/types/nominations";
 
 const ALLOWED_ROLES = [
   "super-admin",
@@ -61,9 +66,13 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   const VALID_TRANSITIONS: Record<WindowStatus, WindowStatus[]> = {
     draft:      ["open"],
     open:       ["closed"],
-    closed:     ["balloting", "completed"],
+    closed:     ["balloting", "completed", "finalised"],
     balloting:  ["completed"],
     completed:  [],
+    // Rep-team path
+    finalised:  ["ratified"],
+    ratified:   ["published"],
+    published:  [],
   };
 
   if (body.status && body.status !== win.status) {
@@ -101,12 +110,57 @@ export async function PATCH(req: NextRequest, { params }: Params) {
     if (body.closeDate) updatable.closeDate = body.closeDate;
   }
 
-  if (body.status) updatable.status = body.status;
+  if (body.status) {
+    updatable.status = body.status;
+    // Capture timestamps for rep-team lifecycle transitions
+    if (body.status === "finalised") {
+      updatable.finalisedAt = now;
+      updatable.finalisedBy = session.userId;
+    } else if (body.status === "ratified") {
+      updatable.ratifiedAt = now;
+      updatable.ratifiedBy = session.userId;
+    } else if (body.status === "published") {
+      updatable.publishedAt = now;
+      updatable.publishedBy = session.userId;
+    }
+  }
 
   await db.collection("nomination_windows").updateOne(
     { windowId },
     { $set: updatable }
   );
+
+  // ── Send congratulations emails when squad is published ────────────────────
+  if (body.status === "published" && win.category === "rep-team") {
+    try {
+      const selectedNoms = (await db.collection("rep_nominations")
+        .find({ windowId, status: "accepted" })
+        .toArray()) as unknown as Nomination[];
+
+      for (const nom of selectedNoms) {
+        const targetCollection = nom.nomineeType === "user" ? "users" : "members";
+        const idField          = nom.nomineeType === "user" ? "userId" : "memberId";
+        const person = await db.collection(targetCollection)
+          .findOne({ [idField]: nom.nomineeId }) as { email?: string; firstName?: string } | null;
+
+        if (!person?.email) continue;
+
+        const emailContent = buildSquadSelectionEmail({
+          firstName:  person.firstName ?? nom.nomineeName.split(" ")[0],
+          email:      person.email,
+          ageGroup:   win.ageGroup ?? "Representative",
+          seasonYear: win.seasonYear,
+          scopeName:  win.scopeName,
+          isShadow:   nom.isShadow ?? false,
+        });
+
+        await sendEmail({ to: person.email, ...emailContent });
+      }
+    } catch (emailErr) {
+      // Email errors must not fail the publish transition
+      console.error("Squad publish email error:", emailErr);
+    }
+  }
 
   const updated = await db.collection("nomination_windows").findOne({ windowId });
   return NextResponse.json({ window: { ...updated, _id: (updated as any)?._id?.toString() } });

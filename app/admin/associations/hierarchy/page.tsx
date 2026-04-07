@@ -4,7 +4,7 @@ import TreeNode, { HierarchyNode } from "./TreeNode";
 
 async function buildHierarchy(): Promise<HierarchyNode[]> {
   const client = await clientPromise;
-  const db = client.db();
+  const db = client.db("hockey-app");
 
   const associations = await db.collection("associations").find().toArray();
   const clubs = await db.collection("clubs").find().toArray();

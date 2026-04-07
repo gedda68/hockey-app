@@ -135,21 +135,18 @@ export async function POST(request: NextRequest) {
       firstName = member.personalInfo?.firstName ?? "";
       lastName = member.personalInfo?.lastName ?? "";
     } else if (playerId) {
-      // --- Lookup via players collection ---
-      const player = await db.collection("players").findOne({ playerId });
-      if (!player) {
+      // playerId is treated as memberId (members collection is the source of truth)
+      const member = await db.collection("members").findOne({ memberId: playerId });
+      if (!member) {
         return NextResponse.json(
           { error: "Player not found" },
           { status: 404 },
         );
       }
-      dob = player.dateOfBirth ?? "";
-      firstName = player.firstName ?? "";
-      lastName = player.lastName ?? "";
-      // Use player's linkedMemberId if available
-      if (player.linkedMemberId) {
-        resolvedMemberId = player.linkedMemberId;
-      }
+      dob = member.personalInfo?.dateOfBirth ?? "";
+      firstName = member.personalInfo?.firstName ?? "";
+      lastName = member.personalInfo?.lastName ?? "";
+      resolvedMemberId = playerId;
     }
 
     if (!dob) {

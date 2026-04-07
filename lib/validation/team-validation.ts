@@ -10,7 +10,7 @@ import type {
   TeamSizeValidation,
   PlayingUpValidation,
   AgeCategoryValidation,
-} from "@/types/team";
+} from "@/lib/types/team";
 
 // ============================================================================
 // CONSTANTS

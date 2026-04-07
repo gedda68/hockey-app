@@ -10,6 +10,7 @@ import {
   type TeamRosterMember,
   type MemberTeamRegistration,
 } from "@/lib/db/schemas/team.schema";
+import { ZodError } from "zod";
 
 // ============================================================================
 // POST /api/clubs/[clubId]/teams/[teamId]/roster
@@ -235,16 +236,15 @@ export async function POST(
   } catch (error: unknown) {
     console.error("Error adding member to roster:", error);
 
-    // Zod validation errors
-    if (error.name === "ZodError") {
+    if (error instanceof ZodError) {
       return NextResponse.json(
-        { error: "Validation failed", details: error.errors },
+        { error: "Validation failed", details: error.flatten() },
         { status: 400 }
       );
     }
 
     return NextResponse.json(
-      { error: "Failed to add member to roster", details: error.message },
+      { error: "Failed to add member to roster", details: error instanceof Error ? error.message : String(error) },
       { status: 500 }
     );
   }

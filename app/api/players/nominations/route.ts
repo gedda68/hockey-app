@@ -11,15 +11,16 @@ import { escapeRegex } from "@/lib/utils/regex";
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const firstName = (searchParams.get("firstName") ?? "").trim();
-    const lastName  = (searchParams.get("lastName")  ?? "").trim();
-    const dob       = (searchParams.get("dob")        ?? "").trim();
-    const memberIdParam = (searchParams.get("memberId") ?? "").trim();
+    const firstName     = (searchParams.get("firstName") ?? "").trim();
+    const lastName      = (searchParams.get("lastName")  ?? "").trim();
+    const dob           = (searchParams.get("dob")        ?? "").trim();
+    const memberIdParam = (searchParams.get("memberId")   ?? "").trim();
 
     const client = await clientPromise;
     const db = client.db("hockey-app");
 
-    let player: Record<string, any> | null = null;
+    let memberId: string | null = null;
+    let playerShape: Record<string, any> | null = null;
 
     // ── Path A: Session-authenticated lookup by memberId ─────────────────────
     if (memberIdParam) {
@@ -28,31 +29,12 @@ export async function GET(request: NextRequest) {
       if (!session?.memberId || session.memberId !== memberIdParam) {
         return NextResponse.json({ error: "Unauthorised" }, { status: 401 });
       }
-      player = await db.collection("players").findOne({
-        $or: [{ linkedMemberId: memberIdParam }, { playerId: memberIdParam }],
-      });
-      if (!player) {
-        // Also try looking up the member and getting their linked player
-        const member = await db.collection("members").findOne({ memberId: memberIdParam });
-        if (member) {
-          player = await db.collection("players").findOne({ linkedMemberId: memberIdParam }) ?? null;
-          // If still no player, synthesise a minimal player object from the member
-          if (!player && member) {
-            player = {
-              playerId: memberIdParam,
-              firstName: member.personalInfo?.firstName ?? "",
-              lastName: member.personalInfo?.lastName ?? "",
-              dateOfBirth: member.personalInfo?.dateOfBirth ?? "",
-              gender: member.personalInfo?.gender ?? null,
-              clubName: null,
-              linkedMemberId: memberIdParam,
-            };
-          }
-        }
-      }
-      if (!player) {
+      const member = await db.collection("members").findOne({ memberId: memberIdParam });
+      if (!member) {
         return NextResponse.json({ found: false, nominations: [] });
       }
+      memberId    = memberIdParam;
+      playerShape = memberToSafePlayer(member);
     }
 
     // ── Path B: Anonymous lookup by name + DOB ────────────────────────────────
@@ -63,38 +45,40 @@ export async function GET(request: NextRequest) {
           { status: 400 },
         );
       }
-      player = await db.collection("players").findOne({
-        firstName:   { $regex: `^${escapeRegex(firstName)}$`, $options: "i" },
-        lastName:    { $regex: `^${escapeRegex(lastName)}$`,  $options: "i" },
-        dateOfBirth: dob,
+      const member = await db.collection("members").findOne({
+        "personalInfo.firstName":   { $regex: `^${escapeRegex(firstName)}$`, $options: "i" },
+        "personalInfo.lastName":    { $regex: `^${escapeRegex(lastName)}$`,  $options: "i" },
+        "personalInfo.dateOfBirth": dob,
       });
-      if (!player) {
+      if (!member) {
         return NextResponse.json({ found: false, nominations: [] });
       }
+      memberId    = member.memberId;
+      playerShape = memberToSafePlayer(member);
     }
 
     // ── 2. Fetch their nominations ────────────────────────────────────────────
-    const orQuery: Record<string, any>[] = [{ playerId: player.playerId }];
-    if (player.linkedMemberId) {
-      orQuery.push({ memberId: player.linkedMemberId });
-    }
-
     const nominations = await db
       .collection("rep_nominations")
-      .find({ $or: orQuery })
+      .find({
+        $or: [
+          { memberId },
+          { playerId: memberId },
+          { nomineeId: memberId },
+        ],
+      })
       .sort({ season: -1, nominatedAt: -1 })
       .toArray();
 
     if (nominations.length === 0) {
       return NextResponse.json({
         found: true,
-        player: safePLayer(player),
+        player: playerShape,
         nominations: [],
       });
     }
 
     // ── 3. Enrich with tournament details ─────────────────────────────────────
-    // Build unique season+ageGroup pairs to batch-fetch tournament records
     const pairs = [
       ...new Set(nominations.map((n) => `${n.season}||${n.ageGroup}`)),
     ];
@@ -115,31 +99,29 @@ export async function GET(request: NextRequest) {
     const enriched = nominations.map((n) => {
       const t = tMap.get(`${n.season}||${n.ageGroup}`);
       return {
-        nominationId:     n.nominationId,
-        season:           n.season,
-        ageGroup:         n.ageGroup,
-        clubName:         n.clubName ?? "",
-        nominatedAt:      n.nominatedAt,
-        updatedAt:        n.updatedAt ?? n.nominatedAt,
-        status:           n.status ?? "pending",
-        nominationType:   n.nominationType ?? "player",
-        role:             n.role ?? null,
-        notes:            n.notes ?? "",
-        // Tournament details — try multiple field name variants
-        tournamentTitle:   t?.tournamentTitle ?? t?.title ?? t?.name ?? null,
-        tournamentLocation:t?.location ?? t?.venue ?? t?.tournamentLocation ?? null,
+        nominationId:        n.nominationId,
+        season:              n.season,
+        ageGroup:            n.ageGroup,
+        clubName:            n.clubName ?? "",
+        nominatedAt:         n.nominatedAt,
+        updatedAt:           n.updatedAt ?? n.nominatedAt,
+        status:              n.status ?? "pending",
+        nominationType:      n.nominationType ?? "player",
+        role:                n.role ?? null,
+        notes:               n.notes ?? "",
+        tournamentTitle:     t?.tournamentTitle ?? t?.title ?? t?.name ?? null,
+        tournamentLocation:  t?.location ?? t?.venue ?? t?.tournamentLocation ?? null,
         tournamentStartDate: t?.startDate ?? t?.tournamentStartDate ?? null,
         tournamentEndDate:   t?.endDate   ?? t?.tournamentEndDate   ?? null,
-        // Safe snapshot subset — contact info the player submitted
-        snapshotEmail:    n.playerSnapshot?.email ?? null,
-        snapshotPhone:    n.playerSnapshot?.phone ?? null,
-        snapshotDate:     n.playerSnapshot?.snapshotDate ?? null,
+        snapshotEmail:       n.playerSnapshot?.email ?? null,
+        snapshotPhone:       n.playerSnapshot?.phone ?? null,
+        snapshotDate:        n.playerSnapshot?.snapshotDate ?? null,
       };
     });
 
     return NextResponse.json({
       found: true,
-      player: safePLayer(player),
+      player: playerShape,
       nominations: enriched,
     });
   } catch (error: unknown) {
@@ -151,15 +133,16 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// Only expose safe, non-sensitive fields about the player
-function safePLayer(player: Record<string, any>) {
+function memberToSafePlayer(member: Record<string, any>) {
+  const pi = member.personalInfo ?? {};
   return {
-    playerId:      player.playerId,
-    firstName:     player.firstName,
-    lastName:      player.lastName,
-    preferredName: player.preferredName ?? null,
-    dateOfBirth:   player.dateOfBirth,
-    gender:        player.gender ?? null,
-    clubName:      player.clubName ?? null,
+    playerId:     member.memberId,
+    memberId:     member.memberId,
+    firstName:    pi.firstName    ?? null,
+    lastName:     pi.lastName     ?? null,
+    preferredName:pi.preferredName ?? null,
+    dateOfBirth:  pi.dateOfBirth  ?? null,
+    gender:       pi.gender       ?? null,
+    clubName:     member.membership?.clubName ?? null,
   };
 }

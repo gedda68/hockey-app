@@ -179,7 +179,9 @@ async function importMembers(db: Db, rows: ImportRow[]): Promise<ImportResult> {
           "personalInfo.dateOfBirth": dob,
         });
 
-    const memberId = existing?.memberId ?? norm(r["memberId"] || r["Member ID"]) || `MBR-${uid().toUpperCase()}`;
+    const memberId =
+      (existing?.memberId ?? norm(r["memberId"] || r["Member ID"])) ||
+      `MBR-${uid().toUpperCase()}`;
 
     // ── Roles — accept comma-separated list ───────────────────────────────────
     const rolesRaw = norm(r["roles"] || r["Roles"]);
@@ -663,7 +665,8 @@ export async function POST(req: NextRequest, ctx: Ctx) {
       case "clubs":        result = await importClubs(db, rows);         break;
       case "associations": result = await importAssociations(db, rows);  break;
       case "members":      result = await importMembers(db, rows);       break;
-      case "players":      result = await importPlayers(db, rows);       break;
+      // "players" redirects to members — members collection is the source of truth
+      case "players":      result = await importMembers(db, rows);       break;
       case "users":        result = await importUsers(db, rows);         break;
       case "teams":        result = await importTeams(db, rows, false);  break;
       case "rep-teams":    result = await importTeams(db, rows, true);   break;

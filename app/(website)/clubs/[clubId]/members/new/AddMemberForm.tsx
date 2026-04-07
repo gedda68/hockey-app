@@ -5,10 +5,11 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { Save, ArrowLeft } from "lucide-react";
+import { Save, ArrowLeft, User, MapPin, Award, Heart, Users } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
 import type { MemberDoc } from "@/types/api";
+import type { AddMemberFormData, SocialMediaLink } from "./member-form-types";
 import StepProgress, { Step } from "@/components/StepProgress";
 import { Step1PersonalInfo } from "./Step1PersonalInfo";
 import { Step2ContactAddress } from "./Step2ContactAddress";
@@ -23,97 +24,21 @@ interface MembershipTypeOption { typeId: string; name: string; description?: str
 interface RelationshipTypeOption { typeId: string; name: string; forward: string; reverse: string }
 interface HealthProviderOption { providerId: string; name: string }
 interface SalutationOption { salutationId: string; name: string }
-interface RelationshipOption { id: string; name: string }
-
-interface SocialMediaLink {
-  platform: string;
-  username?: string;
-  url: string;
-  isPrivate: boolean;
-  displayOrder: number;
+interface RelationshipOption {
+  relationshipId: string;
+  name: string;
 }
 
 interface AddMemberFormProps {
   clubId: string;
   mode?: "create" | "edit";
-  initialData?: Partial<FormData> & { memberId?: string };
+  initialData?: Partial<AddMemberFormData> & { memberId?: string };
   onSuccess?: (member: MemberResult) => void;
 }
 
 interface MemberResult {
   memberId: string;
   personalInfo: { firstName: string; lastName: string; displayName?: string };
-}
-
-interface FormData {
-  personalInfo: {
-    salutation: string;
-    firstName: string;
-    lastName: string;
-    displayName: string;
-    dateOfBirth: string;
-    gender: string;
-    photoUrl: string | null;
-  };
-  contact: {
-    primaryEmail: string;
-    emailOwnership: string;
-    phone: string;
-    mobile: string;
-  };
-  address: {
-    street: string;
-    suburb: string;
-    state: string;
-    postcode: string;
-    country: string;
-  };
-  healthcare: {
-    medicare: {
-      number: string;
-      position: string;
-      expiryMonth: string;
-      expiryYear: string;
-    } | null;
-    privateHealth: {
-      provider: string;
-      membershipNumber: string;
-      expiryDate: string;
-    } | null;
-  };
-  emergencyContacts: Array<{
-    contactId: string;
-    priority: number;
-    name: string;
-    relationship: string;
-    phone: string;
-    mobile: string;
-    email: string;
-  }>;
-  membership: {
-    membershipType: string;
-    status: string;
-    joinDate: string;
-  };
-  roles: string[];
-  playerInfo: {
-    jerseyNumber: string;
-    position: string;
-  } | null;
-  medical: {
-    conditions: string;
-    medications: string;
-    allergies: string;
-  };
-  familyRelationships: Array<{
-    relationshipId: string;
-    relatedMemberId: string;
-    relationshipType: string;
-    forwardRelation: string;
-    reverseRelation: string;
-    searchQuery: string;
-  }>;
-  socialMedia: SocialMediaLink[];
 }
 
 export default function AddMemberForm({
@@ -145,7 +70,7 @@ export default function AddMemberForm({
   const [searchResults, setSearchResults] = useState<Record<number, MemberDoc[]>>({});
 
   // Get initial form data based on mode
-  const getInitialFormData = (): FormData => {
+  const getInitialFormData = (): AddMemberFormData => {
     if (mode === "edit" && initialData) {
       return {
         personalInfo: initialData.personalInfo || {
@@ -233,10 +158,11 @@ export default function AddMemberForm({
         allergies: "",
       },
       familyRelationships: [],
+      socialMedia: [],
     };
   };
 
-  const [formData, setFormData] = useState<FormData>(getInitialFormData());
+  const [formData, setFormData] = useState<AddMemberFormData>(getInitialFormData());
   const [socialMedia, setSocialMedia] = useState<SocialMediaLink[]>(
     initialData?.socialMedia || [],
   );
@@ -247,7 +173,7 @@ export default function AddMemberForm({
       if (initialData.personalInfo?.photoUrl) {
         setPhotoPreview(initialData.personalInfo.photoUrl);
       }
-      setHasFamilyMembers(initialData.familyRelationships?.length > 0);
+      setHasFamilyMembers((initialData.familyRelationships?.length ?? 0) > 0);
       setHasMedicare(!!initialData.healthcare?.medicare);
       setHasPrivateHealth(!!initialData.healthcare?.privateHealth);
     }
@@ -301,7 +227,16 @@ export default function AddMemberForm({
       setGenders(gendersData);
       setMembershipTypes(typesData);
       setRoles(rolesData);
-      setRelationships(relsData);
+      setRelationships(
+        (relsData as Array<{
+          id?: string;
+          relationshipId?: string;
+          name: string;
+        }>).map((r) => ({
+          relationshipId: r.relationshipId ?? r.id ?? "",
+          name: r.name,
+        })),
+      );
       setHealthProviders(healthData);
       setRelationshipTypes(relTypesData);
 
@@ -501,6 +436,14 @@ export default function AddMemberForm({
     setIsLoading(true);
 
     try {
+      const memberIdForEdit =
+        mode !== "create" ? initialData?.memberId : undefined;
+      if (mode !== "create" && !memberIdForEdit) {
+        toast.error("Cannot update: missing member ID");
+        setIsLoading(false);
+        return;
+      }
+
       let photoUrl = formData.personalInfo.photoUrl;
       if (photoFile) {
         const uploadFormData = new FormData();
@@ -531,7 +474,7 @@ export default function AddMemberForm({
       const url =
         mode === "create"
           ? `/api/clubs/${clubId}/members`
-          : `/api/clubs/${clubId}/members/${initialData.memberId}`;
+          : `/api/clubs/${clubId}/members/${memberIdForEdit}`;
 
       const method = mode === "create" ? "POST" : "PUT";
 

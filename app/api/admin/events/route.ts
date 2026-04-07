@@ -83,13 +83,33 @@ export async function POST(request: NextRequest) {
       eventData = await request.json();
     }
 
-    // Validate required fields
-    if (!eventData.name || !eventData.startDate || !eventData.organization) {
+    const name =
+      typeof eventData.name === "string" ? eventData.name.trim() : "";
+    const organization =
+      typeof eventData.organization === "string"
+        ? eventData.organization.trim()
+        : "";
+    const startRaw = eventData.startDate;
+
+    if (
+      !name ||
+      startRaw == null ||
+      String(startRaw) === "" ||
+      !organization
+    ) {
       return NextResponse.json(
         { error: "Missing required fields: name, startDate, organization" },
         { status: 400 },
       );
     }
+
+    const imagesRaw = eventData.images;
+    const imagesObj =
+      imagesRaw &&
+      typeof imagesRaw === "object" &&
+      !Array.isArray(imagesRaw)
+        ? (imagesRaw as Record<string, unknown>)
+        : {};
 
     await client.connect();
     const database = client.db(process.env.DB_NAME || "hockey-app");
@@ -99,14 +119,22 @@ export async function POST(request: NextRequest) {
     const now = new Date();
     const event = {
       id: uuidv4(),
-      slug: generateSlug(eventData.name),
+      slug: generateSlug(name),
       ...eventData,
-      startDate: new Date(eventData.startDate),
-      endDate: eventData.endDate ? new Date(eventData.endDate) : undefined,
+      startDate: new Date(String(startRaw)),
+      endDate:
+        eventData.endDate != null && eventData.endDate !== ""
+          ? new Date(String(eventData.endDate))
+          : undefined,
       images: {
-        featured: featuredImage || eventData.images?.featured,
-        thumbnail: eventData.images?.thumbnail,
-        gallery: eventData.images?.gallery || [],
+        featured:
+          featuredImage ||
+          (typeof imagesObj.featured === "string" ? imagesObj.featured : undefined),
+        thumbnail:
+          typeof imagesObj.thumbnail === "string"
+            ? imagesObj.thumbnail
+            : undefined,
+        gallery: Array.isArray(imagesObj.gallery) ? imagesObj.gallery : [],
       },
       flyer: flyerPdf || eventData.flyer,
       createdAt: now,

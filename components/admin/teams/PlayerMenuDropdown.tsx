@@ -5,24 +5,12 @@
 
 import { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
-
-interface Player {
-  id: string;
-  firstName: string;
-  lastName: string;
-  number: string;
-  position: string;
-  leadership?: {
-    captain: boolean;
-    viceCaptain: boolean;
-    leadershipGroup: boolean;
-  };
-}
+import type { Player, PlayerLeadership } from "@/types/admin/teams.types";
 
 interface PlayerMenuDropdownProps {
   player: Player;
   onEdit: () => void;
-  onUpdateLeadership: (leadership: any) => void;
+  onUpdateLeadership: (leadership: PlayerLeadership) => void;
   onViewHistory: () => void;
   onRemove: () => void;
 }

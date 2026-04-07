@@ -63,6 +63,9 @@ const STATUS_STYLES: Record<WindowStatus, string> = {
   closed:     "bg-red-100 text-red-700 border-red-200",
   balloting:  "bg-purple-100 text-purple-700 border-purple-200",
   completed:  "bg-blue-100 text-blue-700 border-blue-200",
+  finalised:  "bg-amber-100 text-amber-700 border-amber-200",
+  ratified:   "bg-teal-100 text-teal-700 border-teal-200",
+  published:  "bg-emerald-100 text-emerald-700 border-emerald-200",
 };
 
 const STATUS_ICONS: Record<WindowStatus, React.ReactNode> = {
@@ -71,6 +74,9 @@ const STATUS_ICONS: Record<WindowStatus, React.ReactNode> = {
   closed:    <Lock size={11} />,
   balloting: <Vote size={11} />,
   completed: <Trophy size={11} />,
+  finalised: <CheckCircle size={11} />,
+  ratified:  <CheckCircle size={11} />,
+  published: <Send size={11} />,
 };
 
 const CATEGORY_ICONS: Record<NominationCategory, React.ReactNode> = {
@@ -187,6 +193,24 @@ function WindowCard({ win, onTransition, onStartBallot, onDelete, transitioning 
           <span className="text-slate-400">Scope:</span>
           <span className="font-medium truncate">{win.scopeName}</span>
         </div>
+        {win.finalisedAt && (
+          <div className="flex items-center gap-1.5">
+            <CheckCircle size={12} className="text-amber-500" />
+            <span className="text-amber-700">Finalised {fmtDate(win.finalisedAt)}</span>
+          </div>
+        )}
+        {win.ratifiedAt && (
+          <div className="flex items-center gap-1.5">
+            <CheckCircle size={12} className="text-teal-500" />
+            <span className="text-teal-700">Ratified {fmtDate(win.ratifiedAt)}</span>
+          </div>
+        )}
+        {win.publishedAt && (
+          <div className="flex items-center gap-1.5">
+            <Send size={12} className="text-emerald-500" />
+            <span className="text-emerald-700">Published {fmtDate(win.publishedAt)}</span>
+          </div>
+        )}
       </div>
 
       {win.description && (
@@ -247,14 +271,26 @@ function WindowCard({ win, onTransition, onStartBallot, onDelete, transitioning 
                 Start Ballot
               </button>
             )}
-            <button
-              onClick={() => onTransition(win.windowId, "completed")}
-              disabled={isActive}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-700 border border-blue-200 rounded-xl text-xs font-black uppercase hover:bg-blue-100 disabled:opacity-50 transition-colors"
-            >
-              {isActive ? <Loader2 size={11} className="animate-spin" /> : <Trophy size={11} />}
-              Mark Complete
-            </button>
+            {win.category === "rep-team" && win.workflow === "approval" && (
+              <button
+                onClick={() => onTransition(win.windowId, "finalised")}
+                disabled={isActive}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 text-amber-700 border border-amber-200 rounded-xl text-xs font-black uppercase hover:bg-amber-100 disabled:opacity-50 transition-colors"
+              >
+                {isActive ? <Loader2 size={11} className="animate-spin" /> : <CheckCircle size={11} />}
+                Finalise Squad
+              </button>
+            )}
+            {(win.workflow !== "ballot" && win.category !== "rep-team") && (
+              <button
+                onClick={() => onTransition(win.windowId, "completed")}
+                disabled={isActive}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-700 border border-blue-200 rounded-xl text-xs font-black uppercase hover:bg-blue-100 disabled:opacity-50 transition-colors"
+              >
+                {isActive ? <Loader2 size={11} className="animate-spin" /> : <Trophy size={11} />}
+                Mark Complete
+              </button>
+            )}
           </>
         )}
 
@@ -266,6 +302,28 @@ function WindowCard({ win, onTransition, onStartBallot, onDelete, transitioning 
           >
             {isActive ? <Loader2 size={11} className="animate-spin" /> : <Trophy size={11} />}
             Finalise Ballot
+          </button>
+        )}
+
+        {win.status === "finalised" && (
+          <button
+            onClick={() => onTransition(win.windowId, "ratified")}
+            disabled={isActive}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-teal-50 text-teal-700 border border-teal-200 rounded-xl text-xs font-black uppercase hover:bg-teal-100 disabled:opacity-50 transition-colors"
+          >
+            {isActive ? <Loader2 size={11} className="animate-spin" /> : <CheckCircle size={11} />}
+            Ratify Squad
+          </button>
+        )}
+
+        {win.status === "ratified" && (
+          <button
+            onClick={() => onTransition(win.windowId, "published")}
+            disabled={isActive}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-xl text-xs font-black uppercase hover:bg-emerald-100 disabled:opacity-50 transition-colors"
+          >
+            {isActive ? <Loader2 size={11} className="animate-spin" /> : <Send size={11} />}
+            Publish Squad
           </button>
         )}
 
@@ -651,6 +709,12 @@ export default function NominationWindowsPage() {
   useEffect(() => { fetchWindows(); }, [fetchWindows]);
 
   async function handleTransition(windowId: string, newStatus: WindowStatus) {
+    if (newStatus === "published") {
+      const ok = confirm(
+        "Publish squad? This will announce the squad and send congratulations emails to all selected players. This action cannot be undone."
+      );
+      if (!ok) return;
+    }
     setTransitionError("");
     setTransitioning(windowId);
     try {
@@ -708,6 +772,9 @@ export default function NominationWindowsPage() {
     { key: "closed",    label: "Closed" },
     { key: "balloting", label: "Balloting" },
     { key: "completed", label: "Completed" },
+    { key: "finalised", label: "Finalised" },
+    { key: "ratified",  label: "Ratified" },
+    { key: "published", label: "Published" },
   ];
 
   const counts: Partial<Record<TabFilter, number>> = { all: windows.length };

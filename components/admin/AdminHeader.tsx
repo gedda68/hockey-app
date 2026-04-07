@@ -1,90 +1,21 @@
 // components/admin/AdminHeader.tsx
-// Fixed admin header — shows club/association branding for scoped users,
-// standard navy Hockey Admin branding for super-admins.
+// Fixed admin header — uses BrandContext for club/association colours.
 
 "use client";
 
 import { useAuth } from "@/lib/auth/AuthContext";
+import { useBrand, contrastText } from "@/lib/contexts/BrandContext";
 import { useRouter } from "next/navigation";
 import { LogOut, User, ChevronDown, Shield } from "lucide-react";
-import { ROLE_DEFINITIONS } from "@/lib/types/roles";
-import { useState, useEffect } from "react";
+import { ROLE_DEFINITIONS, type UserRole } from "@/lib/types/roles";
+import { useState } from "react";
 import { toast } from "sonner";
-
-interface BrandingData {
-  name: string;
-  shortName?: string;
-  primaryColor: string;
-  secondaryColor: string;
-  logo?: string;
-}
-
-const CLUB_SCOPED_ROLES = [
-  "club-admin",
-  "club-committee",
-  "registrar",
-  "coach",
-  "manager",
-  "team-selector",
-  "volunteer",
-  "umpire",
-];
-
-const ASSOC_SCOPED_ROLES = [
-  "association-admin",
-  "assoc-committee",
-  "assoc-coach",
-  "assoc-selector",
-  "assoc-registrar",
-];
 
 export default function AdminHeader() {
   const { user, logout } = useAuth();
+  const { brand } = useBrand();
   const router = useRouter();
   const [showDropdown, setShowDropdown] = useState(false);
-  const [branding, setBranding] = useState<BrandingData | null>(null);
-
-  useEffect(() => {
-    if (!user) return;
-
-    const isClubRole = CLUB_SCOPED_ROLES.includes(user.role);
-    const isAssocRole = ASSOC_SCOPED_ROLES.includes(user.role);
-
-    if (isClubRole && (user.clubSlug || user.clubId)) {
-      const clubRef = user.clubSlug || user.clubId;
-      fetch(`/api/admin/clubs/${clubRef}`)
-        .then((r) => r.json())
-        .then((data) => {
-          const club = data.club;
-          if (club) {
-            setBranding({
-              name: club.name,
-              shortName: club.shortName,
-              primaryColor: club.colors?.primaryColor || "#06054e",
-              secondaryColor: club.colors?.secondaryColor || "#1a1870",
-              logo: club.logo,
-            });
-          }
-        })
-        .catch(() => {});
-    } else if (isAssocRole && user.associationId) {
-      fetch(`/api/admin/associations/${user.associationId}`)
-        .then((r) => r.json())
-        .then((data) => {
-          const assoc = data.association || data;
-          if (assoc?.name || assoc?.fullName) {
-            setBranding({
-              name: assoc.name || assoc.fullName,
-              shortName: assoc.code || assoc.acronym,
-              primaryColor: assoc.branding?.primaryColor || "#06054e",
-              secondaryColor: assoc.branding?.secondaryColor || "#1a1870",
-              logo: assoc.branding?.logo,
-            });
-          }
-        })
-        .catch(() => {});
-    }
-  }, [user?.clubId, user?.clubSlug, user?.associationId, user?.role]);
 
   const handleLogout = async () => {
     try {
@@ -98,24 +29,23 @@ export default function AdminHeader() {
 
   if (!user) return null;
 
-  const roleDefinition = ROLE_DEFINITIONS[user.role];
-  const isSuperAdmin = user.role === "super-admin";
+  const roleKey = (
+    user.role in ROLE_DEFINITIONS ? user.role : "member"
+  ) as UserRole;
+  const roleDefinition = ROLE_DEFINITIONS[roleKey];
+  const isSuperAdmin   = user.role === "super-admin";
 
-  // Colours: use club branding if available, else navy default
-  const primary = branding?.primaryColor ?? "#06054e";
-  const secondary = branding?.secondaryColor ?? "#1a1870";
-  const headerBg = `linear-gradient(135deg, ${primary} 0%, ${secondary} 100%)`;
+  const primary   = brand?.primaryColor   ?? "#06054e";
+  const secondary = brand?.secondaryColor ?? "#1a1870";
+  const headerBg  = `linear-gradient(135deg, ${primary} 0%, ${secondary} 100%)`;
 
-  // Decide text contrast — very rough heuristic: if primary is "light" colour use dark text
-  const isLightColor = (hex: string) => {
-    const c = hex.replace("#", "");
-    const r = parseInt(c.substring(0, 2), 16);
-    const g = parseInt(c.substring(2, 4), 16);
-    const b = parseInt(c.substring(4, 6), 16);
-    return (r * 299 + g * 587 + b * 114) / 1000 > 150;
-  };
-  const textColor = isLightColor(primary) ? "text-gray-900" : "text-white";
-  const mutedColor = isLightColor(primary) ? "text-gray-600" : "text-white/70";
+  const textColor  = contrastText(primary);
+  const mutedColor = textColor === "text-white" ? "text-white/70" : "text-gray-500";
+
+  const CLUB_SCOPED_ROLES = [
+    "club-admin", "club-committee", "registrar", "coach", "manager",
+    "team-selector", "volunteer", "umpire",
+  ];
 
   return (
     <header
@@ -127,11 +57,10 @@ export default function AdminHeader() {
 
           {/* ── Left: Logo + Entity Name ── */}
           <div className="flex items-center gap-4">
-            {/* Logo */}
-            {branding?.logo ? (
+            {brand?.logo ? (
               <img
-                src={branding.logo}
-                alt={branding.shortName || branding.name}
+                src={brand.logo}
+                alt={brand.shortName || brand.name}
                 className="h-10 w-10 object-contain rounded-lg bg-white/10 p-1"
               />
             ) : (
@@ -144,13 +73,12 @@ export default function AdminHeader() {
               </div>
             )}
 
-            {/* Name */}
             <div>
               <h1 className={`text-lg font-black uppercase tracking-wide leading-tight ${textColor}`}>
-                {branding?.name ?? (isSuperAdmin ? "Hockey Admin" : "Admin Portal")}
+                {brand?.name ?? (isSuperAdmin ? "Hockey Admin" : "Admin Portal")}
               </h1>
               <p className={`text-xs font-semibold ${mutedColor}`}>
-                {branding?.shortName
+                {brand?.shortName
                   ? `${roleDefinition?.icon ?? ""} ${roleDefinition?.label ?? user.role}`
                   : "Management System"}
               </p>
@@ -183,19 +111,12 @@ export default function AdminHeader() {
                 />
               </button>
 
-              {/* Dropdown */}
               {showDropdown && (
                 <>
-                  <div
-                    className="fixed inset-0 z-40"
-                    onClick={() => setShowDropdown(false)}
-                  />
+                  <div className="fixed inset-0 z-40" onClick={() => setShowDropdown(false)} />
                   <div className="absolute right-0 mt-2 w-72 bg-white rounded-2xl shadow-2xl border border-slate-100 overflow-hidden z-50">
                     {/* User info panel */}
-                    <div
-                      className="p-5 text-white"
-                      style={{ background: headerBg }}
-                    >
+                    <div className="p-5 text-white" style={{ background: headerBg }}>
                       <div className="flex items-center gap-3">
                         <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
                           <User size={24} className="text-white" />
@@ -215,12 +136,12 @@ export default function AdminHeader() {
 
                     {/* Club / Assoc info */}
                     <div className="p-2">
-                      {branding && (
+                      {brand && (
                         <div className="px-4 py-2 text-sm">
                           <p className="text-xs font-black uppercase text-slate-400 mb-0.5">
                             {CLUB_SCOPED_ROLES.includes(user.role) ? "Club" : "Association"}
                           </p>
-                          <p className="font-bold text-slate-700">{branding.name}</p>
+                          <p className="font-bold text-slate-700">{brand.name}</p>
                         </div>
                       )}
 

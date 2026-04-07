@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
 
   try {
     const client = await clientPromise;
-    const db = client.db();
+    const db = client.db("hockey-app");
 
     // Super admin sees all users
     // Association admin sees users in their association
@@ -70,7 +70,7 @@ export async function POST(request: NextRequest) {
     }
 
     const client = await clientPromise;
-    const db = client.db();
+    const db = client.db("hockey-app");
 
     // Check if email already exists
     const existing = await db

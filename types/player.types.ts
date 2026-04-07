@@ -735,23 +735,3 @@ export const getMedicalAlertSummary = (medical: Medical): string[] => {
   return alerts;
 };
 
-// Export all types
-export type {
-  PlayerFormData,
-  BaseSectionProps,
-  EmergencyContact,
-  Guardian,
-  Medical,
-  Club,
-  PlayerDocument,
-  InjuryRecord,
-  InjuryDocument,
-  ClubTransfer,
-  Consents,
-  PlayerStatus,
-  Note,
-  TournamentHistoryEntry,
-  FeeRecord,
-  DisciplinaryRecord,
-  RepOfficialNomination,
-};

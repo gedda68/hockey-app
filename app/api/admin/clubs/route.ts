@@ -141,6 +141,7 @@ export async function GET(request: NextRequest) {
     const state = searchParams.get("state");
     const status = searchParams.get("status");
     const search = searchParams.get("search");
+    const idsParam = searchParams.get("ids"); // Comma-separated club IDs for batch colour fetch
     const page = parseInt(searchParams.get("page") || "1");
     const limit = parseInt(searchParams.get("limit") || "100");
     const skip = (page - 1) * limit;
@@ -150,6 +151,14 @@ export async function GET(request: NextRequest) {
 
     // Build query
     const query: Record<string, unknown> = {};
+
+    // Batch fetch by IDs (e.g. for colour map population)
+    if (idsParam) {
+      const ids = idsParam.split(",").map((s) => s.trim()).filter(Boolean);
+      if (ids.length > 0) {
+        query.$or = [{ id: { $in: ids } }, { clubId: { $in: ids } }];
+      }
+    }
 
     // Filter by association (priority - used by wizard)
     if (associationId || parentAssociationId) {

@@ -26,8 +26,10 @@ import {
   ArrowUp,
   ArrowDown,
   Star,
+  MinusCircle,
 } from "lucide-react";
 import WithdrawalModal from "@/components/admin/nominations/WithdrawalModal";
+import EntityColorBar from "@/components/ui/EntityColorBar";
 import type {
   Nomination,
   NominationStatus,
@@ -57,16 +59,24 @@ interface ClubGroup {
 
 const STATUS_STYLES: Record<NominationStatus, string> = {
   pending: "bg-yellow-100 text-yellow-800 border-yellow-200",
+  "pending-acceptance": "bg-amber-100 text-amber-800 border-amber-200",
   accepted: "bg-green-100 text-green-800 border-green-200",
   withdrawn: "bg-slate-100 text-slate-500 border-slate-200",
   rejected: "bg-red-100 text-red-800 border-red-200",
+  "on-ballot": "bg-indigo-100 text-indigo-800 border-indigo-200",
+  elected: "bg-emerald-100 text-emerald-800 border-emerald-200",
+  unsuccessful: "bg-gray-100 text-gray-600 border-gray-200",
 };
 
 const STATUS_ICONS: Record<NominationStatus, React.ReactNode> = {
   pending: <Clock size={12} />,
+  "pending-acceptance": <CalendarClock size={12} />,
   accepted: <CheckCircle size={12} />,
   withdrawn: <UserMinus size={12} />,
   rejected: <XCircle size={12} />,
+  "on-ballot": <Star size={12} />,
+  elected: <Trophy size={12} />,
+  unsuccessful: <MinusCircle size={12} />,
 };
 
 const PERIOD_STATUS_STYLES: Record<PeriodStatus, string> = {
@@ -419,6 +429,8 @@ export default function NominationsPage() {
   const [eligibleData, setEligibleData] = useState<EligibleResponse | null>(null);
   const [eligibleLoading, setEligibleLoading] = useState(false);
   const [eligibleError, setEligibleError] = useState("");
+  // Club brand colour map: clubId → { primaryColor, secondaryColor }
+  const [clubColorMap, setClubColorMap] = useState<Map<string, { primaryColor: string; secondaryColor: string }>>(new Map());
 
   // Nominations list
   const [nominations, setNominations] = useState<Nomination[]>([]);
@@ -479,8 +491,34 @@ export default function NominationsPage() {
     )
       .then((r) => r.json())
       .then((data) => {
-        if (data.error) setEligibleError(data.error);
-        else setEligibleData(data);
+        if (data.error) { setEligibleError(data.error); return; }
+        setEligibleData(data);
+
+        // Build club colour map from the returned members
+        const clubIds = [
+          ...new Set(
+            (data.members ?? [])
+              .map((m: { clubId?: string }) => m.clubId)
+              .filter((id: string | undefined): id is string => typeof id === "string" && id.length > 0),
+          ),
+        ];
+        if (clubIds.length === 0) return;
+
+        fetch(`/api/admin/clubs?ids=${clubIds.join(",")}`)
+          .then((r) => r.json())
+          .then((cd) => {
+            const map = new Map<string, { primaryColor: string; secondaryColor: string }>();
+            for (const club of cd.clubs ?? []) {
+              if (club.id || club.clubId) {
+                map.set(club.id ?? club.clubId, {
+                  primaryColor:   club.colors?.primaryColor   ?? "#06054e",
+                  secondaryColor: club.colors?.secondaryColor ?? "#1a1870",
+                });
+              }
+            }
+            setClubColorMap(map);
+          })
+          .catch(() => {});
       })
       .catch(() => setEligibleError("Failed to load eligible members"))
       .finally(() => setEligibleLoading(false));
@@ -896,11 +934,22 @@ export default function NominationsPage() {
                 const isExpanded = expandedClubs.has(group.clubId);
                 const nominated = group.members.filter((m) => m.alreadyNominated).length;
 
+                const clubColors = clubColorMap.get(group.clubId);
+                const clubPrimary   = clubColors?.primaryColor   ?? "#06054e";
+                const clubSecondary = clubColors?.secondaryColor ?? "#1a1870";
+
                 return (
                   <div
                     key={group.clubId}
                     className="bg-white rounded-3xl shadow-sm border border-slate-100 mb-4 overflow-hidden"
                   >
+                    {/* Club colour top stripe */}
+                    <EntityColorBar
+                      primary={clubPrimary}
+                      secondary={clubSecondary}
+                      horizontal
+                    />
+
                     {/* Club header */}
                     <button
                       className="w-full flex items-center justify-between px-6 py-4 hover:bg-slate-50 transition-colors"
@@ -914,11 +963,14 @@ export default function NominationsPage() {
                       }
                     >
                       <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 rounded-2xl bg-[#06054e] text-white flex items-center justify-center font-black text-sm">
+                        <div
+                          className="w-10 h-10 rounded-2xl text-white flex items-center justify-center font-black text-sm"
+                          style={{ background: `linear-gradient(135deg, ${clubPrimary}, ${clubSecondary})` }}
+                        >
                           {group.clubName.charAt(0)}
                         </div>
                         <div className="text-left">
-                          <p className="font-black text-[#06054e] text-sm uppercase tracking-tight">
+                          <p className="font-black text-sm uppercase tracking-tight" style={{ color: clubPrimary }}>
                             {group.clubName}
                           </p>
                           <p className="text-xs text-slate-400">

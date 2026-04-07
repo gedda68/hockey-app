@@ -158,7 +158,10 @@ const ROUTE_RULES: RouteRule[] = [
   { pattern: /^\/admin\/users(\/|$)/,        allowedRoles: SUPER_ADMIN },
   { pattern: /^\/admin\/global-config(\/|$)/,allowedRoles: SUPER_ADMIN },
   { pattern: /^\/admin\/config(\/|$)/,       allowedRoles: SUPER_ADMIN },
-  { pattern: /^\/admin\/dashboard(\/|$)/,    allowedRoles: SUPER_ADMIN },
+
+  // ── Dashboard + Reports — any admin role ──────────────────────────────────
+  { pattern: /^\/admin\/dashboard(\/|$)/, allowedRoles: ANY_ADMIN },
+  { pattern: /^\/admin\/reports(\/|$)/,   allowedRoles: ANY_ADMIN },
 
   // ── Association-level ──────────────────────────────────────────────────────
   { pattern: /^\/admin\/settings(\/|$)/,     allowedRoles: SETTINGS_ROLES,    scopeCheck: true },
@@ -259,6 +262,7 @@ function isPublicPath(path: string): boolean {
     "/api/competitions",
     "/api/players/lookup",
     "/api/nominations",
+    "/api/nominations/windows",
     "/api/rep-nominations",
     "/api/tournaments",
     "/api/associations",

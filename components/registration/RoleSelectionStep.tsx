@@ -12,9 +12,16 @@ import {
   DollarSign,
 } from "lucide-react";
 
+interface AvailableRole {
+  id: string;
+  name: string;
+  category: string;
+  description?: string;
+}
+
 interface RoleSelectionStepProps {
   clubId: string;
-  availableRoles: any[];
+  availableRoles: AvailableRole[];
   suggestedRoles?: string[];
   onComplete: (data: {
     roleIds: string[];
@@ -90,13 +97,16 @@ export default function RoleSelectionStep({
   };
 
   // Group roles by category
-  const rolesByCategory = availableRoles.reduce((acc, role) => {
-    if (!acc[role.category]) {
-      acc[role.category] = [];
-    }
-    acc[role.category].push(role);
-    return acc;
-  }, {} as Record<string, typeof availableRoles>);
+  const rolesByCategory = availableRoles.reduce(
+    (acc, role) => {
+      if (!acc[role.category]) {
+        acc[role.category] = [];
+      }
+      acc[role.category].push(role);
+      return acc;
+    },
+    {} as Record<string, AvailableRole[]>,
+  );
 
   return (
     <div className="max-w-4xl mx-auto">
@@ -178,7 +188,7 @@ export default function RoleSelectionStep({
                 {category}
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {categoryRoles.map((role: any) => (
+                {categoryRoles.map((role) => (
                   <label
                     key={role.id}
                     className={`flex items-center gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all ${

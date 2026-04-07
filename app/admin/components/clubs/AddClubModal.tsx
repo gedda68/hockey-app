@@ -25,6 +25,7 @@ export default function AddClubModal({ onClose, onSubmit }: AddClubModalProps) {
     id: `club-${Date.now()}`,
     name: "",
     shortName: "",
+    slug: "",
     logo: "",
     colors: {
       primary: "#06054e",
@@ -54,6 +55,8 @@ export default function AddClubModal({ onClose, onSubmit }: AddClubModalProps) {
     description: "",
     about: "",
     active: true,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
   });
 
   const [currentTab, setCurrentTab] = useState<

@@ -15,12 +15,14 @@ export interface Club {
   xhref: string;
   slug: string;
   color: string;
-  about: string;
-  facebookUrl: string;
-  instagramUrl: string;
-  twitterUrl: string;
-  contacts: ClubContact[]; // Add this array
-  address: string;
+  about?: string;
+  facebookUrl?: string;
+  instagramUrl?: string;
+  twitterUrl?: string;
+  contacts?: ClubContact[];
+  address?: string;
+  /** Legacy link to a contact page */
+  clubContact?: string;
 }
 
 export const CLUBS_DATA: Club[] = [

@@ -1,8 +1,7 @@
 // app/api/admin/teams/rosters/[rosterId]/teams/[teamIndex]/players/route.ts
-// Add player WITH selection history tracking in PLAYERS table
+// Add player to a team roster + record selection history on the member.
 
 import { NextRequest, NextResponse } from "next/server";
-import { ObjectId } from "mongodb";
 import clientPromise from "@/lib/mongodb";
 
 export async function POST(
@@ -23,7 +22,7 @@ export async function POST(
     }
 
     const client = await clientPromise;
-    const db = client.db();
+    const db = client.db("hockey-app");
 
     // Get roster
     const roster = await db.collection("teamRosters").findOne({ id: rosterId });
@@ -35,120 +34,109 @@ export async function POST(
       return NextResponse.json({ error: "Team not found" }, { status: 404 });
     }
 
-    // Get player from PLAYERS table
-    const player = await db.collection("players").findOne({
-      $or: [{ _id: new ObjectId(playerId) }, { playerId: playerId }],
-    });
-
-    if (!player) {
+    // Look up player from members collection (playerId === memberId)
+    const member = await db.collection("members").findOne({ memberId: playerId });
+    if (!member) {
       return NextResponse.json({ error: "Player not found" }, { status: 404 });
     }
 
+    const pi  = member.personalInfo ?? {};
+    const mem = member.membership   ?? {};
+
     // Create player object for roster
     const rosterPlayer = {
-      id: player._id.toString(),
-      playerId: player.playerId,
-      firstName: player.firstName,
-      lastName: player.lastName,
-      preferredName: player.preferredName || "",
-      membershipNumber: player.club?.memberNumber || player.linkedMemberId,
-      dateOfBirth: player.dateOfBirth,
-      number: number || "",
-      position: position || "",
-      captain: false,
-      viceCaptain: false,
+      id:               member.memberId,
+      playerId:         member.memberId,
+      memberId:         member.memberId,
+      firstName:        pi.firstName   ?? "",
+      lastName:         pi.lastName    ?? "",
+      preferredName:    pi.preferredName ?? "",
+      membershipNumber: mem.memberNumber ?? member.memberId,
+      dateOfBirth:      pi.dateOfBirth ?? "",
+      number:           number   ?? "",
+      position:         position ?? "",
+      captain:          false,
+      viceCaptain:      false,
     };
 
-    const userId = "admin-temp";
+    const userId   = "admin-temp";
     const userName = "Admin User";
 
-    // Create selection history entry for ROSTER
+    // Selection history entry for the roster change log
     const rosterHistoryEntry = {
-      id: `change-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      id:        `change-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       timestamp: new Date().toISOString(),
       userId,
       userName,
-      action: "player_added",
+      action:    "player_added",
       details: {
-        playerId: rosterPlayer.id,
-        playerName: `${player.firstName} ${player.lastName}`,
+        playerId:  member.memberId,
+        playerName:`${pi.firstName ?? ""} ${pi.lastName ?? ""}`.trim(),
         teamIndex,
-        teamName: roster.teams[teamIndex].name,
-        location: "team",
-        number: number || "",
-        position: position || "",
+        teamName:  roster.teams[teamIndex].name,
+        location:  "team",
+        number:    number   ?? "",
+        position:  position ?? "",
       },
     };
 
-    // Create selection history entry for PLAYER
-    const playerSelectionEntry = {
-      id: `sel-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      season: roster.season || "2026",
-      division: roster.division,
-      category: roster.category,
-      gender: roster.gender,
-      teamName: roster.teams[teamIndex].name,
-      rosterId: rosterId,
-
-      // Selection details
-      number: number || "",
-      position: position || "",
-
-      // Metadata
-      selectedBy: userId,
-      selectedByName: userName,
-      selectedDate: new Date().toISOString(),
-
-      // Active status
-      deselectedDate: null,
+    // Selection history entry stored on the member
+    const memberSelectionEntry = {
+      id:            `sel-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+      season:        roster.season   ?? new Date().getFullYear().toString(),
+      division:      roster.division ?? "",
+      category:      roster.category ?? "",
+      gender:        roster.gender   ?? "",
+      teamName:      roster.teams[teamIndex].name,
+      rosterId,
+      number:        number   ?? "",
+      position:      position ?? "",
+      selectedBy:    userId,
+      selectedByName:userName,
+      selectedDate:  new Date().toISOString(),
+      deselectedDate:   null,
       deselectedReason: null,
-
-      // Optional game/week tracking
-      weekNumber: null,
-      gameDate: null,
+      weekNumber:    null,
+      gameDate:      null,
     };
 
-    // Update ROSTER - add player to team
+    // Add player to team roster
     const updateField = `teams.${teamIndex}.players`;
     await db.collection("teamRosters").updateOne(
       { id: rosterId },
       {
         $push: {
-          [updateField]: rosterPlayer,
-          changeHistory: rosterHistoryEntry,
-        },
+          [updateField]:  rosterPlayer,
+          changeHistory:  rosterHistoryEntry,
+        } as any,
         $set: { lastUpdated: new Date().toISOString() },
       },
     );
 
-    // Update PLAYER - add to selection history
-    await db.collection("players").updateOne(
-      { _id: new ObjectId(playerId) },
+    // Record selection history on the member
+    await db.collection("members").updateOne(
+      { memberId: member.memberId },
       {
-        $push: {
-          teamSelectionHistory: playerSelectionEntry,
-        },
+        $push: { teamSelectionHistory: memberSelectionEntry } as any,
+        $set:  { updatedAt: new Date().toISOString() },
       },
     );
-
-    console.log(
-      `✅ Added player ${player.firstName} ${player.lastName} to team ${roster.teams[teamIndex].name}`,
-    );
-    console.log(`   Number: ${number}, Position: ${position}`);
-    console.log(`   Selection history saved to player record`);
 
     return NextResponse.json({
       success: true,
       player: rosterPlayer,
       history: {
-        roster: rosterHistoryEntry,
-        playerSelection: playerSelectionEntry,
+        roster:          rosterHistoryEntry,
+        playerSelection: memberSelectionEntry,
       },
     });
   } catch (error: unknown) {
     console.error("❌ Error adding player to team:", error);
     return NextResponse.json(
-      { error: "Failed to add player", details: error.message },
+      {
+        error:   "Failed to add player",
+        details: error instanceof Error ? error.message : String(error),
+      },
       { status: 500 },
     );
   }

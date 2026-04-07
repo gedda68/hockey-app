@@ -38,7 +38,7 @@ interface SimulatePaymentBody {
 }
 
 interface ProcessedItem {
-  type: "payment" | "role-request";
+  type: "payment" | "role-request" | "tournament-allocation";
   sourceId: string;
   amountCents: number;
   status: "ok" | "skipped" | "error";
