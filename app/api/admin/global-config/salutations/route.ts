@@ -4,10 +4,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import { escapeRegex } from "@/lib/utils/regex";
+import { requirePermission } from "@/lib/auth/middleware";
 
 // GET - List all salutations
 export async function GET(request: NextRequest) {
   try {
+    const { response: authRes } = await requirePermission(
+      request,
+      "system.settings",
+    );
+    if (authRes) return authRes;
+
     const { searchParams } = new URL(request.url);
     const activeOnly = searchParams.get("activeOnly") === "true";
     const category = searchParams.get("category");
@@ -44,6 +51,12 @@ export async function GET(request: NextRequest) {
 // POST - Create new salutation
 export async function POST(request: NextRequest) {
   try {
+    const { response: authRes } = await requirePermission(
+      request,
+      "system.settings",
+    );
+    if (authRes) return authRes;
+
     const body = await request.json();
     const client = await clientPromise;
     const db = client.db(process.env.DB_NAME || "hockey-app");
@@ -91,6 +104,12 @@ export async function POST(request: NextRequest) {
 // PUT - Update salutation
 export async function PUT(request: NextRequest) {
   try {
+    const { response: authRes } = await requirePermission(
+      request,
+      "system.settings",
+    );
+    if (authRes) return authRes;
+
     const body = await request.json();
     const client = await clientPromise;
     const db = client.db(process.env.DB_NAME || "hockey-app");
@@ -124,6 +143,12 @@ export async function PUT(request: NextRequest) {
 // DELETE - Delete salutation
 export async function DELETE(request: NextRequest) {
   try {
+    const { response: authRes } = await requirePermission(
+      request,
+      "system.settings",
+    );
+    if (authRes) return authRes;
+
     const { searchParams } = new URL(request.url);
     const salutationId = searchParams.get("salutationId");
 

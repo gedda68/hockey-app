@@ -9,6 +9,11 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
+import { requirePermission } from "@/lib/auth/middleware";
+import {
+  assertMemberInSessionScope,
+  type MemberScopeDoc,
+} from "@/lib/auth/memberRouteScope";
 
 type Params = { params: Promise<{ playerId: string }> };
 
@@ -77,11 +82,15 @@ function memberToPlayer(m: Record<string, any>, clubName?: string | null) {
 
 // ── GET ───────────────────────────────────────────────────────────────────────
 export async function GET(
-  _req: NextRequest,
+  request: NextRequest,
   { params }: Params
 ) {
   try {
     const { playerId } = await params;
+
+    const { response: authRes } = await requirePermission(request, "member.view");
+    if (authRes) return authRes;
+
     const client = await clientPromise;
     const db = client.db("hockey-app");
 
@@ -89,6 +98,12 @@ export async function GET(
     if (!member) {
       return NextResponse.json({ error: "Player not found" }, { status: 404 });
     }
+
+    const scopeErr = await assertMemberInSessionScope(
+      request,
+      member as MemberScopeDoc,
+    );
+    if (scopeErr) return scopeErr;
 
     // Join club name
     let clubName: string | null = null;
@@ -115,6 +130,9 @@ export async function PUT(
     const { playerId } = await params;
     const body = await request.json();
 
+    const { response: authRes } = await requirePermission(request, "member.edit");
+    if (authRes) return authRes;
+
     const client = await clientPromise;
     const db = client.db("hockey-app");
 
@@ -122,6 +140,12 @@ export async function PUT(
     if (!existing) {
       return NextResponse.json({ error: "Player not found" }, { status: 404 });
     }
+
+    const scopeErr = await assertMemberInSessionScope(
+      request,
+      existing as MemberScopeDoc,
+    );
+    if (scopeErr) return scopeErr;
 
     // Accept both flat (old player shape) and nested (member shape) updates
     const update: Record<string, any> = { updatedAt: new Date().toISOString() };
@@ -193,6 +217,9 @@ export async function PATCH(
     const { playerId } = await params;
     const body = await request.json();
 
+    const { response: authRes } = await requirePermission(request, "member.edit");
+    if (authRes) return authRes;
+
     const client = await clientPromise;
     const db = client.db("hockey-app");
 
@@ -200,6 +227,12 @@ export async function PATCH(
     if (!member) {
       return NextResponse.json({ error: "Player not found" }, { status: 404 });
     }
+
+    const scopeErr = await assertMemberInSessionScope(
+      request,
+      member as MemberScopeDoc,
+    );
+    if (scopeErr) return scopeErr;
 
     const setFields: Record<string, any> = { updatedAt: new Date().toISOString() };
     const pushFields: Record<string, any> = {};
@@ -239,11 +272,15 @@ export async function PATCH(
 // ── DELETE ────────────────────────────────────────────────────────────────────
 // Soft-delete: set membership.status = Inactive rather than dropping the record.
 export async function DELETE(
-  _req: NextRequest,
+  request: NextRequest,
   { params }: Params
 ) {
   try {
     const { playerId } = await params;
+
+    const { response: authRes } = await requirePermission(request, "member.delete");
+    if (authRes) return authRes;
+
     const client = await clientPromise;
     const db = client.db("hockey-app");
 
@@ -251,6 +288,12 @@ export async function DELETE(
     if (!member) {
       return NextResponse.json({ error: "Player not found" }, { status: 404 });
     }
+
+    const scopeErr = await assertMemberInSessionScope(
+      request,
+      member as MemberScopeDoc,
+    );
+    if (scopeErr) return scopeErr;
 
     await db.collection("members").updateOne(
       { memberId: playerId },

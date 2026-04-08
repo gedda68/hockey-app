@@ -6,6 +6,7 @@ import {
   requirePermission,
   requireResourceAccess,
 } from "@/lib/auth/middleware";
+import { logPlatformAudit } from "@/lib/audit/platformAuditLog";
 
 export async function GET(req: NextRequest) {
   const { response } = await requirePermission(req, "club.fees");
@@ -56,7 +57,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const { response } = await requirePermission(req, "club.fees");
+  const { user, response } = await requirePermission(req, "club.fees");
   if (response) return response;
 
   try {
@@ -88,9 +89,23 @@ export async function POST(req: NextRequest) {
         ? { associationId: ownerId }
         : { $or: [{ slug: ownerId }, { id: ownerId }] };
 
+    const prev = await db.collection(collection).findOne(filter);
+
     await db
       .collection(collection)
       .updateOne(filter, { $set: { fees, updatedAt: new Date().toISOString() } }, { upsert: false });
+
+    await logPlatformAudit({
+      userId: user.userId,
+      userEmail: user.email,
+      category: "fee_rules",
+      action: "update",
+      resourceType: ownerType,
+      resourceId: ownerId,
+      summary: `Updated ${ownerType} fee rules`,
+      before: prev?.fees ?? null,
+      after: fees ?? null,
+    });
 
     return NextResponse.json({ success: true });
   } catch (error) {

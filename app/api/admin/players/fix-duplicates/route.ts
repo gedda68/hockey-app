@@ -4,9 +4,13 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
+import { requirePermission } from "@/lib/auth/middleware";
 
 export async function GET(request: NextRequest) {
   try {
+    const { response: authRes } = await requirePermission(request, "system.manage");
+    if (authRes) return authRes;
+
     console.log("🔍 Checking for duplicate playerIds...");
 
     const client = await clientPromise;

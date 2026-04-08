@@ -3,6 +3,10 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
+import {
+  requirePermission,
+  requireResourceAccess,
+} from "@/lib/auth/middleware";
 
 export async function GET(
   request: NextRequest,
@@ -10,6 +14,11 @@ export async function GET(
 ) {
   try {
     const { id } = await context.params;
+
+    const { response: authRes } = await requirePermission(request, "club.members");
+    if (authRes) return authRes;
+    const { response: scopeRes } = await requireResourceAccess(request, "club", id);
+    if (scopeRes) return scopeRes;
 
     const client = await clientPromise;
     const db = client.db("hockey-app");

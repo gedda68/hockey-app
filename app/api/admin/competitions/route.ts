@@ -13,6 +13,7 @@ import {
   type SeasonCompetition,
 } from "@/lib/db/schemas/competition.schema";
 import { ZodError } from "zod";
+import { logPlatformAudit } from "@/lib/audit/platformAuditLog";
 
 function newId(prefix: string) {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
@@ -163,6 +164,17 @@ export async function POST(request: NextRequest) {
       const { _id: _omit, ...doc } = competition;
       await db.collection("competitions").insertOne(doc);
 
+      await logPlatformAudit({
+        userId: user.userId,
+        userEmail: user.email,
+        category: "competition",
+        action: "create",
+        resourceType: "competition",
+        resourceId: competition.competitionId,
+        summary: `Created competition "${competition.name}"`,
+        after: { competition },
+      });
+
       return NextResponse.json({ competition }, { status: 201 });
     }
 
@@ -229,6 +241,17 @@ export async function POST(request: NextRequest) {
 
       const { _id: _omit, ...doc } = seasonCompetition;
       await db.collection("season_competitions").insertOne(doc);
+
+      await logPlatformAudit({
+        userId: user.userId,
+        userEmail: user.email,
+        category: "season_competition",
+        action: "create",
+        resourceType: "season_competition",
+        resourceId: seasonCompetition.seasonCompetitionId,
+        summary: `Created season competition season=${seasonCompetition.season}`,
+        after: { seasonCompetition },
+      });
 
       return NextResponse.json({ seasonCompetition }, { status: 201 });
     }

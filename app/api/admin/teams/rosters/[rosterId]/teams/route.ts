@@ -3,6 +3,10 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
+import {
+  requirePermission,
+  requireResourceAccess,
+} from "@/lib/auth/middleware";
 
 export async function PUT(
   request: NextRequest,
@@ -10,8 +14,6 @@ export async function PUT(
 ) {
   try {
     const { rosterId } = await context.params;
-    const body = await request.json();
-
 
     const client = await clientPromise;
     const db = client.db();
@@ -23,6 +25,19 @@ export async function PUT(
       console.error("❌ Roster not found:", rosterId);
       return NextResponse.json({ error: "Roster not found" }, { status: 404 });
     }
+
+    const { response: permRes } = await requirePermission(request, "team.edit");
+    if (permRes) return permRes;
+    if (oldRoster.clubId) {
+      const { response: scopeRes } = await requireResourceAccess(
+        request,
+        "club",
+        String(oldRoster.clubId),
+      );
+      if (scopeRes) return scopeRes;
+    }
+
+    const body = await request.json();
 
     const userId = "admin-temp";
     const userName = "Admin User";
@@ -128,6 +143,17 @@ export async function GET(
 
     if (!roster) {
       return NextResponse.json({ error: "Roster not found" }, { status: 404 });
+    }
+
+    const { response: getPermRes } = await requirePermission(request, "team.roster");
+    if (getPermRes) return getPermRes;
+    if (roster.clubId) {
+      const { response: scopeRes } = await requireResourceAccess(
+        request,
+        "club",
+        String(roster.clubId),
+      );
+      if (scopeRes) return scopeRes;
     }
 
     if (!includeHistory) {

@@ -3,6 +3,10 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
+import {
+  requirePermission,
+  requireResourceAccess,
+} from "@/lib/auth/middleware";
 
 // UPDATE player details (number, position, leadership)
 export async function PATCH(
@@ -30,6 +34,17 @@ export async function PATCH(
     if (!roster) {
       console.error("❌ Roster not found");
       return NextResponse.json({ error: "Roster not found" }, { status: 404 });
+    }
+
+    const { response: permRes } = await requirePermission(request, "team.edit");
+    if (permRes) return permRes;
+    if (roster.clubId) {
+      const { response: scopeRes } = await requireResourceAccess(
+        request,
+        "club",
+        String(roster.clubId),
+      );
+      if (scopeRes) return scopeRes;
     }
 
 
@@ -134,6 +149,17 @@ export async function DELETE(
     const roster = await db.collection("teamRosters").findOne({ id: rosterId });
     if (!roster) {
       return NextResponse.json({ error: "Roster not found" }, { status: 404 });
+    }
+
+    const { response: delPermRes } = await requirePermission(request, "team.edit");
+    if (delPermRes) return delPermRes;
+    if (roster.clubId) {
+      const { response: scopeRes } = await requireResourceAccess(
+        request,
+        "club",
+        String(roster.clubId),
+      );
+      if (scopeRes) return scopeRes;
     }
 
     if (!roster.teams || !roster.teams[teamIndex]) {

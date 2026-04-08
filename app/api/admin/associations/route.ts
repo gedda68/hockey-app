@@ -2,10 +2,14 @@
 // Associations API with hierarchical filtering + comprehensive validation
 
 import { NextRequest, NextResponse } from "next/server";
-import type { Db } from 'mongodb';
+import type { Db } from "mongodb";
 import clientPromise from "@/lib/mongodb";
 import { z, ZodError } from "zod";
 import { escapeRegex } from "@/lib/utils/regex";
+import {
+  requirePermission,
+  requireResourceAccess,
+} from "@/lib/auth/middleware";
 
 // Schema for creating/updating associations
 const AssociationSchema = z.object({
@@ -116,6 +120,12 @@ function getLevelString(numericLevel: number): string {
 
 // GET /api/admin/associations - List associations with hierarchical filtering
 export async function GET(request: NextRequest) {
+  const { response: authRes } = await requirePermission(
+    request,
+    "association.view",
+  );
+  if (authRes) return authRes;
+
   try {
     const { searchParams } = new URL(request.url);
 
@@ -261,11 +271,32 @@ export async function GET(request: NextRequest) {
 
 // POST /api/admin/associations - Create new association
 export async function POST(request: NextRequest) {
+  const { user, response: authRes } = await requirePermission(
+    request,
+    "association.create",
+  );
+  if (authRes) return authRes;
+
   try {
     const body = await request.json();
 
     // Validate with Zod (level and hierarchy are optional - auto-calculated)
     const validated = AssociationSchema.parse(body);
+
+    if (!validated.parentAssociationId && user.role !== "super-admin") {
+      return NextResponse.json(
+        { error: "Forbidden — only super-admin may create root associations" },
+        { status: 403 },
+      );
+    }
+    if (validated.parentAssociationId) {
+      const { response: scopeRes } = await requireResourceAccess(
+        request,
+        "association",
+        validated.parentAssociationId,
+      );
+      if (scopeRes) return scopeRes;
+    }
 
     const client = await clientPromise;
     const db = client.db();

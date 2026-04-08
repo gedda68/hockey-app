@@ -4,6 +4,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import { getSession } from "@/lib/auth/session";
+import { requirePermission } from "@/lib/auth/middleware";
+import {
+  assertMemberInSessionScope,
+  type MemberScopeDoc,
+} from "@/lib/auth/memberRouteScope";
 
 // GET - Get single member by ID
 export async function GET(
@@ -11,6 +16,9 @@ export async function GET(
   context: { params: Promise<{ id: string }> },
 ) {
   try {
+    const { response: authRes } = await requirePermission(request, "member.view");
+    if (authRes) return authRes;
+
     const { id } = await context.params;
 
     console.log("🔍 GET member:", id);
@@ -23,6 +31,9 @@ export async function GET(
     if (!member) {
       return NextResponse.json({ error: "Member not found" }, { status: 404 });
     }
+
+    const scope = await assertMemberInSessionScope(request, member as MemberScopeDoc);
+    if (scope) return scope;
 
     console.log("✅ Found member:", member.personalInfo.displayName);
 
@@ -39,6 +50,9 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    const { response: authRes } = await requirePermission(request, "member.edit");
+    if (authRes) return authRes;
+
     const session = await getSession();
     const resolvedParams = await params;
     const memberId = resolvedParams.id;
@@ -46,6 +60,13 @@ export async function PUT(
 
     const client = await clientPromise;
     const db = client.db("hockey-app");
+
+    const existing = await db.collection("members").findOne({ memberId });
+    if (!existing) {
+      return NextResponse.json({ error: "Member not found" }, { status: 404 });
+    }
+    const scopePut = await assertMemberInSessionScope(request, existing as MemberScopeDoc);
+    if (scopePut) return scopePut;
 
     // Extract change log if provided
     const changeLog = body._changeLog;
@@ -103,6 +124,9 @@ export async function DELETE(
   context: { params: Promise<{ id: string }> },
 ) {
   try {
+    const { response: authRes } = await requirePermission(request, "member.delete");
+    if (authRes) return authRes;
+
     const session = await getSession();
     const { id } = await context.params;
 
@@ -117,6 +141,9 @@ export async function DELETE(
     if (!member) {
       return NextResponse.json({ error: "Member not found" }, { status: 404 });
     }
+
+    const scopeDel = await assertMemberInSessionScope(request, member as MemberScopeDoc);
+    if (scopeDel) return scopeDel;
 
     // Soft delete - set status to Inactive
     await db.collection("members").updateOne(

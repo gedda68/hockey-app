@@ -4,12 +4,28 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
+import {
+  requirePermission,
+  requireResourceAccess,
+} from "@/lib/auth/middleware";
 
 export async function GET(request: NextRequest) {
   try {
+    const { response: authRes } = await requirePermission(request, "team.roster");
+    if (authRes) return authRes;
+
     const { searchParams } = new URL(request.url);
     const season = searchParams.get("season");
     const clubId = searchParams.get("clubId");
+
+    if (clubId && clubId !== "all") {
+      const { response: scopeRes } = await requireResourceAccess(
+        request,
+        "club",
+        clubId,
+      );
+      if (scopeRes) return scopeRes;
+    }
 
     const client = await clientPromise;
     const db = client.db();
@@ -35,12 +51,22 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const { response: authRes } = await requirePermission(request, "team.edit");
+    if (authRes) return authRes;
+
     const body = await request.json();
     const { clubId, category, division, gender, season } = body;
 
     if (!clubId || !category || !division || !gender || !season) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
+
+    const { response: scopeRes } = await requireResourceAccess(
+      request,
+      "club",
+      clubId,
+    );
+    if (scopeRes) return scopeRes;
 
     const client = await clientPromise;
     const db = client.db();

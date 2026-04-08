@@ -1,9 +1,13 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getDatabase } from "@/lib/mongodb";
+import { requirePermission } from "@/lib/auth/middleware";
 
 // POST - Bulk upload/update rosters
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
+    const { response: authRes } = await requirePermission(request, "team.edit");
+    if (authRes) return authRes;
+
     const rosters = await request.json();
 
     // Validate input

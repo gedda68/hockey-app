@@ -4,6 +4,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import type { Db } from "mongodb";
 import clientPromise from "@/lib/mongodb";
+import {
+  requirePermission,
+  requireResourceAccess,
+} from "@/lib/auth/middleware";
 import { generateSlug } from "@/lib/utils/slug";
 import { escapeRegex } from "@/lib/utils/regex";
 import type { ClubDoc } from "@/types/api";
@@ -132,6 +136,9 @@ function getRegionFromSuburb(suburb: string): string | null {
 // --- GET: FETCH CLUBS WITH FILTERING ---
 export async function GET(request: NextRequest) {
   try {
+    const { response: authRes } = await requirePermission(request, "club.view");
+    if (authRes) return authRes;
+
     const { searchParams } = new URL(request.url);
 
     // Filters
@@ -145,6 +152,16 @@ export async function GET(request: NextRequest) {
     const page = parseInt(searchParams.get("page") || "1");
     const limit = parseInt(searchParams.get("limit") || "100");
     const skip = (page - 1) * limit;
+
+    const assocFilter = associationId || parentAssociationId;
+    if (assocFilter) {
+      const { response: scopeRes } = await requireResourceAccess(
+        request,
+        "association",
+        assocFilter,
+      );
+      if (scopeRes) return scopeRes;
+    }
 
     const client = await clientPromise;
     const db = client.db("hockey-app");
@@ -262,7 +279,21 @@ export async function GET(request: NextRequest) {
 // --- POST: CREATE CLUB ---
 export async function POST(request: NextRequest) {
   try {
+    const { response: authRes } = await requirePermission(request, "club.create");
+    if (authRes) return authRes;
+
     const body = await request.json();
+
+    const parentAssoc =
+      body.parentAssociationId ?? body.associationId ?? body.association;
+    if (parentAssoc && typeof parentAssoc === "string") {
+      const { response: scopeRes } = await requireResourceAccess(
+        request,
+        "association",
+        parentAssoc,
+      );
+      if (scopeRes) return scopeRes;
+    }
 
     if (!body.name || !body.id) {
       return NextResponse.json(
@@ -320,12 +351,22 @@ export async function POST(request: NextRequest) {
 // --- PUT: UPDATE CLUB ---
 export async function PUT(request: NextRequest) {
   try {
+    const { response: authRes } = await requirePermission(request, "club.edit");
+    if (authRes) return authRes;
+
     const body = await request.json();
     const { id, userId, userName, reason } = body;
 
     if (!id) {
       return NextResponse.json({ error: "Club ID required" }, { status: 400 });
     }
+
+    const { response: scopeRes } = await requireResourceAccess(
+      request,
+      "club",
+      id,
+    );
+    if (scopeRes) return scopeRes;
 
     const client = await clientPromise;
     const db = client.db("hockey-app");
@@ -370,6 +411,9 @@ export async function PUT(request: NextRequest) {
 // --- DELETE: REMOVE CLUB ---
 export async function DELETE(request: NextRequest) {
   try {
+    const { response: authRes } = await requirePermission(request, "club.delete");
+    if (authRes) return authRes;
+
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");
     const userId = searchParams.get("userId");
@@ -379,6 +423,13 @@ export async function DELETE(request: NextRequest) {
     if (!id) {
       return NextResponse.json({ error: "ID required" }, { status: 400 });
     }
+
+    const { response: scopeRes } = await requireResourceAccess(
+      request,
+      "club",
+      id,
+    );
+    if (scopeRes) return scopeRes;
 
     const client = await clientPromise;
     const db = client.db("hockey-app");

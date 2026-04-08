@@ -1,10 +1,14 @@
 // app/api/admin/associations/[associationId]/route.ts
 // FINAL FIX: Make fee dates nullable
 
-import { NextResponse } from "next/server";
-import type { Db } from 'mongodb';
+import { NextRequest, NextResponse } from "next/server";
+import type { Db } from "mongodb";
 import clientPromise from "@/lib/mongodb";
 import { z, ZodError } from "zod";
+import {
+  requirePermission,
+  requireResourceAccess,
+} from "@/lib/auth/middleware";
 
 // Flexible schema for updates
 const AssociationSchema = z.object({
@@ -131,11 +135,24 @@ function normalizeFees(fees: any[]) {
 
 // GET /api/admin/associations/[id] - Get single association
 export async function GET(
-  request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ associationId: string }> },
 ) {
+  const { response: authRes } = await requirePermission(
+    request,
+    "association.view",
+  );
+  if (authRes) return authRes;
+
   try {
     const { associationId } = await params;
+
+    const { response: scopeRes } = await requireResourceAccess(
+      request,
+      "association",
+      associationId,
+    );
+    if (scopeRes) return scopeRes;
 
     const client = await clientPromise;
     const db = client.db();
@@ -186,11 +203,25 @@ export async function GET(
 
 // PUT /api/admin/associations/[id] - Update association
 export async function PUT(
-  request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ associationId: string }> },
 ) {
+  const { response: authRes } = await requirePermission(
+    request,
+    "association.edit",
+  );
+  if (authRes) return authRes;
+
   try {
     const { associationId } = await params;
+
+    const { response: scopeRes } = await requireResourceAccess(
+      request,
+      "association",
+      associationId,
+    );
+    if (scopeRes) return scopeRes;
+
     const body = await request.json();
 
     const client = await clientPromise;
@@ -210,6 +241,13 @@ export async function PUT(
 
     // Validate with Zod
     const validated = AssociationSchema.parse(body);
+
+    if (validated.associationId !== associationId) {
+      return NextResponse.json(
+        { error: "associationId in body must match URL" },
+        { status: 400 },
+      );
+    }
 
     // Check if parent changed
     const parentChanged =
@@ -294,11 +332,24 @@ export async function PUT(
 
 // DELETE /api/admin/associations/[id] - Delete association
 export async function DELETE(
-  request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ associationId: string }> },
 ) {
+  const { response: authRes } = await requirePermission(
+    request,
+    "association.delete",
+  );
+  if (authRes) return authRes;
+
   try {
     const { associationId } = await params;
+
+    const { response: scopeRes } = await requireResourceAccess(
+      request,
+      "association",
+      associationId,
+    );
+    if (scopeRes) return scopeRes;
 
     const client = await clientPromise;
     const db = client.db();

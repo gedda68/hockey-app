@@ -6,6 +6,10 @@ import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import { getSession } from "@/lib/auth/session";
 import {
+  requirePermission,
+  requireResourceAccess,
+} from "@/lib/auth/middleware";
+import {
   generateUsername,
   hashPassword,
   generateTempPassword,
@@ -20,29 +24,31 @@ interface BulkAuthResult {
 
 export async function POST(request: NextRequest) {
   try {
-    // Auth check — must be an admin user
+    const { response: authRes } = await requirePermission(request, "member.edit");
+    if (authRes) return authRes;
+
     const session = await getSession();
     if (!session) {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
     }
 
-    const adminRoles = [
-      "super_admin",
-      "super-admin",
-      "admin",
-      "association-admin",
-      "club-admin",
-    ];
-    if (!adminRoles.includes(session.role)) {
-      return NextResponse.json(
-        { error: "Insufficient permissions" },
-        { status: 403 }
-      );
-    }
-
     const body = await request.json();
     const { clubId, dryRun = false }: { clubId?: string; dryRun?: boolean } =
       body;
+
+    if (!clubId) {
+      return NextResponse.json(
+        { error: "clubId is required for bulk auth" },
+        { status: 400 },
+      );
+    }
+
+    const { response: scopeRes } = await requireResourceAccess(
+      request,
+      "club",
+      clubId,
+    );
+    if (scopeRes) return scopeRes;
 
     const client = await clientPromise;
     const db = client.db();

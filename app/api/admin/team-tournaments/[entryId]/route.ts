@@ -6,16 +6,11 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
-import { getSession } from "@/lib/auth/session";
+import {
+  requirePermission,
+  requireResourceAccess,
+} from "@/lib/auth/middleware";
 import type { TeamTournamentEntry, UpdateEntryBody } from "@/types/teamTournament";
-
-const ADMIN_ROLES = [
-  "super-admin",
-  "association-admin",
-  "club-admin",
-  "registrar",
-  "assoc-registrar",
-];
 
 async function loadEntry(
   db: Awaited<ReturnType<typeof import("mongodb").MongoClient.prototype.db>>,
@@ -27,13 +22,11 @@ async function loadEntry(
 }
 
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ entryId: string }> }
 ) {
-  const session = await getSession();
-  if (!session || !ADMIN_ROLES.includes(session.role)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const { response } = await requirePermission(req, "registration.payments");
+  if (response) return response;
 
   const { entryId } = await params;
   const client = await clientPromise;
@@ -41,6 +34,9 @@ export async function GET(
 
   const entry = await loadEntry(db, entryId);
   if (!entry) return NextResponse.json({ error: "Entry not found" }, { status: 404 });
+
+  const scope = await requireResourceAccess(req, "club", entry.clubId);
+  if (scope.response) return scope.response;
 
   // Enrich: look up attending member names from members + players collections
   const memberDetails: Record<string, { name: string; jerseyNumber?: number }> = {};
@@ -70,10 +66,8 @@ export async function PUT(
   req: NextRequest,
   { params }: { params: Promise<{ entryId: string }> }
 ) {
-  const session = await getSession();
-  if (!session || !ADMIN_ROLES.includes(session.role)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const { response } = await requirePermission(req, "registration.payments");
+  if (response) return response;
 
   const { entryId } = await params;
   const client = await clientPromise;
@@ -82,12 +76,8 @@ export async function PUT(
   const entry = await loadEntry(db, entryId);
   if (!entry) return NextResponse.json({ error: "Entry not found" }, { status: 404 });
 
-  // Scope check
-  if (["club-admin", "registrar"].includes(session.role) && session.clubId) {
-    if (entry.clubId !== session.clubId) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
-  }
+  const scope = await requireResourceAccess(req, "club", entry.clubId);
+  if (scope.response) return scope.response;
 
   let body: UpdateEntryBody;
   try {
@@ -118,13 +108,11 @@ export async function PUT(
 }
 
 export async function DELETE(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ entryId: string }> }
 ) {
-  const session = await getSession();
-  if (!session || !ADMIN_ROLES.includes(session.role)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const { response } = await requirePermission(req, "registration.payments");
+  if (response) return response;
 
   const { entryId } = await params;
   const client = await clientPromise;
@@ -132,6 +120,9 @@ export async function DELETE(
 
   const entry = await loadEntry(db, entryId);
   if (!entry) return NextResponse.json({ error: "Entry not found" }, { status: 404 });
+
+  const scope = await requireResourceAccess(req, "club", entry.clubId);
+  if (scope.response) return scope.response;
 
   if (!["draft", "withdrawn"].includes(entry.status)) {
     return NextResponse.json(

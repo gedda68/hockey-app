@@ -3,6 +3,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
+import { requirePermission } from "@/lib/auth/middleware";
 
 // Single collection name
 const COLLECTION_NAME = "config";
@@ -36,6 +37,11 @@ export async function GET(
   try {
     const { type } = await context.params;
 
+    const { response: authRes } = await requirePermission(
+      request,
+      "system.settings",
+    );
+    if (authRes) return authRes;
 
     const mapping =
       CONFIG_TYPE_MAPPING[type as keyof typeof CONFIG_TYPE_MAPPING];
@@ -83,6 +89,11 @@ export async function POST(
   try {
     const { type } = await context.params;
 
+    const { response: authRes } = await requirePermission(
+      request,
+      "system.settings",
+    );
+    if (authRes) return authRes;
 
     const mapping =
       CONFIG_TYPE_MAPPING[type as keyof typeof CONFIG_TYPE_MAPPING];
@@ -154,6 +165,11 @@ export async function PUT(
   try {
     const { type } = await context.params;
 
+    const { response: authRes } = await requirePermission(
+      request,
+      "system.settings",
+    );
+    if (authRes) return authRes;
 
     const mapping =
       CONFIG_TYPE_MAPPING[type as keyof typeof CONFIG_TYPE_MAPPING];
@@ -221,6 +237,11 @@ export async function DELETE(
   try {
     const { type } = await context.params;
 
+    const { response: authRes } = await requirePermission(
+      request,
+      "system.settings",
+    );
+    if (authRes) return authRes;
 
     const mapping =
       CONFIG_TYPE_MAPPING[type as keyof typeof CONFIG_TYPE_MAPPING];

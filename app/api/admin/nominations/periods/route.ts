@@ -5,6 +5,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
+import { requirePermission } from "@/lib/auth/middleware";
 import {
   defaultNominationStart,
   type UpsertNominationPeriodRequest,
@@ -13,6 +14,12 @@ import {
 // ─── GET /api/admin/nominations/periods ──────────────────────────────────────
 export async function GET(request: NextRequest) {
   try {
+    const { response: authRes } = await requirePermission(
+      request,
+      "selection.view",
+    );
+    if (authRes) return authRes;
+
     const { searchParams } = new URL(request.url);
     const season = searchParams.get("season");
     const ageGroup = searchParams.get("ageGroup");
@@ -45,6 +52,12 @@ export async function GET(request: NextRequest) {
 // ─── PUT /api/admin/nominations/periods ──────────────────────────────────────
 export async function PUT(request: NextRequest) {
   try {
+    const { response: authRes } = await requirePermission(
+      request,
+      "selection.manage",
+    );
+    if (authRes) return authRes;
+
     const body: UpsertNominationPeriodRequest = await request.json();
     const {
       season,

@@ -1,10 +1,14 @@
 // app/api/admin/players/next-registration-number/route.ts
 // Get next available registration number from players.playerId
 
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { requirePermission } from "@/lib/auth/middleware";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const { response: authRes } = await requirePermission(request, "member.create");
+    if (authRes) return authRes;
+
     // TODO: Replace with your actual database connection
     // import { connectDB } from '@/lib/mongodb';
     // const db = await connectDB();

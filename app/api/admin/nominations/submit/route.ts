@@ -18,11 +18,25 @@
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import { getSession } from "@/lib/auth/session";
+import { requirePermission } from "@/lib/auth/middleware";
 import type { NominationWindow, EligibilitySnapshot } from "@/types/nominations";
 import { isWindowOpen } from "@/types/nominations";
 
 export async function POST(request: NextRequest) {
   try {
+    const nom = await requirePermission(request, "selection.nominate");
+    if (!nom.response) {
+      /* ok */
+    } else {
+      const reg = await requirePermission(request, "registration.manage");
+      if (!reg.response) {
+        /* ok */
+      } else {
+        const sel = await requirePermission(request, "selection.manage");
+        if (sel.response) return sel.response;
+      }
+    }
+
     const session = await getSession();
     if (!session) return NextResponse.json({ error: "Authentication required" }, { status: 401 });
 

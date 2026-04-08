@@ -3,9 +3,16 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
+import {
+  requirePermission,
+  requireResourceAccess,
+} from "@/lib/auth/middleware";
 
 export async function GET(request: NextRequest) {
   try {
+    const { response: authRes } = await requirePermission(request, "team.roster");
+    if (authRes) return authRes;
+
     const { searchParams } = new URL(request.url);
     const clubId   = searchParams.get("clubId");
     const division = searchParams.get("division") ?? "";
@@ -17,6 +24,13 @@ export async function GET(request: NextRequest) {
         { status: 400 },
       );
     }
+
+    const { response: scopeRes } = await requireResourceAccess(
+      request,
+      "club",
+      clubId,
+    );
+    if (scopeRes) return scopeRes;
 
     const client = await clientPromise;
     const db = client.db("hockey-app");

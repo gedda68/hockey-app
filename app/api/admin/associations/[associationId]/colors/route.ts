@@ -1,8 +1,12 @@
 // app/api/admin/associations/[associationId]/colors/route.ts
 // API for updating association brand colors
 
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
+import {
+  requirePermission,
+  requireResourceAccess,
+} from "@/lib/auth/middleware";
 import { z, ZodError } from "zod";
 
 const ColorSchema = z.object({
@@ -17,11 +21,23 @@ const ColorSchema = z.object({
 });
 
 export async function PUT(
-  request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ associationId: string }> }
 ) {
   try {
     const { associationId } = await params;
+
+    const { response: authRes } = await requirePermission(
+      request,
+      "association.settings",
+    );
+    if (authRes) return authRes;
+    const { response: scopeRes } = await requireResourceAccess(
+      request,
+      "association",
+      associationId,
+    );
+    if (scopeRes) return scopeRes;
     const body = await request.json();
 
     // Validate

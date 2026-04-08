@@ -3,6 +3,10 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
+import {
+  requirePermission,
+  requireResourceAccess,
+} from "@/lib/auth/middleware";
 
 export async function POST(
   request: NextRequest,
@@ -34,6 +38,16 @@ export async function POST(
       return NextResponse.json({ error: "Roster not found" }, { status: 404 });
     }
 
+    const { response: permRes } = await requirePermission(request, "team.edit");
+    if (permRes) return permRes;
+    if (roster.clubId) {
+      const { response: scopeRes } = await requireResourceAccess(
+        request,
+        "club",
+        String(roster.clubId),
+      );
+      if (scopeRes) return scopeRes;
+    }
 
     // Check team exists
     if (!roster.teams || !roster.teams[teamIndex]) {

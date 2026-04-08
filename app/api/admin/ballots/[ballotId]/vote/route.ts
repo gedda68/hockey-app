@@ -9,11 +9,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import { getSession } from "@/lib/auth/session";
+import { requirePermission } from "@/lib/auth/middleware";
 import type { Ballot, BallotVote } from "@/types/nominations";
 
 type Params = { params: Promise<{ ballotId: string }> };
 
 export async function POST(req: NextRequest, { params }: Params) {
+  const { response: authRes } = await requirePermission(req, "profile.view");
+  if (authRes) return authRes;
+
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Authentication required" }, { status: 401 });
 

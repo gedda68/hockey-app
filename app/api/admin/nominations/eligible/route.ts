@@ -5,6 +5,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import {
+  requirePermission,
+  requireResourceAccess,
+} from "@/lib/auth/middleware";
+import {
   calcAgeForSeason,
   getEligibilityRange,
   isEligibleForAgeGroup,
@@ -13,10 +17,25 @@ import {
 
 export async function GET(request: NextRequest) {
   try {
+    const { response: authRes } = await requirePermission(
+      request,
+      "selection.view",
+    );
+    if (authRes) return authRes;
+
     const { searchParams } = new URL(request.url);
     const season = searchParams.get("season");
     const ageGroup = searchParams.get("ageGroup");
     const clubId = searchParams.get("clubId"); // optional: filter to one club
+
+    if (clubId) {
+      const { response: scopeRes } = await requireResourceAccess(
+        request,
+        "club",
+        clubId,
+      );
+      if (scopeRes) return scopeRes;
+    }
 
     if (!season || !ageGroup) {
       return NextResponse.json(

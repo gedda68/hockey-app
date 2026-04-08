@@ -3,14 +3,33 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
+import {
+  requirePermission,
+  requireResourceAccess,
+} from "@/lib/auth/middleware";
 
 // GET - List all roles
 export async function GET(request: NextRequest) {
   try {
+    const { response: authRes } = await requirePermission(
+      request,
+      "system.settings",
+    );
+    if (authRes) return authRes;
+
     const { searchParams } = new URL(request.url);
     const activeOnly = searchParams.get("activeOnly") === "true";
     const category = searchParams.get("category");
     const clubId = searchParams.get("clubId");
+
+    if (clubId) {
+      const { response: scopeRes } = await requireResourceAccess(
+        request,
+        "club",
+        clubId,
+      );
+      if (scopeRes) return scopeRes;
+    }
 
     const client = await clientPromise;
     const db = client.db(process.env.DB_NAME || "hockey-app");
@@ -44,7 +63,23 @@ export async function GET(request: NextRequest) {
 // POST - Create new role
 export async function POST(request: NextRequest) {
   try {
+    const { response: authRes } = await requirePermission(
+      request,
+      "system.settings",
+    );
+    if (authRes) return authRes;
+
     const body = await request.json();
+
+    if (body.clubId && typeof body.clubId === "string") {
+      const { response: scopeRes } = await requireResourceAccess(
+        request,
+        "club",
+        body.clubId,
+      );
+      if (scopeRes) return scopeRes;
+    }
+
     const client = await clientPromise;
     const db = client.db(process.env.DB_NAME || "hockey-app");
 
@@ -95,9 +130,29 @@ export async function POST(request: NextRequest) {
 // PUT - Update role
 export async function PUT(request: NextRequest) {
   try {
+    const { response: authRes } = await requirePermission(
+      request,
+      "system.settings",
+    );
+    if (authRes) return authRes;
+
     const body = await request.json();
     const client = await clientPromise;
     const db = client.db(process.env.DB_NAME || "hockey-app");
+
+    if (body.roleId) {
+      const existing = await db
+        .collection("club_roles")
+        .findOne({ roleId: body.roleId });
+      if (existing?.clubId && typeof existing.clubId === "string") {
+        const { response: scopeRes } = await requireResourceAccess(
+          request,
+          "club",
+          existing.clubId,
+        );
+        if (scopeRes) return scopeRes;
+      }
+    }
 
     const updateData = {
       ...body,
@@ -128,6 +183,12 @@ export async function PUT(request: NextRequest) {
 // DELETE - Delete role
 export async function DELETE(request: NextRequest) {
   try {
+    const { response: authRes } = await requirePermission(
+      request,
+      "system.settings",
+    );
+    if (authRes) return authRes;
+
     const { searchParams } = new URL(request.url);
     const roleId = searchParams.get("roleId");
 
@@ -140,6 +201,16 @@ export async function DELETE(request: NextRequest) {
 
     const client = await clientPromise;
     const db = client.db(process.env.DB_NAME || "hockey-app");
+
+    const roleDoc = await db.collection("club_roles").findOne({ roleId });
+    if (roleDoc?.clubId && typeof roleDoc.clubId === "string") {
+      const { response: scopeRes } = await requireResourceAccess(
+        request,
+        "club",
+        roleDoc.clubId,
+      );
+      if (scopeRes) return scopeRes;
+    }
 
     // Check if in use
     const inUse = await db.collection("members").findOne({

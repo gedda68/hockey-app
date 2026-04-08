@@ -3,25 +3,38 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
+import { requirePermission } from "@/lib/auth/middleware";
+import {
+  assertMemberInSessionScope,
+  type MemberScopeDoc,
+} from "@/lib/auth/memberRouteScope";
 
 type Params = { params: Promise<{ playerId: string }> };
 
 export async function GET(
-  _req: NextRequest,
+  request: NextRequest,
   { params }: Params,
 ) {
   try {
     const { playerId } = await params;
+
+    const { response: authRes } = await requirePermission(request, "member.view");
+    if (authRes) return authRes;
+
     const client = await clientPromise;
     const db = client.db("hockey-app");
 
-    const member = await db
-      .collection("members")
-      .findOne({ memberId: playerId }, { projection: { notes: 1, _id: 0 } });
+    const member = await db.collection("members").findOne({ memberId: playerId });
 
     if (!member) {
       return NextResponse.json({ error: "Player not found" }, { status: 404 });
     }
+
+    const scopeErr = await assertMemberInSessionScope(
+      request,
+      member as MemberScopeDoc,
+    );
+    if (scopeErr) return scopeErr;
 
     return NextResponse.json({ notes: member.notes ?? [] });
   } catch (error: unknown) {
@@ -35,6 +48,10 @@ export async function POST(
 ) {
   try {
     const { playerId } = await params;
+
+    const { response: authRes } = await requirePermission(request, "member.edit");
+    if (authRes) return authRes;
+
     const note = await request.json();
 
     const newNote = {
@@ -46,6 +63,16 @@ export async function POST(
 
     const client = await clientPromise;
     const db = client.db("hockey-app");
+
+    const doc = await db.collection("members").findOne({ memberId: playerId });
+    if (!doc) {
+      return NextResponse.json({ error: "Player not found" }, { status: 404 });
+    }
+    const scopeErr = await assertMemberInSessionScope(
+      request,
+      doc as MemberScopeDoc,
+    );
+    if (scopeErr) return scopeErr;
 
     const result = await db.collection("members").updateOne(
       { memberId: playerId },
@@ -71,6 +98,10 @@ export async function PUT(
 ) {
   try {
     const { playerId } = await params;
+
+    const { response: authRes } = await requirePermission(request, "member.edit");
+    if (authRes) return authRes;
+
     const { noteId, updates } = await request.json();
 
     const updatedFields: Record<string, unknown> = {};
@@ -81,6 +112,16 @@ export async function PUT(
 
     const client = await clientPromise;
     const db = client.db("hockey-app");
+
+    const doc = await db.collection("members").findOne({ memberId: playerId });
+    if (!doc) {
+      return NextResponse.json({ error: "Player not found" }, { status: 404 });
+    }
+    const scopeErr = await assertMemberInSessionScope(
+      request,
+      doc as MemberScopeDoc,
+    );
+    if (scopeErr) return scopeErr;
 
     const result = await db.collection("members").updateOne(
       { memberId: playerId, "notes.id": noteId },
@@ -103,6 +144,10 @@ export async function DELETE(
 ) {
   try {
     const { playerId } = await params;
+
+    const { response: authRes } = await requirePermission(request, "member.edit");
+    if (authRes) return authRes;
+
     const noteId = new URL(request.url).searchParams.get("noteId");
     if (!noteId) {
       return NextResponse.json({ error: "noteId is required" }, { status: 400 });
@@ -110,6 +155,16 @@ export async function DELETE(
 
     const client = await clientPromise;
     const db = client.db("hockey-app");
+
+    const doc = await db.collection("members").findOne({ memberId: playerId });
+    if (!doc) {
+      return NextResponse.json({ error: "Player not found" }, { status: 404 });
+    }
+    const scopeErr = await assertMemberInSessionScope(
+      request,
+      doc as MemberScopeDoc,
+    );
+    if (scopeErr) return scopeErr;
 
     const result = await db.collection("members").updateOne(
       { memberId: playerId },

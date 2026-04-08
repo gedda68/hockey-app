@@ -14,6 +14,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { ObjectId } from "mongodb";
 import clientPromise from "@/lib/mongodb";
 import { getSession } from "@/lib/auth/session";
+import { requirePermission } from "@/lib/auth/middleware";
 import type { Nomination, DecideNominationRequest, NominationWindow } from "@/types/nominations";
 import type { RoleAssignment, ScopeType } from "@/lib/types/roles";
 import { ROLE_DEFINITIONS } from "@/lib/types/roles";
@@ -27,6 +28,12 @@ function nominationFilter(id: string) {
 // ── PATCH ─────────────────────────────────────────────────────────────────────
 export async function PATCH(request: NextRequest, { params }: Params) {
   try {
+    const { response: authRes } = await requirePermission(
+      request,
+      "profile.view",
+    );
+    if (authRes) return authRes;
+
     const session = await getSession();
     if (!session) return NextResponse.json({ error: "Authentication required" }, { status: 401 });
 
@@ -200,13 +207,14 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 // ── DELETE ────────────────────────────────────────────────────────────────────
 export async function DELETE(request: NextRequest, { params }: Params) {
   try {
+    const reg = await requirePermission(request, "registration.manage");
+    if (reg.response) {
+      const sel = await requirePermission(request, "selection.manage");
+      if (sel.response) return sel.response;
+    }
+
     const session = await getSession();
     if (!session) return NextResponse.json({ error: "Authentication required" }, { status: 401 });
-
-    const ADMIN_ROLES = ["super-admin", "association-admin", "assoc-registrar", "club-admin", "registrar"];
-    if (!ADMIN_ROLES.includes(session.role)) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
 
     const { id } = await params;
     const client = await clientPromise;

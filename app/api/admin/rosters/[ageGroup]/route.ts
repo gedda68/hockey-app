@@ -1,12 +1,16 @@
 // app/api/admin/rosters/[ageGroup]/route.ts
 // Includes selectors field in all operations + revalidation for public pages
 
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import clientPromise, { getDatabase } from "@/lib/mongodb";
 import { revalidatePath } from "next/cache";
+import {
+  requirePermission,
+  requireResourceAccess,
+} from "@/lib/auth/middleware";
 
 export async function GET(
-  request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ ageGroup: string }> },
 ) {
   try {
@@ -21,6 +25,18 @@ export async function GET(
 
     if (!roster) {
       return NextResponse.json({ error: "Roster not found" }, { status: 404 });
+    }
+
+    const { response: authRes } = await requirePermission(request, "team.roster");
+    if (authRes) return authRes;
+    const clubId = (roster as { clubId?: string }).clubId;
+    if (clubId) {
+      const { response: scopeRes } = await requireResourceAccess(
+        request,
+        "club",
+        clubId,
+      );
+      if (scopeRes) return scopeRes;
     }
 
     console.log(
@@ -45,12 +61,35 @@ export async function GET(
 }
 
 export async function PUT(
-  request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ ageGroup: string }> },
 ) {
   try {
     const { ageGroup: encodedAgeGroup } = await params;
     const ageGroup = decodeURIComponent(encodedAgeGroup);
+
+    const client = await clientPromise;
+    const dbEarly = client.db("hockey-app");
+    const existingEarly = await dbEarly.collection("rosters").findOne({ ageGroup });
+    if (!existingEarly) {
+      return NextResponse.json(
+        { error: `Roster "${ageGroup}" not found` },
+        { status: 404 },
+      );
+    }
+
+    const { response: permRes } = await requirePermission(request, "team.edit");
+    if (permRes) return permRes;
+    const clubIdEarly = (existingEarly as { clubId?: string }).clubId;
+    if (clubIdEarly) {
+      const { response: scopeRes } = await requireResourceAccess(
+        request,
+        "club",
+        clubIdEarly,
+      );
+      if (scopeRes) return scopeRes;
+    }
+
     const body = await request.json();
 
     if (body.teams) {
@@ -78,18 +117,10 @@ export async function PUT(
       }
     }
 
-    const client = await clientPromise;
     const db = client.db("hockey-app");
     const rostersCollection = db.collection("rosters");
 
-    const existingRoster = await rostersCollection.findOne({ ageGroup });
-
-    if (!existingRoster) {
-      return NextResponse.json(
-        { error: `Roster "${ageGroup}" not found` },
-        { status: 404 },
-      );
-    }
+    const existingRoster = existingEarly;
 
     console.log("9. Current selectors in DB:", existingRoster.selectors?.length || 0);
 
@@ -171,7 +202,7 @@ export async function PUT(
 }
 
 export async function DELETE(
-  request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ ageGroup: string }> },
 ) {
   try {
@@ -190,6 +221,29 @@ export async function DELETE(
 
     const db = await getDatabase();
     const rostersCollection = db.collection("rosters");
+
+    const rosterDoc = await rostersCollection.findOne({
+      ageGroup: decodedAgeGroup,
+      season: season,
+    });
+    if (!rosterDoc) {
+      return NextResponse.json(
+        { error: "Roster not found for this specific season." },
+        { status: 404 },
+      );
+    }
+
+    const { response: delPermRes } = await requirePermission(request, "team.edit");
+    if (delPermRes) return delPermRes;
+    const delClubId = (rosterDoc as { clubId?: string }).clubId;
+    if (delClubId) {
+      const { response: scopeRes } = await requireResourceAccess(
+        request,
+        "club",
+        delClubId,
+      );
+      if (scopeRes) return scopeRes;
+    }
 
     const result = await rostersCollection.deleteOne({
       ageGroup: decodedAgeGroup,

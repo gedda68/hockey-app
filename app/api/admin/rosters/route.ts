@@ -1,9 +1,13 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getDatabase } from "@/lib/mongodb";
+import { requirePermission } from "@/lib/auth/middleware";
 
 // GET - Fetch rosters filtered by season
-export async function GET(request: Request) {
+export async function GET(request: NextRequest) {
   try {
+    const { response: authRes } = await requirePermission(request, "team.roster");
+    if (authRes) return authRes;
+
     const { searchParams } = new URL(request.url);
     const year = searchParams.get("year"); // Extract year from hook's fetch call
 
@@ -40,8 +44,11 @@ export async function GET(request: Request) {
 }
 
 // POST - Create new roster with season validation
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
+    const { response: authRes } = await requirePermission(request, "team.edit");
+    if (authRes) return authRes;
+
     const body = await request.json();
     const { ageGroup, season } = body;
 

@@ -1,7 +1,11 @@
 // app/api/admin/associations/[associationId]/fees/route.ts
 
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
+import {
+  requirePermission,
+  requireResourceAccess,
+} from "@/lib/auth/middleware";
 
 interface FeeItem {
   id: string;
@@ -16,11 +20,23 @@ interface FeesStructure {
 }
 
 export async function GET(
-  _req: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ associationId: string }> }
 ) {
   try {
     const { associationId } = await params;
+
+    const { response: authRes } = await requirePermission(
+      request,
+      "association.fees",
+    );
+    if (authRes) return authRes;
+    const { response: scopeRes } = await requireResourceAccess(
+      request,
+      "association",
+      associationId,
+    );
+    if (scopeRes) return scopeRes;
     const client = await clientPromise;
     const db = client.db("hockey-app");
 
@@ -41,12 +57,24 @@ export async function GET(
 }
 
 export async function PUT(
-  req: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ associationId: string }> }
 ) {
   try {
     const { associationId } = await params;
-    const body = await req.json();
+
+    const { response: authRes } = await requirePermission(
+      request,
+      "association.fees",
+    );
+    if (authRes) return authRes;
+    const { response: scopeRes } = await requireResourceAccess(
+      request,
+      "association",
+      associationId,
+    );
+    if (scopeRes) return scopeRes;
+    const body = await request.json();
     const fees: FeesStructure = body.fees;
 
     if (!fees || typeof fees !== "object") {

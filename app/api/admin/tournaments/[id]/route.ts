@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { ObjectId } from "mongodb";
 import clientPromise from "@/lib/mongodb";
 import { requirePermission } from "@/lib/auth/middleware";
+import { logPlatformAudit } from "@/lib/audit/platformAuditLog";
 import { upsertNominationPeriod } from "../route";
 import type { CreateTournamentRequest } from "@/types/tournaments";
 
@@ -45,7 +46,7 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const { response } = await requirePermission(request, "selection.manage");
+  const { user, response } = await requirePermission(request, "selection.manage");
   if (response) return response;
   try {
     const { id } = await params;
@@ -85,6 +86,26 @@ export async function PUT(
       .collection("rep_tournaments")
       .findOneAndUpdate(buildFilter(id), { $set: updateFields }, { returnDocument: "after" });
 
+    await logPlatformAudit({
+      userId: user.userId,
+      userEmail: user.email,
+      category: "tournament",
+      action: "update",
+      resourceType: "rep_tournament",
+      resourceId: String(existing.tournamentId ?? id),
+      summary: `Updated tournament "${existing.title ?? id}"`,
+      before: {
+        title: existing.title,
+        startDate: existing.startDate,
+        endDate: existing.endDate,
+      },
+      after: {
+        title: result?.title,
+        startDate: result?.startDate,
+        endDate: result?.endDate,
+      },
+    });
+
     // Re-sync nomination period end date if the tournament start date changed
     if (body.startDate) {
       await upsertNominationPeriod(db, {
@@ -107,17 +128,33 @@ export async function DELETE(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const { response } = await requirePermission(_request, "selection.manage");
+  const { user, response } = await requirePermission(_request, "selection.manage");
   if (response) return response;
   try {
     const { id } = await params;
     const client = await clientPromise;
     const db = client.db("hockey-app");
 
+    const existing = await db.collection("rep_tournaments").findOne(buildFilter(id));
+    if (!existing) {
+      return NextResponse.json({ error: "Tournament not found" }, { status: 404 });
+    }
+
     const result = await db.collection("rep_tournaments").deleteOne(buildFilter(id));
     if (result.deletedCount === 0) {
       return NextResponse.json({ error: "Tournament not found" }, { status: 404 });
     }
+
+    await logPlatformAudit({
+      userId: user.userId,
+      userEmail: user.email,
+      category: "tournament",
+      action: "delete",
+      resourceType: "rep_tournament",
+      resourceId: String(existing.tournamentId ?? id),
+      summary: `Deleted tournament "${existing.title ?? id}"`,
+      before: { title: existing.title, tournamentId: existing.tournamentId },
+    });
 
     return NextResponse.json({ success: true });
   } catch (error: unknown) {

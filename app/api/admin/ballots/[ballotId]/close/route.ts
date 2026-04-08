@@ -19,19 +19,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import { getSession } from "@/lib/auth/session";
+import { requirePermission } from "@/lib/auth/middleware";
 import type { Ballot, NominationWindow } from "@/types/nominations";
 
 type Params = { params: Promise<{ ballotId: string }> };
 
-const ADMIN_ROLES = [
-  "super-admin",
-  "association-admin", "assoc-registrar", "assoc-selector",
-  "club-admin", "registrar",
-];
-
 export async function POST(req: NextRequest, { params }: Params) {
+  const { response: authRes } = await requirePermission(req, "selection.manage");
+  if (authRes) return authRes;
+
   const session = await getSession();
-  if (!session || !ADMIN_ROLES.includes(session.role)) {
+  if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

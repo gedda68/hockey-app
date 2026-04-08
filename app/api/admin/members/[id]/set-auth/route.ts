@@ -4,6 +4,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import { getSession } from "@/lib/auth/session";
+import { requirePermission } from "@/lib/auth/middleware";
+import {
+  assertMemberInSessionScope,
+  type MemberScopeDoc,
+} from "@/lib/auth/memberRouteScope";
 import {
   generateUsername,
   hashPassword,
@@ -18,24 +23,12 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    // Auth check — must be an admin user
+    const { response: authRes } = await requirePermission(request, "member.edit");
+    if (authRes) return authRes;
+
     const session = await getSession();
     if (!session) {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
-    }
-
-    const adminRoles = [
-      "super_admin",
-      "super-admin",
-      "admin",
-      "association-admin",
-      "club-admin",
-    ];
-    if (!adminRoles.includes(session.role)) {
-      return NextResponse.json(
-        { error: "Insufficient permissions" },
-        { status: 403 }
-      );
     }
 
     const { id } = await params;
@@ -79,6 +72,9 @@ export async function POST(
     if (!member) {
       return NextResponse.json({ error: "Member not found" }, { status: 404 });
     }
+
+    const scope = await assertMemberInSessionScope(request, member as MemberScopeDoc);
+    if (scope) return scope;
 
     const firstName =
       member.personalInfo?.firstName || member.firstName || "user";

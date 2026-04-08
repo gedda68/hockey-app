@@ -2,9 +2,13 @@
 // Check if a player already exists based on firstName, lastName, dateOfBirth
 
 import { NextRequest, NextResponse } from "next/server";
+import { requirePermission } from "@/lib/auth/middleware";
 
 export async function POST(request: NextRequest) {
   try {
+    const { response: authRes } = await requirePermission(request, "member.create");
+    if (authRes) return authRes;
+
     const { firstName, lastName, dateOfBirth } = await request.json();
 
     if (!firstName || !lastName || !dateOfBirth) {

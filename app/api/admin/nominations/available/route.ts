@@ -3,12 +3,19 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
+import { requirePermission } from "@/lib/auth/middleware";
 import { getEligibilityRange } from "@/types/nominations";
 import type { OpenOpportunity, TournamentGender } from "@/types/tournaments";
 
 // ─── GET /api/admin/nominations/available ─────────────────────────────────────
 export async function GET(request: NextRequest) {
   try {
+    const { response: authRes } = await requirePermission(
+      request,
+      "selection.view",
+    );
+    if (authRes) return authRes;
+
     const { searchParams } = new URL(request.url);
     const season =
       searchParams.get("season") ?? new Date().getFullYear().toString();

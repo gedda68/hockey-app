@@ -4,10 +4,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import { escapeRegex } from "@/lib/utils/regex";
+import { requirePermission } from "@/lib/auth/middleware";
 
 // GET - Fetch all relationship types
 export async function GET(request: NextRequest) {
   try {
+    const { response: authRes } = await requirePermission(
+      request,
+      "system.settings",
+    );
+    if (authRes) return authRes;
+
     const client = await clientPromise;
     const db = client.db();
 
@@ -44,6 +51,12 @@ export async function GET(request: NextRequest) {
 // POST - Create new relationship type
 export async function POST(request: NextRequest) {
   try {
+    const { response: authRes } = await requirePermission(
+      request,
+      "system.settings",
+    );
+    if (authRes) return authRes;
+
     const body = await request.json();
     const { name, category } = body;
 
@@ -97,6 +110,12 @@ export async function POST(request: NextRequest) {
 // PUT - Update relationship type
 export async function PUT(request: NextRequest) {
   try {
+    const { response: authRes } = await requirePermission(
+      request,
+      "system.settings",
+    );
+    if (authRes) return authRes;
+
     const body = await request.json();
     const { id, name, category } = body;
 
@@ -142,6 +161,12 @@ export async function PUT(request: NextRequest) {
 // DELETE - Delete relationship type
 export async function DELETE(request: NextRequest) {
   try {
+    const { response: authRes } = await requirePermission(
+      request,
+      "system.settings",
+    );
+    if (authRes) return authRes;
+
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");
 

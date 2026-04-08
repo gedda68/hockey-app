@@ -6,6 +6,7 @@ import clientPromise from "@/lib/mongodb";
 import { requirePermission, requireResourceAccess } from "@/lib/auth/middleware";
 import { SeasonCompetitionSchema } from "@/lib/db/schemas/competition.schema";
 import { z, ZodError } from "zod";
+import { logPlatformAudit } from "@/lib/audit/platformAuditLog";
 
 type Params = { params: Promise<{ seasonCompetitionId: string }> };
 
@@ -118,6 +119,26 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     const updated = await db.collection("season_competitions").findOne({
       seasonCompetitionId,
     });
+
+    await logPlatformAudit({
+      userId: user.userId,
+      userEmail: user.email,
+      category: "season_competition",
+      action: "patch",
+      resourceType: "season_competition",
+      resourceId: seasonCompetitionId,
+      summary: `Updated season competition (${Object.keys(validated).join(", ")})`,
+      before: {
+        status: existing.status,
+        divisions: existing.divisions,
+      },
+      after: {
+        status: updated?.status,
+        divisions: updated?.divisions,
+      },
+      metadata: { owningAssociationId: existing.owningAssociationId },
+    });
+
     return NextResponse.json({ ...updated, _id: updated?._id?.toString?.() });
   } catch (error: unknown) {
     console.error("PATCH /api/admin/season-competitions/[id] error:", error);

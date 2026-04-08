@@ -3,10 +3,17 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
+import { requirePermission } from "@/lib/auth/middleware";
 
 // GET - List all relationships
 export async function GET(request: NextRequest) {
   try {
+    const { response: authRes } = await requirePermission(
+      request,
+      "system.settings",
+    );
+    if (authRes) return authRes;
+
     const client = await clientPromise;
     const db = client.db(process.env.DB_NAME || "hockey-app");
 
@@ -31,6 +38,12 @@ export async function GET(request: NextRequest) {
 // POST - Create new relationship
 export async function POST(request: NextRequest) {
   try {
+    const { response: authRes } = await requirePermission(
+      request,
+      "system.settings",
+    );
+    if (authRes) return authRes;
+
     const client = await clientPromise;
     const db = client.db(process.env.DB_NAME || "hockey-app");
 
@@ -86,6 +99,12 @@ export async function POST(request: NextRequest) {
 // PUT - Update relationship
 export async function PUT(request: NextRequest) {
   try {
+    const { response: authRes } = await requirePermission(
+      request,
+      "system.settings",
+    );
+    if (authRes) return authRes;
+
     const client = await clientPromise;
     const db = client.db(process.env.DB_NAME || "hockey-app");
 
@@ -135,6 +154,12 @@ export async function PUT(request: NextRequest) {
 // DELETE - Delete relationship
 export async function DELETE(request: NextRequest) {
   try {
+    const { response: authRes } = await requirePermission(
+      request,
+      "system.settings",
+    );
+    if (authRes) return authRes;
+
     const client = await clientPromise;
     const db = client.db(process.env.DB_NAME || "hockey-app");
 

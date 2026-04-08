@@ -5,6 +5,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import {
+  requirePermission,
+  requireResourceAccess,
+} from "@/lib/auth/middleware";
+import {
   calcAgeForSeason,
   isEligibleForAgeGroup,
   type CreateNominationRequest,
@@ -13,10 +17,25 @@ import {
 // ─── GET /api/admin/nominations ──────────────────────────────────────────────
 export async function GET(request: NextRequest) {
   try {
+    const { response: authRes } = await requirePermission(
+      request,
+      "selection.view",
+    );
+    if (authRes) return authRes;
+
     const { searchParams } = new URL(request.url);
     const season = searchParams.get("season");
     const ageGroup = searchParams.get("ageGroup");
     const clubId = searchParams.get("clubId");
+
+    if (clubId) {
+      const { response: scopeRes } = await requireResourceAccess(
+        request,
+        "club",
+        clubId,
+      );
+      if (scopeRes) return scopeRes;
+    }
     const status = searchParams.get("status");
     const playerId = searchParams.get("playerId");
     const memberId = searchParams.get("memberId");
@@ -53,8 +72,23 @@ export async function GET(request: NextRequest) {
 // ─── POST /api/admin/nominations ─────────────────────────────────────────────
 export async function POST(request: NextRequest) {
   try {
+    const { response: authRes } = await requirePermission(
+      request,
+      "selection.manage",
+    );
+    if (authRes) return authRes;
+
     const body: CreateNominationRequest = await request.json();
     const { season, ageGroup, clubId, memberId, playerId, nominatedBy, notes, playerSnapshot, nominationType, role } = body as any;
+
+    if (clubId) {
+      const { response: scopeRes } = await requireResourceAccess(
+        request,
+        "club",
+        clubId,
+      );
+      if (scopeRes) return scopeRes;
+    }
 
     if (!season || !ageGroup || !clubId) {
       return NextResponse.json(

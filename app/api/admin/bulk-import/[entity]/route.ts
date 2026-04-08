@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import type { Db } from 'mongodb';
 import clientPromise from "@/lib/mongodb";
+import { requirePermission } from "@/lib/auth/middleware";
 import { generateSlug } from "@/lib/utils/slug";
 import bcrypt from "bcryptjs";
 
@@ -649,6 +650,9 @@ async function importTeams(db: Db, rows: ImportRow[], isRep: boolean): Promise<I
 
 export async function POST(req: NextRequest, ctx: Ctx) {
   try {
+    const { response: authRes } = await requirePermission(req, "system.manage");
+    if (authRes) return authRes;
+
     const { entity } = await ctx.params;
     const { rows } = await req.json() as { rows: ImportRow[] };
 

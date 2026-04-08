@@ -3,9 +3,16 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
+import { requirePermission } from "@/lib/auth/middleware";
 
 export async function GET(request: NextRequest) {
   try {
+    const { response: authRes } = await requirePermission(
+      request,
+      "competitions.manage",
+    );
+    if (authRes) return authRes;
+
     const { searchParams } = new URL(request.url);
     const category = searchParams.get("category");
 
@@ -77,6 +84,12 @@ function getDefaultDivisions(category: string): string[] {
 // POST - Create or update divisions for a category
 export async function POST(request: NextRequest) {
   try {
+    const { response: authRes } = await requirePermission(
+      request,
+      "competitions.manage",
+    );
+    if (authRes) return authRes;
+
     const body = await request.json();
     const { category, divisions } = body;
 

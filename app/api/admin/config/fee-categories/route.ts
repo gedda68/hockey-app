@@ -1,8 +1,9 @@
 // app/api/admin/config/fee-categories/route.ts
 // API for managing fee categories configuration
 
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
+import { requirePermission } from "@/lib/auth/middleware";
 
 const DEFAULT_CATEGORIES = [
   "Senior Men",
@@ -19,8 +20,14 @@ const DEFAULT_CATEGORIES = [
   "Other",
 ];
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const { response: authRes } = await requirePermission(
+      request,
+      "system.settings",
+    );
+    if (authRes) return authRes;
+
     const client = await clientPromise;
     const db = client.db();
 
@@ -40,8 +47,14 @@ export async function GET() {
   }
 }
 
-export async function PUT(request: Request) {
+export async function PUT(request: NextRequest) {
   try {
+    const { response: authRes } = await requirePermission(
+      request,
+      "system.settings",
+    );
+    if (authRes) return authRes;
+
     const { categories } = await request.json();
 
     if (!Array.isArray(categories)) {

@@ -4,6 +4,11 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
+import { requirePermission } from "@/lib/auth/middleware";
+import {
+  assertMemberInSessionScope,
+  type MemberScopeDoc,
+} from "@/lib/auth/memberRouteScope";
 
 export interface EnrichedFeeRecord {
   // Member identity
@@ -33,6 +38,12 @@ export interface EnrichedFeeRecord {
 // ─── GET /api/admin/rep-fees?season=YYYY&status=&ageGroup= ───────────────────
 export async function GET(request: NextRequest) {
   try {
+    const { response: authRes } = await requirePermission(
+      request,
+      "registration.payments",
+    );
+    if (authRes) return authRes;
+
     const { searchParams } = new URL(request.url);
     const season       = searchParams.get("season") ?? new Date().getFullYear().toString();
     const statusFilter = searchParams.get("status") ?? "";
@@ -144,6 +155,12 @@ export async function GET(request: NextRequest) {
 // Body: { memberId, feeId, status, paymentMethod?, transactionId?, notes?, paidDate? }
 export async function PATCH(request: NextRequest) {
   try {
+    const { response: authRes } = await requirePermission(
+      request,
+      "registration.payments",
+    );
+    if (authRes) return authRes;
+
     const body = await request.json();
     // Accept either memberId or the legacy playerId field
     const memberId        = body.memberId ?? body.playerId;
@@ -160,6 +177,12 @@ export async function PATCH(request: NextRequest) {
     if (!member) {
       return NextResponse.json({ error: "Member not found" }, { status: 404 });
     }
+
+    const scopeErr = await assertMemberInSessionScope(
+      request,
+      member as MemberScopeDoc,
+    );
+    if (scopeErr) return scopeErr;
 
     const today = new Date().toISOString().split("T")[0];
     const updatedFeeHistory = (member.feeHistory ?? []).map((fee: Record<string, any>) => {

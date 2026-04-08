@@ -10,6 +10,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import { getSession } from "@/lib/auth/session";
+import { requirePermission } from "@/lib/auth/middleware";
 import type { Ballot } from "@/types/nominations";
 
 type Params = { params: Promise<{ ballotId: string }> };
@@ -20,7 +21,10 @@ const ADMIN_ROLES = [
   "club-admin", "registrar", "club-committee",
 ];
 
-export async function GET(_req: NextRequest, { params }: Params) {
+export async function GET(req: NextRequest, { params }: Params) {
+  const { response: authRes } = await requirePermission(req, "profile.view");
+  if (authRes) return authRes;
+
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Authentication required" }, { status: 401 });
 

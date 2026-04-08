@@ -3,6 +3,11 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
+import { requirePermission } from "@/lib/auth/middleware";
+import {
+  assertMemberInSessionScope,
+  type MemberScopeDoc,
+} from "@/lib/auth/memberRouteScope";
 
 export async function GET(
   request: NextRequest,
@@ -11,18 +16,25 @@ export async function GET(
   try {
     const { playerId } = await params; // ✅ AWAIT params
 
+    const { response: authRes } = await requirePermission(request, "member.view");
+    if (authRes) return authRes;
+
     console.log("📋 Fetching consent data for player:", playerId);
 
     const client = await clientPromise;
     const db = client.db("hockey-app");
 
-    const member = await db
-      .collection("members")
-      .findOne({ memberId: playerId }, { projection: { consents: 1, _id: 0 } });
+    const member = await db.collection("members").findOne({ memberId: playerId });
 
     if (!member) {
       return NextResponse.json({ error: "Player not found" }, { status: 404 });
     }
+
+    const scopeErr = await assertMemberInSessionScope(
+      request,
+      member as MemberScopeDoc,
+    );
+    if (scopeErr) return scopeErr;
 
     const consents = member.consents ?? {
       photoConsent: false,
@@ -55,6 +67,9 @@ export async function PUT(
     const { playerId } = await params; // ✅ AWAIT params
     const consents = await request.json();
 
+    const { response: authRes } = await requirePermission(request, "member.edit");
+    if (authRes) return authRes;
+
     console.log("📝 Updating consent for player:", playerId);
 
     // Add timestamp
@@ -65,6 +80,16 @@ export async function PUT(
 
     const client = await clientPromise;
     const db = client.db("hockey-app");
+
+    const doc = await db.collection("members").findOne({ memberId: playerId });
+    if (!doc) {
+      return NextResponse.json({ error: "Player not found" }, { status: 404 });
+    }
+    const scopeErr = await assertMemberInSessionScope(
+      request,
+      doc as MemberScopeDoc,
+    );
+    if (scopeErr) return scopeErr;
 
     const result = await db.collection("members").updateOne(
       { memberId: playerId },

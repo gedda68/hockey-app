@@ -18,6 +18,10 @@ import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import { escapeRegex } from "@/lib/utils/regex";
 import { getSession } from "@/lib/auth/session";
+import {
+  requirePermission,
+  requireResourceAccess,
+} from "@/lib/auth/middleware";
 
 // ── Status mapping ────────────────────────────────────────────────────────────
 function mapStatus(membershipStatus?: string): string {
@@ -100,9 +104,21 @@ function memberToPlayer(m: Record<string, any>, clubName?: string | null) {
 // ── GET ───────────────────────────────────────────────────────────────────────
 export async function GET(request: NextRequest) {
   try {
+    const { response: authRes } = await requirePermission(request, "member.view");
+    if (authRes) return authRes;
+
     const { searchParams } = new URL(request.url);
 
     const clubId  = searchParams.get("clubId");
+
+    if (clubId) {
+      const { response: scopeRes } = await requireResourceAccess(
+        request,
+        "club",
+        clubId,
+      );
+      if (scopeRes) return scopeRes;
+    }
     const status  = searchParams.get("status");    // "active"|"inactive"|"suspended"|"pending"
     const gender  = searchParams.get("gender");
     const search  = searchParams.get("search");
@@ -214,12 +230,26 @@ export async function GET(request: NextRequest) {
 // Delegates to /api/admin/members for the actual creation logic.
 export async function POST(request: NextRequest) {
   try {
+    const { response: authRes } = await requirePermission(request, "member.create");
+    if (authRes) return authRes;
+
     const session = await getSession();
     if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const body = await request.json();
+
+    const newClubId =
+      body.clubId ?? body.personalInfo?.clubId ?? body.membership?.clubId;
+    if (newClubId && typeof newClubId === "string") {
+      const { response: scopeRes } = await requireResourceAccess(
+        request,
+        "club",
+        newClubId,
+      );
+      if (scopeRes) return scopeRes;
+    }
 
     // Accept both flat (old players shape) and nested (members shape) payloads
     const firstName = body.firstName ?? body.personalInfo?.firstName;

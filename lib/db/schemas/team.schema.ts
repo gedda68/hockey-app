@@ -85,11 +85,29 @@ export const TeamStatisticsSchema = z.object({
 // TEAM SCHEMA (MongoDB Document)
 // ============================================================================
 
+export const TeamPromotionRecordSchema = z.object({
+  season: z.string().min(1),
+  teamId: z.string().min(1),
+  divisionLabel: z.string().optional(),
+  outcome: z
+    .enum(["promoted", "relegated", "same", "new", "merged", "split"])
+    .optional(),
+  note: z.string().optional(),
+  recordedAt: z.string().optional(),
+});
+
 export const TeamSchema = z.object({
   // IDs
   _id: z.string().optional(),
   teamId: z.string().min(1, "Team ID is required"),
   clubId: z.string().min(1, "Club ID is required"),
+  /**
+   * Stable identity across seasons (A6). Defaults to first `teamId` if unset.
+   * Other season rows may reference the same canonical id.
+   */
+  canonicalTeamId: z.string().optional(),
+  /** Ordered promotion / relegation / continuity notes per season. */
+  promotionHistory: z.array(TeamPromotionRecordSchema).optional().default([]),
 
   // Basic Info
   name: z.string().min(1, "Team name is required"),
