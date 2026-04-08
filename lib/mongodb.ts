@@ -1,36 +1,75 @@
 import { MongoClient, Db } from "mongodb";
 
-if (!process.env.MONGODB_URI) {
-  throw new Error("Please add your Mongo URI to .env.local");
-}
-
-const uri = process.env.MONGODB_URI;
 const options = {};
 
-let client: MongoClient;
-let clientPromise: Promise<MongoClient>;
-
-if (process.env.NODE_ENV === "development") {
-  // In development mode, use a global variable to preserve the connection
-  // across hot reloads in Next.js
-  let globalWithMongo = global as typeof globalThis & {
-    _mongoClientPromise?: Promise<MongoClient>;
-  };
-
-  if (!globalWithMongo._mongoClientPromise) {
-    client = new MongoClient(uri, options);
-    globalWithMongo._mongoClientPromise = client.connect();
+function getUri(): string {
+  const uri = process.env.MONGODB_URI;
+  if (!uri) {
+    throw new Error(
+      "Missing MONGODB_URI. Add it to .env.local locally or to your Vercel project environment variables."
+    );
   }
-  clientPromise = globalWithMongo._mongoClientPromise;
-} else {
-  // In production mode, create a new client
-  client = new MongoClient(uri, options);
-  clientPromise = client.connect();
+  return uri;
 }
+
+function createClientPromise(): Promise<MongoClient> {
+  const uri = getUri();
+
+  if (process.env.NODE_ENV === "development") {
+    const globalWithMongo = global as typeof globalThis & {
+      _mongoClientPromise?: Promise<MongoClient>;
+    };
+
+    if (!globalWithMongo._mongoClientPromise) {
+      const client = new MongoClient(uri, options);
+      globalWithMongo._mongoClientPromise = client.connect();
+    }
+    return globalWithMongo._mongoClientPromise;
+  }
+
+  const client = new MongoClient(uri, options);
+  return client.connect();
+}
+
+let cachedPromise: Promise<MongoClient> | undefined;
+
+function getClientPromise(): Promise<MongoClient> {
+  if (!cachedPromise) {
+    cachedPromise = createClientPromise();
+  }
+  return cachedPromise;
+}
+
+/** Resolves only when awaited; avoids throwing during Next.js build when env is unset. */
+const clientPromise = {
+  then<TResult1 = MongoClient, TResult2 = never>(
+    onfulfilled?:
+      | ((value: MongoClient) => TResult1 | PromiseLike<TResult1>)
+      | null
+      | undefined,
+    onrejected?:
+      | ((reason: unknown) => TResult2 | PromiseLike<TResult2>)
+      | null
+      | undefined
+  ) {
+    return getClientPromise().then(onfulfilled, onrejected);
+  },
+  catch<TResult = never>(
+    onrejected?:
+      | ((reason: unknown) => TResult | PromiseLike<TResult>)
+      | null
+      | undefined
+  ) {
+    return getClientPromise().catch(onrejected);
+  },
+  finally(onfinally?: (() => void) | null | undefined) {
+    return getClientPromise().finally(onfinally);
+  },
+  [Symbol.toStringTag]: "Promise",
+} as Promise<MongoClient>;
 
 export default clientPromise;
 
-// Helper function to get database
 export async function getDatabase(): Promise<Db> {
   const client = await clientPromise;
   return client.db("hockey-app");
