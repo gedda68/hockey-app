@@ -1,0 +1,150 @@
+import { describe, it, expect } from "vitest";
+import { evaluateAdminRouteAccess } from "@/lib/auth/adminRouteAccess";
+
+function session(partial: {
+  role: string;
+  clubId?: string | null;
+  clubSlug?: string | null;
+  associationId?: string | null;
+  scopedRoles?: {
+    role: string;
+    scopeType: "global" | "association" | "club" | "team";
+    scopeId?: string;
+  }[];
+}) {
+  return {
+    role: partial.role,
+    clubId: partial.clubId ?? null,
+    clubSlug: partial.clubSlug ?? null,
+    associationId: partial.associationId ?? null,
+    scopedRoles: partial.scopedRoles,
+  };
+}
+
+describe("evaluateAdminRouteAccess", () => {
+  it("denies club registrar access to super-admin-only /admin/users", () => {
+    expect(
+      evaluateAdminRouteAccess("/admin/users", session({ role: "registrar" })),
+    ).toBe("deny");
+  });
+
+  it("allows super-admin to /admin/users", () => {
+    expect(
+      evaluateAdminRouteAccess("/admin/users", session({ role: "super-admin" })),
+    ).toBe("allow");
+  });
+
+  it("allows coach to /admin/dashboard", () => {
+    expect(
+      evaluateAdminRouteAccess("/admin/dashboard", session({ role: "coach" })),
+    ).toBe("allow");
+  });
+
+  it("denies registrar from /admin/clubs/* (clubs route is CLUB_AND_ABOVE only)", () => {
+    expect(
+      evaluateAdminRouteAccess(
+        "/admin/clubs/other-club/edit",
+        session({ role: "registrar", clubId: "my-club" }),
+      ),
+    ).toBe("deny");
+  });
+
+  it("allows club-admin to their own club subtree", () => {
+    expect(
+      evaluateAdminRouteAccess(
+        "/admin/clubs/my-club/edit",
+        session({ role: "club-admin", clubId: "my-club" }),
+      ),
+    ).toBe("allow");
+  });
+
+  it("allows club-admin when path uses slug and session has matching clubSlug", () => {
+    expect(
+      evaluateAdminRouteAccess(
+        "/admin/clubs/chc/edit",
+        session({ role: "club-admin", clubId: "club-1", clubSlug: "chc" }),
+      ),
+    ).toBe("allow");
+  });
+
+  it("denies club-admin from another club's subtree", () => {
+    expect(
+      evaluateAdminRouteAccess(
+        "/admin/clubs/other-club/edit",
+        session({ role: "club-admin", clubId: "my-club" }),
+      ),
+    ).toBe("deny");
+  });
+
+  it("denies association staff from another association's associations subtree", () => {
+    expect(
+      evaluateAdminRouteAccess(
+        "/admin/associations/other-assoc",
+        session({
+          role: "assoc-registrar",
+          associationId: "my-assoc",
+        }),
+      ),
+    ).toBe("deny");
+  });
+
+  it("allows association-admin to their association subtree", () => {
+    expect(
+      evaluateAdminRouteAccess(
+        "/admin/associations/my-assoc",
+        session({
+          role: "association-admin",
+          associationId: "my-assoc",
+        }),
+      ),
+    ).toBe("allow");
+  });
+
+  it("denies club-only role from association subtree without scoped association role", () => {
+    expect(
+      evaluateAdminRouteAccess(
+        "/admin/associations/bha/fees",
+        session({ role: "registrar", clubId: "chc" }),
+      ),
+    ).toBe("deny");
+  });
+
+  it("allows assoc-registrar on representative subtree for their association scope", () => {
+    expect(
+      evaluateAdminRouteAccess(
+        "/admin/representative",
+        session({
+          role: "assoc-registrar",
+          associationId: "bha",
+        }),
+      ),
+    ).toBe("allow");
+  });
+
+  it("allows scoped association role when path matches scope even if primary is club role", () => {
+    expect(
+      evaluateAdminRouteAccess(
+        "/admin/associations/bha",
+        session({
+          role: "club-admin",
+          clubId: "chc",
+          scopedRoles: [
+            { role: "association-admin", scopeType: "association", scopeId: "bha" },
+          ],
+        }),
+      ),
+    ).toBe("allow");
+  });
+
+  it("allows non-matching paths to fall through (no admin rule prefix)", () => {
+    expect(
+      evaluateAdminRouteAccess("/some-future-page", session({ role: "coach" })),
+    ).toBe("allow");
+  });
+
+  it("allows portal paths for player role", () => {
+    expect(
+      evaluateAdminRouteAccess("/portal", session({ role: "player" })),
+    ).toBe("allow");
+  });
+});

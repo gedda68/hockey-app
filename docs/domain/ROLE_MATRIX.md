@@ -54,6 +54,24 @@ The table below is a simplified summary. For the full permission list per role, 
 
 - **`public`**: No account; public website + any explicitly public APIs.
 
+## Operational personas → `UserRole` (B2)
+
+These job titles are how associations and clubs usually think about access. The platform implements them with **`UserRole` values** and **permissions** in `ROLE_DEFINITIONS` — not separate database personas yet.
+
+| Persona | Typical `UserRole`(s) | Primary permissions / notes |
+|--------|------------------------|-----------------------------|
+| **Registrar (club)** | `registrar` | `registration.*`, `member.*`, `club.members`, fee recording. Uses **Members**, **Role requests**, **Fees** (club scope). `/admin/clubs/*` UI is **`club-admin`+** only; registrars work from member/roster flows. |
+| **Registrar (association)** | `assoc-registrar` | Association registrations, approvals, cross-club visibility where implemented. **Representative**, **Role requests**, **Team tournaments** (per middleware). |
+| **Treasurer / finance (club)** | `club-committee`, `registrar` | `reports.financial`, `club.fees`, `registration.payments` (see `ROLE_DEFINITIONS`). Often **committee** handles governance-level money; **registrar** handles day-to-day payments. |
+| **Treasurer / finance (association)** | `assoc-committee`, `assoc-registrar` | Association fee policy + reporting; `association.fees`, `reports.financial`. |
+| **Competition manager** | `association-admin` | `competitions.manage` — season/league competitions via `/api/admin/competitions` (API-enforced). Dedicated `/admin/competitions` UI may be added later. |
+| **Umpire coordinator** | `association-admin` (today) | No separate coordinator role yet; allocations/public competition pages evolve under Epic F. **`umpire`** is a limited staff role for officials themselves. |
+| **Coach coordinator** | `assoc-coach`, `coach` | Representative and team coaching access; nominations/rosters per `selection.*` / `team.roster`. |
+| **Media / communications** | `media-marketing` | **News** and read access per `ROLE_DEFINITIONS`; also in association staff sets for representative where relevant. |
+| **Committee (read-heavy)** | `assoc-committee`, `club-committee` | Strong **view** + **reports**; write access is narrower than `association-admin` / `club-admin` (see permission lists in code). |
+
+When adding a new screen, update **`menuConfig.ts`** (visibility), **`lib/auth/adminRouteAccess.ts`** (URL gate), and **`ROLE_DEFINITIONS`** (API `requirePermission`).
+
 ## Permission groupings (high level)
 
 These are the core permission families used throughout the app:
@@ -74,6 +92,8 @@ These are the core permission families used throughout the app:
 - Prefer **permission checks** in APIs (`requirePermission`) over raw role checks.
 - If you add a new role or permission:
   - Update `lib/types/roles.ts`
-  - Update `middleware.ts` route rules if the UI needs to expose new admin pages
-  - Update any admin navigation/menu config that filters by role
+  - Update **`lib/auth/adminRouteAccess.ts`** (and run `__tests__/lib/auth/adminRouteAccess.test.ts`) — `middleware.ts` imports it for edge checks.
+  - Update `app/(admin)/admin/global-config/menuConfig.ts` for sidebar/dashboard visibility.
+
+See also **`docs/domain/ARCHITECTURE.md`** for how public site, admin UI, middleware, and APIs fit together.
 

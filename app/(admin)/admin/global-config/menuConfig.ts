@@ -21,7 +21,7 @@ export interface MenuItem {
   subItems?: MenuItem[];
 }
 
-// ── Shared role sets (keep in sync with middleware.ts) ────────────────────────
+// ── Shared role sets (keep in sync with lib/auth/adminRouteAccess.ts + middleware) ─
 
 /** Every role that grants any admin-area access */
 const ALL_ADMIN = [
