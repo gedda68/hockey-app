@@ -2,6 +2,7 @@
 // Unified API - Next.js 15 Compatible with Member Roles & Membership Types
 
 import { NextRequest, NextResponse } from "next/server";
+import { ObjectId, type Document } from "mongodb";
 import clientPromise from "@/lib/mongodb";
 import { requirePermission } from "@/lib/auth/middleware";
 
@@ -28,6 +29,47 @@ const CONFIG_TYPE_MAPPING = {
 const generateId = (type: string) => {
   return `${type}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 };
+
+/**
+ * Normalize config rows for the admin UI.
+ * `member_roles` often uses `roleId` + `active` (see config/roles/route.ts), not `id` / `isActive`.
+ */
+function serializeConfigItem(doc: Document): Record<string, unknown> {
+  const plain = doc as unknown as Record<string, unknown>;
+  const _id = plain._id;
+  const _idStr = _id != null ? String(_id) : "";
+  const idStr =
+    typeof plain.id === "string" && plain.id.trim() !== ""
+      ? plain.id
+      : typeof plain.roleId === "string" && plain.roleId.trim() !== ""
+        ? plain.roleId
+        : _idStr;
+  const isActive = Boolean(plain.isActive ?? plain.active ?? true);
+  return {
+    ...plain,
+    _id: _idStr || undefined,
+    id: idStr,
+    isActive,
+  };
+}
+
+async function findItemByLogicalId(
+  collection: import("mongodb").Collection<Document>,
+  logicalId: string,
+): Promise<Document | null> {
+  const byCustomId = await collection.findOne({ id: logicalId });
+  if (byCustomId) return byCustomId;
+  const byRoleId = await collection.findOne({ roleId: logicalId });
+  if (byRoleId) return byRoleId;
+  if (ObjectId.isValid(logicalId)) {
+    try {
+      return await collection.findOne({ _id: new ObjectId(logicalId) });
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
 
 // GET - List all items of a type
 export async function GET(
@@ -74,7 +116,9 @@ export async function GET(
     }
 
 
-    return NextResponse.json(items);
+    return NextResponse.json(
+      items.map((doc) => serializeConfigItem(doc as Document)),
+    );
   } catch (error: unknown) {
     console.error("💥 Error fetching config items:", error);
     return NextResponse.json({ error: error instanceof Error ? error.message : String(error) }, { status: 500 });
@@ -192,9 +236,8 @@ export async function PUT(
     const client = await clientPromise;
     const db = client.db();
 
-    const item = await db
-      .collection(mapping.collection)
-      .findOne({ id: body.id });
+    const coll = db.collection(mapping.collection);
+    const item = await findItemByLogicalId(coll, body.id);
 
     if (!item) {
       return NextResponse.json({ error: "Item not found" }, { status: 404 });
@@ -209,16 +252,20 @@ export async function PUT(
     if (body.code !== undefined) updateData.code = body.code?.trim() || null;
     if (body.description !== undefined)
       updateData.description = body.description?.trim() || null;
-    if (body.isActive !== undefined) updateData.isActive = body.isActive;
+    if (body.isActive !== undefined) {
+      if (mapping.collection === "member_roles") {
+        updateData.active = body.isActive;
+      } else {
+        updateData.isActive = body.isActive;
+      }
+    }
     if (body.displayOrder !== undefined)
       updateData.displayOrder = body.displayOrder;
     if (body.category !== undefined) updateData.category = body.category;
     if (body.annualFee !== undefined)
       updateData.annualFee = parseFloat(body.annualFee) || 0;
 
-    await db
-      .collection(mapping.collection)
-      .updateOne({ id: body.id }, { $set: updateData });
+    await coll.updateOne({ _id: item._id }, { $set: updateData });
 
     return NextResponse.json({
       message: "Item updated successfully",
@@ -266,7 +313,8 @@ export async function DELETE(
     const client = await clientPromise;
     const db = client.db();
 
-    const item = await db.collection(mapping.collection).findOne({ id });
+    const coll = db.collection(mapping.collection);
+    const item = await findItemByLogicalId(coll, id);
 
     if (!item) {
       return NextResponse.json({ error: "Item not found" }, { status: 404 });
@@ -281,7 +329,7 @@ export async function DELETE(
       );
     }
 
-    await db.collection(mapping.collection).deleteOne({ id });
+    await coll.deleteOne({ _id: item._id });
 
     return NextResponse.json({
       message: "Item deleted successfully",

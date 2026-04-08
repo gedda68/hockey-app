@@ -8,8 +8,9 @@ import { Plus, Edit, Trash2, Save, X, LucideIcon } from "lucide-react";
 
 export interface ConfigItem {
   _id?: any;
-  configType: string;
-  id: string;
+  configType?: string;
+  /** Business id; legacy API rows may only have `_id` until normalized. */
+  id?: string;
   name: string;
   code?: string;
   description?: string;
@@ -43,6 +44,23 @@ interface ConfigTableProps {
   onDelete: (id: string, name: string) => Promise<void>;
   onToggleActive: (item: ConfigItem) => Promise<void>;
   onRefresh: () => Promise<void>;
+}
+
+/** Exported for pages that call APIs with `id` (includes legacy `roleId` on member_roles). */
+export function getLogicalItemId(item: ConfigItem): string | null {
+  const row = item as unknown as Record<string, unknown>;
+  if (row.id != null && String(row.id).trim() !== "") return String(row.id);
+  if (typeof row.roleId === "string" && row.roleId.trim() !== "")
+    return row.roleId;
+  if (row._id != null && String(row._id).trim() !== "") return String(row._id);
+  return null;
+}
+
+function stableRowKey(item: ConfigItem, index: number): string {
+  const lid = getLogicalItemId(item);
+  if (lid) return `item-${lid}`;
+  const name = (item as unknown as Record<string, unknown>).name;
+  return `item-${index}-${String(name ?? "unknown")}`;
 }
 
 export default function ConfigTable({
@@ -79,15 +97,16 @@ export default function ConfigTable({
   };
 
   const handleEditClick = (item: ConfigItem) => {
-    console.log("✏️ Edit clicked for item:", item.id, item);
+    const logicalId = getLogicalItemId(item);
+    console.log("✏️ Edit clicked for item:", logicalId, item);
 
-    if (!item.id) {
+    if (!logicalId) {
       console.error("❌ Item has no ID!", item);
       alert("Error: Item has no ID. Please refresh and try again.");
       return;
     }
 
-    setEditingId(item.id);
+    setEditingId(logicalId);
     const data: any = { isActive: item.isActive };
     const row = item as unknown as Record<string, unknown>;
     fields.forEach((field) => {
@@ -96,7 +115,7 @@ export default function ConfigTable({
     setFormData(data);
 
     console.log("📝 Form data set:", data);
-    console.log("🎯 Editing ID set to:", item.id);
+    console.log("🎯 Editing ID set to:", logicalId);
   };
 
   const handleCancel = () => {
@@ -346,22 +365,24 @@ export default function ConfigTable({
                 </thead>
                 <tbody>
                   {items.map((item, index) => {
-                    // Debug each row
-                    const isEditing = editingId === item.id;
+                    const rowKey = stableRowKey(item, index);
+                    const logicalId = getLogicalItemId(item);
+                    const isEditing =
+                      logicalId != null && editingId === logicalId;
                     if (isEditing) {
-                      console.log(`🎯 Row ${index} is being edited:`, item.id);
+                      console.log(`🎯 Row ${index} is being edited:`, logicalId);
                     }
 
                     return (
                       <tr
-                        key={`item-${item.id}`}
+                        key={rowKey}
                         className={`border-b border-slate-100 hover:bg-slate-50 transition-colors ${
                           index % 2 === 0 ? "bg-white" : "bg-slate-50/50"
                         } ${isEditing ? "ring-2 ring-yellow-400" : ""}`}
                       >
                         {fields.map((field) => (
                           <td
-                            key={`${item.id}-${field.name}`}
+                            key={`${rowKey}-${field.name}`}
                             className="py-4 px-6"
                           >
                             {isEditing ? (
@@ -391,7 +412,7 @@ export default function ConfigTable({
                         ))}
 
                         <td
-                          key={`${item.id}-usage`}
+                          key={`${rowKey}-usage`}
                           className="py-4 px-6 text-center"
                         >
                           <span className="text-sm text-slate-600 font-bold">
@@ -401,7 +422,7 @@ export default function ConfigTable({
                         </td>
 
                         <td
-                          key={`${item.id}-status`}
+                          key={`${rowKey}-status`}
                           className="py-4 px-6 text-center"
                         >
                           <button
@@ -417,7 +438,7 @@ export default function ConfigTable({
                           </button>
                         </td>
 
-                        <td key={`${item.id}-actions`} className="py-4 px-6">
+                        <td key={`${rowKey}-actions`} className="py-4 px-6">
                           <div className="flex justify-end gap-2">
                             {isEditing ? (
                               <>
@@ -442,17 +463,18 @@ export default function ConfigTable({
                               <>
                                 <button
                                   onClick={() => handleEditClick(item)}
-                                  disabled={editingId !== null}
+                                  disabled={editingId !== null || !logicalId}
                                   className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors disabled:opacity-50"
                                   title="Edit"
                                 >
                                   <Edit size={16} />
                                 </button>
                                 <button
-                                  onClick={() =>
-                                    handleDeleteClick(item.id, item.name)
-                                  }
-                                  disabled={editingId !== null}
+                                  onClick={() => {
+                                    if (!logicalId) return;
+                                    handleDeleteClick(logicalId, item.name);
+                                  }}
+                                  disabled={editingId !== null || !logicalId}
                                   className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
                                   title="Delete"
                                 >

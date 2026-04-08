@@ -3,7 +3,10 @@
 
 import { useState, useEffect } from "react";
 import { Users } from "lucide-react";
-import ConfigTable, { ConfigItem } from "@/components/admin/config/ConfigTable";
+import ConfigTable, {
+  ConfigItem,
+  getLogicalItemId,
+} from "@/components/admin/config/ConfigTable";
 import { toast } from "sonner";
 
 export default function MemberRolesConfigPage() {
@@ -22,7 +25,8 @@ export default function MemberRolesConfigPage() {
       const data = await res.json();
 
       console.log("📥 Raw API response:", data);
-      setItems(data);
+      const list = Array.isArray(data) ? data : [];
+      setItems(list as ConfigItem[]);
     } catch (error) {
       console.error("Error fetching member roles:", error);
       toast.error("Failed to load member roles");
@@ -82,13 +86,18 @@ export default function MemberRolesConfigPage() {
   };
 
   const handleToggleActive = async (item: ConfigItem) => {
-    console.log("🔄 Toggling active for ID:", item.id);
+    const id = getLogicalItemId(item);
+    if (!id) {
+      toast.error("Cannot toggle: row has no id");
+      return;
+    }
+    console.log("🔄 Toggling active for ID:", id);
 
     const res = await fetch("/api/admin/config/member-role", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        id: item.id,
+        id,
         isActive: !item.isActive,
       }),
     });
