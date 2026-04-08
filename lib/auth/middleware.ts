@@ -3,38 +3,17 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { getSession, type SessionData } from "@/lib/auth/session";
+import { sessionDataToAssignments } from "@/lib/auth/sessionAssignments";
+import {
+  userCanAccessAssociationResource,
+  userCanAccessClubResource,
+} from "@/lib/auth/resourceAccessDb";
 import type { UserSession } from "@/lib/db/schemas/user";
-import type { Permission, RoleAssignment, UserRole } from "@/lib/types/roles";
+import type { Permission, UserRole } from "@/lib/types/roles";
 import { getEffectivePermissions } from "@/lib/types/roles";
 
 export interface AuthenticatedRequest extends NextRequest {
   user?: UserSession;
-}
-
-function sessionDataToAssignments(s: SessionData): RoleAssignment[] {
-  const grantedAt = new Date().toISOString();
-  if (s.scopedRoles && s.scopedRoles.length > 0) {
-    return s.scopedRoles.map((sr) => ({
-      role: sr.role as UserRole,
-      scopeType: sr.scopeType,
-      scopeId: sr.scopeId,
-      grantedAt,
-      active: true,
-    }));
-  }
-  return [
-    {
-      role: s.role as UserRole,
-      scopeType: s.clubId
-        ? "club"
-        : s.associationId
-          ? "association"
-          : "global",
-      scopeId: s.clubId ?? s.associationId ?? undefined,
-      grantedAt,
-      active: true,
-    },
-  ];
 }
 
 export async function sessionToUserSession(s: SessionData): Promise<UserSession> {
@@ -118,32 +97,24 @@ export async function requireResourceAccess(
 
   if (response) return { user, response };
 
-  if (user.role === "super-admin") {
+  const session = await getSession();
+  if (!session) {
+    return {
+      user,
+      response: NextResponse.json(
+        { error: "Unauthorized - Please log in" },
+        { status: 401 },
+      ),
+    };
+  }
+
+  const ok =
+    resourceType === "association"
+      ? await userCanAccessAssociationResource(session, resourceId)
+      : await userCanAccessClubResource(session, resourceId);
+
+  if (ok) {
     return { user };
-  }
-
-  if (resourceType === "association") {
-    if (
-      user.role === "association-admin" &&
-      user.associationId === resourceId
-    ) {
-      return { user };
-    }
-  }
-
-  if (resourceType === "club") {
-    if (
-      (user.role === "club-admin" ||
-        user.role === "coach" ||
-        user.role === "manager") &&
-      user.clubId === resourceId
-    ) {
-      return { user };
-    }
-
-    if (user.role === "association-admin") {
-      return { user };
-    }
   }
 
   return {

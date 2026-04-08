@@ -1,9 +1,16 @@
 // app/api/admin/fees/route.ts
 
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
+import {
+  requirePermission,
+  requireResourceAccess,
+} from "@/lib/auth/middleware";
 
-export async function GET(req: Request) {
+export async function GET(req: NextRequest) {
+  const { response } = await requirePermission(req, "club.fees");
+  if (response) return response;
+
   try {
     const { searchParams } = new URL(req.url);
     const ownerType = searchParams.get("ownerType");
@@ -14,6 +21,16 @@ export async function GET(req: Request) {
         { error: "ownerType and ownerId are required" },
         { status: 400 }
       );
+    }
+
+    if (ownerType === "association") {
+      const scope = await requireResourceAccess(req, "association", ownerId);
+      if (scope.response) return scope.response;
+    } else if (ownerType === "club") {
+      const scope = await requireResourceAccess(req, "club", ownerId);
+      if (scope.response) return scope.response;
+    } else {
+      return NextResponse.json({ error: "Invalid ownerType" }, { status: 400 });
     }
 
     const client = await clientPromise;
@@ -38,7 +55,10 @@ export async function GET(req: Request) {
   }
 }
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
+  const { response } = await requirePermission(req, "club.fees");
+  if (response) return response;
+
   try {
     const { ownerType, ownerId, fees } = await req.json();
 
@@ -47,6 +67,16 @@ export async function POST(req: Request) {
         { error: "ownerType and ownerId are required" },
         { status: 400 }
       );
+    }
+
+    if (ownerType === "association") {
+      const scope = await requireResourceAccess(req, "association", ownerId);
+      if (scope.response) return scope.response;
+    } else if (ownerType === "club") {
+      const scope = await requireResourceAccess(req, "club", ownerId);
+      if (scope.response) return scope.response;
+    } else {
+      return NextResponse.json({ error: "Invalid ownerType" }, { status: 400 });
     }
 
     const client = await clientPromise;

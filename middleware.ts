@@ -66,6 +66,8 @@ function isPublicPath(path: string): boolean {
     "/api/member/my-roles",
     "/api/member/payments/simulate",
     "/api/clubs",
+    "/api/events",
+    "/api/news",
     "/api/competitions",
     "/api/players/lookup",
     "/api/nominations",
@@ -130,6 +132,9 @@ export async function middleware(request: NextRequest) {
   });
 
   if (decision === "deny") {
+    if (path.startsWith("/api/")) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
     return NextResponse.redirect(new URL("/unauthorized", request.url));
   }
 

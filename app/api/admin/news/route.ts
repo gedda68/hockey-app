@@ -3,11 +3,16 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { MongoClient, ObjectId } from "mongodb";
+import { requireRole } from "@/lib/auth/middleware";
+import { MEDIA_CONTENT_ADMIN_ROLES } from "@/lib/auth/mediaContentRoles";
 import { writeFile, mkdir } from "fs/promises";
 import path from "path";
 
 // GET - Fetch all news (including inactive/expired)
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const { response } = await requireRole(request, MEDIA_CONTENT_ADMIN_ROLES);
+  if (response) return response;
+
   const client = new MongoClient(process.env.MONGODB_URI!);
 
   try {
@@ -49,6 +54,9 @@ export async function GET() {
 
 // POST - Create new news item with image upload
 export async function POST(request: NextRequest) {
+  const { response } = await requireRole(request, MEDIA_CONTENT_ADMIN_ROLES);
+  if (response) return response;
+
   const client = new MongoClient(process.env.MONGODB_URI!);
 
   try {

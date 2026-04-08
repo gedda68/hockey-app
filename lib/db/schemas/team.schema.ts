@@ -117,6 +117,10 @@ export const TeamSchema = z.object({
   seasonCompetitionId: z.string().optional(),
   competition: z.string().optional(), // legacy/free-text (back-compat)
   grade: z.string().optional(),
+  /** Human-readable age band, e.g. "Under 14" (first-class dimension; A7). */
+  ageGroupLabel: z.string().optional(),
+  /** When anchored to a season competition, matches `divisions[].divisionId`. */
+  competitionDivisionId: z.string().optional(),
 
   // Venue
   homeGround: z.string().optional(),
@@ -155,6 +159,10 @@ export const MemberTeamRegistrationSchema = z.object({
   teamName: z.string().min(1, "Team name is required"),
   ageCategory: AgeCategorySchema,
   divisionLevel: z.number().int().min(1),
+  gender: z.enum(["male", "female", "mixed"]).optional(),
+  grade: z.string().optional(),
+  ageGroupLabel: z.string().optional(),
+  competitionDivisionId: z.string().optional(),
 
   // Registration details
   roleId: z.string().min(1, "Role ID is required"),

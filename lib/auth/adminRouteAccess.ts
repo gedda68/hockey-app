@@ -201,6 +201,9 @@ const ROUTE_RULES: RouteRule[] = [
 
   { pattern: /^\/admin(\/|$)/, allowedRoles: ANY_ADMIN },
 
+  /** Mutating/read admin JSON APIs — must be at least an admin-area role (B4). */
+  { pattern: /^\/api\/admin\//, allowedRoles: ANY_ADMIN },
+
   { pattern: /^\/portal(\/|$)/, allowedRoles: PORTAL_ROLES },
 ];
 

@@ -3,6 +3,8 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { MongoClient, ObjectId } from "mongodb";
+import { requireRole } from "@/lib/auth/middleware";
+import { MEDIA_CONTENT_ADMIN_ROLES } from "@/lib/auth/mediaContentRoles";
 import { writeFile, mkdir, unlink } from "fs/promises";
 import path from "path";
 
@@ -13,6 +15,9 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const { response } = await requireRole(request, MEDIA_CONTENT_ADMIN_ROLES);
+  if (response) return response;
+
   const client = new MongoClient(uri);
 
   try {
@@ -119,6 +124,9 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const { response } = await requireRole(request, MEDIA_CONTENT_ADMIN_ROLES);
+  if (response) return response;
+
   const client = new MongoClient(uri);
 
   try {

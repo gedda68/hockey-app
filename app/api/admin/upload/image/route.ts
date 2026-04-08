@@ -1,9 +1,13 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { writeFile, mkdir, readdir } from "fs/promises";
 import path from "path";
+import { requirePermission } from "@/lib/auth/middleware";
 
 // POST - Upload a new image to a specific category (e.g., clubs, staff)
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
+  const { response } = await requirePermission(request, "club.settings");
+  if (response) return response;
+
   try {
     const formData = await request.formData();
     const file = formData.get("file") as File;

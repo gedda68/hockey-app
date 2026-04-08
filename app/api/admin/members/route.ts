@@ -2,10 +2,12 @@
 // Members API - List and Create
 
 import { NextRequest, NextResponse } from "next/server";
-import type { Db } from 'mongodb';
+import type { Db } from "mongodb";
 import clientPromise from "@/lib/mongodb";
 import { escapeRegex } from "@/lib/utils/regex";
 import { getSession } from "@/lib/auth/session";
+import { requirePermission, requireResourceAccess } from "@/lib/auth/middleware";
+import { userCanAccessClubResource } from "@/lib/auth/resourceAccessDb";
 
 const MEMBERS_PER_PAGE = 20;
 
@@ -59,57 +61,126 @@ function calculateAge(dateOfBirth: string): number {
 // GET - List members with pagination and filtering
 export async function GET(request: NextRequest) {
   try {
+    const { user, response: authResponse } = await requirePermission(
+      request,
+      "member.view",
+    );
+    if (authResponse) return authResponse;
+
+    const session = await getSession();
+    if (!session) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const { searchParams } = new URL(request.url);
 
     // Pagination — support both page-based and offset-based
-    const limit  = parseInt(searchParams.get("limit")  || MEMBERS_PER_PAGE.toString());
+    const limit = parseInt(
+      searchParams.get("limit") || MEMBERS_PER_PAGE.toString(),
+    );
     const offset = parseInt(searchParams.get("offset") || "0");
-    const page   = parseInt(searchParams.get("page")   || "1");
-    const skip   = offset > 0 ? offset : (page - 1) * limit;
+    const page = parseInt(searchParams.get("page") || "1");
+    const skip = offset > 0 ? offset : (page - 1) * limit;
 
     // Sorting
     const sortField = searchParams.get("sort") || "lastName";
-    const sortDir   = searchParams.get("dir")  === "desc" ? -1 : 1;
+    const sortDir = searchParams.get("dir") === "desc" ? -1 : 1;
     const SORT_MAP: Record<string, string> = {
-      lastName:  "personalInfo.lastName",
+      lastName: "personalInfo.lastName",
       firstName: "personalInfo.firstName",
-      memberId:  "memberId",
-      status:    "membership.status",
-      joinDate:  "membership.joinDate",
+      memberId: "memberId",
+      status: "membership.status",
+      joinDate: "membership.joinDate",
     };
     const sortKey = SORT_MAP[sortField] ?? "personalInfo.lastName";
 
-    // Filters
-    const clubId        = searchParams.get("clubId");
-    const associationId = searchParams.get("associationId");
-    const status        = searchParams.get("status");
-    const membershipType= searchParams.get("membershipType");
-    const role          = searchParams.get("role");
-    const search        = searchParams.get("search");
+    const paramClubId = searchParams.get("clubId");
+    const paramAssociationId = searchParams.get("associationId");
+    const status = searchParams.get("status");
+    const membershipType = searchParams.get("membershipType");
+    const role = searchParams.get("role");
+    const search = searchParams.get("search");
 
     const client = await clientPromise;
     const db = client.db("hockey-app");
 
-    // Build query
-    const query: Record<string, unknown> = {};
+    const scopeParts: Record<string, unknown>[] = [];
 
-    if (clubId)        query["membership.clubId"]       = clubId;
-    if (associationId) query["membership.associationId"] = associationId;
-    if (status)        query["membership.status"]        = status;
-    if (membershipType) query["membership.membershipType"] = membershipType;
-    if (role)          query.roles = role;
+    if (user.role === "super-admin") {
+      if (paramClubId) scopeParts.push({ "membership.clubId": paramClubId });
+      if (paramAssociationId) {
+        scopeParts.push({
+          "membership.associationId": paramAssociationId,
+        });
+      }
+    } else if (user.clubId) {
+      if (paramClubId && paramClubId !== user.clubId) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
+      if (paramAssociationId) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
+      scopeParts.push({ "membership.clubId": user.clubId });
+    } else if (user.associationId) {
+      if (
+        paramAssociationId &&
+        paramAssociationId !== user.associationId
+      ) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
+      if (paramClubId) {
+        if (!(await userCanAccessClubResource(session, paramClubId))) {
+          return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+        }
+        scopeParts.push({ "membership.clubId": paramClubId });
+      } else {
+        const clubs = await db
+          .collection("clubs")
+          .find({ parentAssociationId: user.associationId })
+          .project({ id: 1 })
+          .toArray();
+        const clubIds = clubs.map((c) => c.id).filter(Boolean) as string[];
+        scopeParts.push({
+          $or: [
+            { "membership.associationId": user.associationId },
+            ...(clubIds.length
+              ? [{ "membership.clubId": { $in: clubIds } }]
+              : []),
+          ],
+        });
+      }
+    } else {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
 
-    // Search by name, email, or member ID
+    const filterParts: Record<string, unknown>[] = [...scopeParts];
+
+    if (status) filterParts.push({ "membership.status": status });
+    if (membershipType) {
+      filterParts.push({ "membership.membershipType": membershipType });
+    }
+    if (role) filterParts.push({ roles: role });
+
     if (search) {
       const safeSearch = escapeRegex(search);
-      query.$or = [
-        { memberId: { $regex: safeSearch, $options: "i" } },
-        { "personalInfo.firstName":   { $regex: safeSearch, $options: "i" } },
-        { "personalInfo.lastName":    { $regex: safeSearch, $options: "i" } },
-        { "personalInfo.displayName": { $regex: safeSearch, $options: "i" } },
-        { "contact.primaryEmail":     { $regex: safeSearch, $options: "i" } },
-      ];
+      filterParts.push({
+        $or: [
+          { memberId: { $regex: safeSearch, $options: "i" } },
+          { "personalInfo.firstName": { $regex: safeSearch, $options: "i" } },
+          { "personalInfo.lastName": { $regex: safeSearch, $options: "i" } },
+          {
+            "personalInfo.displayName": {
+              $regex: safeSearch,
+              $options: "i",
+            },
+          },
+          { "contact.primaryEmail": { $regex: safeSearch, $options: "i" } },
+        ],
+      });
     }
+
+    const query: Record<string, unknown> =
+      filterParts.length === 1 ? filterParts[0]! : { $and: filterParts };
 
     // Get total count
     const total = await db.collection("members").countDocuments(query);
@@ -142,6 +213,12 @@ export async function GET(request: NextRequest) {
 // POST - Create new member
 export async function POST(request: NextRequest) {
   try {
+    const { response: authResponse } = await requirePermission(
+      request,
+      "member.create",
+    );
+    if (authResponse) return authResponse;
+
     const session = await getSession();
     const body = await request.json();
 
@@ -184,8 +261,26 @@ export async function POST(request: NextRequest) {
     const client = await clientPromise;
     const db = client.db("hockey-app");
 
+    const { response: scopeResponse } = await requireResourceAccess(
+      request,
+      "club",
+      body.clubId,
+    );
+    if (scopeResponse) return scopeResponse;
+
+    const clubDoc = await db.collection("clubs").findOne({
+      $or: [{ slug: body.clubId }, { id: body.clubId }],
+    });
+    if (!clubDoc?.id) {
+      return NextResponse.json({ error: "Club not found" }, { status: 404 });
+    }
+
+    const canonicalClubId = clubDoc.id as string;
+    const associationId =
+      (clubDoc.parentAssociationId as string | undefined) ?? null;
+
     // Generate member ID
-    const memberId = await generateMemberId(db, body.clubId);
+    const memberId = await generateMemberId(db, canonicalClubId);
 
     // Auto-generate display name if not provided
     const displayName =
@@ -195,8 +290,8 @@ export async function POST(request: NextRequest) {
     // Build member object
     const newMember = {
       memberId,
-      clubId: body.clubId,
-      associationId: body.associationId || null,
+      clubId: canonicalClubId,
+      associationId,
 
       personalInfo: {
         salutation: body.personalInfo.salutation || null,
@@ -229,6 +324,8 @@ export async function POST(request: NextRequest) {
       },
 
       membership: {
+        clubId: canonicalClubId,
+        associationId,
         joinDate: body.membership?.joinDate || new Date().toISOString(),
         membershipTypes: body.membership?.membershipTypes || [],
         status: body.membership?.status || "Active",

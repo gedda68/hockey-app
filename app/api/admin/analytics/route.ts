@@ -10,6 +10,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
+import { requireAnalyticsAccess } from "@/lib/auth/analyticsScope";
 
 // ── Age-group classification ───────────────────────────────────────────────────
 // Season year − birth year = age-for-season (Hockey convention)
@@ -71,6 +72,9 @@ function classifyRoles(roles: string[]): {
 // ── Main handler ─────────────────────────────────────────────────────────────
 export async function GET(request: NextRequest) {
   try {
+    const auth = await requireAnalyticsAccess(request);
+    if (auth.response) return auth.response;
+
     const { searchParams } = new URL(request.url);
     const scope     = searchParams.get("scope")     || "global";
     const scopeId   = searchParams.get("scopeId")   || null;

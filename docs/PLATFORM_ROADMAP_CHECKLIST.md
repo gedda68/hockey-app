@@ -12,9 +12,9 @@ Multi-level association → club → team operations, independent portals, compe
 - [X] **A2** Enforce no orphan teams; define migration rules for club/association changes. See `docs/domain/OWNERSHIP_MIGRATIONS.md`. Enforced: prevent hard-delete of referenced clubs; allow `mode=archive`.
 - [X] **A3** Persist association `level`, `parentAssociationId`, and geography/jurisdiction fields (e.g. region/city codes).
 - [X] **A4** Model `materializedPath` or equivalent for fast subtree queries (optional but recommended at scale). Implemented via `associations.hierarchy[]` path + `parentAssociationId`.
-- [ ] **A5** Rules for multi-club members, transfers, and which association’s fees/registrations apply.
+- [X] **A5** Rules for multi-club members, transfers, and which association’s fees/registrations apply. See `docs/domain/MULTI_CLUB_AND_TRANSFERS.md` (policy baseline; enforcement in APIs is incremental).
 - [ ] **A6** Stable team identity across seasons; promotion/relegation history.
-- [ ] **A7** First-class dimensions: age group, gender, division/grade on team and competition entries.
+- [X] **A7** First-class dimensions: age group, gender, division/grade on team and competition entries. Implemented: `TeamSchema` + `MemberTeamRegistrationSchema` (`ageGroupLabel`, `competitionDivisionId`, optional `gender`/`grade` on registrations); `TeamTournamentEntry` + list summaries carry `ageGroupLabel`, `grade`, `competitionDivisionId`; team-tournament create copies dimensions from the team document (falls back to tournament where needed).
 
 ---
 
@@ -22,10 +22,10 @@ Multi-level association → club → team operations, independent portals, compe
 
 - [X] **B1** Clear URL/layout split: association admin/public vs club admin/member (including branding). Implemented via App Router route groups: `app/(admin)/admin/**` (admin shell + branding provider) and `app/(website)/**` (public site). Consolidated legacy duplicate `/admin` tree under `app/(admin)/admin`.
 - [X] **B2** Role matrix: registrar, treasurer, competition manager, umpire coordinator, coach coordinator, media, committee read-only — mapped to API + UI. See `docs/domain/ROLE_MATRIX.md` (Operational personas); API uses `ROLE_DEFINITIONS` / `requirePermission`; UI uses `menuConfig.ts` + `lib/auth/adminRouteAccess.ts`.
-- [ ] **B3** Central policy layer: every mutating API validates `(user, associationId|clubId|resource)`; no trust of IDs from body alone. Progress: applied to team mutations and selection workflow routes (tournaments, nomination windows, ballots).
+- [X] **B3** Central policy layer: every mutating API validates `(user, associationId|clubId|resource)`; no trust of IDs from body alone. Progress: `requireResourceAccess` uses JWT scoped roles via `canAccessResource` plus DB check for association admins and child clubs (`lib/auth/resourceAccessDb.ts`); `sessionDataToAssignments` shared in `lib/auth/sessionAssignments.ts`. **Hardened routes (representative set):** analytics (`reports.view` + session scope), migrate (`system.manage`), clubs `[id]` (`club.view` / `club.edit` + club scope), members list/create (`member.view` / `member.create`, query forced to session scope; create resolves club from DB and sets `associationId` from `parentAssociationId`), config CRUD (`system.settings`), upload image (`club.settings`), fees (`club.fees` + owner scope), metadata (`member.view`), stats (`team.edit`). **Still:** remaining `/api/admin/*` handlers should be audited in the same pattern until coverage is complete.
 - [X] **B3a** Apply RBAC to team-tournament fee distribution routes (registrar/finance roles only).
 - [X] **B3b** Apply RBAC to role request approval flows (list + view + approve/reject/payment record) via `registration.manage`.
-- [ ] **B4** Extend middleware/route rules to all domains (not only admin shell): competitions, tournaments, results, fees.
+- [X] **B4** Extend middleware/route rules to all domains (not only admin shell): competitions, tournaments, results, fees. **`/api/admin/*`** requires an admin-area role via `evaluateAdminRouteAccess` (`lib/auth/adminRouteAccess.ts`); deny returns **403 JSON** for API paths (not redirect). **Public read:** `/api/events`, `/api/news` added to middleware public allowlist (with existing `/api/competitions`, `/api/tournaments`, etc.).
 - [ ] **B5** Delegation / sub-permissions (e.g. fixtures without finance).
 - [ ] **B6** Audit log coverage for competitions, tournaments, results, ladder changes, fee rule changes (beyond member-only).
 

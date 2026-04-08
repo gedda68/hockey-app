@@ -147,4 +147,22 @@ describe("evaluateAdminRouteAccess", () => {
       evaluateAdminRouteAccess("/portal", session({ role: "player" })),
     ).toBe("allow");
   });
+
+  it("denies player role from /api/admin/* (B4)", () => {
+    expect(
+      evaluateAdminRouteAccess(
+        "/api/admin/events",
+        session({ role: "player" }),
+      ),
+    ).toBe("deny");
+  });
+
+  it("allows coach to /api/admin/ analytics-style paths", () => {
+    expect(
+      evaluateAdminRouteAccess(
+        "/api/admin/analytics",
+        session({ role: "coach" }),
+      ),
+    ).toBe("allow");
+  });
 });

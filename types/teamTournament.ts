@@ -124,7 +124,13 @@ export interface TeamTournamentEntry {
   tournamentTitle: string; // denormalised
   season: string;
   ageGroup: string;
+  /** Same idea as team `ageGroupLabel` (e.g. "Under 14"); may mirror `ageGroup`. */
+  ageGroupLabel?: string;
   gender: string;
+  /** Denormalised from team / competition division. */
+  grade?: string;
+  /** Matches `season_competitions.divisions[].divisionId` when set on the team. */
+  competitionDivisionId?: string;
   startDate: string; // ISO date
   endDate: string;   // ISO date
   location: string;
@@ -177,6 +183,9 @@ export interface TeamTournamentEntrySummary {
   tournamentTitle: string;
   season: string;
   ageGroup: string;
+  ageGroupLabel?: string;
+  grade?: string;
+  competitionDivisionId?: string;
   startDate: string;
   status: EntryStatus;
   attendingCount: number;

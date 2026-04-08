@@ -3,9 +3,13 @@
 // Auto-generates + persists slug if the club record doesn't have one yet.
 
 import { NextRequest, NextResponse } from "next/server";
-import type { Db } from 'mongodb';
+import type { Db } from "mongodb";
 import clientPromise from "@/lib/mongodb";
 import { generateSlug } from "@/lib/utils/slug";
+import {
+  requirePermission,
+  requireResourceAccess,
+} from "@/lib/auth/middleware";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -19,6 +23,12 @@ async function findClub(db: Db, idOrSlug: string) {
 export async function GET(req: NextRequest, ctx: Ctx) {
   try {
     const { id } = await ctx.params;
+
+    const { response: permRes } = await requirePermission(req, "club.view");
+    if (permRes) return permRes;
+    const scope = await requireResourceAccess(req, "club", id);
+    if (scope.response) return scope.response;
+
     const client = await clientPromise;
     const db = client.db("hockey-app");
 
@@ -54,6 +64,12 @@ export async function GET(req: NextRequest, ctx: Ctx) {
 export async function PUT(req: NextRequest, ctx: Ctx) {
   try {
     const { id } = await ctx.params;
+
+    const { response: permRes } = await requirePermission(req, "club.edit");
+    if (permRes) return permRes;
+    const scope = await requireResourceAccess(req, "club", id);
+    if (scope.response) return scope.response;
+
     const payload = await req.json();
     const client = await clientPromise;
     const db = client.db("hockey-app");

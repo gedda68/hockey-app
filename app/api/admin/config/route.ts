@@ -3,8 +3,12 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
+import { requirePermission } from "@/lib/auth/middleware";
 
 export async function GET(request: NextRequest) {
+  const { response } = await requirePermission(request, "system.settings");
+  if (response) return response;
+
   try {
     const { searchParams } = new URL(request.url);
     const activeOnly = searchParams.get("activeOnly") === "true";
@@ -42,6 +46,9 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const { response } = await requirePermission(request, "system.settings");
+  if (response) return response;
+
   try {
     const body = await request.json();
 
@@ -101,6 +108,9 @@ export async function POST(request: NextRequest) {
 }
 
 export async function PUT(request: NextRequest) {
+  const { response } = await requirePermission(request, "system.settings");
+  if (response) return response;
+
   try {
     const body = await request.json();
     const { _id, ...updates } = body;
@@ -144,6 +154,9 @@ export async function PUT(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
+  const { response } = await requirePermission(request, "system.settings");
+  if (response) return response;
+
   try {
     const { searchParams } = new URL(request.url);
     const _id = searchParams.get("_id");

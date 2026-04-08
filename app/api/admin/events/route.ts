@@ -3,6 +3,8 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { MongoClient, ObjectId } from "mongodb";
+import { requireRole } from "@/lib/auth/middleware";
+import { MEDIA_CONTENT_ADMIN_ROLES } from "@/lib/auth/mediaContentRoles";
 import { writeFile, mkdir } from "fs/promises";
 import path from "path";
 import { v4 as uuidv4 } from "uuid";
@@ -10,7 +12,10 @@ import { v4 as uuidv4 } from "uuid";
 const uri = process.env.MONGODB_URI!;
 
 // GET - All events for admin (including deleted/private)
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const { response } = await requireRole(request, MEDIA_CONTENT_ADMIN_ROLES);
+  if (response) return response;
+
   const client = new MongoClient(uri);
 
   try {
@@ -49,6 +54,9 @@ export async function GET() {
 
 // POST - Create new event
 export async function POST(request: NextRequest) {
+  const { response } = await requireRole(request, MEDIA_CONTENT_ADMIN_ROLES);
+  if (response) return response;
+
   const client = new MongoClient(uri);
 
   try {

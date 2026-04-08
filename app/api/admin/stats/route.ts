@@ -1,7 +1,11 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "../../../../lib/mongodb";
+import { requirePermission } from "@/lib/auth/middleware";
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
+  const { response } = await requirePermission(request, "team.edit");
+  if (response) return response;
+
   try {
     const client = await clientPromise;
     const db = client.db("hockey-app");
