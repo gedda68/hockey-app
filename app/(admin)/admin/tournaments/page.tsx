@@ -20,7 +20,7 @@ import {
   DollarSign,
   Users,
 } from "lucide-react";
-import RichTextEditor from "@/app/admin/components/RichTextEditor";
+import RichTextEditor from "@/app/(admin)/admin/components/RichTextEditor";
 import type { Tournament, CreateTournamentRequest } from "@/types/tournaments";
 import { friday8WeeksBefore, getPeriodStatus } from "@/types/tournaments";
 

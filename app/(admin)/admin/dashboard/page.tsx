@@ -9,7 +9,7 @@ import Link from "next/link";
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { useBrand } from "@/lib/contexts/BrandContext";
-import { filterMenuForRole } from "@/app/admin/global-config/menuConfig";
+import { filterMenuForRole } from "@/app/(admin)/admin/global-config/menuConfig";
 import {
   Users, Building2, TrendingUp, Shield, Trophy,
   AlertCircle, Loader2, ChevronRight,

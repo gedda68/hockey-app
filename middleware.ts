@@ -39,7 +39,8 @@ async function getSession(req: NextRequest): Promise<SessionData | null> {
 }
 
 // ── Role sets ─────────────────────────────────────────────────────────────────
-// Keep in sync with menuConfig.ts and AuthContext.tsx
+// Keep in sync with `lib/types/roles.ts` and `docs/domain/ROLE_MATRIX.md`.
+// (UI menus may additionally filter visibility, but APIs must be authoritative.)
 
 const SUPER_ADMIN = ["super-admin"];
 

@@ -3,8 +3,8 @@
 import { useState } from "react";
 import { usePathname } from "next/navigation";
 import { LogOut } from "lucide-react";
-import SidebarItem from "../../app/admin/components/SidebarItem";
-import { menuConfig, MenuItem } from "../../app/admin/global-config/menuConfig";
+import SidebarItem from "../../app/(admin)/admin/components/SidebarItem";
+import { menuConfig, MenuItem } from "../../app/(admin)/admin/global-config/menuConfig";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { User } from "@/lib/auth/AuthContext";
 import { useBrand } from "@/lib/contexts/BrandContext";

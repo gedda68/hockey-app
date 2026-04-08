@@ -3,7 +3,7 @@
 
 "use client";
 
-import { Club } from "@/app/admin/types/clubs";
+import { Club } from "@/app/(admin)/admin/types/clubs";
 import Image from "next/image";
 
 interface ContactModalProps {

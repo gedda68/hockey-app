@@ -8,7 +8,7 @@ import Image from "next/image";
 import AboutModal from "./AboutModal";
 import { sanitizeHtml } from "@/lib/utils/sanitize";
 import ContactModal from "./ContactModal";
-import { Club } from "../../app/admin/types/clubs";
+import { Club } from "../../app/(admin)/admin/types/clubs";
 
 interface ClubsGridProps {
   clubs: Club[];

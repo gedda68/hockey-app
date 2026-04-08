@@ -20,7 +20,7 @@ Multi-level association → club → team operations, independent portals, compe
 
 ## Epic B — Portals, auth & RBAC
 
-- [ ] **B1** Clear URL/layout split: association admin/public vs club admin/member (including branding).
+- [X] **B1** Clear URL/layout split: association admin/public vs club admin/member (including branding). Implemented via App Router route groups: `app/(admin)/admin/**` (admin shell + branding provider) and `app/(website)/**` (public site). Consolidated legacy duplicate `/admin` tree under `app/(admin)/admin`.
 - [ ] **B2** Role matrix: registrar, treasurer, competition manager, umpire coordinator, coach coordinator, media, committee read-only — mapped to API + UI.
 - [ ] **B3** Central policy layer: every mutating API validates `(user, associationId|clubId|resource)`; no trust of IDs from body alone. Progress: applied to team mutations and selection workflow routes (tournaments, nomination windows, ballots).
 - [X] **B3a** Apply RBAC to team-tournament fee distribution routes (registrar/finance roles only).
@@ -112,7 +112,7 @@ Multi-level association → club → team operations, independent portals, compe
 ## Epic K — Quality & delivery
 
 - [ ] **K1** Architecture diagram checked into repo (hierarchy + competitions + tournaments).
-- [ ] **K2** Role matrix doc kept next to code and updated when roles change.
+- [X] **K2** Role matrix doc kept next to code and updated when roles change. See `docs/domain/ROLE_MATRIX.md` (source: `lib/types/roles.ts`).
 - [ ] **K3** API contract or integration tests for scoped routes (association vs club).
 - [ ] **K4** E2E smoke: login → create competition → fixture → result → ladder updates.
 - [ ] **K5** Feature flags for risky competition/tournament features.

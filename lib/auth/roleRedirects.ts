@@ -3,7 +3,7 @@
 
 /**
  * Get the appropriate dashboard path for a user based on their role.
- * The returned path MUST exist in the app/admin/ or app/(website)/ directory.
+ * The returned path MUST exist in the app/(admin)/admin/ or app/(website)/ directory.
  */
 export function getRoleDashboard(
   role: string,
