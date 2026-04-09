@@ -6,7 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
+    "lint": "eslint .",
     "migrate:clubs": "tsx scripts/migrate-clubs.ts --replace",
     "setup:indexes": "tsx --env-file=.env.local scripts/setup-indexes.ts",
     "reset:passwords": "tsx --env-file=.env.local scripts/reset-passwords.ts",

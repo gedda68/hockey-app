@@ -55,7 +55,7 @@ Multi-level association → club → team operations, independent portals, compe
 ## Epic E — Matches, results, ladders, statistics
 
 - [X] **E1** Fixture generation (round-robin, double, byes) tied to competition config. Implemented: `lib/competitions/roundRobin.ts` (circle method, optional double round-robin, odd-team byes); `POST /api/admin/season-competitions/[seasonCompetitionId]/fixtures/generate` persists stubs to `league_fixtures` (scoped by `competitions.manage` + association resource access).
-- [ ] **E2** Venues, times, publish/unpublish to public site.
+- [X] **E2** Venues, times, publish/unpublish to public site. Schema: `lib/db/schemas/leagueFixture.schema.ts` (`venueId`, `venueName`, `addressLine`, `scheduledStart`/`scheduledEnd`, `timezone`, `published`/`publishedAt`). Admin: `GET/PATCH` under `/api/admin/season-competitions/[seasonCompetitionId]/fixtures` (+ `PATCH .../fixtures/[fixtureId]`). Public: `GET /api/fixtures?seasonCompetitionId=` (middleware allowlist); returns only `published` fixtures when season competition status is published/in_progress/completed. Generate defaults in `fixtures/generate`.
 - [ ] **E3** Result entry: final score, forfeit, abandoned, shootout; role-gated approval if required.
 - [ ] **E4** Ladder rules: points, GD, head-to-head, tie-breakers; pool vs league tables.
 - [ ] **E5** Team stats roll-up; club roll-up; association roll-up.
