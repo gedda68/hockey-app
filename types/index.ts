@@ -8,6 +8,8 @@ export type StatusType = "All" | "Live" | "Final" | "Scheduled";
 // Match Types
 export interface Match {
   matchId: string;
+  /** Canonical competition context for filtering (E2–E4). */
+  seasonCompetitionId?: string;
   division: string;
   round: string | number;
   status: StatusType | string;

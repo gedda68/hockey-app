@@ -1,25 +1,22 @@
 import FilterButton from "../shared/FilterButton";
-import type { Season, ViewType } from "../../types";
+import type { ViewType } from "../../types";
+import type { SeasonCompetitionOption } from "@/lib/data/matches";
 
 interface MatchFiltersProps {
-  seasons: Season[];
-  divisions: string[];
+  seasonCompetitions: SeasonCompetitionOption[];
   rounds: string[];
   statuses: string[];
-  selectedYear: string;
-  selectedDiv: string;
+  selectedSeasonCompetitionId: string;
   selectedRound: string;
   selectedStatus: string;
   selectedView: ViewType;
 }
 
 export default function MatchFilters({
-  seasons,
-  divisions,
+  seasonCompetitions,
   rounds,
   statuses,
-  selectedYear,
-  selectedDiv,
+  selectedSeasonCompetitionId,
   selectedRound,
   selectedStatus,
   selectedView,
@@ -27,10 +24,9 @@ export default function MatchFilters({
   const buildUrl = (params: Record<string, string>) => {
     const searchParams = new URLSearchParams({
       view: selectedView,
-      div: selectedDiv,
+      seasonCompetitionId: selectedSeasonCompetitionId,
       round: selectedRound,
       status: selectedStatus,
-      year: selectedYear,
       ...params,
     });
     return `/competitions/matches?${searchParams.toString()}`;
@@ -38,21 +34,21 @@ export default function MatchFilters({
 
   return (
     <div className="flex flex-wrap gap-x-12 gap-y-6">
-      {/* Year Filter */}
-      {seasons.length > 0 && (
+      {/* Competition + Season (seasonCompetition) Filter */}
+      {seasonCompetitions.length > 0 && (
         <div className="flex flex-col gap-2">
           <span className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em]">
-            Season
+            Competition
           </span>
           <div className="flex gap-2">
-            {seasons.map((season) => (
+            {seasonCompetitions.map((sc) => (
               <FilterButton
-                key={season.year}
-                href={buildUrl({ year: season.year.toString() })}
-                isActive={selectedYear === season.year.toString()}
+                key={sc.seasonCompetitionId}
+                href={buildUrl({ seasonCompetitionId: sc.seasonCompetitionId })}
+                isActive={selectedSeasonCompetitionId === sc.seasonCompetitionId}
                 variant="primary"
               >
-                {season.year}
+                {sc.label}
               </FilterButton>
             ))}
           </div>
@@ -81,17 +77,17 @@ export default function MatchFilters({
       {/* Division Filter */}
       <div className="flex flex-col gap-2">
         <span className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em]">
-          Division
+          Round
         </span>
         <div className="flex gap-2 flex-wrap">
-          {divisions.map((div) => (
+          {rounds.map((round) => (
             <FilterButton
-              key={div}
-              href={buildUrl({ div })}
-              isActive={selectedDiv === div}
+              key={round}
+              href={buildUrl({ round })}
+              isActive={selectedRound === round}
               variant="primary"
             >
-              {div}
+              {round}
             </FilterButton>
           ))}
         </div>

@@ -15,6 +15,8 @@ export {
   getCompletedMatches,
   getFeatureGames,
   getDivisions,
+  getSeasonCompetitionOptions,
+  getRoundsForSeasonCompetition,
   getSeasons,
   getRounds,
   getCurrentSeason,

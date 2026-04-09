@@ -9,19 +9,14 @@ import type { ViewType } from "../../../../types";
 // Import data utility functions
 import {
   filterMatches,
-  getDivisions,
-  getRounds,
-  getSeasons,
-  getCurrentSeason,
+  getSeasonCompetitionOptions,
+  getRoundsForSeasonCompetition,
   getMatchStatsData,
   getUmpireAllocationsMap,
   getUmpireDetailsList,
 } from "../../../../lib/data";
 
-import {
-  getDivisionStandings,
-  getStandingsYears,
-} from "../../../../lib/data/standings";
+import { getLiveStandingsDivision } from "../../../../lib/data/liveStandings";
 
 export const dynamic = "force-dynamic";
 
@@ -29,58 +24,60 @@ export default async function MatchesPage({
   searchParams,
 }: {
   searchParams: {
-    div?: string;
+    seasonCompetitionId?: string;
     round?: string;
     status?: string;
     view?: string;
-    year?: string;
-    standingsYear?: string;
   };
 }) {
   // 1. PARAMS
   const params = await searchParams;
-  const selectedDiv = params.div || "All";
   const selectedRound = params.round || "All";
   const selectedStatus = params.status || "All";
   const selectedView: ViewType = (params.view as ViewType) || "results";
 
-  // 2. DATA LOADING using utility functions
+  // 2. DATA LOADING (live)
   const [
-    seasons,
-    currentSeason,
-    divisions,
-    rounds,
+    seasonCompetitions,
     filteredMatches,
     statsData,
     umpireAllocations,
     umpireList,
-    standingsYears,
   ] = await Promise.all([
-    getSeasons(),
-    getCurrentSeason(),
-    getDivisions(),
-    getRounds(),
+    getSeasonCompetitionOptions(),
     filterMatches({
       view: selectedView,
-      division: selectedDiv,
       round: selectedRound,
       status: selectedStatus,
     }),
     getMatchStatsData(),
     getUmpireAllocationsMap(),
     getUmpireDetailsList(),
-    getStandingsYears(),
   ]);
 
-  const selectedYear = params.year || currentSeason?.toString() || "2026";
+  const selectedSeasonCompetitionId =
+    params.seasonCompetitionId ||
+    seasonCompetitions[0]?.seasonCompetitionId ||
+    "";
 
-  const standingsYear = params.standingsYear || standingsYears[0] || "2025";
+  const rounds = selectedSeasonCompetitionId
+    ? await getRoundsForSeasonCompetition(selectedSeasonCompetitionId)
+    : ["All"];
 
-  // Get standings for selected division and year
-  const currentStandings =
-    selectedDiv !== "All"
-      ? await getDivisionStandings(selectedDiv, standingsYear)
-      : null;
+  // Re-filter with seasonCompetitionId applied (keeps initial parallelism cheap)
+  const filteredMatchesFinal = await filterMatches({
+    view: selectedView,
+    seasonCompetitionId: selectedSeasonCompetitionId || undefined,
+    round: selectedRound,
+    status: selectedStatus,
+  });
+
+  const selectedMeta = seasonCompetitions.find(
+    (s) => s.seasonCompetitionId === selectedSeasonCompetitionId,
+  );
+  const currentStandings = selectedSeasonCompetitionId
+    ? await getLiveStandingsDivision(selectedSeasonCompetitionId)
+    : null;
 
   const statuses =
     selectedView === "upcoming"
@@ -91,7 +88,7 @@ export default async function MatchesPage({
   const viewToggle = (
     <>
       <Link
-        href={`/competitions/matches?view=results&div=${selectedDiv}&round=${selectedRound}&status=All&year=${selectedYear}&standingsYear=${standingsYear}`}
+        href={`/competitions/matches?view=results&seasonCompetitionId=${selectedSeasonCompetitionId}&round=${selectedRound}&status=All`}
         className={`px-6 py-2 rounded-full text-[10px] font-black uppercase tracking-widest transition-all shadow-lg ${
           selectedView === "results"
             ? "bg-red-600 text-white"
@@ -101,7 +98,7 @@ export default async function MatchesPage({
         Results
       </Link>
       <Link
-        href={`/competitions/matches?view=upcoming&div=${selectedDiv}&round=${selectedRound}&status=All&year=${selectedYear}&standingsYear=${standingsYear}`}
+        href={`/competitions/matches?view=upcoming&seasonCompetitionId=${selectedSeasonCompetitionId}&round=${selectedRound}&status=All`}
         className={`px-6 py-2 rounded-full text-[10px] font-black uppercase tracking-widest transition-all shadow-lg ${
           selectedView === "upcoming"
             ? "bg-red-600 text-white"
@@ -135,12 +132,10 @@ export default async function MatchesPage({
         />
 
         <MatchFilters
-          seasons={seasons}
-          divisions={divisions}
+          seasonCompetitions={seasonCompetitions}
           rounds={rounds}
           statuses={statuses}
-          selectedYear={selectedYear}
-          selectedDiv={selectedDiv}
+          selectedSeasonCompetitionId={selectedSeasonCompetitionId}
           selectedRound={selectedRound}
           selectedStatus={selectedStatus}
           selectedView={selectedView}
@@ -149,9 +144,9 @@ export default async function MatchesPage({
 
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-10">
         <div className="xl:col-span-8">
-          {filteredMatches.length > 0 ? (
+          {filteredMatchesFinal.length > 0 ? (
             <MatchList
-              matches={filteredMatches}
+              matches={filteredMatchesFinal}
               stats={selectedView === "results" ? statsData : {}}
               isUpcoming={selectedView === "upcoming"}
               umpireAllocations={umpireAllocations}
@@ -176,9 +171,10 @@ export default async function MatchesPage({
         <div className="xl:col-span-4">
           <StandingsTable
             division={currentStandings}
-            selectedDiv={selectedDiv}
-            availableYears={standingsYears}
-            currentYear={standingsYear}
+            selectedDiv={selectedMeta?.label ?? "Standings"}
+            availableYears={selectedMeta?.season ? [selectedMeta.season] : []}
+            currentYear={selectedMeta?.season ?? ""}
+            showYearFilter={false}
           />
         </div>
       </div>

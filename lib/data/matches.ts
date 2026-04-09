@@ -10,6 +10,7 @@ import clientPromise from "@/lib/mongodb";
 // Types
 interface Match {
   matchId: string;
+  seasonCompetitionId: string;
   season: number;
   round: number;
   division: string;
@@ -38,6 +39,7 @@ interface Match {
 function mapStoredMatchToPublic(m: Match): PublicMatch {
   return {
     matchId: m.matchId,
+    seasonCompetitionId: m.seasonCompetitionId,
     division: m.division,
     round: m.round,
     status: m.status,
@@ -156,13 +158,35 @@ export async function getMatches(): Promise<Match[]> {
         ? await db
             .collection("teams")
             .find({ teamId: { $in: [...teamIds] } })
-            .project({ teamId: 1, name: 1 })
+            .project({ teamId: 1, name: 1, clubId: 1 })
             .toArray()
         : [];
 
     const teamNameById = new Map<string, string>();
+    const teamClubIdById = new Map<string, string>();
     for (const t of teams) {
       if (t.teamId && t.name) teamNameById.set(String(t.teamId), String(t.name));
+      if (t.teamId && t.clubId) teamClubIdById.set(String(t.teamId), String(t.clubId));
+    }
+
+    const clubIds = Array.from(new Set([...teamClubIdById.values()].filter(Boolean)));
+    const clubs =
+      clubIds.length > 0
+        ? await db
+            .collection("clubs")
+            .find({ id: { $in: clubIds } })
+            .project({ id: 1, logo: 1, iconSrc: 1, icon: 1, slug: 1, name: 1 })
+            .toArray()
+        : [];
+
+    const clubLogoById = new Map<string, string>();
+    for (const c of clubs) {
+      const iconUrl =
+        (typeof c.logo === "string" && c.logo) ||
+        (typeof c.iconSrc === "string" && c.iconSrc) ||
+        (typeof c.icon === "string" && c.icon) ||
+        "";
+      if (c.id && iconUrl) clubLogoById.set(String(c.id), iconUrl);
     }
 
     const out: Match[] = [];
@@ -195,6 +219,7 @@ export async function getMatches(): Promise<Match[]> {
 
       out.push({
         matchId: String(f.fixtureId),
+        seasonCompetitionId: String(f.seasonCompetitionId),
         season,
         round: Number(f.round ?? 0),
         division,
@@ -202,9 +227,15 @@ export async function getMatches(): Promise<Match[]> {
         venue,
         homeTeam: {
           name: teamNameById.get(String(f.homeTeamId)) ?? String(f.homeTeamId ?? "Home"),
+          icon:
+            clubLogoById.get(teamClubIdById.get(String(f.homeTeamId)) ?? "") ??
+            undefined,
         },
         awayTeam: {
           name: teamNameById.get(String(f.awayTeamId)) ?? String(f.awayTeamId ?? "Away"),
+          icon:
+            clubLogoById.get(teamClubIdById.get(String(f.awayTeamId)) ?? "") ??
+            undefined,
         },
         score:
           homeScore != null && awayScore != null
@@ -313,6 +344,75 @@ export async function getDivisions(): Promise<string[]> {
   return Array.from(divisions).sort();
 }
 
+export type SeasonCompetitionOption = {
+  seasonCompetitionId: string;
+  season: string;
+  competitionId: string;
+  competitionName: string | null;
+  label: string;
+};
+
+/** Public options for filtering matches by season competition (competition + season). */
+export async function getSeasonCompetitionOptions(): Promise<SeasonCompetitionOption[]> {
+  const client = await clientPromise;
+  const db = client.db("hockey-app");
+
+  const scs = await db
+    .collection("season_competitions")
+    .find({ status: { $in: [...PUBLIC_SC_STATUSES] } })
+    .project({ seasonCompetitionId: 1, season: 1, competitionId: 1 })
+    .toArray();
+
+  const competitionIds = Array.from(
+    new Set(scs.map((s) => String(s.competitionId ?? "")).filter(Boolean)),
+  );
+
+  const comps =
+    competitionIds.length > 0
+      ? await db
+          .collection("competitions")
+          .find({ competitionId: { $in: competitionIds } })
+          .project({ competitionId: 1, name: 1 })
+          .toArray()
+      : [];
+
+  const compNameById = new Map<string, string>();
+  for (const c of comps) {
+    if (c.competitionId && c.name) compNameById.set(String(c.competitionId), String(c.name));
+  }
+
+  return scs
+    .map((s) => {
+      const scId = String(s.seasonCompetitionId ?? "");
+      const season = String(s.season ?? "");
+      const competitionId = String(s.competitionId ?? "");
+      const competitionName = compNameById.get(competitionId) ?? null;
+      const label = `${competitionName ?? competitionId} ${season}`.trim();
+      return { seasonCompetitionId: scId, season, competitionId, competitionName, label };
+    })
+    .filter((s) => s.seasonCompetitionId && s.season && s.competitionId)
+    .sort((a, b) => b.season.localeCompare(a.season) || a.label.localeCompare(b.label));
+}
+
+/** Rounds available for a given season competition (published fixtures only). */
+export async function getRoundsForSeasonCompetition(
+  seasonCompetitionId: string,
+): Promise<string[]> {
+  const client = await clientPromise;
+  const db = client.db("hockey-app");
+  const fixtures = await db
+    .collection("league_fixtures")
+    .find({ seasonCompetitionId, published: true })
+    .project({ round: 1 })
+    .toArray();
+  const rounds = new Set<number>();
+  for (const f of fixtures) {
+    const r = Number(f.round);
+    if (Number.isFinite(r) && r > 0) rounds.add(Math.trunc(r));
+  }
+  return ["All", ...Array.from(rounds).sort((a, b) => a - b).map(String)];
+}
+
 /**
  * Get all seasons
  */
@@ -401,6 +501,7 @@ export async function getRecentMatches(limit: number = 10): Promise<Match[]> {
 export async function filterMatches(filters: {
   division?: string;
   season?: number;
+  seasonCompetitionId?: string;
   round?: string;
   status?: string;
   view?: ViewType;
@@ -419,7 +520,9 @@ export async function filterMatches(filters: {
     );
   }
 
-  if (filters.division && filters.division !== "All") {
+  if (filters.seasonCompetitionId) {
+    matches = matches.filter((m) => m.seasonCompetitionId === filters.seasonCompetitionId);
+  } else if (filters.division && filters.division !== "All") {
     matches = matches.filter((m) => m.division === filters.division);
   }
 
