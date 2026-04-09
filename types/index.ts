@@ -10,8 +10,11 @@ export interface FixtureUmpireSlot {
   umpireType: string;
   umpireId: string;
   qualificationTier?: string | null;
+  allocationStatus?: "assigned" | "accepted" | "declined";
   dateAllocated?: string;
   dateAccepted?: string | null;
+  dateDeclined?: string | null;
+  dateNotified?: string | null;
   dateUpdated?: string;
 }
 

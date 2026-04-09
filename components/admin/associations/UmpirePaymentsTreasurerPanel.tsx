@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
-import { Plus, Trash2, RefreshCw } from "lucide-react";
+import { Plus, Trash2, RefreshCw, Download } from "lucide-react";
+import Link from "next/link";
 
 type RateRow = {
   qualificationTier: string;
@@ -41,6 +42,9 @@ type PaymentLine = {
   currency: string;
   status: string;
   createdAt?: string;
+  displayName?: string;
+  displaySource?: string;
+  linkedMemberId?: string;
 };
 
 function formatMoney(cents: number | null, currency: string) {
@@ -74,6 +78,7 @@ export default function UmpirePaymentsTreasurerPanel({
     "pending" | "approved" | "paid" | ""
   >("pending");
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [amountDraft, setAmountDraft] = useState<Record<string, string>>({});
   const [isPending, startTransition] = useTransition();
 
   const base = `/api/admin/associations/${associationId}`;
@@ -137,6 +142,7 @@ export default function UmpirePaymentsTreasurerPanel({
     const data = await res.json();
     setLines(data.lines ?? []);
     setSelected(new Set());
+    setAmountDraft({});
   }, [base, lineStatusTab]);
 
   useEffect(() => {
@@ -293,10 +299,70 @@ export default function UmpirePaymentsTreasurerPanel({
         toast.error(data.error ?? "Update failed");
         return;
       }
-      if (data.errors?.length) {
-        toast.message(`Some rows skipped: ${data.errors.join("; ")}`);
+      const uS = data.updatedStatus?.length ?? 0;
+      const uA = data.updatedAmount?.length ?? 0;
+      if (data.errors?.length && uS + uA === 0) {
+        toast.error(data.errors.join("; "));
+      } else {
+        if (data.errors?.length) {
+          toast.message(`Some rows skipped: ${data.errors.join("; ")}`);
+        }
+        if (uS + uA > 0) {
+          toast.success(`Updated ${uS + uA} line change(s)`);
+        }
       }
-      toast.success(`Updated ${data.updated?.length ?? 0} line(s)`);
+      await loadLines();
+    });
+  }
+
+  function downloadPaymentCsv() {
+    startTransition(async () => {
+      const params = new URLSearchParams();
+      params.set("format", "csv");
+      params.set("limit", "5000");
+      if (lineStatusTab) params.set("status", lineStatusTab);
+      if (seasonCompetitionId)
+        params.set("seasonCompetitionId", seasonCompetitionId);
+      const res = await fetch(`${base}/umpire-payment-lines?${params}`);
+      if (!res.ok) {
+        toast.error("CSV export failed");
+        return;
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `umpire-honoraria-${associationId}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success("Download started");
+    });
+  }
+
+  function savePendingAmount(ln: PaymentLine) {
+    const raw =
+      amountDraft[ln.paymentLineId] ??
+      (ln.amountCents != null ? (ln.amountCents / 100).toFixed(2) : "");
+    const n = Number.parseFloat(raw);
+    if (Number.isNaN(n) || n < 0) {
+      toast.error("Enter a valid dollar amount");
+      return;
+    }
+    const cents = Math.round(n * 100);
+    startTransition(async () => {
+      const res = await fetch(`${base}/umpire-payment-lines`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          items: [{ paymentLineId: ln.paymentLineId, amountCents: cents }],
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error(data.error ?? "Could not update amount");
+        return;
+      }
+      toast.success("Amount saved");
       await loadLines();
     });
   }
@@ -577,15 +643,26 @@ export default function UmpirePaymentsTreasurerPanel({
               Pending → approved → paid. Select rows to update in bulk.
             </p>
           </div>
-          <button
-            type="button"
-            className="inline-flex items-center gap-2 rounded-xl border border-slate-300 px-3 py-2 text-sm font-bold text-slate-700"
-            disabled={isPending}
-            onClick={() => void loadLines()}
-          >
-            <RefreshCw size={16} />
-            Refresh
-          </button>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              className="inline-flex items-center gap-2 rounded-xl border border-slate-300 px-3 py-2 text-sm font-bold text-slate-700"
+              disabled={isPending}
+              onClick={() => void downloadPaymentCsv()}
+            >
+              <Download size={16} />
+              Download CSV
+            </button>
+            <button
+              type="button"
+              className="inline-flex items-center gap-2 rounded-xl border border-slate-300 px-3 py-2 text-sm font-bold text-slate-700"
+              disabled={isPending}
+              onClick={() => void loadLines()}
+            >
+              <RefreshCw size={16} />
+              Refresh
+            </button>
+          </div>
         </div>
 
         <div className="mb-4 flex flex-wrap gap-2">
@@ -646,7 +723,8 @@ export default function UmpirePaymentsTreasurerPanel({
               <tr>
                 <th className="w-10 px-2 py-2" />
                 <th className="px-3 py-2 text-left">Fixture</th>
-                <th className="px-3 py-2 text-left">Umpire</th>
+                <th className="px-3 py-2 text-left">Name</th>
+                <th className="px-3 py-2 text-left">Umpire id</th>
                 <th className="px-3 py-2 text-left">Type</th>
                 <th className="px-3 py-2 text-left">Tier / level</th>
                 <th className="px-3 py-2 text-right">Amount</th>
@@ -671,13 +749,52 @@ export default function UmpirePaymentsTreasurerPanel({
                   <td className="max-w-[140px] truncate px-3 py-2 font-mono text-xs">
                     {ln.fixtureId}
                   </td>
+                  <td className="max-w-[120px] px-3 py-2 text-xs font-bold text-slate-800">
+                    {ln.displayName?.trim() ? (
+                      <span title={ln.displaySource ?? ""}>{ln.displayName}</span>
+                    ) : (
+                      <span className="text-slate-400">—</span>
+                    )}
+                  </td>
                   <td className="px-3 py-2 font-mono text-xs">{ln.umpireId}</td>
                   <td className="px-3 py-2">{ln.umpireType}</td>
                   <td className="px-3 py-2 text-xs">
                     {ln.qualificationTier} / {ln.matchLevel}
                   </td>
-                  <td className="px-3 py-2 text-right font-mono">
-                    {formatMoney(ln.amountCents, ln.currency)}
+                  <td className="px-3 py-2 text-right">
+                    {ln.status === "pending" ? (
+                      <div className="flex flex-col items-end gap-1">
+                        <input
+                          type="number"
+                          min={0}
+                          step={0.01}
+                          className="input w-28 py-1 text-right font-mono text-xs"
+                          value={
+                            amountDraft[ln.paymentLineId] ??
+                            (ln.amountCents != null
+                              ? (ln.amountCents / 100).toFixed(2)
+                              : "")
+                          }
+                          onChange={(e) =>
+                            setAmountDraft((d) => ({
+                              ...d,
+                              [ln.paymentLineId]: e.target.value,
+                            }))
+                          }
+                        />
+                        <button
+                          type="button"
+                          className="text-xs font-black text-[#06054e] hover:underline"
+                          onClick={() => savePendingAmount(ln)}
+                        >
+                          Save
+                        </button>
+                      </div>
+                    ) : (
+                      <span className="font-mono">
+                        {formatMoney(ln.amountCents, ln.currency)}
+                      </span>
+                    )}
                   </td>
                   <td className="px-3 py-2 font-bold capitalize">{ln.status}</td>
                   <td className="px-3 py-2">
@@ -701,6 +818,24 @@ export default function UmpirePaymentsTreasurerPanel({
             No lines in this view.
           </p>
         )}
+
+        <p className="mt-6 text-sm font-bold text-slate-600">
+          Resolve names via{" "}
+          <Link
+            href={`/admin/associations/${associationId}/official-register`}
+            className="text-[#06054e] underline"
+          >
+            Official register
+          </Link>{" "}
+          (or member id match). Coverage:{" "}
+          <Link
+            href={`/admin/associations/${associationId}/officiating-report`}
+            className="text-[#06054e] underline"
+          >
+            Officiating report
+          </Link>
+          .
+        </p>
       </div>
     </div>
   );

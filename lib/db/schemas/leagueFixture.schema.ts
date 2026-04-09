@@ -27,14 +27,25 @@ export const FixtureResultStatusSchema = z.enum([
 /** ISO 8601 datetime string or null to clear. */
 const IsoOrNull = z.union([z.string().min(1), z.null()]);
 
+export const UmpireAllocationStatusSchema = z.enum([
+  "assigned",
+  "accepted",
+  "declined",
+]);
+
 /** Umpire slots on a fixture (public fixtures / MatchList). */
 export const FixtureUmpireSlotSchema = z.object({
   umpireType: z.string().min(1),
   umpireId: z.string().min(1),
   /** Tier/code used with association umpire payment schedule (e.g. level_2, national). */
   qualificationTier: z.string().min(1).nullable().optional(),
+  /** F3 allocation workflow (optional; defaults to assigned when umpires are set). */
+  allocationStatus: UmpireAllocationStatusSchema.optional(),
   dateAllocated: z.string().optional(),
   dateAccepted: z.string().nullable().optional(),
+  dateDeclined: z.string().nullable().optional(),
+  /** When an offer/assignment notification was sent (integrate email/push later). */
+  dateNotified: z.string().nullable().optional(),
   dateUpdated: z.string().optional(),
 });
 

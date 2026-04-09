@@ -86,15 +86,19 @@ export type PostUmpirePaymentLinesBody = z.infer<
   typeof PostUmpirePaymentLinesBodySchema
 >;
 
+export const PatchUmpirePaymentLineItemSchema = z
+  .object({
+    paymentLineId: z.string().min(1),
+    status: z.enum(["approved", "paid"]).optional(),
+    /** Pending lines only; audited. */
+    amountCents: z.union([z.number().int().min(0), z.null()]).optional(),
+  })
+  .refine((x) => x.status !== undefined || x.amountCents !== undefined, {
+    message: "Each item needs status and/or amountCents",
+  });
+
 export const PatchUmpirePaymentLinesBodySchema = z.object({
-  items: z
-    .array(
-      z.object({
-        paymentLineId: z.string().min(1),
-        status: z.enum(["approved", "paid"]),
-      }),
-    )
-    .min(1),
+  items: z.array(PatchUmpirePaymentLineItemSchema).min(1),
 });
 
 export type PatchUmpirePaymentLinesBody = z.infer<

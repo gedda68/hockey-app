@@ -253,6 +253,30 @@ async function main() {
       "unique pending line per fixture + umpire + type",
     );
 
+    // ── association_official_register (F1) ───────────────────────────────
+    const officials = db.collection("association_official_register");
+    console.log("\nassociation_official_register:");
+
+    await idx(officials, { officialRecordId: 1 }, { unique: true },
+      "unique index on officialRecordId");
+
+    await idx(officials, { associationId: 1, displayName: 1 }, {},
+      "index associationId + displayName");
+
+    await idx(
+      officials,
+      { associationId: 1, umpireNumber: 1 },
+      { unique: true, sparse: true },
+      "unique associationId + umpireNumber (sparse)",
+    );
+
+    await idx(
+      officials,
+      { associationId: 1, memberId: 1 },
+      { unique: true, sparse: true },
+      "unique associationId + memberId (sparse)",
+    );
+
     console.log("\n🎉  Index setup complete.\n");
   } catch (err) {
     console.error("❌  Fatal error:", err);

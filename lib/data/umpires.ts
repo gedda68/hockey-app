@@ -196,8 +196,11 @@ export async function resolveUmpireAllocationsForMatches(
           umpireId: u.umpireId,
           umpireType: u.umpireType,
           qualificationTier: u.qualificationTier ?? null,
+          allocationStatus: u.allocationStatus,
           dateAllocated: u.dateAllocated ?? "",
           dateAccepted: u.dateAccepted ?? null,
+          dateDeclined: u.dateDeclined ?? null,
+          dateNotified: u.dateNotified ?? null,
           dateUpdated: u.dateUpdated,
         })),
       };

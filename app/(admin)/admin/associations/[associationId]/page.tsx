@@ -24,6 +24,7 @@ import {
   Calendar,
   CheckCircle,
   XCircle,
+  BarChart3,
 } from "lucide-react";
 
 export default async function AssociationDetailPage({
@@ -143,6 +144,20 @@ export default async function AssociationDetailPage({
                 >
                   <DollarSign size={18} />
                   Umpire honoraria
+                </Link>
+                <Link
+                  href={`/admin/associations/${associationId}/official-register`}
+                  className="inline-flex items-center gap-2 px-4 py-2 border-2 border-slate-400 text-slate-800 rounded-xl font-black hover:bg-slate-50 transition-all text-sm"
+                >
+                  <FileText size={18} />
+                  Official register
+                </Link>
+                <Link
+                  href={`/admin/associations/${associationId}/officiating-report`}
+                  className="inline-flex items-center gap-2 px-4 py-2 border-2 border-slate-400 text-slate-800 rounded-xl font-black hover:bg-slate-50 transition-all text-sm"
+                >
+                  <BarChart3 size={18} />
+                  Officiating report
                 </Link>
                 <Link
                   href={`/admin/associations/${associationId}/edit`}

@@ -27,7 +27,7 @@ Multi-level association → club → team operations, independent portals, compe
 - [X] **B3b** Apply RBAC to role request approval flows (list + view + approve/reject/payment record) via `registration.manage`.
 - [X] **B4** Extend middleware/route rules to all domains (not only admin shell): competitions, tournaments, results, fees. **`/api/admin/*`** requires an admin-area role via `evaluateAdminRouteAccess` (`lib/auth/adminRouteAccess.ts`); deny returns **403 JSON** for API paths (not redirect). **Public read:** `/api/events`, `/api/news` added to middleware public allowlist (with existing `/api/competitions`, `/api/tournaments`, etc.).
 - [ ] **B5** Delegation / sub-permissions (e.g. fixtures without finance).
-- [X] **B6** Audit log coverage for competitions, tournaments, results, ladder changes, fee rule changes (beyond member-only). Baseline: `lib/audit/platformAuditLog.ts` → Mongo `platform_audit_log` in `hockey-app`; wired to season competition PATCH, competition/season POST, fees POST, tournament PUT/DELETE, team lineage PATCH, fixture generation POST.
+- [X] **B6** Audit log coverage for competitions, tournaments, results, ladder changes, fee rule changes (beyond member-only). Baseline: `lib/audit/platformAuditLog.ts` → Mongo `platform_audit_log` in `hockey-app`; wired to season competition PATCH, competition/season POST, fees POST, tournament PUT/DELETE, team lineage PATCH, fixture generation POST, umpire honoraria (schedule, lines, amount adjust, official register CRUD).
 
 ---
 
@@ -67,11 +67,11 @@ Multi-level association → club → team operations, independent portals, compe
 
 ## Epic F — Umpiring & officiating
 
-- [ ] **F1** Official register: qualifications, levels, expiry.
+- [X] **F1** Official register (baseline): Mongo `association_official_register`; `GET/POST .../official-register`, `PATCH/DELETE .../official-register/[recordId]` (`association.fees`); UI `/admin/associations/[associationId]/official-register`. Used to resolve `umpireId` → display name (plus member-id fallback in `lib/officiating/resolveUmpireDisplay.ts`). **Follow-up:** club/region fields, imports, validation against national register.
 - [ ] **F2** Availability and conflict-of-interest (club) flags.
-- [ ] **F3** Allocation workflow: assign → notify → accept/decline → standby (extend current allocation work).
-- [X] **F4** Umpire match honoraria (tiered): rate matrix + ledger + treasurer UI. Schedule: `association_umpire_payment_schedules`; lines: `umpire_match_payment_lines` (`pending` → `approved` → `paid`). APIs: `GET/PUT .../umpire-payment-schedule`; `GET/PATCH/DELETE .../umpire-payment-lines`; `POST .../umpire-payments/lines`; `GET .../umpire-payments/preview`; `GET .../associations/[id]/season-competitions`; fixtures list also allows `association.fees`. UI: `/admin/associations/[associationId]/umpire-payments`. Lib: `lib/officiating/umpireMatchPayment.ts`, `umpirePaymentLineStatus.ts`.
-- [ ] **F5** Reporting: appointments history, coverage by region/club.
+- [X] **F3** Allocation workflow (schema baseline): `league_fixtures.umpires[]` supports `allocationStatus` (`assigned` | `accepted` | `declined`), `dateDeclined`, `dateNotified` (`lib/db/schemas/leagueFixture.schema.ts`); set via existing fixture `PATCH`. **Follow-up:** notifications (email/push), umpire self-service endpoints, standby slots.
+- [X] **F4** Umpire match honoraria (tiered): rate matrix + ledger + treasurer UI. Schedule: `association_umpire_payment_schedules`; lines: `umpire_match_payment_lines` (`pending` → `approved` → `paid`). APIs: `GET/PUT .../umpire-payment-schedule`; `GET/PATCH/DELETE .../umpire-payment-lines` (JSON includes `displayName`; `?format=csv` export; pending `amountCents` via PATCH); `POST .../umpire-payments/lines`; `GET .../umpire-payments/preview`; `GET .../associations/[id]/season-competitions`; fixtures list also allows `association.fees`. UI: `/admin/associations/[associationId]/umpire-payments`. Lib: `lib/officiating/umpireMatchPayment.ts`, `umpirePaymentLineStatus.ts`.
+- [X] **F5** Reporting (baseline): `GET .../associations/[associationId]/officiating-report?seasonCompetitionId=` (`association.fees` or `competitions.manage`); fixture slot counts by allocation status, honoraria counts by status, top umpires by fixture coverage; UI `/admin/associations/[associationId]/officiating-report`. **Follow-up:** region/club breakdown, date range, CSV, charts.
 
 ---
 
