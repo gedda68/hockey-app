@@ -3,14 +3,14 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
-import { requirePermission } from "@/lib/auth/middleware";
+import { requireAnyPermission, requirePermission } from "@/lib/auth/middleware";
 
 export async function GET(request: NextRequest) {
   try {
-    const { response: authRes } = await requirePermission(
-      request,
+    const { response: authRes } = await requireAnyPermission(request, [
       "competitions.manage",
-    );
+      "competitions.fixtures",
+    ]);
     if (authRes) return authRes;
 
     const { searchParams } = new URL(request.url);

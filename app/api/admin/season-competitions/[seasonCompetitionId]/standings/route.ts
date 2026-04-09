@@ -3,13 +3,19 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
-import { requirePermission, requireResourceAccess } from "@/lib/auth/middleware";
+import {
+  requireAnyPermission,
+  requireResourceAccess,
+} from "@/lib/auth/middleware";
 import { computeSeasonCompetitionStandings } from "@/lib/competitions/standings";
 
 type Params = { params: Promise<{ seasonCompetitionId: string }> };
 
 export async function GET(request: NextRequest, { params }: Params) {
-  const { response } = await requirePermission(request, "competitions.manage");
+  const { response } = await requireAnyPermission(request, [
+    "competitions.manage",
+    "competitions.fixtures",
+  ]);
   if (response) return response;
 
   try {

@@ -4,7 +4,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ZodError } from "zod";
 import clientPromise from "@/lib/mongodb";
-import { requirePermission, requireResourceAccess } from "@/lib/auth/middleware";
+import {
+  requireAnyPermission,
+  requireResourceAccess,
+} from "@/lib/auth/middleware";
 import { PatchLeagueFixtureBodySchema } from "@/lib/db/schemas/leagueFixture.schema";
 import { logPlatformAudit } from "@/lib/audit/platformAuditLog";
 
@@ -13,10 +16,10 @@ type Params = {
 };
 
 export async function PATCH(request: NextRequest, { params }: Params) {
-  const { user, response } = await requirePermission(
-    request,
+  const { user, response } = await requireAnyPermission(request, [
     "competitions.manage",
-  );
+    "competitions.fixtures",
+  ]);
   if (response) return response;
 
   try {

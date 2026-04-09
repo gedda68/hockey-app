@@ -17,6 +17,7 @@ export type UserRole =
   | "assoc-coach"            // Association-level coaching staff
   | "assoc-selector"         // Association-level selection committee
   | "assoc-registrar"        // Association registrations officer
+  | "assoc-competition"      // Fixtures, draws, results entry — no association finance
 
   // ── Club level ───────────────────────────────────────────────────────────────
   | "club-admin"             // Manage their club, members, teams
@@ -160,6 +161,8 @@ export type Permission =
 
   // Competitions (league layer)
   | "competitions.manage"
+  /** Schedules/fixtures/draws and read competition context — not season lifecycle config or finance (B5). */
+  | "competitions.fixtures"
 
   // Results / ladders
   | "results.manage" | "results.approve"
@@ -240,6 +243,7 @@ export const ROLE_DEFINITIONS: Record<UserRole, RoleDefinition> = {
       "association.view", "association.create", "association.edit",
       "association.delete", "association.settings", "association.fees",
       "competitions.manage",
+      "competitions.fixtures",
       "results.manage", "results.approve",
       "club.view", "club.create", "club.edit", "club.delete",
       "club.settings", "club.fees", "club.members",
@@ -270,6 +274,7 @@ export const ROLE_DEFINITIONS: Record<UserRole, RoleDefinition> = {
       "association.view", "association.edit", "association.settings",
       "association.fees",
       "competitions.manage",
+      "competitions.fixtures",
       "results.manage", "results.approve",
       "club.view", "club.create", "club.edit", "club.settings",
       "club.fees", "club.members",
@@ -380,6 +385,31 @@ export const ROLE_DEFINITIONS: Record<UserRole, RoleDefinition> = {
     approverLevel: "association",
     requiresFee: false,
     seasonalRegistration: false,
+  },
+
+  "assoc-competition": {
+    role: "assoc-competition",
+    label: "Association Competition Coordinator",
+    description:
+      "Manages fixtures, venues, draws, and result entry for the association — without fee configuration or honoraria",
+    scopeTypes: ["association"],
+    permissions: [
+      "association.view",
+      "competitions.fixtures",
+      "results.manage",
+      "club.view",
+      "member.view",
+      "team.view",
+      "reports.view",
+      "profile.view",
+    ],
+    color: "from-orange-500 to-orange-700",
+    icon: "📅",
+    adminAccess: true,
+    requiresApproval: true,
+    approverLevel: "association",
+    requiresFee: false,
+    seasonalRegistration: true,
   },
 
   // ── Club level ───────────────────────────────────────────────────────────────
@@ -669,7 +699,7 @@ export function numericLevelToString(level: number): AssociationLevel {
 
 export const ROLE_GROUPS = {
   "System":        ["super-admin"],
-  "Association":   ["association-admin", "assoc-committee", "assoc-coach", "assoc-selector", "assoc-registrar", "media-marketing"],
+  "Association":   ["association-admin", "assoc-committee", "assoc-coach", "assoc-selector", "assoc-registrar", "assoc-competition", "media-marketing"],
   "Club":          ["club-admin", "club-committee", "coach", "manager", "registrar", "umpire", "technical-official", "volunteer", "team-selector"],
   "Member Portal": ["player", "member", "parent"],
   "Public":        ["public"],
@@ -722,6 +752,11 @@ export function getEffectivePermissions(
     if (def) def.permissions.forEach((p) => perms.add(p));
   }
 
+  // Full competition managers implicitly hold fixture-level access (B5 delegation split).
+  if (perms.has("competitions.manage")) {
+    perms.add("competitions.fixtures");
+  }
+
   return perms;
 }
 
@@ -743,7 +778,7 @@ export function hasEffectivePermission(
  */
 const ROLE_PRIORITY: UserRole[] = [
   "super-admin",
-  "association-admin", "assoc-committee", "assoc-coach", "assoc-selector", "assoc-registrar",
+  "association-admin", "assoc-committee", "assoc-coach", "assoc-selector", "assoc-registrar", "assoc-competition",
   "club-admin", "club-committee", "coach", "manager", "registrar", "team-selector",
   "umpire", "technical-official", "volunteer",
   "player", "member", "parent",

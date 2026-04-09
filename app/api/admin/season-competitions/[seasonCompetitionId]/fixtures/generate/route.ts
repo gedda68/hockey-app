@@ -4,7 +4,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z, ZodError } from "zod";
 import clientPromise from "@/lib/mongodb";
-import { requirePermission, requireResourceAccess } from "@/lib/auth/middleware";
+import {
+  requireAnyPermission,
+  requireResourceAccess,
+} from "@/lib/auth/middleware";
 import { generateRoundRobin } from "@/lib/competitions/roundRobin";
 import { logPlatformAudit } from "@/lib/audit/platformAuditLog";
 
@@ -17,10 +20,10 @@ const BodySchema = z.object({
 type Params = { params: Promise<{ seasonCompetitionId: string }> };
 
 export async function POST(request: NextRequest, { params }: Params) {
-  const { user, response } = await requirePermission(
-    request,
+  const { user, response } = await requireAnyPermission(request, [
     "competitions.manage",
-  );
+    "competitions.fixtures",
+  ]);
   if (response) return response;
 
   try {

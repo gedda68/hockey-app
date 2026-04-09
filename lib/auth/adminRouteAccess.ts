@@ -23,6 +23,13 @@ const SUPER_ADMIN = ["super-admin"];
 
 const ASSOCIATION_ROLES = ["super-admin", "association-admin"];
 
+/** Association subtree in admin UI — competition coordinators without finance (B5). */
+const ASSOCIATION_TREE_ROLES = [
+  "super-admin",
+  "association-admin",
+  "assoc-competition",
+];
+
 const ASSOC_STAFF_ROLES = [
   "super-admin",
   "association-admin",
@@ -97,6 +104,7 @@ const ANY_ADMIN = [
   "assoc-coach",
   "assoc-selector",
   "assoc-registrar",
+  "assoc-competition",
   "media-marketing",
   "club-admin",
   "club-committee",
@@ -126,7 +134,7 @@ const ROUTE_RULES: RouteRule[] = [
   { pattern: /^\/admin\/reports(\/|$)/, allowedRoles: ANY_ADMIN },
 
   { pattern: /^\/admin\/settings(\/|$)/, allowedRoles: SETTINGS_ROLES, scopeCheck: true },
-  { pattern: /^\/admin\/associations(\/|$)/, allowedRoles: ASSOCIATION_ROLES, scopeCheck: true },
+  { pattern: /^\/admin\/associations(\/|$)/, allowedRoles: ASSOCIATION_TREE_ROLES, scopeCheck: true },
   { pattern: /^\/admin\/tournaments(\/|$)/, allowedRoles: ASSOCIATION_ROLES, scopeCheck: true },
 
   { pattern: /^\/admin\/representative(\/|$)/, allowedRoles: ASSOC_STAFF_ROLES, scopeCheck: true },
@@ -225,6 +233,7 @@ const ASSOC_SCOPED_ROLES = [
   "assoc-coach",
   "assoc-selector",
   "assoc-registrar",
+  "assoc-competition",
   "media-marketing",
 ];
 

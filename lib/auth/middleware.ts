@@ -85,6 +85,32 @@ export async function requirePermission(
   return { user };
 }
 
+/** True if the user holds any of the listed permissions. */
+export async function requireAnyPermission(
+  request: NextRequest,
+  permissions: Permission[],
+): Promise<{
+  user: UserSession;
+  response?: NextResponse;
+}> {
+  const { user, response } = await requireAuth(request);
+
+  if (response) return { user, response };
+
+  const held = user.permissions as string[];
+  if (!permissions.some((p) => held.includes(p))) {
+    return {
+      user,
+      response: NextResponse.json(
+        { error: "Forbidden - Insufficient permissions" },
+        { status: 403 },
+      ),
+    };
+  }
+
+  return { user };
+}
+
 export async function requireResourceAccess(
   request: NextRequest,
   resourceType: "association" | "club",

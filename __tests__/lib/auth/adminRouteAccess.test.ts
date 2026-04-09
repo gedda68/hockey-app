@@ -100,6 +100,30 @@ describe("evaluateAdminRouteAccess", () => {
     ).toBe("allow");
   });
 
+  it("allows assoc-competition to their association subtree (B5)", () => {
+    expect(
+      evaluateAdminRouteAccess(
+        "/admin/associations/my-assoc",
+        session({
+          role: "assoc-competition",
+          associationId: "my-assoc",
+        }),
+      ),
+    ).toBe("allow");
+  });
+
+  it("denies assoc-competition from another association subtree", () => {
+    expect(
+      evaluateAdminRouteAccess(
+        "/admin/associations/other-assoc",
+        session({
+          role: "assoc-competition",
+          associationId: "my-assoc",
+        }),
+      ),
+    ).toBe("deny");
+  });
+
   it("denies club-only role from association subtree without scoped association role", () => {
     expect(
       evaluateAdminRouteAccess(

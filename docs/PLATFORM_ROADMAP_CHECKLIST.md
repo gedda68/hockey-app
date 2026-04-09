@@ -26,7 +26,7 @@ Multi-level association → club → team operations, independent portals, compe
 - [X] **B3a** Apply RBAC to team-tournament fee distribution routes (registrar/finance roles only).
 - [X] **B3b** Apply RBAC to role request approval flows (list + view + approve/reject/payment record) via `registration.manage`.
 - [X] **B4** Extend middleware/route rules to all domains (not only admin shell): competitions, tournaments, results, fees. **`/api/admin/*`** requires an admin-area role via `evaluateAdminRouteAccess` (`lib/auth/adminRouteAccess.ts`); deny returns **403 JSON** for API paths (not redirect). **Public read:** `/api/events`, `/api/news` added to middleware public allowlist (with existing `/api/competitions`, `/api/tournaments`, etc.).
-- [ ] **B5** Delegation / sub-permissions (e.g. fixtures without finance).
+- [X] **B5** Delegation / sub-permissions: permission `competitions.fixtures` + role `assoc-competition` (association scope) — fixtures list/generate/PATCH, divisions **GET**, admin standings, competition/season **GET**; **excluded**: `POST /api/admin/competitions` (create), `PATCH .../season-competitions/[id]` (lifecycle/ladder), `association.fees` / honoraria / official-register mutations. `competitions.manage` implies `competitions.fixtures`. Helper `requireAnyPermission`. Docs: `docs/domain/ROLE_MATRIX.md`.
 - [X] **B6** Audit log coverage for competitions, tournaments, results, ladder changes, fee rule changes (beyond member-only). Baseline: `lib/audit/platformAuditLog.ts` → Mongo `platform_audit_log` in `hockey-app`; wired to season competition PATCH, competition/season POST, fees POST, tournament PUT/DELETE, team lineage PATCH, fixture generation POST, umpire honoraria (schedule, lines, amount adjust, official register CRUD).
 
 ---

@@ -33,6 +33,7 @@ The table below is a simplified summary. For the full permission list per role, 
 - **`association-admin`**: Manage an association, its competitions, and child clubs.
 - **`assoc-committee`**: Governance + finance/reporting visibility.
 - **`assoc-registrar`**: Registrations + member management at association level.
+- **`assoc-competition`**: Fixtures, draws, venues, and result entry (`competitions.fixtures`, `results.manage`) — **no** `association.fees` or honoraria APIs (B5 delegation).
 - **`assoc-selector`**: Representative selection (view/manage selection workflows).
 - **`assoc-coach`**: Representative coaching staff (view rosters/nominations).
 - **`media-marketing`**: News/media management (association or club scope).
@@ -64,7 +65,8 @@ These job titles are how associations and clubs usually think about access. The 
 | **Registrar (association)** | `assoc-registrar` | Association registrations, approvals, cross-club visibility where implemented. **Representative**, **Role requests**, **Team tournaments** (per middleware). |
 | **Treasurer / finance (club)** | `club-committee`, `registrar` | `reports.financial`, `club.fees`, `registration.payments` (see `ROLE_DEFINITIONS`). Often **committee** handles governance-level money; **registrar** handles day-to-day payments. |
 | **Treasurer / finance (association)** | `assoc-committee`, `assoc-registrar` | Association fee policy + reporting; `association.fees`, `reports.financial`. |
-| **Competition manager** | `association-admin` | `competitions.manage` — season/league competitions via `/api/admin/competitions` (API-enforced). Dedicated `/admin/competitions` UI may be added later. |
+| **Competition manager** | `association-admin` | `competitions.manage` (+ implied `competitions.fixtures`) — full season lifecycle, divisions, ladder config, create competitions. |
+| **Fixture / draw coordinator (delegated)** | `assoc-competition` | `competitions.fixtures` + `results.manage` — list competitions/seasons, fixtures, generate draws, patch fixtures, standings preview, divisions **read**; **not** season PATCH (publish/ladder), **not** POST competitions, **not** fee or umpire ledger APIs. |
 | **Umpire coordinator** | `association-admin` (today) | No separate coordinator role yet; allocations/public competition pages evolve under Epic F. **`umpire`** is a limited staff role for officials themselves. |
 | **Coach coordinator** | `assoc-coach`, `coach` | Representative and team coaching access; nominations/rosters per `selection.*` / `team.roster`. |
 | **Media / communications** | `media-marketing` | **News** and read access per `ROLE_DEFINITIONS`; also in association staff sets for representative where relevant. |
@@ -78,7 +80,7 @@ These are the core permission families used throughout the app:
 
 - **System**: `system.*`
 - **Associations**: `association.*`
-- **Competitions**: `competitions.manage`
+- **Competitions**: `competitions.manage`, `competitions.fixtures` (narrow; B5)
 - **Clubs**: `club.*`
 - **Members**: `member.*`
 - **Teams**: `team.*`

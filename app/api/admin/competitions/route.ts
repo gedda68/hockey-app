@@ -3,7 +3,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
-import { requirePermission } from "@/lib/auth/middleware";
+import { requireAnyPermission, requirePermission } from "@/lib/auth/middleware";
 import {
   CreateCompetitionRequestSchema,
   CreateSeasonCompetitionRequestSchema,
@@ -27,10 +27,10 @@ function newId(prefix: string) {
  * - include=base|season|all (default: all)
  */
 export async function GET(request: NextRequest) {
-  const { user, response } = await requirePermission(
-    request,
+  const { user, response } = await requireAnyPermission(request, [
     "competitions.manage",
-  );
+    "competitions.fixtures",
+  ]);
   if (response) return response;
 
   try {

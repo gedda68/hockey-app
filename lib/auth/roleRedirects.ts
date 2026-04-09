@@ -28,6 +28,11 @@ export function getRoleDashboard(
     case "assoc-registrar":
       return "/admin/representative";
 
+    case "assoc-competition":
+      return associationId
+        ? `/admin/associations/${associationId}`
+        : "/admin/associations";
+
     // ── Club-level ───────────────────────────────────────────────────────────
     case "club-admin":
       // Go to the club's edit page (the view/overview page for that specific club)
@@ -72,6 +77,7 @@ export function getRoleDisplayName(role: string): string {
     "assoc-coach":       "Association Coach",
     "assoc-selector":    "Association Selector",
     "assoc-registrar":   "Association Registrar",
+    "assoc-competition": "Association Competition Coordinator",
     "club-admin":        "Club Administrator",
     "club-committee":    "Club Committee",
     "coach":             "Coach",
@@ -98,6 +104,7 @@ export function canAccessAdmin(role: string): boolean {
     "assoc-coach",
     "assoc-selector",
     "assoc-registrar",
+    "assoc-competition",
     "club-admin",
     "club-committee",
     "registrar",

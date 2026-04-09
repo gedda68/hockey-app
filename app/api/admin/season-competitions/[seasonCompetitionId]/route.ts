@@ -3,7 +3,11 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
-import { requirePermission, requireResourceAccess } from "@/lib/auth/middleware";
+import {
+  requireAnyPermission,
+  requirePermission,
+  requireResourceAccess,
+} from "@/lib/auth/middleware";
 import { SeasonCompetitionSchema } from "@/lib/db/schemas/competition.schema";
 import { z, ZodError } from "zod";
 import { logPlatformAudit } from "@/lib/audit/platformAuditLog";
@@ -27,7 +31,10 @@ const VALID_TRANSITIONS: Record<string, string[]> = {
 };
 
 export async function GET(request: NextRequest, { params }: Params) {
-  const { response } = await requirePermission(request, "competitions.manage");
+  const { response } = await requireAnyPermission(request, [
+    "competitions.manage",
+    "competitions.fixtures",
+  ]);
   if (response) return response;
 
   try {
