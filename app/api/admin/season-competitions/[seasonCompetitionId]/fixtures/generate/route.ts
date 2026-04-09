@@ -73,6 +73,12 @@ export async function POST(request: NextRequest, { params }: Params) {
       timezone: null,
       published: false,
       publishedAt: null,
+      result: null,
+      resultStatus: null,
+      resultSubmittedAt: null,
+      resultSubmittedBy: null,
+      resultApprovedAt: null,
+      resultApprovedBy: null,
       createdAt: now,
       createdBy: user.userId,
     }));

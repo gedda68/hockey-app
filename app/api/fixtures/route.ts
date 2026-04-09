@@ -39,6 +39,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ seasonCompetitionId, fixtures: [] });
     }
 
+    const requiresApproval = Boolean(sc.resultApprovalRequired);
+
     const raw = await db
       .collection("league_fixtures")
       .find({
@@ -83,11 +85,18 @@ export async function GET(request: NextRequest) {
       scheduledStart: f.scheduledStart ?? null,
       scheduledEnd: f.scheduledEnd ?? null,
       timezone: f.timezone ?? null,
+      result:
+        (f.resultStatus === "approved" ||
+          (!requiresApproval && f.result && f.status === "completed")) &&
+        f.result
+          ? f.result
+          : null,
     }));
 
     return NextResponse.json({
       seasonCompetitionId,
       season: sc.season ?? null,
+      requiresResultApproval: requiresApproval,
       fixtures,
     });
   } catch (error: unknown) {

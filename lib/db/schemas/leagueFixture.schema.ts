@@ -11,6 +11,19 @@ export const FixtureMatchStatusSchema = z.enum([
   "postponed",
 ]);
 
+export const FixtureResultTypeSchema = z.enum([
+  "normal",
+  "forfeit",
+  "abandoned",
+]);
+
+export const FixtureResultStatusSchema = z.enum([
+  "draft",
+  "submitted",
+  "approved",
+  "rejected",
+]);
+
 /** ISO 8601 datetime string or null to clear. */
 const IsoOrNull = z.union([z.string().min(1), z.null()]);
 
@@ -33,6 +46,24 @@ export const LeagueFixtureSchema = z.object({
 
   published: z.boolean().default(false),
   publishedAt: z.string().nullable().optional(),
+
+  result: z
+    .object({
+      resultType: FixtureResultTypeSchema.default("normal"),
+      homeScore: z.number().int().min(0).nullable().optional(),
+      awayScore: z.number().int().min(0).nullable().optional(),
+      shootoutHomeScore: z.number().int().min(0).nullable().optional(),
+      shootoutAwayScore: z.number().int().min(0).nullable().optional(),
+      forfeitingTeamId: z.string().min(1).nullable().optional(),
+      notes: z.string().nullable().optional(),
+    })
+    .nullable()
+    .optional(),
+  resultStatus: FixtureResultStatusSchema.nullable().optional(),
+  resultSubmittedAt: z.string().nullable().optional(),
+  resultSubmittedBy: z.string().nullable().optional(),
+  resultApprovedAt: z.string().nullable().optional(),
+  resultApprovedBy: z.string().nullable().optional(),
 
   createdAt: z.string(),
   createdBy: z.string().optional(),
