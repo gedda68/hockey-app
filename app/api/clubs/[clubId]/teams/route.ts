@@ -170,6 +170,7 @@ export async function POST(
     const newTeam: Team = {
       teamId,
       clubId: club.id,
+      promotionHistory: [],
       name: validatedData.name,
       displayName,
       gender: validatedData.gender,
