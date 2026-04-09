@@ -1,5 +1,5 @@
 // lib/audit/platformAuditLog.ts
-// Append-only audit trail for competitions, season competitions, tournaments, fees, fixtures (B6).
+// Append-only audit trail for competitions, season competitions, tournaments, fees, umpire payments, fixtures (B6).
 
 import clientPromise from "@/lib/mongodb";
 
@@ -8,6 +8,7 @@ export type PlatformAuditCategory =
   | "season_competition"
   | "tournament"
   | "fee_rules"
+  | "umpire_payment"
   | "fixture"
   | "result"
   | "ladder"

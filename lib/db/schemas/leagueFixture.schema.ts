@@ -27,6 +27,17 @@ export const FixtureResultStatusSchema = z.enum([
 /** ISO 8601 datetime string or null to clear. */
 const IsoOrNull = z.union([z.string().min(1), z.null()]);
 
+/** Umpire slots on a fixture (public fixtures / MatchList). */
+export const FixtureUmpireSlotSchema = z.object({
+  umpireType: z.string().min(1),
+  umpireId: z.string().min(1),
+  /** Tier/code used with association umpire payment schedule (e.g. level_2, national). */
+  qualificationTier: z.string().min(1).nullable().optional(),
+  dateAllocated: z.string().optional(),
+  dateAccepted: z.string().nullable().optional(),
+  dateUpdated: z.string().optional(),
+});
+
 export const LeagueFixtureSchema = z.object({
   fixtureId: z.string().min(1),
   seasonCompetitionId: z.string().min(1),
@@ -65,6 +76,13 @@ export const LeagueFixtureSchema = z.object({
   resultApprovedAt: z.string().nullable().optional(),
   resultApprovedBy: z.string().nullable().optional(),
 
+  /** Optional link to legacy demo JSON `umpire-allocations.json` matchId. */
+  legacyMatchId: z.string().nullable().optional(),
+  /** Umpires allocated to this fixture (live data). */
+  umpires: z.array(FixtureUmpireSlotSchema).nullable().optional(),
+  /** Match tier for honoraria lookup (association-defined codes, e.g. league, finals). */
+  matchLevel: z.string().min(1).optional(),
+
   createdAt: z.string(),
   createdBy: z.string().optional(),
   updatedAt: z.string().optional(),
@@ -83,6 +101,9 @@ export const PatchLeagueFixtureBodySchema = z
     timezone: z.string().nullable().optional(),
     published: z.boolean().optional(),
     status: FixtureMatchStatusSchema.optional(),
+    legacyMatchId: z.string().min(1).nullable().optional(),
+    umpires: z.array(FixtureUmpireSlotSchema).nullable().optional(),
+    matchLevel: z.union([z.string().min(1), z.null()]).optional(),
   })
   .strict()
   .refine((data) => Object.values(data).some((v) => v !== undefined), {

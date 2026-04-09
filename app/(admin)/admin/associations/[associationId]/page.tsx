@@ -136,13 +136,22 @@ export default async function AssociationDetailPage({
                 Back to Associations
               </Link>
 
-              <Link
-                href={`/admin/associations/${associationId}/edit`}
-                className="inline-flex items-center gap-2 px-6 py-3 bg-[#06054e] text-white rounded-xl font-black hover:bg-yellow-400 hover:text-[#06054e] transition-all"
-              >
-                <Edit size={20} />
-                Edit Association
-              </Link>
+              <div className="flex flex-wrap items-center gap-3">
+                <Link
+                  href={`/admin/associations/${associationId}/umpire-payments`}
+                  className="inline-flex items-center gap-2 px-4 py-2 border-2 border-[#06054e] text-[#06054e] rounded-xl font-black hover:bg-slate-50 transition-all text-sm"
+                >
+                  <DollarSign size={18} />
+                  Umpire honoraria
+                </Link>
+                <Link
+                  href={`/admin/associations/${associationId}/edit`}
+                  className="inline-flex items-center gap-2 px-6 py-3 bg-[#06054e] text-white rounded-xl font-black hover:bg-yellow-400 hover:text-[#06054e] transition-all"
+                >
+                  <Edit size={20} />
+                  Edit Association
+                </Link>
+              </div>
             </div>
           </div>
         </div>

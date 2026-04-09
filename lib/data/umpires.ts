@@ -7,7 +7,7 @@
 // Direct imports from /data folder
 import umpireListData from "../../data/umpires/umpire-list.json";
 import umpireAllocationsData from "../../data/umpires/umpire-allocations.json";
-import type { UmpireDetails } from "@/types";
+import type { Match, UmpireDetails } from "@/types";
 
 // Types
 interface UmpireRaw {
@@ -174,6 +174,48 @@ export async function getUmpireAllocationsMap(): Promise<
     map[allocation.matchId] = allocation;
     return map;
   }, {} as Record<string, UmpireAllocation>);
+}
+
+/**
+ * Build a map keyed by **fixtureId** (`Match.matchId`) for live fixtures.
+ * Priority: DB `league_fixtures.umpires` → legacy JSON by `legacyMatchId` → JSON by `fixtureId`.
+ */
+export async function resolveUmpireAllocationsForMatches(
+  matches: Match[],
+): Promise<Record<string, unknown>> {
+  const legacyMap = await getUmpireAllocationsMap();
+  const out: Record<string, unknown> = {};
+
+  for (const m of matches) {
+    const id = m.matchId;
+
+    if (m.fixtureUmpires && m.fixtureUmpires.length > 0) {
+      out[id] = {
+        matchId: id,
+        umpires: m.fixtureUmpires.map((u) => ({
+          umpireId: u.umpireId,
+          umpireType: u.umpireType,
+          qualificationTier: u.qualificationTier ?? null,
+          dateAllocated: u.dateAllocated ?? "",
+          dateAccepted: u.dateAccepted ?? null,
+          dateUpdated: u.dateUpdated,
+        })),
+      };
+      continue;
+    }
+
+    const legacyKey = m.legacyMatchId?.trim();
+    if (legacyKey && legacyMap[legacyKey]) {
+      out[id] = legacyMap[legacyKey];
+      continue;
+    }
+
+    if (legacyMap[id]) {
+      out[id] = legacyMap[id];
+    }
+  }
+
+  return out;
 }
 
 /**

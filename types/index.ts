@@ -5,11 +5,25 @@
 export type ViewType = "results" | "upcoming";
 export type StatusType = "All" | "Live" | "Final" | "Scheduled";
 
+/** Umpire row stored on `league_fixtures.umpires` (aligned with demo JSON shape). */
+export interface FixtureUmpireSlot {
+  umpireType: string;
+  umpireId: string;
+  qualificationTier?: string | null;
+  dateAllocated?: string;
+  dateAccepted?: string | null;
+  dateUpdated?: string;
+}
+
 // Match Types
 export interface Match {
   matchId: string;
   /** Canonical competition context for filtering (E2–E4). */
   seasonCompetitionId?: string;
+  /** Maps to `data/umpires/umpire-allocations.json` matchId for migration / demos. */
+  legacyMatchId?: string;
+  /** When set, overrides legacy JSON for this fixture’s umpire row in the UI map. */
+  fixtureUmpires?: FixtureUmpireSlot[];
   division: string;
   round: string | number;
   status: StatusType | string;

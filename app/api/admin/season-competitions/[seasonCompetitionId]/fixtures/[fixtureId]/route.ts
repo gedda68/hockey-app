@@ -65,6 +65,9 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       "scheduledEnd",
       "timezone",
       "status",
+      "legacyMatchId",
+      "umpires",
+      "matchLevel",
     ] as const;
     for (const k of keys) {
       if (body[k] !== undefined) $set[k] = body[k];

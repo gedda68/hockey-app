@@ -38,7 +38,11 @@ export default function MatchList({
 
     const primaryUmpires = allocation.umpires
       .filter(
-        (u) => u.umpireType === "primary" || u.role === "primary",
+        (u) =>
+          u.umpireType === "primary" ||
+          u.role === "primary" ||
+          u.role === "umpire1" ||
+          u.role === "umpire2",
       )
       .map((u) => getUmpireDetails(u.umpireId))
       .filter((u): u is UmpireDetails => u != null);

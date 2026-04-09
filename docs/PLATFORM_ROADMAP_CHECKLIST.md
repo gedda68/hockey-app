@@ -70,7 +70,7 @@ Multi-level association → club → team operations, independent portals, compe
 - [ ] **F1** Official register: qualifications, levels, expiry.
 - [ ] **F2** Availability and conflict-of-interest (club) flags.
 - [ ] **F3** Allocation workflow: assign → notify → accept/decline → standby (extend current allocation work).
-- [ ] **F4** Optional: honoraria/payments linked to fees or separate ledger.
+- [X] **F4** Umpire match honoraria (tiered): rate matrix + ledger + treasurer UI. Schedule: `association_umpire_payment_schedules`; lines: `umpire_match_payment_lines` (`pending` → `approved` → `paid`). APIs: `GET/PUT .../umpire-payment-schedule`; `GET/PATCH/DELETE .../umpire-payment-lines`; `POST .../umpire-payments/lines`; `GET .../umpire-payments/preview`; `GET .../associations/[id]/season-competitions`; fixtures list also allows `association.fees`. UI: `/admin/associations/[associationId]/umpire-payments`. Lib: `lib/officiating/umpireMatchPayment.ts`, `umpirePaymentLineStatus.ts`.
 - [ ] **F5** Reporting: appointments history, coverage by region/club.
 
 ---

@@ -33,6 +33,7 @@ export {
   getUmpireByNumber,
   getUmpireAllocations,
   getUmpireAllocationsMap,
+  resolveUmpireAllocationsForMatches,
   getUmpireAllocationForMatch,
   getUmpiresForMatch,
   getActiveUmpires,

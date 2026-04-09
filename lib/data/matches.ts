@@ -4,7 +4,12 @@
  * Live match data derived from MongoDB (`league_fixtures`) (E2–E4).
  */
 
-import type { Match as PublicMatch, Season, ViewType } from "@/types";
+import type {
+  Match as PublicMatch,
+  FixtureUmpireSlot,
+  Season,
+  ViewType,
+} from "@/types";
 import clientPromise from "@/lib/mongodb";
 
 // Types
@@ -16,6 +21,8 @@ interface Match {
   division: string;
   dateTime: string;
   venue: string;
+  legacyMatchId?: string | null;
+  fixtureUmpires?: FixtureUmpireSlot[] | null;
   homeTeam: {
     name: string;
     icon?: string;
@@ -40,6 +47,8 @@ function mapStoredMatchToPublic(m: Match): PublicMatch {
   return {
     matchId: m.matchId,
     seasonCompetitionId: m.seasonCompetitionId,
+    legacyMatchId: m.legacyMatchId ?? undefined,
+    fixtureUmpires: m.fixtureUmpires?.length ? m.fixtureUmpires : undefined,
     division: m.division,
     round: m.round,
     status: m.status,
@@ -144,6 +153,8 @@ export async function getMatches(): Promise<Match[]> {
         addressLine: 1,
         result: 1,
         resultStatus: 1,
+        legacyMatchId: 1,
+        umpires: 1,
       })
       .toArray();
 
@@ -217,9 +228,18 @@ export async function getMatches(): Promise<Match[]> {
 
       const dateTime = asIsoDate(f.scheduledStart) ?? new Date().toISOString();
 
+      const rawUmpires = f.umpires as FixtureUmpireSlot[] | null | undefined;
+      const fixtureUmpires =
+        Array.isArray(rawUmpires) && rawUmpires.length > 0 ? rawUmpires : null;
+
       out.push({
         matchId: String(f.fixtureId),
         seasonCompetitionId: String(f.seasonCompetitionId),
+        legacyMatchId:
+          typeof f.legacyMatchId === "string" && f.legacyMatchId
+            ? f.legacyMatchId
+            : null,
+        fixtureUmpires,
         season,
         round: Number(f.round ?? 0),
         division,

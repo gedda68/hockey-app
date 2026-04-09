@@ -3,13 +3,21 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
-import { requirePermission, requireResourceAccess } from "@/lib/auth/middleware";
+import { requireAuth, requireResourceAccess } from "@/lib/auth/middleware";
+import { canPreviewUmpirePayments } from "@/lib/auth/umpirePaymentAccess";
 
 type Params = { params: Promise<{ seasonCompetitionId: string }> };
 
 export async function GET(request: NextRequest, { params }: Params) {
-  const { response } = await requirePermission(request, "competitions.manage");
+  const { user, response } = await requireAuth(request);
   if (response) return response;
+
+  if (!canPreviewUmpirePayments(user)) {
+    return NextResponse.json(
+      { error: "Forbidden - Insufficient permissions" },
+      { status: 403 },
+    );
+  }
 
   try {
     const { seasonCompetitionId } = await params;

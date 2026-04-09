@@ -12,8 +12,8 @@ import {
   getSeasonCompetitionOptions,
   getRoundsForSeasonCompetition,
   getMatchStatsData,
-  getUmpireAllocationsMap,
   getUmpireDetailsList,
+  resolveUmpireAllocationsForMatches,
 } from "../../../../lib/data";
 
 import { getLiveStandingsDivision } from "../../../../lib/data/liveStandings";
@@ -37,21 +37,9 @@ export default async function MatchesPage({
   const selectedView: ViewType = (params.view as ViewType) || "results";
 
   // 2. DATA LOADING (live)
-  const [
-    seasonCompetitions,
-    filteredMatches,
-    statsData,
-    umpireAllocations,
-    umpireList,
-  ] = await Promise.all([
+  const [seasonCompetitions, statsData, umpireList] = await Promise.all([
     getSeasonCompetitionOptions(),
-    filterMatches({
-      view: selectedView,
-      round: selectedRound,
-      status: selectedStatus,
-    }),
     getMatchStatsData(),
-    getUmpireAllocationsMap(),
     getUmpireDetailsList(),
   ]);
 
@@ -71,6 +59,9 @@ export default async function MatchesPage({
     round: selectedRound,
     status: selectedStatus,
   });
+
+  const umpireAllocations =
+    await resolveUmpireAllocationsForMatches(filteredMatchesFinal);
 
   const selectedMeta = seasonCompetitions.find(
     (s) => s.seasonCompetitionId === selectedSeasonCompetitionId,

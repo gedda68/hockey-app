@@ -225,6 +225,34 @@ async function main() {
     await idx(seasonCompetitions, { owningAssociationId: 1, season: 1, status: 1 }, {},
       "compound index on owningAssociationId + season + status");
 
+    // ── association_umpire_payment_schedules ─────────────────────────────
+    const umpirePay = db.collection("association_umpire_payment_schedules");
+    console.log("\nassociation_umpire_payment_schedules:");
+
+    await idx(umpirePay, { associationId: 1 }, { unique: true },
+      "unique index on associationId");
+
+    // ── umpire_match_payment_lines ────────────────────────────────────────
+    const umpireLines = db.collection("umpire_match_payment_lines");
+    console.log("\numpire_match_payment_lines:");
+
+    await idx(umpireLines, { paymentLineId: 1 }, { unique: true },
+      "unique index on paymentLineId");
+
+    await idx(
+      umpireLines,
+      { associationId: 1, status: 1, createdAt: -1 },
+      {},
+      "compound index associationId + status + createdAt",
+    );
+
+    await idx(
+      umpireLines,
+      { fixtureId: 1, umpireId: 1, umpireType: 1 },
+      { unique: true, partialFilterExpression: { status: "pending" } },
+      "unique pending line per fixture + umpire + type",
+    );
+
     console.log("\n🎉  Index setup complete.\n");
   } catch (err) {
     console.error("❌  Fatal error:", err);

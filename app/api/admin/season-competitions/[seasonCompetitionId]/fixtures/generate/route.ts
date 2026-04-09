@@ -79,6 +79,9 @@ export async function POST(request: NextRequest, { params }: Params) {
       resultSubmittedBy: null,
       resultApprovedAt: null,
       resultApprovedBy: null,
+      legacyMatchId: null,
+      umpires: null,
+      matchLevel: "league",
       createdAt: now,
       createdBy: user.userId,
     }));
