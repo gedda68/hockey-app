@@ -1,32 +1,13 @@
 /**
  * Matches Data Functions
  *
- * Load match data from /data folder
+ * Live match data derived from MongoDB (`league_fixtures`) (E2–E4).
  */
 
-// Direct import from /data folder
-import matchesData from "../../data/matches/matches.json";
 import type { Match as PublicMatch, Season, ViewType } from "@/types";
+import clientPromise from "@/lib/mongodb";
 
 // Types
-interface MatchRaw {
-  matchId: string;
-  round: string;
-  division: string;
-  dateTime: string;
-  location: string;
-  homeTeam: string;
-  homeTeamIcon: string;
-  awayTeam: string;
-  awayTeamIcon: string;
-  homeScore?: number;
-  awayScore?: number;
-  homeShootOutScore?: number;
-  awayShootOutScore?: number;
-  status: string;
-  isFeatureGame?: boolean;
-}
-
 interface Match {
   matchId: string;
   season: number;
@@ -36,11 +17,11 @@ interface Match {
   venue: string;
   homeTeam: {
     name: string;
-    icon: string;
+    icon?: string;
   };
   awayTeam: {
     name: string;
-    icon: string;
+    icon?: string;
   };
   score?: {
     home: number;
@@ -74,70 +55,26 @@ function mapStoredMatchToPublic(m: Match): PublicMatch {
   };
 }
 
-/**
- * Extract season from matchId (e.g., "2025BHL1001" -> 2025)
- */
-function extractSeasonFromMatchId(matchId: string): number {
-  const match = matchId.match(/^(\d{4})/);
-  if (match) {
-    return parseInt(match[1], 10);
-  }
-  return new Date().getFullYear();
+const PUBLIC_SC_STATUSES = new Set(["published", "in_progress", "completed"]);
+
+function parseSeasonNumber(season: unknown): number {
+  const n = Number(season);
+  if (!Number.isFinite(n)) return new Date().getFullYear();
+  return Math.trunc(n);
 }
 
-/**
- * Extract round number from round string
- */
-function extractRoundNumber(roundStr: string): number {
-  const match = roundStr.match(/\d+/);
-  if (match) {
-    return parseInt(match[0], 10);
-  }
-  // Handle special rounds
-  if (roundStr.toLowerCase().includes("semi")) return 98;
-  if (roundStr.toLowerCase().includes("final")) return 99;
-  return 0;
+function asIsoDate(v: unknown): string | null {
+  if (typeof v !== "string" || !v) return null;
+  const d = new Date(v);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toISOString();
 }
 
-/**
- * Transform raw match data to app format
- */
-function transformMatch(raw: MatchRaw): Match {
-  const season = extractSeasonFromMatchId(raw.matchId);
-  const round = extractRoundNumber(raw.round);
-
-  return {
-    matchId: raw.matchId,
-    season,
-    round,
-    division: raw.division,
-    dateTime: raw.dateTime,
-    venue: raw.location,
-    homeTeam: {
-      name: raw.homeTeam,
-      icon: raw.homeTeamIcon,
-    },
-    awayTeam: {
-      name: raw.awayTeam,
-      icon: raw.awayTeamIcon,
-    },
-    score:
-      raw.homeScore !== undefined && raw.awayScore !== undefined
-        ? {
-            home: raw.homeScore,
-            away: raw.awayScore,
-          }
-        : undefined,
-    shootoutScore:
-      raw.homeShootOutScore !== undefined && raw.awayShootOutScore !== undefined
-        ? {
-            home: raw.homeShootOutScore,
-            away: raw.awayShootOutScore,
-          }
-        : undefined,
-    status: raw.status,
-    isFeatureGame: raw.isFeatureGame,
-  };
+function normalizeMatchStatus(fixtureStatus: unknown, hasShootout: boolean): string {
+  const s = String(fixtureStatus ?? "").toLowerCase();
+  if (s === "in_progress") return "Live";
+  if (s === "completed") return hasShootout ? "Final (SO)" : "Final";
+  return "Scheduled";
 }
 
 /**
@@ -145,13 +82,150 @@ function transformMatch(raw: MatchRaw): Match {
  */
 export async function getMatches(): Promise<Match[]> {
   try {
-    const data = matchesData as any;
+    const client = await clientPromise;
+    const db = client.db("hockey-app");
 
-    const upcoming = data.upcoming || [];
-    const results = data.results || [];
-    const allMatches = [...upcoming, ...results];
+    // Only show season competitions that are publicly visible
+    const seasonCompetitions = await db
+      .collection("season_competitions")
+      .find({ status: { $in: [...PUBLIC_SC_STATUSES] } })
+      .project({
+        seasonCompetitionId: 1,
+        season: 1,
+        competitionId: 1,
+        resultApprovalRequired: 1,
+        status: 1,
+      })
+      .toArray();
 
-    return allMatches.map((m: MatchRaw) => transformMatch(m));
+    const scById = new Map<string, any>();
+    for (const s of seasonCompetitions) {
+      if (s.seasonCompetitionId) scById.set(String(s.seasonCompetitionId), s);
+    }
+
+    const competitionIds = Array.from(
+      new Set(seasonCompetitions.map((s) => String(s.competitionId ?? "")).filter(Boolean)),
+    );
+
+    const competitions =
+      competitionIds.length > 0
+        ? await db
+            .collection("competitions")
+            .find({ competitionId: { $in: competitionIds } })
+            .project({ competitionId: 1, name: 1 })
+            .toArray()
+        : [];
+
+    const compNameById = new Map<string, string>();
+    for (const c of competitions) {
+      if (c.competitionId && c.name) compNameById.set(String(c.competitionId), String(c.name));
+    }
+
+    const seasonCompetitionIds = [...scById.keys()];
+    if (seasonCompetitionIds.length === 0) return [];
+
+    const fixtures = await db
+      .collection("league_fixtures")
+      .find({
+        seasonCompetitionId: { $in: seasonCompetitionIds },
+        published: true,
+      })
+      .project({
+        fixtureId: 1,
+        seasonCompetitionId: 1,
+        round: 1,
+        status: 1,
+        homeTeamId: 1,
+        awayTeamId: 1,
+        scheduledStart: 1,
+        venueName: 1,
+        addressLine: 1,
+        result: 1,
+        resultStatus: 1,
+      })
+      .toArray();
+
+    const teamIds = new Set<string>();
+    for (const f of fixtures) {
+      if (f.homeTeamId) teamIds.add(String(f.homeTeamId));
+      if (f.awayTeamId) teamIds.add(String(f.awayTeamId));
+    }
+
+    const teams =
+      teamIds.size > 0
+        ? await db
+            .collection("teams")
+            .find({ teamId: { $in: [...teamIds] } })
+            .project({ teamId: 1, name: 1 })
+            .toArray()
+        : [];
+
+    const teamNameById = new Map<string, string>();
+    for (const t of teams) {
+      if (t.teamId && t.name) teamNameById.set(String(t.teamId), String(t.name));
+    }
+
+    const out: Match[] = [];
+    for (const f of fixtures) {
+      const sc = scById.get(String(f.seasonCompetitionId));
+      if (!sc) continue;
+
+      const season = parseSeasonNumber(sc.season);
+      const division =
+        compNameById.get(String(sc.competitionId)) ??
+        String(sc.competitionId ?? "Competition");
+
+      const requiresApproval = Boolean(sc.resultApprovalRequired);
+      const rs = String(f.resultStatus ?? "");
+      const canShowResult = requiresApproval ? rs === "approved" : String(f.status) === "completed";
+
+      const result = (f.result ?? null) as any;
+      const homeScore = canShowResult ? (typeof result?.homeScore === "number" ? result.homeScore : null) : null;
+      const awayScore = canShowResult ? (typeof result?.awayScore === "number" ? result.awayScore : null) : null;
+      const sh = canShowResult ? (typeof result?.shootoutHomeScore === "number" ? result.shootoutHomeScore : null) : null;
+      const sa = canShowResult ? (typeof result?.shootoutAwayScore === "number" ? result.shootoutAwayScore : null) : null;
+      const hasShootout = sh != null && sa != null;
+
+      const venue =
+        String(f.venueName ?? "") ||
+        String(f.addressLine ?? "") ||
+        "";
+
+      const dateTime = asIsoDate(f.scheduledStart) ?? new Date().toISOString();
+
+      out.push({
+        matchId: String(f.fixtureId),
+        season,
+        round: Number(f.round ?? 0),
+        division,
+        dateTime,
+        venue,
+        homeTeam: {
+          name: teamNameById.get(String(f.homeTeamId)) ?? String(f.homeTeamId ?? "Home"),
+        },
+        awayTeam: {
+          name: teamNameById.get(String(f.awayTeamId)) ?? String(f.awayTeamId ?? "Away"),
+        },
+        score:
+          homeScore != null && awayScore != null
+            ? { home: homeScore, away: awayScore }
+            : undefined,
+        shootoutScore:
+          hasShootout && sh != null && sa != null
+            ? { home: sh, away: sa }
+            : undefined,
+        status: normalizeMatchStatus(f.status, hasShootout),
+      });
+    }
+
+    // Stable sort: date then id
+    out.sort((a, b) => {
+      const t = new Date(a.dateTime).getTime() - new Date(b.dateTime).getTime();
+      if (t !== 0) return t;
+      return a.matchId.localeCompare(b.matchId);
+    });
+
+    return out;
   } catch (error) {
     console.error("Failed to load matches:", error);
     return [];
@@ -285,16 +359,21 @@ export async function getRounds(): Promise<string[]> {
  * Get current season
  */
 export async function getCurrentSeason(): Promise<number> {
-  const data = matchesData as any;
-
-  if (data && data.seasons) {
-    const current = data.seasons.find((s: any) => s.isCurrent);
-    if (current) {
-      return current.year;
-    }
+  try {
+    const client = await clientPromise;
+    const db = client.db("hockey-app");
+    const latest = await db
+      .collection("season_competitions")
+      .find({ status: { $in: [...PUBLIC_SC_STATUSES] } })
+      .project({ season: 1 })
+      .sort({ season: -1 })
+      .limit(1)
+      .toArray();
+    if (latest[0]?.season) return parseSeasonNumber(latest[0].season);
+    return new Date().getFullYear();
+  } catch {
+    return new Date().getFullYear();
   }
-
-  return new Date().getFullYear();
 }
 
 /**

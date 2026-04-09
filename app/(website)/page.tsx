@@ -54,12 +54,19 @@ export default async function HomePage() {
                   {/* Home Team */}
                   <div className="text-center">
                     <div className="relative w-24 h-24 mx-auto mb-4">
-                      <Image
-                        src={featureMatch.homeTeam.icon}
-                        alt={featureMatch.homeTeam.name}
-                        fill
-                        className="object-contain"
-                      />
+                      {featureMatch.homeTeam.icon ? (
+                        <Image
+                          src={featureMatch.homeTeam.icon}
+                          alt={featureMatch.homeTeam.name}
+                          fill
+                          className="object-contain"
+                        />
+                      ) : (
+                        <div
+                          className="w-24 h-24 rounded-2xl bg-white/10 border border-white/20"
+                          aria-hidden
+                        />
+                      )}
                     </div>
                     <h2 className="text-xl font-black uppercase">
                       {featureMatch.homeTeam.name}
@@ -86,12 +93,19 @@ export default async function HomePage() {
                   {/* Away Team */}
                   <div className="text-center">
                     <div className="relative w-24 h-24 mx-auto mb-4">
-                      <Image
-                        src={featureMatch.awayTeam.icon}
-                        alt={featureMatch.awayTeam.name}
-                        fill
-                        className="object-contain"
-                      />
+                      {featureMatch.awayTeam.icon ? (
+                        <Image
+                          src={featureMatch.awayTeam.icon}
+                          alt={featureMatch.awayTeam.name}
+                          fill
+                          className="object-contain"
+                        />
+                      ) : (
+                        <div
+                          className="w-24 h-24 rounded-2xl bg-white/10 border border-white/20"
+                          aria-hidden
+                        />
+                      )}
                     </div>
                     <h2 className="text-xl font-black uppercase">
                       {featureMatch.awayTeam.name}
@@ -151,12 +165,19 @@ export default async function HomePage() {
                       {/* Home Team */}
                       <div className="flex items-center gap-3">
                         <div className="relative w-10 h-10 flex-shrink-0">
-                          <Image
-                            src={match.homeTeam.icon}
-                            alt={match.homeTeam.name}
-                            fill
-                            className="object-contain"
-                          />
+                          {match.homeTeam.icon ? (
+                            <Image
+                              src={match.homeTeam.icon}
+                              alt={match.homeTeam.name}
+                              fill
+                              className="object-contain"
+                            />
+                          ) : (
+                            <div
+                              className="w-10 h-10 rounded-lg bg-slate-100 border border-slate-200"
+                              aria-hidden
+                            />
+                          )}
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="font-black text-sm truncate">
@@ -186,12 +207,19 @@ export default async function HomePage() {
                           </div>
                         </div>
                         <div className="relative w-10 h-10 flex-shrink-0">
-                          <Image
-                            src={match.awayTeam.icon}
-                            alt={match.awayTeam.name}
-                            fill
-                            className="object-contain"
-                          />
+                          {match.awayTeam.icon ? (
+                            <Image
+                              src={match.awayTeam.icon}
+                              alt={match.awayTeam.name}
+                              fill
+                              className="object-contain"
+                            />
+                          ) : (
+                            <div
+                              className="w-10 h-10 rounded-lg bg-slate-100 border border-slate-200"
+                              aria-hidden
+                            />
+                          )}
                         </div>
                       </div>
                     </div>
@@ -240,12 +268,19 @@ export default async function HomePage() {
                       {/* Home Team */}
                       <div className="flex items-center gap-3">
                         <div className="relative w-10 h-10 flex-shrink-0">
-                          <Image
-                            src={match.homeTeam.icon}
-                            alt={match.homeTeam.name}
-                            fill
-                            className="object-contain"
-                          />
+                          {match.homeTeam.icon ? (
+                            <Image
+                              src={match.homeTeam.icon}
+                              alt={match.homeTeam.name}
+                              fill
+                              className="object-contain"
+                            />
+                          ) : (
+                            <div
+                              className="w-10 h-10 rounded-lg bg-slate-100 border border-slate-200"
+                              aria-hidden
+                            />
+                          )}
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="font-black text-sm truncate">
@@ -269,12 +304,19 @@ export default async function HomePage() {
                           </div>
                         </div>
                         <div className="relative w-10 h-10 flex-shrink-0">
-                          <Image
-                            src={match.awayTeam.icon}
-                            alt={match.awayTeam.name}
-                            fill
-                            className="object-contain"
-                          />
+                          {match.awayTeam.icon ? (
+                            <Image
+                              src={match.awayTeam.icon}
+                              alt={match.awayTeam.name}
+                              fill
+                              className="object-contain"
+                            />
+                          ) : (
+                            <div
+                              className="w-10 h-10 rounded-lg bg-slate-100 border border-slate-200"
+                              aria-hidden
+                            />
+                          )}
                         </div>
                       </div>
                     </div>
