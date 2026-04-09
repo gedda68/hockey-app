@@ -13,6 +13,9 @@ type Params = { params: Promise<{ seasonCompetitionId: string }> };
 const UpdateSeasonCompetitionSchema = z.object({
   divisions: SeasonCompetitionSchema.shape.divisions.optional(),
   status: SeasonCompetitionSchema.shape.status.optional(),
+  resultApprovalRequired:
+    SeasonCompetitionSchema.shape.resultApprovalRequired.optional(),
+  ladderRules: SeasonCompetitionSchema.shape.ladderRules.optional(),
 });
 
 const VALID_TRANSITIONS: Record<string, string[]> = {
@@ -97,6 +100,9 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     };
 
     if (validated.divisions !== undefined) update.divisions = validated.divisions;
+    if (validated.resultApprovalRequired !== undefined)
+      update.resultApprovalRequired = validated.resultApprovalRequired;
+    if (validated.ladderRules !== undefined) update.ladderRules = validated.ladderRules;
 
     if (validated.status !== undefined) {
       const from = existing.status ?? "draft";
@@ -131,10 +137,14 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       before: {
         status: existing.status,
         divisions: existing.divisions,
+        resultApprovalRequired: existing.resultApprovalRequired,
+        ladderRules: existing.ladderRules,
       },
       after: {
         status: updated?.status,
         divisions: updated?.divisions,
+        resultApprovalRequired: updated?.resultApprovalRequired,
+        ladderRules: updated?.ladderRules,
       },
       metadata: { owningAssociationId: existing.owningAssociationId },
     });

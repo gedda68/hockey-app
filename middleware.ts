@@ -70,6 +70,7 @@ function isPublicPath(path: string): boolean {
     "/api/news",
     "/api/competitions",
     "/api/fixtures",
+    "/api/standings",
     "/api/players/lookup",
     "/api/nominations",
     "/api/nominations/windows",

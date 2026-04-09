@@ -66,6 +66,35 @@ export const SeasonCompetitionSchema = z.object({
     )
     .default([]),
 
+  // Results/ladders configuration (E3/E4)
+  resultApprovalRequired: z.boolean().default(false),
+  ladderRules: z
+    .object({
+      pointsWin: z.number().int().default(3),
+      pointsDraw: z.number().int().default(1),
+      pointsLoss: z.number().int().default(0),
+      pointsForfeitWin: z.number().int().default(3),
+      pointsForfeitLoss: z.number().int().default(0),
+      pointsShootoutWin: z.number().int().default(2),
+      pointsShootoutLoss: z.number().int().default(1),
+      // tie-break order
+      tieBreakers: z
+        .array(z.enum(["points", "gd", "gf", "h2h"]))
+        .default(["points", "gd", "gf"]),
+      includeAbandonedInPlayed: z.boolean().default(false),
+    })
+    .default({
+      pointsWin: 3,
+      pointsDraw: 1,
+      pointsLoss: 0,
+      pointsForfeitWin: 3,
+      pointsForfeitLoss: 0,
+      pointsShootoutWin: 2,
+      pointsShootoutLoss: 1,
+      tieBreakers: ["points", "gd", "gf"],
+      includeAbandonedInPlayed: false,
+    }),
+
   status: CompetitionStatusSchema.default("draft"),
 
   createdAt: z.date(),

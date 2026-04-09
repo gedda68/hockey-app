@@ -4,11 +4,10 @@ import StandingsTableFull from "../../../../components/standings/StandingsTableF
 import PageHeader from "../../../../components/shared/PageHeader";
 import FilterButton from "../../../../components/shared/FilterButton";
 
-// Import data utility functions
 import {
-  getStandingsYears,
-  getDivisionsByYear,
-} from "../../../../lib/data/standings";
+  getLiveStandingsDivision,
+  listPublicSeasonCompetitions,
+} from "../../../../lib/data/liveStandings";
 
 export const dynamic = "force-dynamic";
 
@@ -16,34 +15,24 @@ export default async function StandingsPage({
   searchParams,
 }: {
   searchParams: {
-    div?: string;
-    year?: string;
+    seasonCompetitionId?: string;
   };
 }) {
-  // 1. Get available years
-  const availableYears = await getStandingsYears();
-
-  // 2. Resolve current year
   const params = await searchParams;
-  const currentYear = params.year || availableYears[0] || "2025";
+  const seasonCompetitions = await listPublicSeasonCompetitions();
+  const selectedId =
+    params.seasonCompetitionId ||
+    seasonCompetitions[0]?.seasonCompetitionId ||
+    "";
 
-  // 3. Get divisions for current year only
-  const divisionsForYear = await getDivisionsByYear(currentYear);
-
-  // 4. Get division names for current year
-  const divisionNamesForYear = divisionsForYear.map((d) => d.divisionName);
-
-  // 5. Resolve current division
-  const currentDivName = params.div || divisionsForYear[0]?.divisionName;
-
-  // 6. Check if current division exists in selected year
-  const currentDivision = divisionsForYear.find(
-    (d) => d.divisionName === currentDivName,
+  const selectedMeta = seasonCompetitions.find(
+    (s) => s.seasonCompetitionId === selectedId,
   );
+  const currentYear = selectedMeta?.season || seasonCompetitions[0]?.season || "—";
 
-  // 7. If division doesn't exist in this year, use first available division
-  const finalDivision = currentDivision || divisionsForYear[0];
-  const finalDivName = finalDivision?.divisionName || currentDivName;
+  const finalDivision = selectedId
+    ? await getLiveStandingsDivision(selectedId)
+    : null;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#06054e] via-slate-900 to-slate-800 px-4 md:px-8 lg:px-12 w-full ">
@@ -66,41 +55,20 @@ export default async function StandingsPage({
 
         {/* Filters */}
         <div className="flex flex-wrap gap-x-12 gap-y-6">
-          {/* Year Filter */}
-          {availableYears.length > 1 && (
-            <div className="flex flex-col gap-2">
-              <span className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em]">
-                Season
-              </span>
-              <div className="flex gap-2">
-                {availableYears.map((year) => (
-                  <FilterButton
-                    key={year}
-                    href={`/competitions/standings?year=${year}`}
-                    isActive={currentYear === year}
-                    variant="primary"
-                  >
-                    {year}
-                  </FilterButton>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Division Filter - Only shows divisions for current year */}
+          {/* Season competition filter */}
           <div className="flex flex-col gap-2">
             <span className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em]">
-              Division
+              Competition
             </span>
             <div className="flex gap-2 flex-wrap">
-              {divisionNamesForYear.map((divName) => (
+              {seasonCompetitions.map((sc) => (
                 <FilterButton
-                  key={divName}
-                  href={`/competitions/standings?year=${currentYear}&div=${divName}`}
-                  isActive={finalDivName === divName}
+                  key={sc.seasonCompetitionId}
+                  href={`/competitions/standings?seasonCompetitionId=${sc.seasonCompetitionId}`}
+                  isActive={selectedId === sc.seasonCompetitionId}
                   variant="primary"
                 >
-                  {divName}
+                  {sc.competitionName ?? sc.competitionId} {sc.season}
                 </FilterButton>
               ))}
             </div>
