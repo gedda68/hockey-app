@@ -160,6 +160,13 @@ export default async function AssociationDetailPage({
                   Officiating report
                 </Link>
                 <Link
+                  href={`/admin/associations/${associationId}/match-events`}
+                  className="inline-flex items-center gap-2 px-4 py-2 border-2 border-slate-400 text-slate-800 rounded-xl font-black hover:bg-slate-50 transition-all text-sm"
+                >
+                  <Calendar size={18} />
+                  Match events
+                </Link>
+                <Link
                   href={`/admin/associations/${associationId}/edit`}
                   className="inline-flex items-center gap-2 px-6 py-3 bg-[#06054e] text-white rounded-xl font-black hover:bg-yellow-400 hover:text-[#06054e] transition-all"
                 >

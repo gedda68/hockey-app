@@ -1,9 +1,23 @@
 // lib/competitions/playerSeasonStats.ts
 // Aggregate player-level stats from fixture matchEvents (E6).
 
+export const MATCH_EVENT_KINDS = [
+  "goal",
+  "penalty_stroke_goal",
+  "penalty_stroke_miss",
+  "shootout_goal",
+  "shootout_miss",
+  "green_card",
+  "yellow_card",
+  "red_card",
+  "gk_save",
+] as const;
+
+export type MatchEventKind = (typeof MATCH_EVENT_KINDS)[number];
+
 export type MatchEventStored = {
   eventId: string;
-  kind: "goal" | "green_card" | "yellow_card" | "red_card";
+  kind: MatchEventKind;
   teamId: string;
   memberId: string;
   assistMemberId?: string | null;
@@ -14,8 +28,14 @@ export type MatchEventStored = {
 
 export type PlayerSeasonTotals = {
   memberId: string;
+  /** Field goals + penalty strokes + shootout goals */
   goals: number;
   assists: number;
+  penaltyStrokeGoals: number;
+  penaltyStrokeMisses: number;
+  shootoutGoals: number;
+  shootoutMisses: number;
+  gkSaves: number;
   greenCards: number;
   yellowCards: number;
   redCards: number;
@@ -49,6 +69,11 @@ function emptyTotals(memberId: string): PlayerSeasonTotals {
     memberId,
     goals: 0,
     assists: 0,
+    penaltyStrokeGoals: 0,
+    penaltyStrokeMisses: 0,
+    shootoutGoals: 0,
+    shootoutMisses: 0,
+    gkSaves: 0,
     greenCards: 0,
     yellowCards: 0,
     redCards: 0,
@@ -61,6 +86,8 @@ function touchTotals(map: Map<string, PlayerSeasonTotals>, memberId: string) {
   return map.get(memberId)!;
 }
 
+const KIND_SET = new Set<string>(MATCH_EVENT_KINDS);
+
 export function asMatchEvents(raw: unknown): MatchEventStored[] {
   if (!Array.isArray(raw)) return [];
   const out: MatchEventStored[] = [];
@@ -68,14 +95,14 @@ export function asMatchEvents(raw: unknown): MatchEventStored[] {
     if (!e || typeof e !== "object") continue;
     const o = e as Record<string, unknown>;
     const eventId = typeof o.eventId === "string" ? o.eventId : "";
-    const kind = o.kind as MatchEventStored["kind"];
+    const kind = o.kind as string;
     const teamId = typeof o.teamId === "string" ? o.teamId : "";
     const memberId = typeof o.memberId === "string" ? o.memberId : "";
     if (!eventId || !teamId || !memberId) continue;
-    if (!["goal", "green_card", "yellow_card", "red_card"].includes(kind)) continue;
+    if (!KIND_SET.has(kind)) continue;
     out.push({
       eventId,
-      kind,
+      kind: kind as MatchEventKind,
       teamId,
       memberId,
       assistMemberId:
@@ -88,6 +115,42 @@ export function asMatchEvents(raw: unknown): MatchEventStored[] {
     });
   }
   return out;
+}
+
+function applyPrimaryEventTotals(tp: PlayerSeasonTotals, ev: MatchEventStored) {
+  switch (ev.kind) {
+    case "goal":
+      tp.goals += 1;
+      break;
+    case "penalty_stroke_goal":
+      tp.penaltyStrokeGoals += 1;
+      tp.goals += 1;
+      break;
+    case "penalty_stroke_miss":
+      tp.penaltyStrokeMisses += 1;
+      break;
+    case "shootout_goal":
+      tp.shootoutGoals += 1;
+      tp.goals += 1;
+      break;
+    case "shootout_miss":
+      tp.shootoutMisses += 1;
+      break;
+    case "gk_save":
+      tp.gkSaves += 1;
+      break;
+    case "green_card":
+      tp.greenCards += 1;
+      break;
+    case "yellow_card":
+      tp.yellowCards += 1;
+      break;
+    case "red_card":
+      tp.redCards += 1;
+      break;
+    default:
+      break;
+  }
 }
 
 /**
@@ -154,22 +217,7 @@ export function aggregatePlayerStatsForSeason(
       row.events.push(ev);
 
       const tp = touchTotals(totalsByMember, ev.memberId);
-      switch (ev.kind) {
-        case "goal":
-          tp.goals += 1;
-          break;
-        case "green_card":
-          tp.greenCards += 1;
-          break;
-        case "yellow_card":
-          tp.yellowCards += 1;
-          break;
-        case "red_card":
-          tp.redCards += 1;
-          break;
-        default:
-          break;
-      }
+      applyPrimaryEventTotals(tp, ev);
 
       if (ev.kind === "goal" && ev.assistMemberId) {
         const aid = ev.assistMemberId;
@@ -210,4 +258,38 @@ export function memberDisplayName(doc: unknown): string {
     if (name) return name;
   }
   return "";
+}
+
+export function hasAnyPlayerStat(t: PlayerSeasonTotals): boolean {
+  return (
+    t.goals > 0 ||
+    t.assists > 0 ||
+    t.penaltyStrokeMisses > 0 ||
+    t.shootoutMisses > 0 ||
+    t.gkSaves > 0 ||
+    t.greenCards > 0 ||
+    t.yellowCards > 0 ||
+    t.redCards > 0
+  );
+}
+
+export function sumPlayerTotals(
+  memberId: string,
+  rows: PlayerSeasonTotals[],
+): PlayerSeasonTotals {
+  const base = emptyTotals(memberId);
+  for (const t of rows) {
+    base.goals += t.goals;
+    base.assists += t.assists;
+    base.penaltyStrokeGoals += t.penaltyStrokeGoals;
+    base.penaltyStrokeMisses += t.penaltyStrokeMisses;
+    base.shootoutGoals += t.shootoutGoals;
+    base.shootoutMisses += t.shootoutMisses;
+    base.gkSaves += t.gkSaves;
+    base.greenCards += t.greenCards;
+    base.yellowCards += t.yellowCards;
+    base.redCards += t.redCards;
+    base.matchesWithEvents += t.matchesWithEvents;
+  }
+  return base;
 }

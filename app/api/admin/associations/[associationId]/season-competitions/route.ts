@@ -4,7 +4,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import {
-  requirePermission,
+  requireAnyPermission,
   requireResourceAccess,
 } from "@/lib/auth/middleware";
 
@@ -14,10 +14,12 @@ export async function GET(request: NextRequest, { params }: Params) {
   try {
     const { associationId } = await params;
 
-    const { response: authRes } = await requirePermission(
-      request,
+    const { response: authRes } = await requireAnyPermission(request, [
       "association.fees",
-    );
+      "competitions.manage",
+      "competitions.fixtures",
+      "results.manage",
+    ]);
     if (authRes) return authRes;
     const { response: scopeRes } = await requireResourceAccess(
       request,

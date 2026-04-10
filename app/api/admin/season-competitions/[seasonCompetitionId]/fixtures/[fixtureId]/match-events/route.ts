@@ -11,6 +11,10 @@ import {
 } from "@/lib/auth/middleware";
 import { PatchMatchEventsBodySchema } from "@/lib/db/schemas/leagueFixture.schema";
 import { logPlatformAudit } from "@/lib/audit/platformAuditLog";
+import {
+  loadRosterMemberIdsByTeamId,
+  validateMatchEventsAgainstRosters,
+} from "@/lib/competitions/matchEventRoster";
 
 type Params = {
   params: Promise<{ seasonCompetitionId: string; fixtureId: string }>;
@@ -75,6 +79,22 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       }
     }
 
+    if (!body.skipRosterValidation) {
+      const rosterByTeam = await loadRosterMemberIdsByTeamId(db, [home, away]);
+      const rosterCheck = validateMatchEventsAgainstRosters(
+        normalized,
+        home,
+        away,
+        rosterByTeam,
+      );
+      if (!rosterCheck.ok) {
+        return NextResponse.json(
+          { error: rosterCheck.error },
+          { status: rosterCheck.status },
+        );
+      }
+    }
+
     const nowIso = new Date().toISOString();
     await db.collection("league_fixtures").updateOne(
       { fixtureId, seasonCompetitionId },
@@ -102,7 +122,11 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       summary: `Set matchEvents (${normalized.length} events)`,
       before: { matchEvents: fixture.matchEvents ?? null },
       after: { matchEvents: updated?.matchEvents ?? null },
-      metadata: { seasonCompetitionId, owningAssociationId: sc.owningAssociationId },
+      metadata: {
+        seasonCompetitionId,
+        owningAssociationId: sc.owningAssociationId,
+        skipRosterValidation: Boolean(body.skipRosterValidation),
+      },
     });
 
     return NextResponse.json({

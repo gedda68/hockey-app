@@ -36,9 +36,14 @@ export const UmpireAllocationStatusSchema = z.enum([
 /** On-field events for player-level stats (E6). */
 export const FixtureMatchEventKindSchema = z.enum([
   "goal",
+  "penalty_stroke_goal",
+  "penalty_stroke_miss",
+  "shootout_goal",
+  "shootout_miss",
   "green_card",
   "yellow_card",
   "red_card",
+  "gk_save",
 ]);
 
 export const FixtureMatchEventSchema = z
@@ -57,7 +62,7 @@ export const FixtureMatchEventSchema = z
     if (e.kind !== "goal" && e.assistMemberId != null && e.assistMemberId !== undefined) {
       ctx.addIssue({
         code: "custom",
-        message: "assistMemberId is only valid for goal events",
+        message: "assistMemberId is only valid for field-goal events (kind=goal)",
         path: ["assistMemberId"],
       });
     }
@@ -66,6 +71,8 @@ export const FixtureMatchEventSchema = z
 export const PatchMatchEventsBodySchema = z
   .object({
     events: z.array(FixtureMatchEventSchema).max(200),
+    /** When true, skip roster membership checks (emergency / guest players). */
+    skipRosterValidation: z.boolean().optional(),
   })
   .strict();
 

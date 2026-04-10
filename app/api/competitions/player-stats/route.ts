@@ -5,6 +5,7 @@ import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import {
   aggregatePlayerStatsForSeason,
+  hasAnyPlayerStat,
   memberDisplayName,
   type PlayerFixtureStatRow,
 } from "@/lib/competitions/playerSeasonStats";
@@ -103,24 +104,22 @@ export async function GET(request: NextRequest) {
     }
 
     const leaderboard = [...totalsByMember.values()]
+      .filter((t) => hasAnyPlayerStat(t))
       .map((t) => ({
         memberId: t.memberId,
         displayName: displayById.get(t.memberId) ?? t.memberId,
         goals: t.goals,
         assists: t.assists,
+        penaltyStrokeGoals: t.penaltyStrokeGoals,
+        penaltyStrokeMisses: t.penaltyStrokeMisses,
+        shootoutGoals: t.shootoutGoals,
+        shootoutMisses: t.shootoutMisses,
+        gkSaves: t.gkSaves,
         greenCards: t.greenCards,
         yellowCards: t.yellowCards,
         redCards: t.redCards,
         matchesWithEvents: t.matchesWithEvents,
       }))
-      .filter(
-        (r) =>
-          r.goals > 0 ||
-          r.assists > 0 ||
-          r.greenCards > 0 ||
-          r.yellowCards > 0 ||
-          r.redCards > 0,
-      )
       .sort((a, b) => {
         if (b.goals !== a.goals) return b.goals - a.goals;
         if (b.assists !== a.assists) return b.assists - a.assists;
@@ -138,7 +137,7 @@ export async function GET(request: NextRequest) {
     if (memberIdFilter) {
       const t = totalsByMember.get(memberIdFilter);
       const fx = fixturesByMember.get(memberIdFilter) ?? [];
-      if (t && (t.goals + t.assists + t.greenCards + t.yellowCards + t.redCards > 0)) {
+      if (t && hasAnyPlayerStat(t)) {
         player = {
           memberId: memberIdFilter,
           displayName: displayById.get(memberIdFilter) ?? memberIdFilter,
@@ -147,6 +146,11 @@ export async function GET(request: NextRequest) {
             displayName: displayById.get(memberIdFilter) ?? memberIdFilter,
             goals: t.goals,
             assists: t.assists,
+            penaltyStrokeGoals: t.penaltyStrokeGoals,
+            penaltyStrokeMisses: t.penaltyStrokeMisses,
+            shootoutGoals: t.shootoutGoals,
+            shootoutMisses: t.shootoutMisses,
+            gkSaves: t.gkSaves,
             greenCards: t.greenCards,
             yellowCards: t.yellowCards,
             redCards: t.redCards,

@@ -21,9 +21,14 @@ export interface FixtureUmpireSlot {
 /** Stored on `league_fixtures.matchEvents` (E6). */
 export type FixtureMatchEventKind =
   | "goal"
+  | "penalty_stroke_goal"
+  | "penalty_stroke_miss"
+  | "shootout_goal"
+  | "shootout_miss"
   | "green_card"
   | "yellow_card"
-  | "red_card";
+  | "red_card"
+  | "gk_save";
 
 export interface FixtureMatchEventPublic {
   eventId: string;
