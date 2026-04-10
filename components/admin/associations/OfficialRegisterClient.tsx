@@ -10,6 +10,10 @@ type OfficialRow = {
   displayName: string;
   memberId?: string | null;
   umpireNumber?: string | null;
+  primaryClubId?: string | null;
+  allocationAvailability?: "available" | "limited" | "unavailable";
+  availabilityNote?: string | null;
+  unavailableUntil?: string | null;
   qualificationCodes?: string[];
   levelLabel?: string | null;
   expiresAt?: string | null;
@@ -31,6 +35,10 @@ export default function OfficialRegisterClient({
     displayName: "",
     memberId: "",
     umpireNumber: "",
+    primaryClubId: "",
+    allocationAvailability: "available" as OfficialRow["allocationAvailability"],
+    availabilityNote: "",
+    unavailableUntil: "",
     qualificationCodes: "",
     levelLabel: "",
     expiresAt: "",
@@ -71,6 +79,12 @@ export default function OfficialRegisterClient({
           displayName: form.displayName.trim(),
           memberId: form.memberId.trim() || null,
           umpireNumber: form.umpireNumber.trim() || null,
+          primaryClubId: form.primaryClubId.trim() || null,
+          allocationAvailability: form.allocationAvailability ?? "available",
+          availabilityNote: form.availabilityNote.trim() || null,
+          unavailableUntil: form.unavailableUntil.trim()
+            ? `${form.unavailableUntil.trim()}T23:59:59.999Z`
+            : null,
           qualificationCodes: codes,
           levelLabel: form.levelLabel.trim() || null,
           expiresAt: form.expiresAt.trim() || null,
@@ -86,6 +100,10 @@ export default function OfficialRegisterClient({
         displayName: "",
         memberId: "",
         umpireNumber: "",
+        primaryClubId: "",
+        allocationAvailability: "available",
+        availabilityNote: "",
+        unavailableUntil: "",
         qualificationCodes: "",
         levelLabel: "",
         expiresAt: "",
@@ -100,6 +118,10 @@ export default function OfficialRegisterClient({
       displayName: string;
       memberId: string | null;
       umpireNumber: string | null;
+      primaryClubId: string | null;
+      allocationAvailability: OfficialRow["allocationAvailability"];
+      availabilityNote: string | null;
+      unavailableUntil: string | null;
       qualificationCodes: string[];
       levelLabel: string | null;
       expiresAt: string | null;
@@ -140,7 +162,10 @@ export default function OfficialRegisterClient({
       <p className="text-sm font-bold text-slate-600">
         Map <strong>fixture umpireId</strong> values to display names for honoraria and
         reports. Match either a <strong>member id</strong> or the <strong>umpire number</strong>{" "}
-        string used on fixtures.
+        string used on fixtures. <strong>Primary club</strong> and <strong>member id</strong> drive
+        conflict-of-interest checks when assigning umpires to fixtures;{" "}
+        <strong>unavailable</strong> blocks new assignments unless the fixture records an override
+        with a documented reason.
       </p>
 
       <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
@@ -181,6 +206,50 @@ export default function OfficialRegisterClient({
               value={form.umpireNumber}
               onChange={(e) => setForm((f) => ({ ...f, umpireNumber: e.target.value }))}
               placeholder="e.g. 0000001"
+            />
+          </label>
+          <label className="text-xs font-black uppercase text-slate-500">
+            Primary club id (COI)
+            <input
+              className="input mt-1 w-full font-mono text-sm"
+              value={form.primaryClubId}
+              onChange={(e) => setForm((f) => ({ ...f, primaryClubId: e.target.value }))}
+              placeholder="club-… (optional if member club is enough)"
+            />
+          </label>
+          <label className="text-xs font-black uppercase text-slate-500">
+            Allocation availability
+            <select
+              className="select select-bordered mt-1 w-full text-sm font-bold"
+              value={form.allocationAvailability ?? "available"}
+              onChange={(e) =>
+                setForm((f) => ({
+                  ...f,
+                  allocationAvailability: e.target.value as OfficialRow["allocationAvailability"],
+                }))
+              }
+            >
+              <option value="available">Available</option>
+              <option value="limited">Limited (warning only)</option>
+              <option value="unavailable">Unavailable (blocks assignments)</option>
+            </select>
+          </label>
+          <label className="text-xs font-black uppercase text-slate-500 md:col-span-2">
+            Availability note
+            <input
+              className="input mt-1 w-full text-sm"
+              value={form.availabilityNote}
+              onChange={(e) => setForm((f) => ({ ...f, availabilityNote: e.target.value }))}
+              placeholder="Optional context for coordinators"
+            />
+          </label>
+          <label className="text-xs font-black uppercase text-slate-500">
+            Unavailable until (ISO date)
+            <input
+              className="input mt-1 w-full font-mono text-sm"
+              type="date"
+              value={form.unavailableUntil}
+              onChange={(e) => setForm((f) => ({ ...f, unavailableUntil: e.target.value }))}
             />
           </label>
           <label className="text-xs font-black uppercase text-slate-500">
@@ -230,6 +299,10 @@ export default function OfficialRegisterClient({
               <th className="px-3 py-2 text-left">Name</th>
               <th className="px-3 py-2 text-left">Member id</th>
               <th className="px-3 py-2 text-left">Umpire #</th>
+              <th className="px-3 py-2 text-left">Club (COI)</th>
+              <th className="px-3 py-2 text-left">Avail.</th>
+              <th className="px-3 py-2 text-left">Until</th>
+              <th className="px-3 py-2 text-left min-w-[120px]">Note</th>
               <th className="px-3 py-2 text-left">Qualifications</th>
               <th className="px-3 py-2 text-left">Level</th>
               <th className="px-3 py-2 text-left">Expires</th>
@@ -271,6 +344,70 @@ export default function OfficialRegisterClient({
                       const v = e.target.value.trim() || null;
                       if (v !== (r.umpireNumber ?? null))
                         patchRow(r.officialRecordId, { umpireNumber: v });
+                    }}
+                  />
+                </td>
+                <td className="px-3 py-2">
+                  <input
+                    className="input w-full py-1.5 text-sm min-w-[90px] font-mono text-xs"
+                    defaultValue={r.primaryClubId ?? ""}
+                    key={`${r.officialRecordId}-club-${r.primaryClubId ?? ""}`}
+                    onBlur={(e) => {
+                      const v = e.target.value.trim() || null;
+                      if (v !== (r.primaryClubId ?? null))
+                        patchRow(r.officialRecordId, { primaryClubId: v });
+                    }}
+                  />
+                </td>
+                <td className="px-3 py-2">
+                  <select
+                    className="select select-bordered select-sm w-full max-w-[140px] text-xs font-bold"
+                    defaultValue={r.allocationAvailability ?? "available"}
+                    key={`${r.officialRecordId}-avail-${r.allocationAvailability ?? "available"}`}
+                    onChange={(e) =>
+                      patchRow(r.officialRecordId, {
+                        allocationAvailability: e.target
+                          .value as OfficialRow["allocationAvailability"],
+                      })
+                    }
+                  >
+                    <option value="available">Available</option>
+                    <option value="limited">Limited</option>
+                    <option value="unavailable">Off</option>
+                  </select>
+                </td>
+                <td className="px-3 py-2">
+                  <input
+                    className="input w-full py-1.5 text-sm min-w-[100px] font-mono text-xs"
+                    type="date"
+                    defaultValue={
+                      r.unavailableUntil
+                        ? String(r.unavailableUntil).slice(0, 10)
+                        : ""
+                    }
+                    key={`${r.officialRecordId}-until-${r.unavailableUntil ?? ""}`}
+                    onBlur={(e) => {
+                      const v = e.target.value.trim();
+                      const prev = r.unavailableUntil
+                        ? String(r.unavailableUntil).slice(0, 10)
+                        : "";
+                      if (v !== prev) {
+                        patchRow(r.officialRecordId, {
+                          unavailableUntil: v ? `${v}T23:59:59.999Z` : null,
+                        });
+                      }
+                    }}
+                  />
+                </td>
+                <td className="px-3 py-2">
+                  <input
+                    className="input w-full py-1.5 text-sm min-w-[100px] text-xs"
+                    defaultValue={r.availabilityNote ?? ""}
+                    key={`${r.officialRecordId}-note-${r.availabilityNote ?? ""}`}
+                    onBlur={(e) => {
+                      const v = e.target.value.trim() || null;
+                      if (v !== (r.availabilityNote ?? null))
+                        patchRow(r.officialRecordId, { availabilityNote: v });
                     }}
                   />
                 </td>

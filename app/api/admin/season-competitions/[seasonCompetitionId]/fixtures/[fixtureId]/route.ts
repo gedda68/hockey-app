@@ -11,6 +11,10 @@ import {
 import { PatchLeagueFixtureBodySchema } from "@/lib/db/schemas/leagueFixture.schema";
 import { logPlatformAudit } from "@/lib/audit/platformAuditLog";
 import { invalidateStandingsBundleCache } from "@/lib/competitions/standingsReadCache";
+import {
+  evaluateFixtureUmpireAssignments,
+  slotHasValidCoiOverride,
+} from "@/lib/officiating/umpireCoiAndAvailability";
 
 type Params = {
   params: Promise<{ seasonCompetitionId: string; fixtureId: string }>;
@@ -55,6 +59,37 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       return NextResponse.json({ error: "Fixture not found" }, { status: 404 });
     }
 
+    if (body.umpires !== undefined) {
+      const proposedUmpires = body.umpires ?? [];
+      const associationId = sc.owningAssociationId as string;
+      const homeTeamId = existing.homeTeamId as string;
+      const awayTeamId = existing.awayTeamId as string;
+      const { slots } = await evaluateFixtureUmpireAssignments(db, {
+        associationId,
+        homeTeamId,
+        awayTeamId,
+        proposedUmpires,
+      });
+      const conflicts = slots.filter((s) => s.blockingIssues.length > 0);
+      if (conflicts.length > 0) {
+        const unresolved = conflicts.filter((s) => {
+          const slot = proposedUmpires[s.index];
+          return !slotHasValidCoiOverride(slot);
+        });
+        if (unresolved.length > 0) {
+          return NextResponse.json(
+            {
+              error:
+                "Umpire assignment blocked by availability or conflict-of-interest. Provide coiOverride and coiOverrideReason (min 15 characters) per blocked slot when no suitable alternative exists.",
+              code: "UMPIRE_COI_OR_AVAILABILITY",
+              slots,
+            },
+            { status: 409 },
+          );
+        }
+      }
+    }
+
     const nowIso = new Date().toISOString();
     const $set: Record<string, unknown> = {
       updatedAt: nowIso,
@@ -93,6 +128,19 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 
     invalidateStandingsBundleCache(seasonCompetitionId);
 
+    const coiOverrides =
+      (body.umpires ?? []).flatMap((s, i) =>
+        s.coiOverride && String(s.coiOverrideReason ?? "").trim().length >= 15
+          ? [
+              {
+                index: i,
+                umpireId: s.umpireId,
+                coiOverrideReason: String(s.coiOverrideReason ?? "").trim(),
+              },
+            ]
+          : [],
+      ) ?? [];
+
     await logPlatformAudit({
       userId: user.userId,
       userEmail: user.email,
@@ -113,7 +161,11 @@ export async function PATCH(request: NextRequest, { params }: Params) {
         published: updated?.published,
         status: updated?.status,
       },
-      metadata: { seasonCompetitionId, owningAssociationId: sc.owningAssociationId },
+      metadata: {
+        seasonCompetitionId,
+        owningAssociationId: sc.owningAssociationId,
+        ...(coiOverrides.length ? { coiOverrides } : {}),
+      },
     });
 
     return NextResponse.json({

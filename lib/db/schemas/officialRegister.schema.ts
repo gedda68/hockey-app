@@ -3,6 +3,12 @@
 
 import { z } from "zod";
 
+export const OfficialAllocationAvailabilitySchema = z.enum([
+  "available",
+  "limited",
+  "unavailable",
+]);
+
 export const OfficialRegisterRecordSchema = z.object({
   officialRecordId: z.string().min(1),
   associationId: z.string().min(1),
@@ -11,6 +17,16 @@ export const OfficialRegisterRecordSchema = z.object({
   memberId: z.string().min(1).nullable().optional(),
   /** If set, fixture `umpireId` may match this umpire number string. */
   umpireNumber: z.string().min(1).nullable().optional(),
+  /**
+   * Home club for conflict-of-interest (F2): cannot officiate matches where either
+   * team belongs to this club unless assignment override is recorded on the fixture.
+   */
+  primaryClubId: z.string().min(1).nullable().optional(),
+  /** Accepting new allocations (F2). `limited` = warn only; `unavailable` = block without override. */
+  allocationAvailability: OfficialAllocationAvailabilitySchema.default("available"),
+  availabilityNote: z.string().max(500).nullable().optional(),
+  /** If set and still in the future, treated as unavailable for allocations. */
+  unavailableUntil: z.string().nullable().optional(),
   qualificationCodes: z.array(z.string()).default([]),
   levelLabel: z.string().nullable().optional(),
   expiresAt: z.string().nullable().optional(),
@@ -28,6 +44,10 @@ export const PostOfficialRegisterBodySchema = z
     displayName: z.string().min(1),
     memberId: z.string().min(1).nullable().optional(),
     umpireNumber: z.string().min(1).nullable().optional(),
+    primaryClubId: z.string().min(1).nullable().optional(),
+    allocationAvailability: OfficialAllocationAvailabilitySchema.optional(),
+    availabilityNote: z.string().max(500).nullable().optional(),
+    unavailableUntil: z.string().nullable().optional(),
     qualificationCodes: z.array(z.string()).optional().default([]),
     levelLabel: z.string().nullable().optional(),
     expiresAt: z.string().nullable().optional(),
@@ -46,6 +66,10 @@ export const PatchOfficialRegisterBodySchema = z
     displayName: z.string().min(1).optional(),
     memberId: z.string().min(1).nullable().optional(),
     umpireNumber: z.string().min(1).nullable().optional(),
+    primaryClubId: z.string().min(1).nullable().optional(),
+    allocationAvailability: OfficialAllocationAvailabilitySchema.optional(),
+    availabilityNote: z.string().max(500).nullable().optional(),
+    unavailableUntil: z.string().nullable().optional(),
     qualificationCodes: z.array(z.string()).optional(),
     levelLabel: z.string().nullable().optional(),
     expiresAt: z.string().nullable().optional(),

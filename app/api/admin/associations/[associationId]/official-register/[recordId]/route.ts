@@ -53,6 +53,26 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       $set.memberId = body.memberId?.trim() || null;
     if (body.umpireNumber !== undefined)
       $set.umpireNumber = body.umpireNumber?.trim() || null;
+    if (body.primaryClubId !== undefined) {
+      $set.primaryClubId =
+        body.primaryClubId == null || body.primaryClubId === ""
+          ? null
+          : body.primaryClubId.trim();
+    }
+    if (body.allocationAvailability !== undefined)
+      $set.allocationAvailability = body.allocationAvailability;
+    if (body.availabilityNote !== undefined) {
+      $set.availabilityNote =
+        body.availabilityNote == null || body.availabilityNote === ""
+          ? null
+          : body.availabilityNote.trim();
+    }
+    if (body.unavailableUntil !== undefined) {
+      $set.unavailableUntil =
+        body.unavailableUntil == null || body.unavailableUntil === ""
+          ? null
+          : body.unavailableUntil.trim();
+    }
     if (body.qualificationCodes !== undefined)
       $set.qualificationCodes = body.qualificationCodes;
     if (body.levelLabel !== undefined)
