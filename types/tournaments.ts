@@ -5,6 +5,9 @@
 
 export type TournamentGender = "male" | "female" | "mixed";
 
+/** D1 — Who runs the event; RBAC uses host + branding association. */
+export type TournamentHostType = "association" | "club";
+
 export interface Tournament {
   _id?: string;             // MongoDB id (serialised to string)
   tournamentId: string;
@@ -17,6 +20,11 @@ export interface Tournament {
   location: string;         // e.g. "Hockey World, Gold Coast"
   additionalInfo: string;   // Rich-text HTML
   nominationFee?: number;   // AUD dollars
+  /** D1: `association` → `hostId` is associationId; `club` → `hostId` is club `id`. */
+  hostType?: TournamentHostType;
+  hostId?: string | null;
+  /** D1: Association scope for permissions / branding (parent when club hosts). */
+  brandingAssociationId?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -31,6 +39,10 @@ export interface CreateTournamentRequest {
   location: string;
   additionalInfo?: string;
   nominationFee?: number;
+  hostType?: TournamentHostType;
+  hostId?: string;
+  /** Optional when host is association; defaults to hostId. Ignored for club host (must match parent). */
+  brandingAssociationId?: string;
 }
 
 // ─── Nomination Period ────────────────────────────────────────────────────────

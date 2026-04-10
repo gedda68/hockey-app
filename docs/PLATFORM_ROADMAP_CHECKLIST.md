@@ -44,7 +44,7 @@ Multi-level association → club → team operations, independent portals, compe
 
 ## Epic D — Tournaments (association + club hosts)
 
-- [ ] **D1** `hostType: association | club`, `hostId`, plus branding parent association for permissions.
+- [X] **D1** `hostType: association | club`, `hostId`, plus branding parent association for permissions. Implemented on `rep_tournaments`: `hostType`, `hostId`, `brandingAssociationId` (normalized on write via `lib/tournaments/resolveRepTournamentHost.ts`); RBAC in `lib/auth/repTournamentScope.ts` (list filtered on GET; GET/PUT/DELETE require host scope; club host allows club **or** parent branding association access; association host allows access if user can reach host **or** branding association). Admin UI: `/admin/tournaments` modal (host selectors + optional branding association). Legacy rows without host: list visible to anyone with `selection.manage` until migrated; **PUT must include `hostType` + `hostId` once** to persist host. Schemas: `lib/db/schemas/repTournament.schema.ts`.
 - [ ] **D2** Entry rules: who may enter, fees, withdrawal deadlines, max teams.
 - [ ] **D3** Draw formats: pools, knockout, cross-pool finals; manual seeding + optional import from standings.
 - [ ] **D4** Full lifecycle: create → entries → draw → fixtures → results → winner (align with existing team-tournament flows).

@@ -21,7 +21,11 @@ import {
   Users,
 } from "lucide-react";
 import RichTextEditor from "@/app/(admin)/admin/components/RichTextEditor";
-import type { Tournament, CreateTournamentRequest } from "@/types/tournaments";
+import type {
+  Tournament,
+  CreateTournamentRequest,
+  TournamentHostType,
+} from "@/types/tournaments";
 import { friday8WeeksBefore, getPeriodStatus } from "@/types/tournaments";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -54,9 +58,15 @@ function tournamentStatus(t: Tournament): "upcoming" | "active" | "past" {
 
 // ─── Empty form state ─────────────────────────────────────────────────────────
 
-type TournamentFormState = Omit<CreateTournamentRequest, "season"> & {
+type TournamentFormState = Omit<
+  CreateTournamentRequest,
+  "season" | "hostType" | "hostId" | "brandingAssociationId"
+> & {
   gender: string;
   nominationFee: number;
+  hostType: TournamentHostType;
+  hostId: string;
+  brandingAssociationId: string;
 };
 
 const EMPTY_FORM: TournamentFormState = {
@@ -68,6 +78,9 @@ const EMPTY_FORM: TournamentFormState = {
   location: "",
   additionalInfo: "",
   nominationFee: 0,
+  hostType: "association",
+  hostId: "",
+  brandingAssociationId: "",
 };
 
 // ─── Modal ────────────────────────────────────────────────────────────────────
@@ -98,9 +111,79 @@ function TournamentModal({
     location: initial?.location ?? "",
     additionalInfo: initial?.additionalInfo ?? "",
     nominationFee: initial?.nominationFee ?? 0,
+    hostType: initial?.hostType ?? "association",
+    hostId: initial?.hostId ?? "",
+    brandingAssociationId:
+      initial?.brandingAssociationId ?? initial?.hostId ?? "",
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [assocOptions, setAssocOptions] = useState<{ id: string; name: string }[]>(
+    [],
+  );
+  const [clubOptions, setClubOptions] = useState<{ id: string; name: string }[]>(
+    [],
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const [aRes, cRes] = await Promise.all([
+          fetch("/api/admin/associations?simple=true&limit=400&status=active"),
+          fetch("/api/admin/clubs?simple=true&limit=600&status=active"),
+        ]);
+        const aJson = aRes.ok ? await aRes.json() : {};
+        const cJson = cRes.ok ? await cRes.json() : {};
+        if (cancelled) return;
+        setAssocOptions(aJson.associations ?? []);
+        setClubOptions(
+          (cJson.clubs ?? []).map((c: { id: string; name: string }) => ({
+            id: c.id,
+            name: c.name,
+          })),
+        );
+      } catch {
+        /* ignore */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (isEdit) return;
+    let cancelled = false;
+    fetch("/api/auth/me")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (cancelled || !data?.user) return;
+        const u = data.user as {
+          associationId?: string | null;
+          clubId?: string | null;
+        };
+        setForm((f) => {
+          if (f.hostId) return f;
+          if (u.associationId) {
+            return {
+              ...f,
+              hostType: "association",
+              hostId: u.associationId,
+              brandingAssociationId: u.associationId,
+            };
+          }
+          if (u.clubId) {
+            return { ...f, hostType: "club", hostId: u.clubId, brandingAssociationId: "" };
+          }
+          return f;
+        });
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [isEdit]);
 
   // Auto-fill end date when start date changes (end = start + 4 days by default)
   const handleStartDateChange = (val: string) => {
@@ -117,8 +200,18 @@ function TournamentModal({
 
   async function handleSave() {
     setError("");
-    if (!form.ageGroup || !form.title || !form.startDate || !form.endDate || !form.location) {
+    if (
+      !form.ageGroup ||
+      !form.title ||
+      !form.startDate ||
+      !form.endDate ||
+      !form.location
+    ) {
       setError("Please fill in all required fields.");
+      return;
+    }
+    if (!form.hostId.trim()) {
+      setError("Select or enter a host (association or club).");
       return;
     }
     if (form.endDate < form.startDate) {
@@ -133,10 +226,30 @@ function TournamentModal({
         : "/api/admin/tournaments";
       const method = isEdit ? "PUT" : "POST";
 
+      const payload: Record<string, unknown> = {
+        ageGroup: form.ageGroup,
+        gender: form.gender,
+        title: form.title,
+        startDate: form.startDate,
+        endDate: form.endDate,
+        location: form.location,
+        additionalInfo: form.additionalInfo,
+        nominationFee: form.nominationFee,
+        hostType: form.hostType,
+        hostId: form.hostId.trim(),
+        season,
+      };
+      if (form.hostType === "association") {
+        const b = form.brandingAssociationId.trim();
+        if (b && b !== form.hostId.trim()) {
+          payload.brandingAssociationId = b;
+        }
+      }
+
       const res = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, season, gender: form.gender, nominationFee: form.nominationFee }),
+        body: JSON.stringify(payload),
       });
 
       if (!res.ok) {
@@ -186,6 +299,99 @@ function TournamentModal({
               {error}
             </div>
           )}
+
+          {/* D1 — Host */}
+          <div className="rounded-2xl border-2 border-slate-100 bg-slate-50/80 p-4 space-y-4">
+            <p className="text-xs font-black uppercase text-slate-500">
+              Host & permissions <span className="text-red-500">*</span>
+            </p>
+            <p className="text-xs text-slate-500 leading-relaxed">
+              Tournaments are scoped to an <strong>association</strong> or <strong>club</strong> host.
+              Only users with access to that host (or parent association for club events) can edit or delete.
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-[10px] font-black uppercase text-slate-500 mb-1">
+                  Host type
+                </label>
+                <select
+                  value={form.hostType}
+                  onChange={(e) => {
+                    const ht = e.target.value as TournamentHostType;
+                    setForm((f) => ({
+                      ...f,
+                      hostType: ht,
+                      hostId: "",
+                      brandingAssociationId: ht === "association" ? "" : "",
+                    }));
+                  }}
+                  className="w-full px-3 py-2 border-2 border-slate-200 rounded-xl text-sm font-bold text-[#06054e]"
+                >
+                  <option value="association">Association</option>
+                  <option value="club">Club</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-[10px] font-black uppercase text-slate-500 mb-1">
+                  {form.hostType === "association" ? "Host association" : "Host club"}
+                </label>
+                <select
+                  value={form.hostId}
+                  onChange={(e) => {
+                    const id = e.target.value;
+                    setForm((f) => ({
+                      ...f,
+                      hostId: id,
+                      brandingAssociationId:
+                        f.hostType === "association" ? id : f.brandingAssociationId,
+                    }));
+                  }}
+                  className="w-full px-3 py-2 border-2 border-slate-200 rounded-xl text-sm font-bold text-[#06054e]"
+                >
+                  <option value="">Select…</option>
+                  {(form.hostType === "association" ? assocOptions : clubOptions).map(
+                    (o) => (
+                      <option key={o.id} value={o.id}>
+                        {o.name}
+                      </option>
+                    ),
+                  )}
+                </select>
+              </div>
+            </div>
+            {form.hostType === "association" && (
+              <div>
+                <label className="block text-[10px] font-black uppercase text-slate-500 mb-1">
+                  Branding / permission association (optional)
+                </label>
+                <p className="text-[11px] text-slate-400 mb-1">
+                  Defaults to the host. Choose a parent association if branding and RBAC should follow a different org node.
+                </p>
+                <select
+                  value={
+                    form.brandingAssociationId === form.hostId
+                      ? ""
+                      : form.brandingAssociationId
+                  }
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    setForm((f) => ({
+                      ...f,
+                      brandingAssociationId: v || f.hostId,
+                    }));
+                  }}
+                  className="w-full px-3 py-2 border-2 border-slate-200 rounded-xl text-sm font-bold text-[#06054e]"
+                >
+                  <option value="">Same as host</option>
+                  {assocOptions.map((o) => (
+                    <option key={o.id} value={o.id}>
+                      {o.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+          </div>
 
           {/* Age group */}
           <div>
@@ -408,6 +614,19 @@ function TournamentCard({
                 <span className="flex items-center gap-1 px-2.5 py-0.5 bg-yellow-50 text-yellow-700 border border-yellow-200 rounded-full text-[10px] font-black uppercase">
                   <DollarSign size={9} />
                   {tournament.nominationFee.toFixed(2)} AUD
+                </span>
+              )}
+              {!tournament.hostType && !tournament.hostId ? (
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase border border-amber-300 bg-amber-50 text-amber-800">
+                  Legacy — set host on edit
+                </span>
+              ) : (
+                <span
+                  className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase border border-slate-200 bg-slate-50 text-slate-600 max-w-[200px] truncate"
+                  title={`${tournament.hostType} ${tournament.hostId}`}
+                >
+                  {tournament.hostType === "club" ? "Club" : "Assoc"} ·{" "}
+                  {tournament.hostId}
                 </span>
               )}
             </div>
@@ -696,6 +915,7 @@ export default function TournamentsPage() {
       {/* Modal */}
       {showModal && (
         <TournamentModal
+          key={editingTournament?.tournamentId ?? "new"}
           season={season}
           ageGroups={availableAgeGroups}
           initial={editingTournament}

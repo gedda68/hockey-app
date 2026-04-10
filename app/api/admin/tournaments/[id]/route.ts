@@ -5,11 +5,21 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { ObjectId } from "mongodb";
+import { ZodError } from "zod";
 import clientPromise from "@/lib/mongodb";
 import { requirePermission } from "@/lib/auth/middleware";
 import { logPlatformAudit } from "@/lib/audit/platformAuditLog";
 import { upsertNominationPeriod } from "../route";
-import type { CreateTournamentRequest } from "@/types/tournaments";
+import { PatchRepTournamentBodySchema } from "@/lib/db/schemas/repTournament.schema";
+import {
+  normalizeRepTournamentHost,
+  RepTournamentHostError,
+} from "@/lib/tournaments/resolveRepTournamentHost";
+import {
+  requireRepTournamentResourceAccess,
+  type RepTournamentHostDoc,
+} from "@/lib/auth/repTournamentScope";
+import type { TournamentHostType } from "@/types/tournaments";
 
 function buildFilter(id: string) {
   return ObjectId.isValid(id)
@@ -19,10 +29,10 @@ function buildFilter(id: string) {
 
 // ─── GET /api/admin/tournaments/[id] ─────────────────────────────────────────
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const { response } = await requirePermission(_request, "selection.manage");
+  const { response } = await requirePermission(request, "selection.manage");
   if (response) return response;
   try {
     const { id } = await params;
@@ -33,6 +43,12 @@ export async function GET(
     if (!tournament) {
       return NextResponse.json({ error: "Tournament not found" }, { status: 404 });
     }
+
+    const scope = await requireRepTournamentResourceAccess(
+      request,
+      tournament as RepTournamentHostDoc,
+    );
+    if (scope.response) return scope.response;
 
     return NextResponse.json({ ...tournament, _id: tournament._id.toString() });
   } catch (error: unknown) {
@@ -50,7 +66,7 @@ export async function PUT(
   if (response) return response;
   try {
     const { id } = await params;
-    const body: Partial<CreateTournamentRequest> = await request.json();
+    const body = PatchRepTournamentBodySchema.parse(await request.json());
 
     const client = await clientPromise;
     const db = client.db("hockey-app");
@@ -60,7 +76,12 @@ export async function PUT(
       return NextResponse.json({ error: "Tournament not found" }, { status: 404 });
     }
 
-    // Validate dates if both provided
+    const scopeExisting = await requireRepTournamentResourceAccess(
+      request,
+      existing as RepTournamentHostDoc,
+    );
+    if (scopeExisting.response) return scopeExisting.response;
+
     const newStart = body.startDate ?? existing.startDate;
     const newEnd = body.endDate ?? existing.endDate;
     if (newEnd < newStart) {
@@ -68,6 +89,64 @@ export async function PUT(
         { error: "Tournament end date must be on or after start date" },
         { status: 400 },
       );
+    }
+
+    const isLegacy =
+      !existing.hostType &&
+      !String(existing.hostId ?? "").trim() &&
+      !String(existing.brandingAssociationId ?? "").trim();
+
+    if (isLegacy && (!body.hostType || !body.hostId?.trim())) {
+      return NextResponse.json(
+        {
+          error:
+            "This tournament has no host on file. Send hostType and hostId on this update to complete migration.",
+        },
+        { status: 400 },
+      );
+    }
+
+    const hostChanging =
+      isLegacy ||
+      body.hostType !== undefined ||
+      body.hostId !== undefined ||
+      body.brandingAssociationId !== undefined;
+
+    let hostNorm: {
+      hostType: TournamentHostType;
+      hostId: string;
+      brandingAssociationId: string;
+    } | null = null;
+
+    if (hostChanging) {
+      const ht = (body.hostType ?? existing.hostType) as TournamentHostType | undefined;
+      const hid = String(body.hostId ?? existing.hostId ?? "").trim();
+      if (!ht || !hid) {
+        return NextResponse.json(
+          {
+            error:
+              "hostType and hostId are required when updating host fields (or migrating a legacy tournament).",
+          },
+          { status: 400 },
+        );
+      }
+      try {
+        hostNorm = await normalizeRepTournamentHost(db, {
+          hostType: ht,
+          hostId: hid,
+          brandingAssociationId:
+            body.brandingAssociationId ??
+            (existing.brandingAssociationId as string | undefined) ??
+            undefined,
+        });
+      } catch (e: unknown) {
+        if (e instanceof RepTournamentHostError) {
+          return NextResponse.json({ error: e.message }, { status: e.status });
+        }
+        throw e;
+      }
+      const scopeNew = await requireRepTournamentResourceAccess(request, hostNorm);
+      if (scopeNew.response) return scopeNew.response;
     }
 
     const now = new Date().toISOString();
@@ -79,12 +158,23 @@ export async function PUT(
       ...(body.location !== undefined && { location: body.location }),
       ...(body.additionalInfo !== undefined && { additionalInfo: body.additionalInfo }),
       ...(body.nominationFee !== undefined && { nominationFee: body.nominationFee }),
+      ...(body.season !== undefined && { season: body.season }),
+      ...(body.ageGroup !== undefined && { ageGroup: body.ageGroup }),
+      ...(hostNorm && {
+        hostType: hostNorm.hostType,
+        hostId: hostNorm.hostId,
+        brandingAssociationId: hostNorm.brandingAssociationId,
+      }),
       updatedAt: now,
     };
 
     const result = await db
       .collection("rep_tournaments")
       .findOneAndUpdate(buildFilter(id), { $set: updateFields }, { returnDocument: "after" });
+
+    if (!result) {
+      return NextResponse.json({ error: "Tournament not found" }, { status: 404 });
+    }
 
     await logPlatformAudit({
       userId: user.userId,
@@ -98,26 +188,37 @@ export async function PUT(
         title: existing.title,
         startDate: existing.startDate,
         endDate: existing.endDate,
+        hostType: existing.hostType,
+        hostId: existing.hostId,
+        brandingAssociationId: existing.brandingAssociationId,
       },
       after: {
         title: result?.title,
         startDate: result?.startDate,
         endDate: result?.endDate,
+        hostType: result?.hostType,
+        hostId: result?.hostId,
+        brandingAssociationId: result?.brandingAssociationId,
       },
     });
 
-    // Re-sync nomination period end date if the tournament start date changed
     if (body.startDate) {
       await upsertNominationPeriod(db, {
-        season: existing.season,
-        ageGroup: existing.ageGroup,
+        season: (result?.season ?? existing.season) as string,
+        ageGroup: (result?.ageGroup ?? existing.ageGroup) as string,
         tournamentStartDate: body.startDate,
-        tournamentId: existing.tournamentId,
+        tournamentId: existing.tournamentId as string,
       });
     }
 
-    return NextResponse.json({ ...result, _id: result!._id.toString() });
+    return NextResponse.json({ ...result, _id: result._id.toString() });
   } catch (error: unknown) {
+    if (error instanceof ZodError) {
+      return NextResponse.json(
+        { error: "Validation error", details: error.flatten() },
+        { status: 400 },
+      );
+    }
     console.error("PUT /api/admin/tournaments/[id] error:", error);
     return NextResponse.json({ error: "Failed to update tournament" }, { status: 500 });
   }
@@ -125,10 +226,10 @@ export async function PUT(
 
 // ─── DELETE /api/admin/tournaments/[id] ──────────────────────────────────────
 export async function DELETE(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const { user, response } = await requirePermission(_request, "selection.manage");
+  const { user, response } = await requirePermission(request, "selection.manage");
   if (response) return response;
   try {
     const { id } = await params;
@@ -139,6 +240,12 @@ export async function DELETE(
     if (!existing) {
       return NextResponse.json({ error: "Tournament not found" }, { status: 404 });
     }
+
+    const scopeExisting = await requireRepTournamentResourceAccess(
+      request,
+      existing as RepTournamentHostDoc,
+    );
+    if (scopeExisting.response) return scopeExisting.response;
 
     const result = await db.collection("rep_tournaments").deleteOne(buildFilter(id));
     if (result.deletedCount === 0) {
