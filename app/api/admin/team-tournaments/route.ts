@@ -15,7 +15,10 @@ import type {
   TeamTournamentEntry,
   CreateEntryBody,
   TeamTournamentEntrySummary,
+  TeamFeeItem,
 } from "@/types/teamTournament";
+import type { RepTournamentDoc } from "@/lib/tournaments/tournamentEntryRules";
+import { validateNewTeamTournamentEntry } from "@/lib/tournaments/tournamentEntryRules";
 
 const ADMIN_ROLES = [
   "super-admin",
@@ -117,6 +120,28 @@ export async function POST(req: NextRequest) {
   if (!team) return NextResponse.json({ error: "Team not found" }, { status: 404 });
   if (!tournament) return NextResponse.json({ error: "Tournament not found" }, { status: 404 });
 
+  const club = await db.collection("clubs").findOne({
+    $or: [{ id: team.clubId }, { clubId: team.clubId }],
+  });
+
+  const entryCheck = await validateNewTeamTournamentEntry(
+    db,
+    tournament as unknown as RepTournamentDoc,
+    club
+      ? {
+          id: (club.id as string) ?? String(team.clubId),
+          parentAssociationId: club.parentAssociationId as string | undefined,
+        }
+      : null,
+  );
+  if (!entryCheck.ok) {
+    return NextResponse.json(
+      { error: entryCheck.message, code: entryCheck.code },
+      { status: entryCheck.status },
+    );
+  }
+  const entryRules = entryCheck.rules;
+
   // Scope check: club-admin can only create entries for their own club
   if (["club-admin", "registrar"].includes(session.role) && session.clubId) {
     if (team.clubId !== session.clubId) {
@@ -135,11 +160,23 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Look up club name
-  const club = await db.collection("clubs").findOne({ id: team.clubId });
-
   const now = new Date();
   const entryId = `tte-${teamId}-${tournamentId}`;
+
+  const feeItems: TeamFeeItem[] = [];
+  let totalFeesCents = 0;
+  if (entryRules.entryFeeCents != null && entryRules.entryFeeCents > 0) {
+    feeItems.push({
+      itemId: `item-${now.getTime()}`,
+      category: "entry",
+      name: "Tournament entry",
+      description: "Team entry fee (from tournament entry rules)",
+      totalAmountCents: entryRules.entryFeeCents,
+      splitMethod: "equal",
+      gstIncluded: false,
+    });
+    totalFeesCents = entryRules.entryFeeCents;
+  }
 
   const entry: TeamTournamentEntry = {
     entryId,
@@ -159,9 +196,9 @@ export async function POST(req: NextRequest) {
     endDate:         tournament.endDate,
     location:        tournament.location,
     status,
-    feeItems:        [],
+    feeItems,
     attendingMemberIds: [],
-    totalFeesCents:  0,
+    totalFeesCents,
     totalCollectedCents: 0,
     notes,
     createdAt: now,

@@ -11,6 +11,11 @@ import {
   requireResourceAccess,
 } from "@/lib/auth/middleware";
 import type { TeamTournamentEntry, UpdateEntryBody } from "@/types/teamTournament";
+import type { RepTournamentDoc } from "@/lib/tournaments/tournamentEntryRules";
+import {
+  effectiveEntryRules,
+  isPastInclusiveDeadline,
+} from "@/lib/tournaments/tournamentEntryRules";
 
 async function loadEntry(
   db: Awaited<ReturnType<typeof import("mongodb").MongoClient.prototype.db>>,
@@ -84,6 +89,26 @@ export async function PUT(
     body = await req.json();
   } catch {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+  }
+
+  if (
+    body.status === "withdrawn" &&
+    entry.status !== "withdrawn"
+  ) {
+    const tournament = await db.collection("rep_tournaments").findOne({
+      tournamentId: entry.tournamentId,
+    });
+    const rules = effectiveEntryRules((tournament ?? {}) as RepTournamentDoc);
+    if (isPastInclusiveDeadline(rules.withdrawalDeadline)) {
+      return NextResponse.json(
+        {
+          error:
+            "The withdrawal deadline for this tournament has passed. Contact the tournament host to amend the entry.",
+          code: "withdrawal_closed",
+        },
+        { status: 400 },
+      );
+    }
   }
 
   const now = new Date();

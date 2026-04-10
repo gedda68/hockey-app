@@ -4,6 +4,36 @@ import { z } from "zod";
 
 export const TournamentHostTypeSchema = z.enum(["association", "club"]);
 
+/** D2 — Who may enter, caps, deadlines, team entry fee (cents). */
+export const TournamentEntryEligibilitySchema = z.enum([
+  /** Clubs whose `parentAssociationId` matches tournament `brandingAssociationId`. */
+  "branding_association_clubs",
+  /** `hostType` must be `association`; club parent must match `hostId`. */
+  "host_association_clubs",
+  /** `hostType` must be `club`; only that club's teams. */
+  "host_club_only",
+  /** Only clubs listed in `allowedClubIds`. */
+  "explicit_clubs",
+]);
+
+export const TournamentEntryRulesSchema = z
+  .object({
+    entryEligibility: TournamentEntryEligibilitySchema.default(
+      "branding_association_clubs",
+    ),
+    allowedClubIds: z.array(z.string().min(1)).max(500).optional().default([]),
+    maxTeams: z.union([z.number().int().positive().max(5000), z.null()]).optional(),
+    /** Inclusive start (YYYY-MM-DD or ISO); null clears. */
+    entryOpensAt: z.union([z.string().min(4), z.null()]).optional(),
+    /** Inclusive last day entries accepted (calendar date). */
+    entryClosesAt: z.union([z.string().min(4), z.null()]).optional(),
+    /** Last day a team may withdraw (calendar date). */
+    withdrawalDeadline: z.union([z.string().min(4), z.null()]).optional(),
+    /** Suggested team entry fee in cents (optional seed on team entry create). */
+    entryFeeCents: z.number().int().nonnegative().max(1_000_000_000).nullable().optional(),
+  })
+  .strict();
+
 export const RepTournamentHostFieldsSchema = z.object({
   hostType: TournamentHostTypeSchema,
   hostId: z.string().min(1),
@@ -28,6 +58,7 @@ export const CreateRepTournamentBodySchema = z
     hostType: TournamentHostTypeSchema.optional(),
     hostId: z.string().min(1).optional(),
     brandingAssociationId: z.string().min(1).optional(),
+    entryRules: TournamentEntryRulesSchema.optional(),
   })
   .strict();
 

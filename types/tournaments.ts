@@ -8,6 +8,24 @@ export type TournamentGender = "male" | "female" | "mixed";
 /** D1 — Who runs the event; RBAC uses host + branding association. */
 export type TournamentHostType = "association" | "club";
 
+/** D2 — Which clubs may enter (enforced on team tournament entry). */
+export type TournamentEntryEligibility =
+  | "branding_association_clubs"
+  | "host_association_clubs"
+  | "host_club_only"
+  | "explicit_clubs";
+
+/** D2 — Entry caps, deadlines, team entry fee hint (cents). */
+export interface TournamentEntryRules {
+  entryEligibility: TournamentEntryEligibility;
+  allowedClubIds: string[];
+  maxTeams: number | null;
+  entryOpensAt: string | null;
+  entryClosesAt: string | null;
+  withdrawalDeadline: string | null;
+  entryFeeCents: number | null;
+}
+
 export interface Tournament {
   _id?: string;             // MongoDB id (serialised to string)
   tournamentId: string;
@@ -25,6 +43,8 @@ export interface Tournament {
   hostId?: string | null;
   /** D1: Association scope for permissions / branding (parent when club hosts). */
   brandingAssociationId?: string | null;
+  /** D2: Optional; when absent, eligibility falls back to permissive / branding-only when set. */
+  entryRules?: TournamentEntryRules;
   createdAt: string;
   updatedAt: string;
 }
@@ -43,6 +63,7 @@ export interface CreateTournamentRequest {
   hostId?: string;
   /** Optional when host is association; defaults to hostId. Ignored for club host (must match parent). */
   brandingAssociationId?: string;
+  entryRules?: Partial<TournamentEntryRules>;
 }
 
 // ─── Nomination Period ────────────────────────────────────────────────────────

@@ -24,6 +24,7 @@ import RichTextEditor from "@/app/(admin)/admin/components/RichTextEditor";
 import type {
   Tournament,
   CreateTournamentRequest,
+  TournamentEntryEligibility,
   TournamentHostType,
 } from "@/types/tournaments";
 import { friday8WeeksBefore, getPeriodStatus } from "@/types/tournaments";
@@ -60,13 +61,25 @@ function tournamentStatus(t: Tournament): "upcoming" | "active" | "past" {
 
 type TournamentFormState = Omit<
   CreateTournamentRequest,
-  "season" | "hostType" | "hostId" | "brandingAssociationId"
+  | "season"
+  | "hostType"
+  | "hostId"
+  | "brandingAssociationId"
+  | "entryRules"
 > & {
   gender: string;
   nominationFee: number;
   hostType: TournamentHostType;
   hostId: string;
   brandingAssociationId: string;
+  entryEligibility: TournamentEntryEligibility;
+  allowedClubIdsText: string;
+  maxTeamsInput: string;
+  entryOpensAt: string;
+  entryClosesAt: string;
+  withdrawalDeadline: string;
+  /** Whole dollars; converted to cents for API. */
+  entryFeeDollars: number;
 };
 
 const EMPTY_FORM: TournamentFormState = {
@@ -81,6 +94,13 @@ const EMPTY_FORM: TournamentFormState = {
   hostType: "association",
   hostId: "",
   brandingAssociationId: "",
+  entryEligibility: "branding_association_clubs",
+  allowedClubIdsText: "",
+  maxTeamsInput: "",
+  entryOpensAt: "",
+  entryClosesAt: "",
+  withdrawalDeadline: "",
+  entryFeeDollars: 0,
 };
 
 // ─── Modal ────────────────────────────────────────────────────────────────────
@@ -115,6 +135,20 @@ function TournamentModal({
     hostId: initial?.hostId ?? "",
     brandingAssociationId:
       initial?.brandingAssociationId ?? initial?.hostId ?? "",
+    entryEligibility:
+      initial?.entryRules?.entryEligibility ?? "branding_association_clubs",
+    allowedClubIdsText: initial?.entryRules?.allowedClubIds?.join(", ") ?? "",
+    maxTeamsInput:
+      initial?.entryRules?.maxTeams != null
+        ? String(initial.entryRules.maxTeams)
+        : "",
+    entryOpensAt: initial?.entryRules?.entryOpensAt?.slice(0, 10) ?? "",
+    entryClosesAt: initial?.entryRules?.entryClosesAt?.slice(0, 10) ?? "",
+    withdrawalDeadline:
+      initial?.entryRules?.withdrawalDeadline?.slice(0, 10) ?? "",
+    entryFeeDollars: initial?.entryRules?.entryFeeCents
+      ? Math.round(initial.entryRules.entryFeeCents) / 100
+      : 0,
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -218,6 +252,20 @@ function TournamentModal({
       setError("End date must be on or after start date.");
       return;
     }
+    if (
+      form.entryEligibility === "explicit_clubs" &&
+      !form.allowedClubIdsText.trim()
+    ) {
+      setError("Explicit club list: enter at least one club id (comma-separated).");
+      return;
+    }
+    if (form.maxTeamsInput.trim()) {
+      const n = parseInt(form.maxTeamsInput, 10);
+      if (Number.isNaN(n) || n < 1) {
+        setError("Max teams must be a positive integer or left blank for no cap.");
+        return;
+      }
+    }
 
     setSaving(true);
     try {
@@ -245,6 +293,25 @@ function TournamentModal({
           payload.brandingAssociationId = b;
         }
       }
+
+      const maxTeamsParsed = form.maxTeamsInput.trim()
+        ? parseInt(form.maxTeamsInput, 10)
+        : null;
+      payload.entryRules = {
+        entryEligibility: form.entryEligibility,
+        allowedClubIds: form.allowedClubIdsText
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean),
+        maxTeams: maxTeamsParsed,
+        entryOpensAt: form.entryOpensAt.trim() || null,
+        entryClosesAt: form.entryClosesAt.trim() || null,
+        withdrawalDeadline: form.withdrawalDeadline.trim() || null,
+        entryFeeCents:
+          form.entryFeeDollars > 0
+            ? Math.round(form.entryFeeDollars * 100)
+            : null,
+      };
 
       const res = await fetch(url, {
         method,
@@ -525,6 +592,134 @@ function TournamentModal({
               />
             </div>
             <p className="text-xs text-slate-400 mt-1">Enter 0 if there is no nomination fee.</p>
+          </div>
+
+          {/* D2 — Entry rules */}
+          <div className="rounded-2xl border-2 border-emerald-100 bg-emerald-50/40 p-4 space-y-4">
+            <p className="text-xs font-black uppercase text-emerald-800">
+              Team entry rules (D2)
+            </p>
+            <p className="text-xs text-slate-600 leading-relaxed">
+              Controls who can create <strong>team tournament entries</strong>, deadlines, caps, and a default
+              team entry fee line item when a club registers.
+            </p>
+            <div>
+              <label className="block text-[10px] font-black uppercase text-slate-500 mb-1">
+                Who may enter
+              </label>
+              <select
+                value={form.entryEligibility}
+                onChange={(e) =>
+                  setForm((f) => ({
+                    ...f,
+                    entryEligibility: e.target.value as TournamentEntryEligibility,
+                  }))
+                }
+                className="w-full px-3 py-2 border-2 border-slate-200 rounded-xl text-sm font-bold text-[#06054e]"
+              >
+                <option value="branding_association_clubs">
+                  Clubs under branding association
+                </option>
+                <option value="host_association_clubs">
+                  Clubs under host association (association host only)
+                </option>
+                <option value="host_club_only">Host club only (club host only)</option>
+                <option value="explicit_clubs">Explicit club list</option>
+              </select>
+            </div>
+            {form.entryEligibility === "explicit_clubs" && (
+              <div>
+                <label className="block text-[10px] font-black uppercase text-slate-500 mb-1">
+                  Allowed club ids (comma-separated)
+                </label>
+                <input
+                  type="text"
+                  value={form.allowedClubIdsText}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, allowedClubIdsText: e.target.value }))
+                  }
+                  placeholder="club-id-1, club-id-2"
+                  className="w-full px-3 py-2 border-2 border-slate-200 rounded-xl text-sm font-mono"
+                />
+              </div>
+            )}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-[10px] font-black uppercase text-slate-500 mb-1">
+                  Max teams (blank = no cap)
+                </label>
+                <input
+                  type="number"
+                  min={1}
+                  value={form.maxTeamsInput}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, maxTeamsInput: e.target.value }))
+                  }
+                  placeholder="e.g. 16"
+                  className="w-full px-3 py-2 border-2 border-slate-200 rounded-xl text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-black uppercase text-slate-500 mb-1">
+                  Team entry fee (AUD, optional)
+                </label>
+                <input
+                  type="number"
+                  min={0}
+                  step={0.01}
+                  value={form.entryFeeDollars || ""}
+                  onChange={(e) =>
+                    setForm((f) => ({
+                      ...f,
+                      entryFeeDollars: parseFloat(e.target.value) || 0,
+                    }))
+                  }
+                  placeholder="0"
+                  className="w-full px-3 py-2 border-2 border-slate-200 rounded-xl text-sm"
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <label className="block text-[10px] font-black uppercase text-slate-500 mb-1">
+                  Entries open (from)
+                </label>
+                <input
+                  type="date"
+                  value={form.entryOpensAt}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, entryOpensAt: e.target.value }))
+                  }
+                  className="w-full px-3 py-2 border-2 border-slate-200 rounded-xl text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-black uppercase text-slate-500 mb-1">
+                  Entries close
+                </label>
+                <input
+                  type="date"
+                  value={form.entryClosesAt}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, entryClosesAt: e.target.value }))
+                  }
+                  className="w-full px-3 py-2 border-2 border-slate-200 rounded-xl text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-black uppercase text-slate-500 mb-1">
+                  Withdraw by
+                </label>
+                <input
+                  type="date"
+                  value={form.withdrawalDeadline}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, withdrawalDeadline: e.target.value }))
+                  }
+                  className="w-full px-3 py-2 border-2 border-slate-200 rounded-xl text-sm"
+                />
+              </div>
+            </div>
           </div>
 
           {/* Additional info – rich text */}

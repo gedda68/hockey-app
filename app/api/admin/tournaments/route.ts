@@ -22,6 +22,8 @@ import {
   friday8WeeksBefore,
   defaultNominationStart,
 } from "@/types/tournaments";
+import type { TournamentEntryRules } from "@/types/tournaments";
+import { mergeEntryRules } from "@/lib/tournaments/tournamentEntryRules";
 
 // ─── GET /api/admin/tournaments ───────────────────────────────────────────────
 export async function GET(request: NextRequest) {
@@ -134,6 +136,11 @@ export async function POST(request: NextRequest) {
     const now = new Date().toISOString();
     const tournamentId = `tourn-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
 
+    let entryRules: TournamentEntryRules | undefined;
+    if (body.entryRules !== undefined) {
+      entryRules = mergeEntryRules(undefined, body.entryRules as Partial<TournamentEntryRules>);
+    }
+
     const tournament = {
       tournamentId,
       season,
@@ -148,6 +155,7 @@ export async function POST(request: NextRequest) {
       hostType: hostNorm.hostType,
       hostId: hostNorm.hostId,
       brandingAssociationId: hostNorm.brandingAssociationId,
+      ...(entryRules ? { entryRules } : {}),
       createdAt: now,
       updatedAt: now,
     };

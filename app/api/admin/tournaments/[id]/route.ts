@@ -19,7 +19,8 @@ import {
   requireRepTournamentResourceAccess,
   type RepTournamentHostDoc,
 } from "@/lib/auth/repTournamentScope";
-import type { TournamentHostType } from "@/types/tournaments";
+import type { TournamentEntryRules, TournamentHostType } from "@/types/tournaments";
+import { mergeEntryRules } from "@/lib/tournaments/tournamentEntryRules";
 
 function buildFilter(id: string) {
   return ObjectId.isValid(id)
@@ -160,6 +161,12 @@ export async function PUT(
       ...(body.nominationFee !== undefined && { nominationFee: body.nominationFee }),
       ...(body.season !== undefined && { season: body.season }),
       ...(body.ageGroup !== undefined && { ageGroup: body.ageGroup }),
+      ...(body.entryRules !== undefined && {
+        entryRules: mergeEntryRules(
+          existing.entryRules as Partial<TournamentEntryRules> | undefined,
+          body.entryRules as Partial<TournamentEntryRules>,
+        ),
+      }),
       ...(hostNorm && {
         hostType: hostNorm.hostType,
         hostId: hostNorm.hostId,
@@ -191,6 +198,7 @@ export async function PUT(
         hostType: existing.hostType,
         hostId: existing.hostId,
         brandingAssociationId: existing.brandingAssociationId,
+        entryRules: existing.entryRules,
       },
       after: {
         title: result?.title,
@@ -199,6 +207,7 @@ export async function PUT(
         hostType: result?.hostType,
         hostId: result?.hostId,
         brandingAssociationId: result?.brandingAssociationId,
+        entryRules: result?.entryRules,
       },
     });
 
