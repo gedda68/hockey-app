@@ -18,6 +18,24 @@ export interface FixtureUmpireSlot {
   dateUpdated?: string;
 }
 
+/** Stored on `league_fixtures.matchEvents` (E6). */
+export type FixtureMatchEventKind =
+  | "goal"
+  | "green_card"
+  | "yellow_card"
+  | "red_card";
+
+export interface FixtureMatchEventPublic {
+  eventId: string;
+  kind: FixtureMatchEventKind;
+  teamId: string;
+  memberId: string;
+  assistMemberId?: string | null;
+  period?: number | null;
+  minute?: number | null;
+  notes?: string | null;
+}
+
 // Match Types
 export interface Match {
   matchId: string;
@@ -43,6 +61,8 @@ export interface Match {
   isFeatureGame?: boolean;
   venueId?: string;
   notes?: string;
+  /** Player-attributed events when the fixture result is public (E6). */
+  matchEvents?: FixtureMatchEventPublic[];
 }
 
 // Standings / Team Types

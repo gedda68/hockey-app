@@ -85,6 +85,7 @@ export async function POST(request: NextRequest, { params }: Params) {
       resultApprovedBy: null,
       legacyMatchId: null,
       umpires: null,
+      matchEvents: null,
       matchLevel: "league",
       createdAt: now,
       createdBy: user.userId,

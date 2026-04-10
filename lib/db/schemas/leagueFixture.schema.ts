@@ -33,6 +33,42 @@ export const UmpireAllocationStatusSchema = z.enum([
   "declined",
 ]);
 
+/** On-field events for player-level stats (E6). */
+export const FixtureMatchEventKindSchema = z.enum([
+  "goal",
+  "green_card",
+  "yellow_card",
+  "red_card",
+]);
+
+export const FixtureMatchEventSchema = z
+  .object({
+    eventId: z.string().min(1).optional(),
+    kind: FixtureMatchEventKindSchema,
+    teamId: z.string().min(1),
+    memberId: z.string().min(1),
+    assistMemberId: z.string().min(1).nullable().optional(),
+    period: z.number().int().min(1).max(99).nullable().optional(),
+    minute: z.number().int().min(0).max(150).nullable().optional(),
+    notes: z.string().max(500).nullable().optional(),
+  })
+  .strict()
+  .superRefine((e, ctx) => {
+    if (e.kind !== "goal" && e.assistMemberId != null && e.assistMemberId !== undefined) {
+      ctx.addIssue({
+        code: "custom",
+        message: "assistMemberId is only valid for goal events",
+        path: ["assistMemberId"],
+      });
+    }
+  });
+
+export const PatchMatchEventsBodySchema = z
+  .object({
+    events: z.array(FixtureMatchEventSchema).max(200),
+  })
+  .strict();
+
 /** Umpire slots on a fixture (public fixtures / MatchList). */
 export const FixtureUmpireSlotSchema = z.object({
   umpireType: z.string().min(1),
@@ -94,6 +130,9 @@ export const LeagueFixtureSchema = z.object({
   /** Match tier for honoraria lookup (association-defined codes, e.g. league, finals). */
   matchLevel: z.string().min(1).optional(),
 
+  /** Player-attributed events (goals, cards). Shown publicly when the fixture result is visible (E6). */
+  matchEvents: z.array(FixtureMatchEventSchema).nullable().optional(),
+
   createdAt: z.string(),
   createdBy: z.string().optional(),
   updatedAt: z.string().optional(),
@@ -122,3 +161,5 @@ export const PatchLeagueFixtureBodySchema = z
   });
 
 export type PatchLeagueFixtureBody = z.infer<typeof PatchLeagueFixtureBodySchema>;
+export type FixtureMatchEvent = z.infer<typeof FixtureMatchEventSchema>;
+export type PatchMatchEventsBody = z.infer<typeof PatchMatchEventsBodySchema>;

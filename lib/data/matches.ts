@@ -6,6 +6,7 @@
 
 import type {
   Match as PublicMatch,
+  FixtureMatchEventPublic,
   FixtureUmpireSlot,
   Season,
   ViewType,
@@ -41,6 +42,7 @@ interface Match {
   };
   status: string;
   isFeatureGame?: boolean;
+  matchEvents?: FixtureMatchEventPublic[];
 }
 
 function mapStoredMatchToPublic(m: Match): PublicMatch {
@@ -49,6 +51,7 @@ function mapStoredMatchToPublic(m: Match): PublicMatch {
     seasonCompetitionId: m.seasonCompetitionId,
     legacyMatchId: m.legacyMatchId ?? undefined,
     fixtureUmpires: m.fixtureUmpires?.length ? m.fixtureUmpires : undefined,
+    matchEvents: m.matchEvents?.length ? m.matchEvents : undefined,
     division: m.division,
     round: m.round,
     status: m.status,
@@ -155,6 +158,7 @@ export async function getMatches(): Promise<Match[]> {
         resultStatus: 1,
         legacyMatchId: 1,
         umpires: 1,
+        matchEvents: 1,
       })
       .toArray();
 
@@ -232,6 +236,12 @@ export async function getMatches(): Promise<Match[]> {
       const fixtureUmpires =
         Array.isArray(rawUmpires) && rawUmpires.length > 0 ? rawUmpires : null;
 
+      const rawEvents = f.matchEvents as FixtureMatchEventPublic[] | null | undefined;
+      const matchEvents =
+        canShowResult && Array.isArray(rawEvents) && rawEvents.length > 0
+          ? rawEvents
+          : undefined;
+
       out.push({
         matchId: String(f.fixtureId),
         seasonCompetitionId: String(f.seasonCompetitionId),
@@ -240,6 +250,7 @@ export async function getMatches(): Promise<Match[]> {
             ? f.legacyMatchId
             : null,
         fixtureUmpires,
+        matchEvents,
         season,
         round: Number(f.round ?? 0),
         division,

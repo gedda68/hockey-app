@@ -91,6 +91,12 @@ export async function GET(request: NextRequest) {
         f.result
           ? f.result
           : null,
+      matchEvents:
+        (f.resultStatus === "approved" ||
+          (!requiresApproval && f.result && f.status === "completed")) &&
+        Array.isArray(f.matchEvents)
+          ? f.matchEvents
+          : null,
     }));
 
     return NextResponse.json({
