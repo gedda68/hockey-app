@@ -19,11 +19,14 @@ import {
   CalendarClock,
   DollarSign,
   Users,
+  GitBranch,
+  RefreshCw,
 } from "lucide-react";
 import RichTextEditor from "@/app/(admin)/admin/components/RichTextEditor";
 import type {
   Tournament,
   CreateTournamentRequest,
+  TournamentDrawState,
   TournamentEntryEligibility,
   TournamentHostType,
 } from "@/types/tournaments";
@@ -159,6 +162,18 @@ function TournamentModal({
     [],
   );
 
+  const tournamentApiId = initial?._id ?? initial?.tournamentId ?? "";
+  const [drawSnap, setDrawSnap] = useState<TournamentDrawState | null>(null);
+  const [drawBusy, setDrawBusy] = useState(false);
+  const [drawSectionError, setDrawSectionError] = useState("");
+  const [genKind, setGenKind] = useState<
+    "snake_pools" | "single_elimination" | "pools_then_knockout"
+  >("snake_pools");
+  const [genPoolCount, setGenPoolCount] = useState("4");
+  const [genRandom, setGenRandom] = useState(false);
+  const [importSeasonCompetitionId, setImportSeasonCompetitionId] = useState("");
+  const [importPublishedOnly, setImportPublishedOnly] = useState(true);
+
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -185,6 +200,38 @@ function TournamentModal({
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    if (!isEdit || !tournamentApiId) return;
+    let cancelled = false;
+    (async () => {
+      setDrawBusy(true);
+      setDrawSectionError("");
+      try {
+        const r = await fetch(
+          `/api/admin/tournaments/${encodeURIComponent(tournamentApiId)}/draw`,
+        );
+        const j = await r.json();
+        if (cancelled) return;
+        if (!r.ok) {
+          setDrawSectionError(typeof j.error === "string" ? j.error : "Could not load draw");
+          setDrawSnap(null);
+          return;
+        }
+        setDrawSnap(j.draw ?? null);
+      } catch {
+        if (!cancelled) {
+          setDrawSectionError("Could not load draw");
+          setDrawSnap(null);
+        }
+      } finally {
+        if (!cancelled) setDrawBusy(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isEdit, tournamentApiId]);
 
   useEffect(() => {
     if (isEdit) return;
@@ -328,6 +375,102 @@ function TournamentModal({
       onClose();
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function refreshDrawFromServer() {
+    if (!tournamentApiId) return;
+    setDrawBusy(true);
+    setDrawSectionError("");
+    try {
+      const r = await fetch(
+        `/api/admin/tournaments/${encodeURIComponent(tournamentApiId)}/draw`,
+      );
+      const j = await r.json();
+      if (!r.ok) {
+        setDrawSectionError(typeof j.error === "string" ? j.error : "Could not load draw");
+        return;
+      }
+      setDrawSnap(j.draw ?? null);
+    } catch {
+      setDrawSectionError("Could not load draw");
+    } finally {
+      setDrawBusy(false);
+    }
+  }
+
+  async function runDrawGenerate() {
+    if (!tournamentApiId) return;
+    setDrawBusy(true);
+    setDrawSectionError("");
+    try {
+      const poolCount =
+        genKind === "single_elimination"
+          ? undefined
+          : parseInt(genPoolCount, 10);
+      if (
+        genKind !== "single_elimination" &&
+        (Number.isNaN(poolCount) || (poolCount ?? 0) < 2)
+      ) {
+        setDrawSectionError("Enter a pool count between 2 and 16.");
+        return;
+      }
+      const r = await fetch(
+        `/api/admin/tournaments/${encodeURIComponent(tournamentApiId)}/draw/generate`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            kind: genKind,
+            poolCount,
+            randomizeOrder: genRandom,
+          }),
+        },
+      );
+      const j = await r.json();
+      if (!r.ok) {
+        setDrawSectionError(typeof j.error === "string" ? j.error : "Generate failed");
+        return;
+      }
+      setDrawSnap(j.draw ?? null);
+    } catch {
+      setDrawSectionError("Generate failed");
+    } finally {
+      setDrawBusy(false);
+    }
+  }
+
+  async function runImportSeeds() {
+    if (!tournamentApiId) return;
+    const scid = importSeasonCompetitionId.trim();
+    if (!scid) {
+      setDrawSectionError("Enter a season competition id to import seeds.");
+      return;
+    }
+    setDrawBusy(true);
+    setDrawSectionError("");
+    try {
+      const r = await fetch(
+        `/api/admin/tournaments/${encodeURIComponent(tournamentApiId)}/draw/import-seeds`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            seasonCompetitionId: scid,
+            publishedFixturesOnly: importPublishedOnly,
+          }),
+        },
+      );
+      const j = await r.json();
+      if (!r.ok) {
+        setDrawSectionError(typeof j.error === "string" ? j.error : "Import failed");
+        return;
+      }
+      setDrawSnap(j.draw ?? null);
+    } catch {
+      setDrawSectionError("Import failed");
+    } finally {
+      setDrawBusy(false);
     }
   }
 
@@ -721,6 +864,136 @@ function TournamentModal({
               </div>
             </div>
           </div>
+
+          {/* D3 — Draw */}
+          {isEdit && (
+            <div className="rounded-2xl border-2 border-indigo-100 bg-indigo-50/40 p-4 space-y-4">
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <p className="text-xs font-black uppercase text-indigo-900 flex items-center gap-2">
+                  <GitBranch size={14} />
+                  Tournament draw (D3)
+                </p>
+                <button
+                  type="button"
+                  onClick={() => void refreshDrawFromServer()}
+                  disabled={drawBusy}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase bg-white border-2 border-indigo-200 text-indigo-800 hover:bg-indigo-50 disabled:opacity-50"
+                >
+                  <RefreshCw size={12} className={drawBusy ? "animate-spin" : ""} />
+                  Refresh
+                </button>
+              </div>
+              <p className="text-xs text-slate-600 leading-relaxed">
+                Assign pools (snake draft), single-elimination first round, or pools plus a cross-pool
+                winner round. Seeds control ordering unless you randomize. Import seeds from a season
+                ladder using each entry&apos;s team.
+              </p>
+              {drawSectionError && (
+                <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-700 rounded-xl px-3 py-2 text-xs font-semibold">
+                  <AlertCircle size={14} />
+                  {drawSectionError}
+                </div>
+              )}
+              <div className="rounded-xl bg-white/80 border border-indigo-100 px-3 py-2.5 text-xs text-slate-700 space-y-1">
+                <p>
+                  <span className="font-bold text-slate-500">Format:</span>{" "}
+                  {drawBusy && !drawSnap ? "…" : drawSnap?.format ?? "none"}
+                </p>
+                <p>
+                  <span className="font-bold text-slate-500">Pools:</span>{" "}
+                  {drawSnap?.pools?.length ?? 0} ·{" "}
+                  <span className="font-bold text-slate-500">Knockout rows:</span>{" "}
+                  {drawSnap?.knockoutMatches?.length ?? 0} ·{" "}
+                  <span className="font-bold text-slate-500">Seeds:</span>{" "}
+                  {drawSnap?.seeds ? Object.keys(drawSnap.seeds).length : 0}
+                </p>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[10px] font-black uppercase text-slate-500 mb-1">
+                    Generate layout
+                  </label>
+                  <select
+                    value={genKind}
+                    onChange={(e) =>
+                      setGenKind(
+                        e.target.value as
+                          | "snake_pools"
+                          | "single_elimination"
+                          | "pools_then_knockout",
+                      )
+                    }
+                    className="w-full px-3 py-2 border-2 border-slate-200 rounded-xl text-sm font-bold text-[#06054e]"
+                  >
+                    <option value="snake_pools">Snake pools (round-robin pools)</option>
+                    <option value="single_elimination">Single elimination (round 1)</option>
+                    <option value="pools_then_knockout">Pools + cross-pool winners</option>
+                  </select>
+                </div>
+                {genKind !== "single_elimination" && (
+                  <div>
+                    <label className="block text-[10px] font-black uppercase text-slate-500 mb-1">
+                      Pool count
+                    </label>
+                    <input
+                      type="number"
+                      min={2}
+                      max={16}
+                      value={genPoolCount}
+                      onChange={(e) => setGenPoolCount(e.target.value)}
+                      className="w-full px-3 py-2 border-2 border-slate-200 rounded-xl text-sm"
+                    />
+                  </div>
+                )}
+              </div>
+              <label className="flex items-center gap-2 text-xs font-semibold text-slate-700 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={genRandom}
+                  onChange={(e) => setGenRandom(e.target.checked)}
+                  className="rounded border-slate-300"
+                />
+                Randomize team order (ignore seeds)
+              </label>
+              <button
+                type="button"
+                onClick={() => void runDrawGenerate()}
+                disabled={drawBusy}
+                className="w-full sm:w-auto px-4 py-2 rounded-xl text-xs font-black uppercase bg-indigo-700 text-white hover:bg-indigo-800 disabled:opacity-50"
+              >
+                Generate draw
+              </button>
+              <div className="border-t border-indigo-100 pt-3 space-y-2">
+                <p className="text-[10px] font-black uppercase text-slate-500">
+                  Import seeds from standings
+                </p>
+                <input
+                  type="text"
+                  value={importSeasonCompetitionId}
+                  onChange={(e) => setImportSeasonCompetitionId(e.target.value)}
+                  placeholder="seasonCompetitionId"
+                  className="w-full px-3 py-2 border-2 border-slate-200 rounded-xl text-sm font-mono"
+                />
+                <label className="flex items-center gap-2 text-xs font-semibold text-slate-700 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={importPublishedOnly}
+                    onChange={(e) => setImportPublishedOnly(e.target.checked)}
+                    className="rounded border-slate-300"
+                  />
+                  Published fixtures only (recommended)
+                </label>
+                <button
+                  type="button"
+                  onClick={() => void runImportSeeds()}
+                  disabled={drawBusy}
+                  className="w-full sm:w-auto px-4 py-2 rounded-xl text-xs font-black uppercase bg-white border-2 border-indigo-300 text-indigo-900 hover:bg-indigo-50 disabled:opacity-50"
+                >
+                  Import seeds
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Additional info – rich text */}
           <RichTextEditor

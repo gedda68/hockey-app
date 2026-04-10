@@ -1,6 +1,10 @@
 // types/tournaments.ts
 // Types for representative tournaments and nomination periods
 
+import type { TournamentDrawState } from "@/lib/db/schemas/repTournamentDraw.schema";
+
+export type { TournamentDrawState };
+
 // ─── Tournament ───────────────────────────────────────────────────────────────
 
 export type TournamentGender = "male" | "female" | "mixed";
@@ -45,6 +49,8 @@ export interface Tournament {
   brandingAssociationId?: string | null;
   /** D2: Optional; when absent, eligibility falls back to permissive / branding-only when set. */
   entryRules?: TournamentEntryRules;
+  /** D3: Pools, knockout skeleton, seeds (persisted on `rep_tournaments.draw`). */
+  draw?: TournamentDrawState;
   createdAt: string;
   updatedAt: string;
 }
