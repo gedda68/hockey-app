@@ -1,9 +1,9 @@
-// GET /api/standings?seasonCompetitionId=...
-// Public standings derived from approved fixture results (E4).
+// GET /api/standings?seasonCompetitionId=...&includeRollups=1
+// Public standings derived from approved fixture results (E4, E5, E8).
 
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
-import { computeSeasonCompetitionStandings } from "@/lib/competitions/standings";
+import { getSeasonCompetitionStandingsReadBundle } from "@/lib/competitions/standingsBundle";
 
 const PUBLIC_SC_STATUSES = new Set(["published", "in_progress", "completed"]);
 
@@ -17,6 +17,9 @@ export async function GET(request: NextRequest) {
         { status: 400 },
       );
     }
+
+    const includeRollups =
+      (request.nextUrl.searchParams.get("includeRollups") ?? "") === "1";
 
     const client = await clientPromise;
     const db = client.db("hockey-app");
@@ -38,12 +41,15 @@ export async function GET(request: NextRequest) {
 
     const rules = sc.ladderRules ?? {};
     const requiresApproval = Boolean(sc.resultApprovalRequired);
-    const standings = await computeSeasonCompetitionStandings({
-      db,
+    const owningAssociationId = String(sc.owningAssociationId ?? "");
+
+    const { standings, rollups } = await getSeasonCompetitionStandingsReadBundle({
       seasonCompetitionId,
+      owningAssociationId,
       ladderRules: rules,
       requiresResultApproval: requiresApproval,
       publishedOnly: true,
+      includeRollups,
     });
 
     return NextResponse.json({
@@ -52,6 +58,7 @@ export async function GET(request: NextRequest) {
       requiresResultApproval: requiresApproval,
       ladderRules: sc.ladderRules ?? null,
       standings,
+      ...(includeRollups && rollups ? { rollups } : {}),
     });
   } catch (error: unknown) {
     console.error("GET /api/standings error:", error);
@@ -61,4 +68,3 @@ export async function GET(request: NextRequest) {
     );
   }
 }
-

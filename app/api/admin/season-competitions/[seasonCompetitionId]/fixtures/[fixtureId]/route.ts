@@ -10,6 +10,7 @@ import {
 } from "@/lib/auth/middleware";
 import { PatchLeagueFixtureBodySchema } from "@/lib/db/schemas/leagueFixture.schema";
 import { logPlatformAudit } from "@/lib/audit/platformAuditLog";
+import { invalidateStandingsBundleCache } from "@/lib/competitions/standingsReadCache";
 
 type Params = {
   params: Promise<{ seasonCompetitionId: string; fixtureId: string }>;
@@ -81,11 +82,16 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       $set.publishedAt = body.published ? nowIso : null;
     }
 
-    await db.collection("league_fixtures").updateOne({ fixtureId }, { $set });
+    await db
+      .collection("league_fixtures")
+      .updateOne({ fixtureId, seasonCompetitionId }, { $set });
 
     const updated = await db.collection("league_fixtures").findOne({
       fixtureId,
+      seasonCompetitionId,
     });
+
+    invalidateStandingsBundleCache(seasonCompetitionId);
 
     await logPlatformAudit({
       userId: user.userId,

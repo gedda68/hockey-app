@@ -1,5 +1,5 @@
 // lib/competitions/standings.ts
-// Compute ladder/standings for a season competition (E4).
+// Compute ladder/standings for a season competition (E4, E5, E8 helpers).
 
 import type { Db } from "mongodb";
 
@@ -29,39 +29,20 @@ export type LadderRules = {
   includeAbandonedInPlayed?: boolean;
 };
 
+/** Row before ladder position and display name enrichment (E5 rollups). */
+export type TeamStandingsAccumulator = Omit<StandingsRow, "pos" | "teamName">;
+
 function safeInt(v: unknown): number | null {
   if (typeof v !== "number" || !Number.isFinite(v)) return null;
   return Math.trunc(v);
 }
 
-type TeamRow = Omit<StandingsRow, "pos">;
-
-export async function computeSeasonCompetitionStandings(opts: {
-  db: Db;
-  seasonCompetitionId: string;
-  ladderRules?: LadderRules | null;
-  requiresResultApproval: boolean;
-  publishedOnly?: boolean;
-}): Promise<StandingsRow[]> {
-  const {
-    db,
-    seasonCompetitionId,
-    ladderRules,
-    requiresResultApproval,
-    publishedOnly = true,
-  } = opts;
-
-  const rules = ladderRules ?? {};
-  const pointsWin = Number(rules.pointsWin ?? 3);
-  const pointsDraw = Number(rules.pointsDraw ?? 1);
-  const pointsLoss = Number(rules.pointsLoss ?? 0);
-  const pointsForfeitWin = Number(rules.pointsForfeitWin ?? pointsWin);
-  const pointsForfeitLoss = Number(rules.pointsForfeitLoss ?? pointsLoss);
-  const pointsShootoutWin = Number(rules.pointsShootoutWin ?? 2);
-  const pointsShootoutLoss = Number(rules.pointsShootoutLoss ?? 1);
-  const includeAbandonedInPlayed = Boolean(rules.includeAbandonedInPlayed);
-
-  const fixtures = await db
+export async function loadLeagueFixturesForStandings(
+  db: Db,
+  seasonCompetitionId: string,
+  publishedOnly: boolean,
+): Promise<Record<string, unknown>[]> {
+  return db
     .collection("league_fixtures")
     .find({
       seasonCompetitionId,
@@ -75,14 +56,32 @@ export async function computeSeasonCompetitionStandings(opts: {
       result: 1,
       resultStatus: 1,
     })
-    .toArray();
+    .toArray() as Promise<Record<string, unknown>[]>;
+}
 
-  const rows = new Map<string, TeamRow>();
+/**
+ * Pure accumulation from fixture docs (shared by standings + rollups).
+ */
+export function accumulateStandingsRowsFromFixtures(
+  fixtures: Record<string, unknown>[],
+  ladderRules: LadderRules | null | undefined,
+  requiresResultApproval: boolean,
+): Map<string, TeamStandingsAccumulator> {
+  const rules = ladderRules ?? {};
+  const pointsWin = Number(rules.pointsWin ?? 3);
+  const pointsDraw = Number(rules.pointsDraw ?? 1);
+  const pointsLoss = Number(rules.pointsLoss ?? 0);
+  const pointsForfeitWin = Number(rules.pointsForfeitWin ?? pointsWin);
+  const pointsForfeitLoss = Number(rules.pointsForfeitLoss ?? pointsLoss);
+  const pointsShootoutWin = Number(rules.pointsShootoutWin ?? 2);
+  const pointsShootoutLoss = Number(rules.pointsShootoutLoss ?? 1);
+  const includeAbandonedInPlayed = Boolean(rules.includeAbandonedInPlayed);
+
+  const rows = new Map<string, TeamStandingsAccumulator>();
   const touch = (teamId: string) => {
     if (!rows.has(teamId)) {
       rows.set(teamId, {
         teamId,
-        teamName: null,
         p: 0,
         w: 0,
         d: 0,
@@ -109,7 +108,7 @@ export async function computeSeasonCompetitionStandings(opts: {
     const canUseResult = requiresResultApproval ? rs === "approved" : isCompleted;
     if (!canUseResult) continue;
 
-    const result = (f.result ?? null) as any;
+    const result = (f.result ?? null) as Record<string, unknown> | null;
     if (!result) continue;
 
     const resultType = (result.resultType as string | undefined) ?? "normal";
@@ -146,7 +145,7 @@ export async function computeSeasonCompetitionStandings(opts: {
         hRow.pts += pointsForfeitLoss;
       }
     } else if (resultType === "abandoned") {
-      // Default: played but no W/D/L, no points.
+      // played but no W/D/L, no points
     } else {
       if (homeScore > awayScore) {
         hRow.w += 1;
@@ -183,7 +182,14 @@ export async function computeSeasonCompetitionStandings(opts: {
     }
   }
 
-  const teamIds = [...rows.keys()];
+  return rows;
+}
+
+export async function finalizeStandingsFromRowMap(
+  db: Db,
+  rowMap: Map<string, TeamStandingsAccumulator>,
+): Promise<StandingsRow[]> {
+  const teamIds = [...rowMap.keys()];
   const teams =
     teamIds.length > 0
       ? await db
@@ -198,7 +204,7 @@ export async function computeSeasonCompetitionStandings(opts: {
     if (t.teamId && t.name) nameById.set(String(t.teamId), String(t.name));
   }
 
-  const standings = [...rows.values()].map((r) => ({
+  const standings = [...rowMap.values()].map((r) => ({
     ...r,
     teamName: nameById.get(r.teamId) ?? null,
     gd: r.gf - r.ga,
@@ -214,3 +220,30 @@ export async function computeSeasonCompetitionStandings(opts: {
   return standings.map((s, idx) => ({ pos: idx + 1, ...s }));
 }
 
+export async function computeSeasonCompetitionStandings(opts: {
+  db: Db;
+  seasonCompetitionId: string;
+  ladderRules?: LadderRules | null;
+  requiresResultApproval: boolean;
+  publishedOnly?: boolean;
+}): Promise<StandingsRow[]> {
+  const {
+    db,
+    seasonCompetitionId,
+    ladderRules,
+    requiresResultApproval,
+    publishedOnly = true,
+  } = opts;
+
+  const fixtures = await loadLeagueFixturesForStandings(
+    db,
+    seasonCompetitionId,
+    publishedOnly,
+  );
+  const rowMap = accumulateStandingsRowsFromFixtures(
+    fixtures,
+    ladderRules,
+    requiresResultApproval,
+  );
+  return finalizeStandingsFromRowMap(db, rowMap);
+}

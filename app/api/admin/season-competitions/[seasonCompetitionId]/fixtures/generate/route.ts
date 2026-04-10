@@ -10,6 +10,7 @@ import {
 } from "@/lib/auth/middleware";
 import { generateRoundRobin } from "@/lib/competitions/roundRobin";
 import { logPlatformAudit } from "@/lib/audit/platformAuditLog";
+import { invalidateStandingsBundleCache } from "@/lib/competitions/standingsReadCache";
 
 const BodySchema = z.object({
   teamIds: z.array(z.string().min(1)).min(2),
@@ -90,6 +91,8 @@ export async function POST(request: NextRequest, { params }: Params) {
     }));
 
     if (docs.length) await db.collection("league_fixtures").insertMany(docs);
+
+    invalidateStandingsBundleCache(seasonCompetitionId);
 
     await logPlatformAudit({
       userId: user.userId,

@@ -1,5 +1,5 @@
 // PATCH /api/admin/season-competitions/[seasonCompetitionId]/fixtures/[fixtureId]/result
-// Result entry + (optional) approval workflow (E3).
+// Result entry + (optional) approval workflow (E3, E7, E8).
 
 import { NextRequest, NextResponse } from "next/server";
 import { z, ZodError } from "zod";
@@ -10,6 +10,13 @@ import {
   FixtureResultTypeSchema,
 } from "@/lib/db/schemas/leagueFixture.schema";
 import { logPlatformAudit } from "@/lib/audit/platformAuditLog";
+import {
+  evaluateResultCorrectionPolicy,
+  mergeResultPatch,
+  normalizeResultForCompare,
+  parsePriorResult,
+} from "@/lib/competitions/resultCorrection";
+import { invalidateStandingsBundleCache } from "@/lib/competitions/standingsReadCache";
 
 type Params = {
   params: Promise<{ seasonCompetitionId: string; fixtureId: string }>;
@@ -28,6 +35,8 @@ const BodySchema = z
     }),
     status: FixtureResultStatusSchema.optional(), // draft|submitted|approved|rejected
     setMatchStatusCompleted: z.boolean().optional(),
+    correctionReason: z.string().max(2000).optional(),
+    replayOfFixtureId: z.string().min(1).nullable().optional(),
   })
   .strict();
 
@@ -69,9 +78,11 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 
     const requiresApproval = Boolean(sc.resultApprovalRequired);
     const nextStatus = body.status ?? "submitted";
+    const perms = user.permissions as string[];
+    const hasApprovePermission = perms.includes("results.approve");
 
     if (nextStatus === "approved" && requiresApproval) {
-      if (!(user.permissions as string[]).includes("results.approve")) {
+      if (!hasApprovePermission) {
         return NextResponse.json(
           { error: "Forbidden - Result approval required" },
           { status: 403 },
@@ -79,17 +90,37 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       }
     }
 
+    const mergedResult = mergeResultPatch(
+      fixture.result as Record<string, unknown> | null | undefined,
+      body.result,
+    );
+
+    const correctionCheck = evaluateResultCorrectionPolicy({
+      priorStatus: fixture.resultStatus as string | undefined,
+      priorResultRaw: fixture.result,
+      mergedResult,
+      nextStatus,
+      correctionReason: body.correctionReason,
+      hasApprovePermission,
+    });
+    if (!correctionCheck.ok) {
+      return NextResponse.json(
+        { error: correctionCheck.error },
+        { status: correctionCheck.status },
+      );
+    }
+
+    const prior = parsePriorResult(fixture.result);
+    const priorNorm = prior ? normalizeResultForCompare(prior) : null;
+    const mergedNorm = normalizeResultForCompare(mergedResult);
+    const resultBodyChanged = priorNorm !== mergedNorm;
+    const priorStatusStr = (fixture.resultStatus as string | undefined) ?? null;
+    const statusChanged = priorStatusStr !== nextStatus;
+    const isCorrection = resultBodyChanged || statusChanged;
+
     const nowIso = new Date().toISOString();
     const $set: Record<string, unknown> = {
-      result: {
-        resultType: body.result.resultType ?? "normal",
-        homeScore: body.result.homeScore ?? null,
-        awayScore: body.result.awayScore ?? null,
-        shootoutHomeScore: body.result.shootoutHomeScore ?? null,
-        shootoutAwayScore: body.result.shootoutAwayScore ?? null,
-        forfeitingTeamId: body.result.forfeitingTeamId ?? null,
-        notes: body.result.notes ?? null,
-      },
+      result: mergedResult,
       resultStatus: nextStatus,
       updatedAt: nowIso,
       updatedBy: user.userId,
@@ -120,6 +151,8 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       seasonCompetitionId,
     });
 
+    invalidateStandingsBundleCache(seasonCompetitionId);
+
     await logPlatformAudit({
       userId: user.userId,
       userEmail: user.email,
@@ -127,7 +160,9 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       action: "patch",
       resourceType: "fixture",
       resourceId: fixtureId,
-      summary: `Updated result (${nextStatus})`,
+      summary: isCorrection
+        ? `Result correction (${nextStatus})`
+        : `Updated result (${nextStatus})`,
       before: {
         result: fixture.result ?? null,
         resultStatus: fixture.resultStatus ?? null,
@@ -140,6 +175,11 @@ export async function PATCH(request: NextRequest, { params }: Params) {
         seasonCompetitionId,
         owningAssociationId: sc.owningAssociationId,
         requiresApproval,
+        isCorrection,
+        resultBodyChanged,
+        statusChanged,
+        correctionReason: body.correctionReason?.trim() || undefined,
+        replayOfFixtureId: body.replayOfFixtureId ?? undefined,
       },
     });
 
@@ -158,4 +198,3 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     );
   }
 }
-

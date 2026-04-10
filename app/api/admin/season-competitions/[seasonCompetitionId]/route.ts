@@ -11,6 +11,7 @@ import {
 import { SeasonCompetitionSchema } from "@/lib/db/schemas/competition.schema";
 import { z, ZodError } from "zod";
 import { logPlatformAudit } from "@/lib/audit/platformAuditLog";
+import { invalidateStandingsBundleCache } from "@/lib/competitions/standingsReadCache";
 
 type Params = { params: Promise<{ seasonCompetitionId: string }> };
 
@@ -132,6 +133,8 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     const updated = await db.collection("season_competitions").findOne({
       seasonCompetitionId,
     });
+
+    invalidateStandingsBundleCache(seasonCompetitionId);
 
     await logPlatformAudit({
       userId: user.userId,
