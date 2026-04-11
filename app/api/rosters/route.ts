@@ -3,6 +3,7 @@
 import { NextResponse } from "next/server";
 import { MongoServerError } from "mongodb";
 import clientPromise from "@/lib/mongodb";
+import { sanitizeLegacyRosterTeamsStaff } from "@/lib/coaching/publicStaffContact";
 
 // Helper to extract numbers for sorting (e.g., "Under 12" -> 12)
 const getNumericAge = (s: string) => parseInt(s.replace(/\D/g, "")) || 999;
@@ -40,6 +41,11 @@ export async function GET(request: Request) {
     const sortedRosters = fullRosters.sort(
       (a, b) => getNumericAge(a.ageGroup) - getNumericAge(b.ageGroup)
     );
+
+    // G3: strip legacy staff contact fields unless explicitly opted in on each person
+    for (const r of sortedRosters) {
+      sanitizeLegacyRosterTeamsStaff(r.teams);
+    }
 
     // 6. Build a list of available age groups for navigation (metadata)
     const ageGroupList = sortedRosters.map((r) => r.ageGroup);

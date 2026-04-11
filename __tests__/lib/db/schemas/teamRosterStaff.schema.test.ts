@@ -26,14 +26,22 @@ describe("PostTeamStaffBodySchema", () => {
     expect(p.wwccExpiresAt).toBe("2027-12-31");
   });
 
-  it("rejects unknown keys", () => {
-    expect(() =>
-      PostTeamStaffBodySchema.parse({
-        role: "Coach",
-        memberId: "M",
-        extra: 1,
-      }),
-    ).toThrow();
+  it("ignores unknown keys when parsing", () => {
+    const p = PostTeamStaffBodySchema.parse({
+      role: "Coach",
+      memberId: "M",
+      extra: 1,
+    });
+    expect("extra" in p).toBe(false);
+  });
+
+  it("normalizes qualification objects to names", () => {
+    const p = PostTeamStaffBodySchema.parse({
+      role: "Head Coach",
+      memberId: "CHC-1",
+      qualifications: [{ name: "Level 1" }, "Level 2"],
+    });
+    expect(p.qualifications).toEqual(["Level 1", "Level 2"]);
   });
 });
 

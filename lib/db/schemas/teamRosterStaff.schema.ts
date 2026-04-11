@@ -19,12 +19,38 @@ const IsoDateLike = z
   .min(8)
   .refine((s) => !Number.isNaN(Date.parse(s)), "Invalid date");
 
+/** Accepts string codes or legacy `{ name }` objects from the admin UI. */
+const QualificationsInputSchema = z.preprocess((val) => {
+  if (!Array.isArray(val)) return [];
+  return val.map((item) => {
+    if (typeof item === "string") return item;
+    if (item && typeof item === "object" && "name" in item) {
+      const n = (item as { name: unknown }).name;
+      return typeof n === "string" ? n : "";
+    }
+    return "";
+  });
+}, z.array(z.string()).default([]));
+
+const OptionalQualificationsInputSchema = z.preprocess((val) => {
+  if (val === undefined) return undefined;
+  if (!Array.isArray(val)) return [];
+  return val.map((item) => {
+    if (typeof item === "string") return item;
+    if (item && typeof item === "object" && "name" in item) {
+      const n = (item as { name: unknown }).name;
+      return typeof n === "string" ? n : "";
+    }
+    return "";
+  });
+}, z.array(z.string()).optional());
+
 export const PostTeamStaffBodySchema = z
   .object({
     role: z.string().min(1, "Role label is required"),
     memberId: z.string().min(1, "Member ID is required"),
     memberName: z.string().optional(),
-    qualifications: z.array(z.string()).optional().default([]),
+    qualifications: QualificationsInputSchema.optional().default([]),
     staffRoleCode: TeamStaffRoleCodeSchema.optional(),
     /** Working with children / blue-card style reference (store minimally; G2). */
     wwccCardNumber: z.string().max(80).nullable().optional(),
@@ -32,8 +58,7 @@ export const PostTeamStaffBodySchema = z
     /** G3 — honoured when staff are exposed on public team pages. */
     showEmailOnPublicSite: z.boolean().optional().default(false),
     showPhoneOnPublicSite: z.boolean().optional().default(false),
-  })
-  .strict();
+  });
 
 export type PostTeamStaffBody = z.infer<typeof PostTeamStaffBodySchema>;
 
@@ -42,15 +67,13 @@ export const PatchTeamStaffBodySchema = z
     role: z.string().min(1).optional(),
     memberId: z.string().min(1).optional(),
     memberName: z.string().nullable().optional(),
-    qualifications: z.array(z.string()).optional(),
+    qualifications: OptionalQualificationsInputSchema.optional(),
     staffRoleCode: z.union([TeamStaffRoleCodeSchema, z.null()]).optional(),
     wwccCardNumber: z.string().max(80).nullable().optional(),
     wwccExpiresAt: z.union([IsoDateLike, z.null()]).optional(),
     showEmailOnPublicSite: z.boolean().optional(),
     showPhoneOnPublicSite: z.boolean().optional(),
-  })
-  .strict()
-  .refine((o) => Object.keys(o).length > 0, {
+  }).refine((o) => Object.keys(o).length > 0, {
     message: "At least one field is required",
   });
 

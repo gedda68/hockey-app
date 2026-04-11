@@ -4,6 +4,21 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import type { TeamStaffRoleCode } from "@/lib/db/schemas/teamRosterStaff.schema";
+
+function mapRoleValueToStaffRoleCode(roleValue: string): TeamStaffRoleCode {
+  const set = new Set<TeamStaffRoleCode>([
+    "head_coach",
+    "assistant_coach",
+    "manager",
+    "physio",
+    "team_manager",
+    "other",
+  ]);
+  return set.has(roleValue as TeamStaffRoleCode)
+    ? (roleValue as TeamStaffRoleCode)
+    : "other";
+}
 
 interface Qualification {
   id: string;
@@ -17,9 +32,14 @@ interface StaffMember {
   memberId: string;
   memberName: string;
   role: string;
-  qualifications: Qualification[];
+  qualifications: Qualification[] | string[];
+  staffRoleCode?: TeamStaffRoleCode;
   startDate?: string;
   endDate?: string;
+  wwccCardNumber?: string | null;
+  wwccExpiresAt?: string | null;
+  showEmailOnPublicSite?: boolean;
+  showPhoneOnPublicSite?: boolean;
 }
 
 interface Member {
@@ -64,9 +84,7 @@ export default function AddStaffModal({
     editingStaff?.memberId || "",
   );
   const [selectedMember, setSelectedMember] = useState<Member | null>(null);
-  const [qualifications, setQualifications] = useState<Qualification[]>(
-    editingStaff?.qualifications || [],
-  );
+  const [qualifications, setQualifications] = useState<Qualification[]>([]);
 
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
@@ -76,10 +94,58 @@ export default function AddStaffModal({
   const [newQualName, setNewQualName] = useState("");
   const [newQualIssued, setNewQualIssued] = useState("");
   const [newQualExpiry, setNewQualExpiry] = useState("");
+  const [wwccCardNumber, setWwccCardNumber] = useState("");
+  const [wwccExpiresAt, setWwccExpiresAt] = useState("");
+  const [showEmailOnPublicSite, setShowEmailOnPublicSite] = useState(false);
+  const [showPhoneOnPublicSite, setShowPhoneOnPublicSite] = useState(false);
 
   useEffect(() => {
     fetchClubMembers();
   }, [id]);
+
+  useEffect(() => {
+    if (editingStaff) {
+      const r = editingStaff.role || "";
+      const matched = STAFF_ROLES.find(
+        (x) => x.value === r || x.label === r,
+      );
+      setRole(matched?.value || r);
+      setSelectedMemberId(editingStaff.memberId || "");
+      const quals = editingStaff.qualifications || [];
+      setQualifications(
+        quals.map((q) =>
+          typeof q === "string"
+            ? { id: `legacy-${q}`, name: q }
+            : (q as Qualification),
+        ),
+      );
+      setWwccCardNumber(
+        editingStaff.wwccCardNumber != null ? String(editingStaff.wwccCardNumber) : "",
+      );
+      setWwccExpiresAt(
+        editingStaff.wwccExpiresAt
+          ? String(editingStaff.wwccExpiresAt).slice(0, 10)
+          : "",
+      );
+      setShowEmailOnPublicSite(Boolean(editingStaff.showEmailOnPublicSite));
+      setShowPhoneOnPublicSite(Boolean(editingStaff.showPhoneOnPublicSite));
+    } else {
+      setWwccCardNumber("");
+      setWwccExpiresAt("");
+      setShowEmailOnPublicSite(false);
+      setShowPhoneOnPublicSite(false);
+    }
+  }, [editingStaff]);
+
+  useEffect(() => {
+    if (!editingStaff || members.length === 0) return;
+    const m = members.find(
+      (x) =>
+        x.id === editingStaff.memberId ||
+        x.memberNumber === editingStaff.memberId,
+    );
+    if (m) setSelectedMember(m);
+  }, [editingStaff, members]);
 
   const fetchClubMembers = async () => {
     setLoading(true);
@@ -140,14 +206,26 @@ export default function AddStaffModal({
       return;
     }
 
+    const roleLabel = selectedRole?.label || role;
+    const staffRoleCode = mapRoleValueToStaffRoleCode(role);
+    const memberIdForApi =
+      selectedMember.memberNumber?.trim() || selectedMemberId;
+
     onSubmit({
       id: editingStaff?.id,
-      memberId: selectedMemberId,
+      memberId: memberIdForApi,
       memberName:
         selectedMember.displayName ||
         `${selectedMember.firstName} ${selectedMember.lastName}`,
-      role,
-      qualifications,
+      role: roleLabel,
+      staffRoleCode,
+      qualifications: qualifications.map((q) => q.name),
+      wwccCardNumber: wwccCardNumber.trim() || undefined,
+      wwccExpiresAt: wwccExpiresAt.trim()
+        ? `${wwccExpiresAt.trim()}T00:00:00.000Z`
+        : undefined,
+      showEmailOnPublicSite,
+      showPhoneOnPublicSite,
       startDate: editingStaff?.startDate || new Date().toISOString(),
     });
   };
@@ -430,6 +508,64 @@ export default function AddStaffModal({
                     + Add Qualification
                   </button>
                 </div>
+              </div>
+
+              {/* WWCC + public contact (G2 / G3) */}
+              <div className="rounded-2xl border-2 border-slate-200 bg-slate-50/80 p-5 space-y-4">
+                <p className="text-xs font-black uppercase text-slate-500 tracking-wider">
+                  Working with children / public contact
+                </p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-600 mb-1">
+                      WWCC / card reference
+                    </label>
+                    <input
+                      type="text"
+                      value={wwccCardNumber}
+                      onChange={(e) => setWwccCardNumber(e.target.value)}
+                      className="w-full px-3 py-2 bg-white border-2 border-slate-200 rounded-lg font-mono text-sm"
+                      placeholder="Optional"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-600 mb-1">
+                      WWCC expiry
+                    </label>
+                    <input
+                      type="date"
+                      value={wwccExpiresAt}
+                      onChange={(e) => setWwccExpiresAt(e.target.value)}
+                      className="w-full px-3 py-2 bg-white border-2 border-slate-200 rounded-lg font-mono text-sm"
+                    />
+                  </div>
+                </div>
+                <p className="text-xs text-slate-600">
+                  Public APIs only show email or phone from the member record when the
+                  boxes below are ticked (e.g. club website directory).
+                </p>
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 rounded border-slate-300"
+                    checked={showEmailOnPublicSite}
+                    onChange={(e) => setShowEmailOnPublicSite(e.target.checked)}
+                  />
+                  <span className="text-sm font-bold text-slate-800">
+                    Show member email on public site
+                  </span>
+                </label>
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 rounded border-slate-300"
+                    checked={showPhoneOnPublicSite}
+                    onChange={(e) => setShowPhoneOnPublicSite(e.target.checked)}
+                  />
+                  <span className="text-sm font-bold text-slate-800">
+                    Show member phone on public site
+                  </span>
+                </label>
               </div>
             </div>
 
