@@ -23,6 +23,7 @@ import {
   GitBranch,
   RefreshCw,
   ListOrdered,
+  ExternalLink,
 } from "lucide-react";
 import RichTextEditor from "@/app/(admin)/admin/components/RichTextEditor";
 import type {
@@ -85,6 +86,9 @@ type TournamentFormState = Omit<
   withdrawalDeadline: string;
   /** Whole dollars; converted to cents for API. */
   entryFeeDollars: number;
+  resultApprovalRequired: boolean;
+  /** Team tournament entry id, or "" if none. */
+  championEntryId: string;
 };
 
 const EMPTY_FORM: TournamentFormState = {
@@ -106,6 +110,8 @@ const EMPTY_FORM: TournamentFormState = {
   entryClosesAt: "",
   withdrawalDeadline: "",
   entryFeeDollars: 0,
+  resultApprovalRequired: false,
+  championEntryId: "",
 };
 
 // ─── Modal ────────────────────────────────────────────────────────────────────
@@ -154,7 +160,12 @@ function TournamentModal({
     entryFeeDollars: initial?.entryRules?.entryFeeCents
       ? Math.round(initial.entryRules.entryFeeCents) / 100
       : 0,
+    resultApprovalRequired: Boolean(initial?.resultApprovalRequired),
+    championEntryId: initial?.championEntryId ?? "",
   });
+  const [entryOptions, setEntryOptions] = useState<
+    { entryId: string; teamName: string }[]
+  >([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [assocOptions, setAssocOptions] = useState<{ id: string; name: string }[]>(
@@ -320,6 +331,25 @@ function TournamentModal({
     };
   }, [isEdit]);
 
+  useEffect(() => {
+    if (!isEdit || !tournamentApiId) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const r = await fetch(
+          `/api/admin/tournaments/${encodeURIComponent(tournamentApiId)}?includeEntries=1`,
+        );
+        const j = (await r.json()) as { entries?: { entryId: string; teamName: string }[] };
+        if (!cancelled && r.ok && Array.isArray(j.entries)) setEntryOptions(j.entries);
+      } catch {
+        if (!cancelled) setEntryOptions([]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isEdit, tournamentApiId]);
+
   // Auto-fill end date when start date changes (end = start + 4 days by default)
   const handleStartDateChange = (val: string) => {
     setForm((prev) => {
@@ -413,6 +443,11 @@ function TournamentModal({
             ? Math.round(form.entryFeeDollars * 100)
             : null,
       };
+
+      payload.resultApprovalRequired = form.resultApprovalRequired;
+      payload.championEntryId = form.championEntryId.trim()
+        ? form.championEntryId.trim()
+        : null;
 
       const res = await fetch(url, {
         method,
@@ -1377,6 +1412,48 @@ function TournamentModal({
             </div>
           )}
 
+          {isEdit && (
+            <div className="px-8 py-4 border-t border-slate-100 space-y-4 bg-slate-50/60">
+              <p className="text-[10px] font-black uppercase text-slate-500">
+                Results &amp; champion
+              </p>
+              <label className="flex items-center gap-2 text-sm font-semibold text-slate-800 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={form.resultApprovalRequired}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, resultApprovalRequired: e.target.checked }))
+                  }
+                  className="rounded border-slate-300"
+                />
+                Require result approval (submitted → approved, like league fixtures)
+              </label>
+              <div>
+                <label className="block text-xs font-bold text-slate-600 mb-1">
+                  Declared champion
+                </label>
+                <select
+                  className="w-full max-w-md px-3 py-2 border-2 border-slate-200 rounded-xl text-sm"
+                  value={form.championEntryId}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, championEntryId: e.target.value }))
+                  }
+                >
+                  <option value="">— None —</option>
+                  {entryOptions.map((e) => (
+                    <option key={e.entryId} value={e.entryId}>
+                      {e.teamName || e.entryId}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-[11px] text-slate-500 mt-1">
+                  Uses confirmed team entries for this tournament. Save the tournament after
+                  entries exist to pick a winner.
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* Additional info – rich text */}
           <RichTextEditor
             label="Additional Information"
@@ -1523,6 +1600,14 @@ function TournamentCard({
 
           {/* Actions */}
           <div className="flex gap-2 flex-shrink-0 items-center">
+            <Link
+              href={`/tournaments/${encodeURIComponent(tournament.tournamentId)}`}
+              className="p-2 rounded-xl hover:bg-sky-50 text-slate-400 hover:text-sky-700 transition-colors"
+              title="Public bracket & schedule"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <ExternalLink size={15} />
+            </Link>
             <Link
               href={`/admin/tournaments/${encodeURIComponent(tournament._id ?? tournament.tournamentId)}/fixtures`}
               className="p-2 rounded-xl hover:bg-emerald-50 text-slate-400 hover:text-emerald-700 transition-colors"

@@ -156,6 +156,7 @@ export async function POST(request: NextRequest) {
       hostId: hostNorm.hostId,
       brandingAssociationId: hostNorm.brandingAssociationId,
       ...(entryRules ? { entryRules } : {}),
+      resultApprovalRequired: Boolean(body.resultApprovalRequired),
       createdAt: now,
       updatedAt: now,
     };

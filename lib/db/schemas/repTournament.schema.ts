@@ -59,6 +59,12 @@ export const CreateRepTournamentBodySchema = z
     hostId: z.string().min(1).optional(),
     brandingAssociationId: z.string().min(1).optional(),
     entryRules: TournamentEntryRulesSchema.optional(),
+    /** When true, rep fixture results stay `submitted` until `results.approve`. */
+    resultApprovalRequired: z.boolean().optional(),
+    /** Declared champion (`team_tournament_entries.entryId`); null clears. */
+    championEntryId: z.union([z.string().min(1), z.null()]).optional(),
+    /** Denormalised for public display; set when `championEntryId` is saved. */
+    championTeamName: z.union([z.string().min(1).max(200), z.null()]).optional(),
   })
   .strict();
 

@@ -81,11 +81,32 @@ export async function PATCH(
       return NextResponse.json({ error: "Fixture not found" }, { status: 404 });
     }
 
+    const requiresApproval = Boolean(tournament.resultApprovalRequired);
     const perms = user.permissions as string[];
     const hasApprovePermission =
       perms.includes("results.approve") || perms.includes("selection.manage");
 
-    const nextStatus = body.status ?? "approved";
+    const homeEntryId = fixture.homeEntryId as string | null | undefined;
+    const awayEntryId = fixture.awayEntryId as string | null | undefined;
+    if (homeEntryId == null || awayEntryId == null) {
+      return NextResponse.json(
+        {
+          error:
+            "Both home and away team slots must be resolved (entry ids assigned) before entering a result.",
+        },
+        { status: 400 },
+      );
+    }
+
+    const defaultStatus = requiresApproval ? "submitted" : "approved";
+    const nextStatus = body.status ?? defaultStatus;
+
+    if (nextStatus === "approved" && requiresApproval && !hasApprovePermission) {
+      return NextResponse.json(
+        { error: "Forbidden - Result approval required" },
+        { status: 403 },
+      );
+    }
     const mergedResult = mergeResultPatch(
       fixture.result as Record<string, unknown> | null | undefined,
       body.result,
@@ -170,6 +191,7 @@ export async function PATCH(
       },
       metadata: {
         tournamentId,
+        requiresApproval,
         isCorrection,
         resultBodyChanged,
         statusChanged,

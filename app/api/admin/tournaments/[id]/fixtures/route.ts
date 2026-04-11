@@ -1,5 +1,5 @@
 // GET  — list rep tournament fixtures (D4)
-// POST — generate pool round-robin from current draw
+// POST — generate pool round-robin and/or knockout rows from draw (D3)
 
 import { NextRequest, NextResponse } from "next/server";
 import { ObjectId } from "mongodb";
@@ -18,6 +18,10 @@ import {
   generateRepPoolRoundRobinFixtures,
   type EntryTeamInfo,
 } from "@/lib/tournaments/repTournamentFixtureGenerate";
+import {
+  collectKnockoutSkeletonMatches,
+  generateRepKnockoutFixturesFromDraw,
+} from "@/lib/tournaments/repTournamentKnockoutGenerate";
 
 function buildFilter(id: string) {
   return ObjectId.isValid(id)
@@ -60,6 +64,9 @@ export async function GET(
       fixtures: fixtures.map((f) => serialize(f as Record<string, unknown>)),
       tournamentId,
       title: tournament.title,
+      resultApprovalRequired: Boolean(tournament.resultApprovalRequired),
+      championEntryId: tournament.championEntryId ?? null,
+      championTeamName: tournament.championTeamName ?? null,
     });
   } catch (error: unknown) {
     console.error("GET rep tournament fixtures error:", error);
@@ -76,6 +83,7 @@ export async function POST(
   try {
     const { id } = await params;
     const body = RepTournamentFixturesGenerateBodySchema.parse(await request.json());
+    const mode = body.mode ?? "pool_round_robin";
 
     const client = await clientPromise;
     const db = client.db("hockey-app");
@@ -91,16 +99,6 @@ export async function POST(
 
     const tournamentId = String(tournament.tournamentId ?? id);
     const draw = mergeDrawState(tournament.draw, {});
-    const pools = collectPoolsFromDraw(draw);
-    if (!pools.length) {
-      return NextResponse.json(
-        {
-          error:
-            "No pools with at least two teams found on the tournament draw. Generate pools on the draw first (D3).",
-        },
-        { status: 400 },
-      );
-    }
 
     const entries = await db
       .collection("team_tournament_entries")
@@ -122,56 +120,109 @@ export async function POST(
       });
     }
 
-    const missing: string[] = [];
-    for (const p of pools) {
-      for (const eid of p.entryIds) {
-        if (!entryByEntryId.has(eid)) missing.push(eid);
-      }
-    }
-    if (missing.length) {
-      return NextResponse.json(
-        {
-          error: `Unknown or withdrawn entry id(s): ${[...new Set(missing)].slice(0, 8).join(", ")}${missing.length > 8 ? "…" : ""}`,
-        },
-        { status: 400 },
-      );
-    }
-
-    const existingCount = await db
+    const phaseFilter = mode === "pool_round_robin" ? "pool" : "knockout";
+    const existingPhaseCount = await db
       .collection("rep_tournament_fixtures")
-      .countDocuments({ tournamentId });
-    if (existingCount > 0 && !body.replace) {
+      .countDocuments({ tournamentId, phase: phaseFilter });
+
+    if (existingPhaseCount > 0 && !body.replace) {
       return NextResponse.json(
         {
-          error:
-            "Fixtures already exist for this tournament. Pass { \"replace\": true } to delete and regenerate.",
+          error: `Fixtures already exist for phase "${phaseFilter}". Pass { "replace": true } to delete and regenerate this phase only.`,
         },
         { status: 409 },
       );
     }
 
     const nowIso = new Date().toISOString();
-    const docs = generateRepPoolRoundRobinFixtures({
-      tournamentId,
-      draw,
-      entryByEntryId,
-      doubleRound: body.doubleRound,
-      createdBy: user.userId,
-      nowIso,
-    });
+    let created = 0;
 
-    if (!docs.length) {
-      return NextResponse.json(
-        { error: "No pairings were generated (check pool entry lists)." },
-        { status: 400 },
-      );
+    if (mode === "pool_round_robin") {
+      const pools = collectPoolsFromDraw(draw);
+      if (!pools.length) {
+        return NextResponse.json(
+          {
+            error:
+              "No pools with at least two teams found on the tournament draw. Generate pools on the draw first (D3).",
+          },
+          { status: 400 },
+        );
+      }
+
+      const missing: string[] = [];
+      for (const p of pools) {
+        for (const eid of p.entryIds) {
+          if (!entryByEntryId.has(eid)) missing.push(eid);
+        }
+      }
+      if (missing.length) {
+        return NextResponse.json(
+          {
+            error: `Unknown or withdrawn entry id(s): ${[...new Set(missing)].slice(0, 8).join(", ")}${missing.length > 8 ? "…" : ""}`,
+          },
+          { status: 400 },
+        );
+      }
+
+      const docs = generateRepPoolRoundRobinFixtures({
+        tournamentId,
+        draw,
+        entryByEntryId,
+        doubleRound: body.doubleRound,
+        createdBy: user.userId,
+        nowIso,
+      });
+
+      if (!docs.length) {
+        return NextResponse.json(
+          { error: "No pairings were generated (check pool entry lists)." },
+          { status: 400 },
+        );
+      }
+
+      if (body.replace) {
+        await db.collection("rep_tournament_fixtures").deleteMany({ tournamentId, phase: "pool" });
+      }
+      await db.collection("rep_tournament_fixtures").insertMany(docs);
+      created = docs.length;
+    } else {
+      const skeleton = collectKnockoutSkeletonMatches(draw);
+      if (!skeleton.length) {
+        return NextResponse.json(
+          {
+            error:
+              "No knockout skeleton on the draw. Add knockout rows via D3 (e.g. division playoff skeleton or single-table KO).",
+          },
+          { status: 400 },
+        );
+      }
+
+      const last = await db
+        .collection("rep_tournament_fixtures")
+        .find({ tournamentId })
+        .sort({ sequence: -1 })
+        .limit(1)
+        .toArray();
+      const sequenceStart =
+        last.length && typeof last[0]?.sequence === "number" ? last[0]!.sequence + 1 : 0;
+
+      const docs = generateRepKnockoutFixturesFromDraw({
+        tournamentId,
+        draw,
+        entryByEntryId,
+        sequenceStart,
+        createdBy: user.userId,
+        nowIso,
+      });
+
+      if (body.replace) {
+        await db
+          .collection("rep_tournament_fixtures")
+          .deleteMany({ tournamentId, phase: "knockout" });
+      }
+      await db.collection("rep_tournament_fixtures").insertMany(docs);
+      created = docs.length;
     }
-
-    if (body.replace) {
-      await db.collection("rep_tournament_fixtures").deleteMany({ tournamentId });
-    }
-
-    await db.collection("rep_tournament_fixtures").insertMany(docs);
 
     await logPlatformAudit({
       userId: user.userId,
@@ -180,9 +231,9 @@ export async function POST(
       action: "rep_fixtures_generate",
       resourceType: "rep_tournament",
       resourceId: tournamentId,
-      summary: `Generated ${docs.length} rep pool fixture(s)`,
-      before: { count: existingCount },
-      after: { count: docs.length, replace: Boolean(body.replace) },
+      summary: `Generated ${created} rep ${phaseFilter} fixture(s)`,
+      before: { phase: phaseFilter, replace: Boolean(body.replace) },
+      after: { created, mode },
     });
 
     const fixtures = await db
@@ -192,7 +243,8 @@ export async function POST(
       .toArray();
 
     return NextResponse.json({
-      created: docs.length,
+      created,
+      mode,
       fixtures: fixtures.map((f) => serialize(f as Record<string, unknown>)),
     });
   } catch (error: unknown) {

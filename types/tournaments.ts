@@ -51,6 +51,12 @@ export interface Tournament {
   entryRules?: TournamentEntryRules;
   /** D3: Pools, knockout skeleton, seeds (persisted on `rep_tournaments.draw`). */
   draw?: TournamentDrawState;
+  /** When true, fixture results default to submitted and need approval before public display. */
+  resultApprovalRequired?: boolean;
+  /** Declared champion (team tournament entry id). */
+  championEntryId?: string | null;
+  /** Denormalised team label for public display. */
+  championTeamName?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -70,6 +76,8 @@ export interface CreateTournamentRequest {
   /** Optional when host is association; defaults to hostId. Ignored for club host (must match parent). */
   brandingAssociationId?: string;
   entryRules?: Partial<TournamentEntryRules>;
+  resultApprovalRequired?: boolean;
+  championEntryId?: string | null;
 }
 
 // ─── Nomination Period ────────────────────────────────────────────────────────

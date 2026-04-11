@@ -89,12 +89,53 @@ export async function PATCH(
       return NextResponse.json({ error: "Fixture not found" }, { status: 404 });
     }
 
+    const $set: Record<string, unknown> = { ...body };
+
+    async function applyEntrySide(
+      entryIdField: "homeEntryId" | "awayEntryId",
+      teamIdField: "homeTeamId" | "awayTeamId",
+      teamNameField: "homeTeamName" | "awayTeamName",
+    ) {
+      if (!(entryIdField in body)) return;
+      const raw = body[entryIdField];
+      if (raw === null) {
+        $set[teamIdField] = null;
+        $set[teamNameField] = null;
+        return;
+      }
+      const entry = await db.collection("team_tournament_entries").findOne({
+        tournamentId,
+        entryId: raw,
+        status: { $nin: ["withdrawn"] },
+      });
+      if (!entry) {
+        throw new Error(`INVALID_ENTRY:${raw}`);
+      }
+      $set[entryIdField] = raw;
+      $set[teamIdField] = entry.teamId ?? null;
+      $set[teamNameField] = entry.teamName ?? null;
+    }
+
+    try {
+      await applyEntrySide("homeEntryId", "homeTeamId", "homeTeamName");
+      await applyEntrySide("awayEntryId", "awayTeamId", "awayTeamName");
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      if (msg.startsWith("INVALID_ENTRY:")) {
+        const badId = msg.slice("INVALID_ENTRY:".length);
+        return NextResponse.json(
+          { error: `Unknown or withdrawn entry id: ${badId}` },
+          { status: 400 },
+        );
+      }
+      throw e;
+    }
+
     const nowIso = new Date().toISOString();
-    const $set: Record<string, unknown> = {
-      ...body,
+    Object.assign($set, {
       updatedAt: nowIso,
       updatedBy: user.userId,
-    };
+    });
     if (body.published === true && !fixture.publishedAt) {
       $set.publishedAt = nowIso;
     }

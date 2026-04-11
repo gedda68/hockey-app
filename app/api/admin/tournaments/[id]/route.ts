@@ -51,7 +51,28 @@ export async function GET(
     );
     if (scope.response) return scope.response;
 
-    return NextResponse.json({ ...tournament, _id: tournament._id.toString() });
+    const tid = String(tournament.tournamentId ?? id);
+    const includeEntries = request.nextUrl.searchParams.get("includeEntries") === "1";
+    let entries: { entryId: string; teamName: string; status: string }[] | undefined;
+    if (includeEntries) {
+      const rows = await db
+        .collection("team_tournament_entries")
+        .find({ tournamentId: tid, status: { $nin: ["withdrawn"] } })
+        .project({ entryId: 1, teamName: 1, status: 1 })
+        .sort({ teamName: 1 })
+        .toArray();
+      entries = rows.map((r) => ({
+        entryId: String(r.entryId ?? ""),
+        teamName: String(r.teamName ?? ""),
+        status: String(r.status ?? ""),
+      }));
+    }
+
+    return NextResponse.json({
+      ...tournament,
+      _id: tournament._id.toString(),
+      ...(entries !== undefined ? { entries } : {}),
+    });
   } catch (error: unknown) {
     console.error("GET /api/admin/tournaments/[id] error:", error);
     return NextResponse.json({ error: "Failed to fetch tournament" }, { status: 500 });
@@ -150,6 +171,27 @@ export async function PUT(
       if (scopeNew.response) return scopeNew.response;
     }
 
+    const tournamentIdStr = String(existing.tournamentId ?? id);
+    let championTeamName: string | null | undefined;
+    if (body.championEntryId !== undefined) {
+      if (body.championEntryId === null) {
+        championTeamName = null;
+      } else {
+        const entry = await db.collection("team_tournament_entries").findOne({
+          tournamentId: tournamentIdStr,
+          entryId: body.championEntryId,
+          status: { $nin: ["withdrawn"] },
+        });
+        if (!entry) {
+          return NextResponse.json(
+            { error: "championEntryId must be a non-withdrawn team entry for this tournament." },
+            { status: 400 },
+          );
+        }
+        championTeamName = String(entry.teamName ?? "");
+      }
+    }
+
     const now = new Date().toISOString();
     const updateFields: Record<string, unknown> = {
       ...(body.title !== undefined && { title: body.title }),
@@ -166,6 +208,13 @@ export async function PUT(
           existing.entryRules as Partial<TournamentEntryRules> | undefined,
           body.entryRules as Partial<TournamentEntryRules>,
         ),
+      }),
+      ...(body.resultApprovalRequired !== undefined && {
+        resultApprovalRequired: body.resultApprovalRequired,
+      }),
+      ...(body.championEntryId !== undefined && {
+        championEntryId: body.championEntryId,
+        championTeamName: championTeamName ?? null,
       }),
       ...(hostNorm && {
         hostType: hostNorm.hostType,
@@ -199,6 +248,8 @@ export async function PUT(
         hostId: existing.hostId,
         brandingAssociationId: existing.brandingAssociationId,
         entryRules: existing.entryRules,
+        resultApprovalRequired: existing.resultApprovalRequired,
+        championEntryId: existing.championEntryId,
       },
       after: {
         title: result?.title,
@@ -208,6 +259,8 @@ export async function PUT(
         hostId: result?.hostId,
         brandingAssociationId: result?.brandingAssociationId,
         entryRules: result?.entryRules,
+        resultApprovalRequired: result?.resultApprovalRequired,
+        championEntryId: result?.championEntryId,
       },
     });
 
