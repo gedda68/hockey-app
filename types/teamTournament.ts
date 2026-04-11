@@ -117,6 +117,11 @@ export interface MemberTournamentFee {
 export interface TeamTournamentEntry {
   entryId: string; // "tte-{teamId}-{tournamentId}"
   teamId: string;
+  /**
+   * Stable identity copied from `teams.canonicalTeamId ?? teamId` (D5 / A6).
+   * Used to block the same logical team entering twice via duplicate `teamId` rows.
+   */
+  canonicalTeamId?: string;
   teamName: string;    // denormalised
   clubId: string;
   clubName: string;    // denormalised
@@ -166,6 +171,8 @@ export interface UpdateEntryBody {
   feeItems?: TeamFeeItem[];
   attendingMemberIds?: string[];
   notes?: string;
+  /** Reload denormalised team fields + `canonicalTeamId` from `teams` (same `teamId` only). */
+  syncFromTeam?: boolean;
 }
 
 export interface DistributeFeesBody {
@@ -177,6 +184,7 @@ export interface DistributeFeesBody {
 export interface TeamTournamentEntrySummary {
   entryId: string;
   teamId: string;
+  canonicalTeamId?: string;
   teamName: string;
   clubName: string;
   tournamentId: string;

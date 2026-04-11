@@ -16,6 +16,7 @@ import {
   effectiveEntryRules,
   isPastInclusiveDeadline,
 } from "@/lib/tournaments/tournamentEntryRules";
+import { canonicalTeamIdFromTeamDoc } from "@/lib/tournaments/teamTournamentCanonical";
 
 async function loadEntry(
   db: Awaited<ReturnType<typeof import("mongodb").MongoClient.prototype.db>>,
@@ -122,6 +123,25 @@ export async function PUT(
     updates.feeItems = body.feeItems;
     // Recalculate total fees
     updates.totalFeesCents = body.feeItems.reduce((s, i) => s + i.totalAmountCents, 0);
+  }
+
+  if (body.syncFromTeam === true) {
+    const team = await db.collection("teams").findOne({ teamId: entry.teamId });
+    if (!team) {
+      return NextResponse.json(
+        { error: "Team record not found for this entry's teamId" },
+        { status: 404 },
+      );
+    }
+    updates.canonicalTeamId = canonicalTeamIdFromTeamDoc(
+      team as { teamId: string; canonicalTeamId?: string | null },
+    );
+    updates.teamName = (team.displayName as string) ?? (team.name as string);
+    updates.ageGroup = (team.ageGroupLabel as string) ?? entry.ageGroup;
+    updates.ageGroupLabel = team.ageGroupLabel as string | undefined;
+    updates.gender = (team.gender as string) ?? entry.gender;
+    updates.grade = team.grade as string | undefined;
+    updates.competitionDivisionId = team.competitionDivisionId as string | undefined;
   }
 
   await db

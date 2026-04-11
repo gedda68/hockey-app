@@ -136,7 +136,13 @@ function CreateEntryModal({
         body: JSON.stringify({ teamId: selectedTeam, tournamentId: selectedTournament }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Failed to create entry");
+      if (!res.ok) {
+        const extra =
+          data.code === "duplicate_canonical_team_entry" && data.conflictingTeamId
+            ? ` (existing teamId: ${data.conflictingTeamId})`
+            : "";
+        throw new Error((data.error ?? "Failed to create entry") + extra);
+      }
       toast.success("Entry created");
       onCreated();
       onClose();
@@ -184,6 +190,12 @@ function CreateEntryModal({
                 </option>
               ))}
             </select>
+            <p className="text-xs text-gray-500 mt-1.5 leading-relaxed">
+              Entries always reference an existing club team record (no duplicate team rows for the
+              same squad). If two season teams share one{" "}
+              <span className="font-mono text-[11px]">canonicalTeamId</span>, only one may enter this
+              tournament.
+            </p>
           </div>
           <div className="flex gap-2 pt-2">
             <button onClick={onClose} className="flex-1 border border-gray-300 text-gray-700 py-2.5 rounded-lg font-medium hover:bg-gray-50 transition">
@@ -396,6 +408,26 @@ function EntryDetailPanel({
     }
   }
 
+  async function syncFromTeam() {
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/admin/team-tournaments/${entryId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ syncFromTeam: true }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Sync failed");
+      toast.success("Entry updated from team record");
+      await load();
+      onChanged();
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Sync failed");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   if (!entry) {
     return (
       <div className="flex items-center justify-center py-16">
@@ -427,6 +459,31 @@ function EntryDetailPanel({
         </div>
 
         <div className="p-4 space-y-6 flex-1">
+          <section className="rounded-lg border border-gray-200 bg-gray-50/80 p-3 text-xs text-gray-700 space-y-2">
+            <h3 className="font-semibold text-gray-800 text-sm">Team link (D5)</h3>
+            <p>
+              <span className="text-gray-500">teamId</span>{" "}
+              <code className="font-mono bg-white px-1 rounded border">{entry.teamId}</code>
+            </p>
+            <p>
+              <span className="text-gray-500">canonicalTeamId</span>{" "}
+              <code className="font-mono bg-white px-1 rounded border">
+                {entry.canonicalTeamId ?? entry.teamId}
+              </code>
+              {!entry.canonicalTeamId && (
+                <span className="text-amber-700 ml-1">(legacy — sync to set)</span>
+              )}
+            </p>
+            <button
+              type="button"
+              onClick={() => void syncFromTeam()}
+              disabled={saving}
+              className="text-xs font-medium text-indigo-600 hover:text-indigo-800 disabled:opacity-50"
+            >
+              Sync names &amp; canonical id from team record
+            </button>
+          </section>
+
           {/* Status controls */}
           <div className="flex gap-2 flex-wrap">
             {(["draft", "registered", "confirmed", "withdrawn"] as EntryStatus[]).map((s) => (

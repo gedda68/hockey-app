@@ -19,6 +19,10 @@ import type {
 } from "@/types/teamTournament";
 import type { RepTournamentDoc } from "@/lib/tournaments/tournamentEntryRules";
 import { validateNewTeamTournamentEntry } from "@/lib/tournaments/tournamentEntryRules";
+import {
+  canonicalTeamIdFromTeamDoc,
+  findConflictingEntryByCanonical,
+} from "@/lib/tournaments/teamTournamentCanonical";
 
 const ADMIN_ROLES = [
   "super-admin",
@@ -67,6 +71,7 @@ export async function GET(req: NextRequest) {
   const summaries: TeamTournamentEntrySummary[] = entries.map((e) => ({
     entryId: e.entryId,
     teamId: e.teamId,
+    canonicalTeamId: e.canonicalTeamId,
     teamName: e.teamName,
     clubName: e.clubName,
     tournamentId: e.tournamentId,
@@ -160,6 +165,32 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  const canonicalTeamId = canonicalTeamIdFromTeamDoc(
+    team as { teamId: string; canonicalTeamId?: string | null },
+  );
+  const siblingEntries = await db
+    .collection("team_tournament_entries")
+    .find({ tournamentId })
+    .project({ teamId: 1, canonicalTeamId: 1, status: 1, entryId: 1 })
+    .toArray();
+  const conflict = findConflictingEntryByCanonical(
+    siblingEntries as { teamId: string; canonicalTeamId?: string | null; status: string }[],
+    teamId,
+    canonicalTeamId,
+  );
+  if (conflict) {
+    return NextResponse.json(
+      {
+        error:
+          "This tournament already has an active entry for the same canonical team. Use the existing team record or merge team lineage (canonical id) instead of creating a duplicate team row.",
+        code: "duplicate_canonical_team_entry",
+        conflictingEntryId: conflict.entryId,
+        conflictingTeamId: conflict.teamId,
+      },
+      { status: 409 },
+    );
+  }
+
   const now = new Date();
   const entryId = `tte-${teamId}-${tournamentId}`;
 
@@ -181,6 +212,7 @@ export async function POST(req: NextRequest) {
   const entry: TeamTournamentEntry = {
     entryId,
     teamId,
+    canonicalTeamId,
     teamName: team.displayName ?? team.name,
     clubId: team.clubId,
     clubName: club?.name ?? team.clubId,
