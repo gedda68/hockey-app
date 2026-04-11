@@ -59,6 +59,18 @@ export async function PATCH(request: NextRequest, { params }: Params) {
           ? null
           : body.primaryClubId.trim();
     }
+    if (body.homeRegion !== undefined) {
+      $set.homeRegion =
+        body.homeRegion == null || body.homeRegion === ""
+          ? null
+          : body.homeRegion.trim();
+    }
+    if (body.nationalRegisterId !== undefined) {
+      $set.nationalRegisterId =
+        body.nationalRegisterId == null || body.nationalRegisterId === ""
+          ? null
+          : String(body.nationalRegisterId).trim();
+    }
     if (body.allocationAvailability !== undefined)
       $set.allocationAvailability = body.allocationAvailability;
     if (body.availabilityNote !== undefined) {

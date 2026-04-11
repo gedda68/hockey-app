@@ -11,6 +11,8 @@ type OfficialRow = {
   memberId?: string | null;
   umpireNumber?: string | null;
   primaryClubId?: string | null;
+  homeRegion?: string | null;
+  nationalRegisterId?: string | null;
   allocationAvailability?: "available" | "limited" | "unavailable";
   availabilityNote?: string | null;
   unavailableUntil?: string | null;
@@ -36,6 +38,8 @@ export default function OfficialRegisterClient({
     memberId: "",
     umpireNumber: "",
     primaryClubId: "",
+    homeRegion: "",
+    nationalRegisterId: "",
     allocationAvailability: "available" as OfficialRow["allocationAvailability"],
     availabilityNote: "",
     unavailableUntil: "",
@@ -43,6 +47,7 @@ export default function OfficialRegisterClient({
     levelLabel: "",
     expiresAt: "",
   });
+  const [importJson, setImportJson] = useState("");
 
   const load = useCallback(async () => {
     const res = await fetch(base);
@@ -80,6 +85,8 @@ export default function OfficialRegisterClient({
           memberId: form.memberId.trim() || null,
           umpireNumber: form.umpireNumber.trim() || null,
           primaryClubId: form.primaryClubId.trim() || null,
+          homeRegion: form.homeRegion.trim() || null,
+          nationalRegisterId: form.nationalRegisterId.trim() || null,
           allocationAvailability: form.allocationAvailability ?? "available",
           availabilityNote: form.availabilityNote.trim() || null,
           unavailableUntil: form.unavailableUntil.trim()
@@ -101,6 +108,8 @@ export default function OfficialRegisterClient({
         memberId: "",
         umpireNumber: "",
         primaryClubId: "",
+        homeRegion: "",
+        nationalRegisterId: "",
         allocationAvailability: "available",
         availabilityNote: "",
         unavailableUntil: "",
@@ -126,6 +135,8 @@ export default function OfficialRegisterClient({
       levelLabel: string | null;
       expiresAt: string | null;
       isActive: boolean;
+      homeRegion: string | null;
+      nationalRegisterId: string | null;
     }>,
   ) {
     startTransition(async () => {
@@ -140,6 +151,48 @@ export default function OfficialRegisterClient({
         return;
       }
       toast.success("Saved");
+      await load();
+    });
+  }
+
+  function runBulkImport() {
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(importJson) as unknown;
+    } catch {
+      toast.error("Invalid JSON");
+      return;
+    }
+    const records =
+      parsed &&
+      typeof parsed === "object" &&
+      parsed !== null &&
+      "records" in parsed &&
+      Array.isArray((parsed as { records: unknown }).records)
+        ? (parsed as { records: unknown[] }).records
+        : Array.isArray(parsed)
+          ? parsed
+          : null;
+    if (!records || records.length === 0) {
+      toast.error('Provide an array of records or { "records": [...] }');
+      return;
+    }
+    startTransition(async () => {
+      const res = await fetch(`${base}/import`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ records }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error(data.error ?? "Import failed");
+        return;
+      }
+      const errN = Array.isArray(data.errors) ? data.errors.length : 0;
+      toast.success(
+        `Imported ${data.created ?? 0} official(s)${errN ? `, ${errN} row error(s)` : ""}`,
+      );
+      setImportJson("");
       await load();
     });
   }
@@ -218,6 +271,26 @@ export default function OfficialRegisterClient({
             />
           </label>
           <label className="text-xs font-black uppercase text-slate-500">
+            Home region (reporting)
+            <input
+              className="input mt-1 w-full text-sm"
+              value={form.homeRegion}
+              onChange={(e) => setForm((f) => ({ ...f, homeRegion: e.target.value }))}
+              placeholder='e.g. "QLD — Brisbane"'
+            />
+          </label>
+          <label className="text-xs font-black uppercase text-slate-500">
+            National register id
+            <input
+              className="input mt-1 w-full font-mono text-sm"
+              value={form.nationalRegisterId}
+              onChange={(e) =>
+                setForm((f) => ({ ...f, nationalRegisterId: e.target.value }))
+              }
+              placeholder="External accreditation ref (optional)"
+            />
+          </label>
+          <label className="text-xs font-black uppercase text-slate-500">
             Allocation availability
             <select
               className="select select-bordered mt-1 w-full text-sm font-bold"
@@ -292,6 +365,28 @@ export default function OfficialRegisterClient({
         </button>
       </div>
 
+      <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <h2 className="mb-2 text-lg font-black text-[#06054e]">Bulk import (JSON)</h2>
+        <p className="mb-3 text-xs font-bold text-slate-600">
+          Paste <code className="rounded bg-slate-100 px-1">{`{ "records": [ { "displayName", "memberId" | "umpireNumber", ... } ] }`}</code>{" "}
+          (1–100 rows). Same fields as a single POST body per record.
+        </p>
+        <textarea
+          className="textarea textarea-bordered min-h-[140px] w-full font-mono text-xs"
+          value={importJson}
+          onChange={(e) => setImportJson(e.target.value)}
+          placeholder='{ "records": [ { "displayName": "...", "umpireNumber": "001" } ] }'
+        />
+        <button
+          type="button"
+          className="mt-3 inline-flex items-center gap-2 rounded-xl border border-slate-300 px-4 py-2 text-sm font-black disabled:opacity-50"
+          disabled={isPending}
+          onClick={runBulkImport}
+        >
+          Import
+        </button>
+      </div>
+
       <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
         <table className="table w-full text-sm">
           <thead className="bg-slate-100 font-black uppercase text-slate-600">
@@ -300,6 +395,8 @@ export default function OfficialRegisterClient({
               <th className="px-3 py-2 text-left">Member id</th>
               <th className="px-3 py-2 text-left">Umpire #</th>
               <th className="px-3 py-2 text-left">Club (COI)</th>
+              <th className="px-3 py-2 text-left min-w-[100px]">Region</th>
+              <th className="px-3 py-2 text-left min-w-[100px]">Nat. reg.</th>
               <th className="px-3 py-2 text-left">Avail.</th>
               <th className="px-3 py-2 text-left">Until</th>
               <th className="px-3 py-2 text-left min-w-[120px]">Note</th>
@@ -356,6 +453,30 @@ export default function OfficialRegisterClient({
                       const v = e.target.value.trim() || null;
                       if (v !== (r.primaryClubId ?? null))
                         patchRow(r.officialRecordId, { primaryClubId: v });
+                    }}
+                  />
+                </td>
+                <td className="px-3 py-2">
+                  <input
+                    className="input w-full py-1.5 text-sm min-w-[90px] text-xs"
+                    defaultValue={r.homeRegion ?? ""}
+                    key={`${r.officialRecordId}-region-${r.homeRegion ?? ""}`}
+                    onBlur={(e) => {
+                      const v = e.target.value.trim() || null;
+                      if (v !== (r.homeRegion ?? null))
+                        patchRow(r.officialRecordId, { homeRegion: v });
+                    }}
+                  />
+                </td>
+                <td className="px-3 py-2">
+                  <input
+                    className="input w-full py-1.5 text-sm min-w-[80px] font-mono text-xs"
+                    defaultValue={r.nationalRegisterId ?? ""}
+                    key={`${r.officialRecordId}-nat-${r.nationalRegisterId ?? ""}`}
+                    onBlur={(e) => {
+                      const v = e.target.value.trim() || null;
+                      if (v !== (r.nationalRegisterId ?? null))
+                        patchRow(r.officialRecordId, { nationalRegisterId: v });
                     }}
                   />
                 </td>

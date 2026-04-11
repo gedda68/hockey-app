@@ -97,6 +97,11 @@ export async function POST(request: NextRequest, { params }: Params) {
       memberId: body.memberId?.trim() || null,
       umpireNumber: body.umpireNumber?.trim() || null,
       primaryClubId: body.primaryClubId?.trim() || null,
+      homeRegion: body.homeRegion?.trim() || null,
+      nationalRegisterId:
+        body.nationalRegisterId === undefined || body.nationalRegisterId === null
+          ? null
+          : String(body.nationalRegisterId).trim() || null,
       allocationAvailability: body.allocationAvailability ?? "available",
       availabilityNote: body.availabilityNote?.trim() || null,
       unavailableUntil: body.unavailableUntil?.trim() || null,

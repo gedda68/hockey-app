@@ -3,6 +3,15 @@
 
 import { z } from "zod";
 
+/** Placeholder validation until a national register API exists (F1 follow-up). */
+export const NationalRegisterIdSchema = z
+  .string()
+  .max(64)
+  .regex(
+    /^[A-Za-z0-9][A-Za-z0-9\-/.]{2,63}$/,
+    "National register id: 4–64 chars, letters/digits and -/. only",
+  );
+
 export const OfficialAllocationAvailabilitySchema = z.enum([
   "available",
   "limited",
@@ -31,6 +40,10 @@ export const OfficialRegisterRecordSchema = z.object({
   levelLabel: z.string().nullable().optional(),
   expiresAt: z.string().nullable().optional(),
   isActive: z.boolean().default(true),
+  /** Region / zone label for reporting (e.g. "QLD — Brisbane"). */
+  homeRegion: z.string().max(120).nullable().optional(),
+  /** External accreditation id (state/national body); format is a local placeholder. */
+  nationalRegisterId: z.union([NationalRegisterIdSchema, z.null()]).optional(),
   createdAt: z.string(),
   updatedAt: z.string(),
   createdBy: z.string().optional(),
@@ -52,6 +65,8 @@ export const PostOfficialRegisterBodySchema = z
     levelLabel: z.string().nullable().optional(),
     expiresAt: z.string().nullable().optional(),
     isActive: z.boolean().optional().default(true),
+    homeRegion: z.string().max(120).nullable().optional(),
+    nationalRegisterId: z.union([NationalRegisterIdSchema, z.null()]).optional(),
   })
   .refine((d) => Boolean(d.memberId?.trim()) || Boolean(d.umpireNumber?.trim()), {
     message: "Provide memberId and/or umpireNumber to match fixture allocations",
@@ -74,10 +89,18 @@ export const PatchOfficialRegisterBodySchema = z
     levelLabel: z.string().nullable().optional(),
     expiresAt: z.string().nullable().optional(),
     isActive: z.boolean().optional(),
+    homeRegion: z.union([z.string().max(120), z.null()]).optional(),
+    nationalRegisterId: z.union([NationalRegisterIdSchema, z.null()]).optional(),
   })
   .refine((o) => Object.keys(o).length > 0, {
     message: "At least one field is required",
   });
+
+export const BulkOfficialRegisterImportSchema = z
+  .object({
+    records: z.array(PostOfficialRegisterBodySchema).min(1).max(100),
+  })
+  .strict();
 
 export type PatchOfficialRegisterBody = z.infer<
   typeof PatchOfficialRegisterBodySchema

@@ -15,6 +15,10 @@ import {
   evaluateFixtureUmpireAssignments,
   slotHasValidCoiOverride,
 } from "@/lib/officiating/umpireCoiAndAvailability";
+import {
+  applyUmpireAssignmentEmailNotifications,
+  type UmpireSlotInput,
+} from "@/lib/officiating/umpireAssignmentNotify";
 
 type Params = {
   params: Promise<{ seasonCompetitionId: string; fixtureId: string }>;
@@ -96,6 +100,40 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       updatedBy: user.userId,
     };
 
+    let umpiresToPersist = body.umpires;
+    if (body.umpires != null && body.notifyAssignedUmpires) {
+      const umpires = body.umpires;
+      const notifySlots: UmpireSlotInput[] = umpires.map((u) => ({
+        umpireType: u.umpireType,
+        umpireId: u.umpireId,
+        isStandby: u.isStandby ?? false,
+        dateNotified: u.dateNotified,
+        allocationStatus: u.allocationStatus,
+      }));
+      const notified = await applyUmpireAssignmentEmailNotifications({
+        db,
+        associationId: sc.owningAssociationId as string,
+        umpires: notifySlots,
+        fixtureSummary: {
+          fixtureId,
+          seasonCompetitionId,
+          scheduledStart:
+            (body.scheduledStart !== undefined
+              ? body.scheduledStart
+              : (existing.scheduledStart as string | null)) ?? null,
+          venueName:
+            (body.venueName !== undefined
+              ? body.venueName
+              : (existing.venueName as string | null)) ?? null,
+          round: existing.round as number,
+        },
+      });
+      umpiresToPersist = umpires.map((orig, i) => ({
+        ...orig,
+        dateNotified: notified[i]?.dateNotified ?? orig.dateNotified,
+      }));
+    }
+
     const keys = [
       "venueId",
       "venueName",
@@ -105,11 +143,13 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       "timezone",
       "status",
       "legacyMatchId",
-      "umpires",
       "matchLevel",
     ] as const;
     for (const k of keys) {
       if (body[k] !== undefined) $set[k] = body[k];
+    }
+    if (body.umpires !== undefined) {
+      $set.umpires = umpiresToPersist;
     }
 
     if (body.published !== undefined) {

@@ -127,6 +127,8 @@ export type ProposedUmpireSlot = {
   umpireId: string;
   coiOverride?: boolean;
   coiOverrideReason?: string;
+  /** When true, COI and availability rules are not applied (F3 standby). */
+  isStandby?: boolean;
 };
 
 export type SlotEvaluation = {
@@ -184,6 +186,11 @@ export async function evaluateFixtureUmpireAssignments(
 
     if (!umpireId) {
       slots.push({ index, umpireId: slot.umpireId, blockingIssues, warnings });
+      continue;
+    }
+
+    if (slot.isStandby) {
+      slots.push({ index, umpireId, blockingIssues, warnings });
       continue;
     }
 

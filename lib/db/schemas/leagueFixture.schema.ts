@@ -97,6 +97,10 @@ export const FixtureUmpireSlotSchema = z
      */
     coiOverride: z.boolean().optional(),
     coiOverrideReason: z.string().min(15).max(1000).optional(),
+    /**
+     * F3 follow-up: standby / reserve umpire — excluded from COI and availability blocks.
+     */
+    isStandby: z.boolean().optional().default(false),
   })
   .superRefine((slot, ctx) => {
     if (slot.coiOverride && !slot.coiOverrideReason?.trim()) {
@@ -177,11 +181,22 @@ export const PatchLeagueFixtureBodySchema = z
     legacyMatchId: z.string().min(1).nullable().optional(),
     umpires: z.array(FixtureUmpireSlotSchema).nullable().optional(),
     matchLevel: z.union([z.string().min(1), z.null()]).optional(),
+    /**
+     * When true with `umpires`, send assignment emails to officials with member emails (F3 follow-up).
+     */
+    notifyAssignedUmpires: z.boolean().optional(),
   })
   .strict()
   .refine((data) => Object.values(data).some((v) => v !== undefined), {
     message: "At least one field is required",
-  });
+  })
+  .refine(
+    (data) => !data.notifyAssignedUmpires || data.umpires !== undefined,
+    {
+      message: "notifyAssignedUmpires requires umpires in the same request",
+      path: ["notifyAssignedUmpires"],
+    },
+  );
 
 export type PatchLeagueFixtureBody = z.infer<typeof PatchLeagueFixtureBodySchema>;
 export type FixtureMatchEvent = z.infer<typeof FixtureMatchEventSchema>;

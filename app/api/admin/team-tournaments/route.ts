@@ -22,6 +22,8 @@ import { validateNewTeamTournamentEntry } from "@/lib/tournaments/tournamentEntr
 import {
   canonicalTeamIdFromTeamDoc,
   findConflictingEntryByCanonical,
+  type EntryLike,
+  type TeamLike,
 } from "@/lib/tournaments/teamTournamentCanonical";
 
 const ADMIN_ROLES = [
@@ -165,16 +167,15 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const canonicalTeamId = canonicalTeamIdFromTeamDoc(
-    team as { teamId: string; canonicalTeamId?: string | null },
-  );
+  const canonicalTeamId = canonicalTeamIdFromTeamDoc(team as unknown as TeamLike);
   const siblingEntries = await db
     .collection("team_tournament_entries")
     .find({ tournamentId })
     .project({ teamId: 1, canonicalTeamId: 1, status: 1, entryId: 1 })
     .toArray();
-  const conflict = findConflictingEntryByCanonical(
-    siblingEntries as { teamId: string; canonicalTeamId?: string | null; status: string }[],
+  type Sibling = EntryLike & { entryId?: string };
+  const conflict = findConflictingEntryByCanonical<Sibling>(
+    siblingEntries as Sibling[],
     teamId,
     canonicalTeamId,
   );

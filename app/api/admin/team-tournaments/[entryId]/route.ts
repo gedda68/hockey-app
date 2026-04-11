@@ -16,7 +16,10 @@ import {
   effectiveEntryRules,
   isPastInclusiveDeadline,
 } from "@/lib/tournaments/tournamentEntryRules";
-import { canonicalTeamIdFromTeamDoc } from "@/lib/tournaments/teamTournamentCanonical";
+import {
+  canonicalTeamIdFromTeamDoc,
+  type TeamLike,
+} from "@/lib/tournaments/teamTournamentCanonical";
 
 async function loadEntry(
   db: Awaited<ReturnType<typeof import("mongodb").MongoClient.prototype.db>>,
@@ -133,9 +136,7 @@ export async function PUT(
         { status: 404 },
       );
     }
-    updates.canonicalTeamId = canonicalTeamIdFromTeamDoc(
-      team as { teamId: string; canonicalTeamId?: string | null },
-    );
+    updates.canonicalTeamId = canonicalTeamIdFromTeamDoc(team as unknown as TeamLike);
     updates.teamName = (team.displayName as string) ?? (team.name as string);
     updates.ageGroup = (team.ageGroupLabel as string) ?? entry.ageGroup;
     updates.ageGroupLabel = team.ageGroupLabel as string | undefined;
