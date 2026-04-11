@@ -8,27 +8,26 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import type { Db } from "mongodb";
-import { ZodError, z } from "zod";
+import { ZodError } from "zod";
 import clientPromise from "@/lib/mongodb";
 import { getSession } from "@/lib/auth/session";
+import {
+  PatchMyUmpireAssignmentBodySchema,
+  type PatchMyUmpireAssignmentBody,
+} from "@/lib/db/schemas/memberUmpireAssignments.schema";
+import {
+  flattenAssignmentsFromFixtures,
+  mergeUmpireSlotAllocationStatus,
+  umpireIdKeysFromRegister,
+} from "@/lib/member/umpireSelfService";
 
 const REGISTER_COL = "association_official_register";
 const FIXTURES_COL = "league_fixtures";
-
-const PatchBodySchema = z
-  .object({
-    fixtureId: z.string().min(1),
-    seasonCompetitionId: z.string().min(1),
-    slotIndex: z.number().int().min(0),
-    allocationStatus: z.enum(["accepted", "declined"]),
-  })
-  .strict();
 
 async function umpireIdKeysForMember(
   db: Db,
   memberId: string,
 ): Promise<Set<string>> {
-  const ids = new Set<string>([memberId.trim()]);
   const regs = await db
     .collection(REGISTER_COL)
     .find({
@@ -37,11 +36,7 @@ async function umpireIdKeysForMember(
     })
     .project({ umpireNumber: 1 })
     .toArray();
-  for (const r of regs) {
-    const n = r.umpireNumber;
-    if (typeof n === "string" && n.trim()) ids.add(n.trim());
-  }
-  return ids;
+  return umpireIdKeysFromRegister(memberId, regs);
 }
 
 export async function GET() {
@@ -79,47 +74,7 @@ export async function GET() {
     .limit(200)
     .toArray();
 
-  type AssignmentRow = {
-    fixtureId: string;
-    seasonCompetitionId: string;
-    owningAssociationId: string;
-    slotIndex: number;
-    umpireType: string;
-    umpireId: string;
-    allocationStatus?: string;
-    isStandby?: boolean;
-    scheduledStart?: string | null;
-    venueName?: string | null;
-    round?: number;
-  };
-
-  const assignments: AssignmentRow[] = [];
-  for (const f of fixtures) {
-    const slots = (f.umpires as unknown[] | null) ?? [];
-    if (!Array.isArray(slots)) continue;
-    slots.forEach((raw, slotIndex) => {
-      const s = raw as {
-        umpireId?: string;
-        umpireType?: string;
-        allocationStatus?: string;
-        isStandby?: boolean;
-      };
-      if (!s?.umpireId || !idSet.has(String(s.umpireId))) return;
-      assignments.push({
-        fixtureId: String(f.fixtureId),
-        seasonCompetitionId: String(f.seasonCompetitionId),
-        owningAssociationId: String(f.owningAssociationId ?? ""),
-        slotIndex,
-        umpireType: String(s.umpireType ?? ""),
-        umpireId: String(s.umpireId),
-        allocationStatus: s.allocationStatus,
-        isStandby: Boolean(s.isStandby),
-        scheduledStart: (f.scheduledStart as string | null | undefined) ?? null,
-        venueName: (f.venueName as string | null | undefined) ?? null,
-        round: typeof f.round === "number" ? f.round : undefined,
-      });
-    });
-  }
+  const assignments = flattenAssignmentsFromFixtures(fixtures, idSet);
 
   return NextResponse.json({ memberId, assignments });
 }
@@ -137,9 +92,9 @@ export async function PATCH(request: NextRequest) {
     );
   }
 
-  let body: z.infer<typeof PatchBodySchema>;
+  let body: PatchMyUmpireAssignmentBody;
   try {
-    body = PatchBodySchema.parse(await request.json());
+    body = PatchMyUmpireAssignmentBodySchema.parse(await request.json());
   } catch (e: unknown) {
     if (e instanceof ZodError) {
       return NextResponse.json(
@@ -174,17 +129,11 @@ export async function PATCH(request: NextRequest) {
   }
 
   const nowIso = new Date().toISOString();
-  const nextSlot = { ...slot };
-  nextSlot.allocationStatus = body.allocationStatus;
-  nextSlot.dateUpdated = nowIso;
-  if (body.allocationStatus === "accepted") {
-    nextSlot.dateAccepted = nowIso;
-    nextSlot.dateDeclined = null;
-  } else {
-    nextSlot.dateDeclined = nowIso;
-    nextSlot.dateAccepted = null;
-  }
-  umpires[body.slotIndex] = nextSlot;
+  umpires[body.slotIndex] = mergeUmpireSlotAllocationStatus(
+    slot,
+    body.allocationStatus,
+    nowIso,
+  );
 
   await db.collection(FIXTURES_COL).updateOne(
     { fixtureId: body.fixtureId, seasonCompetitionId: body.seasonCompetitionId },

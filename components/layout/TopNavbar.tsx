@@ -17,6 +17,7 @@ import {
   Play,
   ShieldUser,
   LogIn,
+  ClipboardCheck,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { toast } from "sonner";
@@ -229,17 +230,30 @@ export default function TopNavbar({ clubs }: TopNavbarProps) {
                   Clubs
                 </button>
 
-                {/* Admin / Logout */}
+                {/* My umpiring / Logout */}
                 {isAuthenticated ? (
-                  <button
-                    onClick={handleLogout}
-                    className="flex items-center gap-2 px-4 py-2 bg-yellow-400 text-[#06054e] rounded-md text-sm font-bold uppercase tracking-wider hover:bg-yellow-300 transition-colors shadow-lg ml-2"
-                  >
-                    <LogOut className="h-4 w-4" />
-                    <span className="max-w-[160px] truncate">
-                      Logout — {user?.firstName} {user?.lastName}
-                    </span>
-                  </button>
+                  <>
+                    <Link
+                      href="/my-umpiring"
+                      className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm font-bold uppercase tracking-wider transition-colors ml-1 ${
+                        pathname === "/my-umpiring"
+                          ? "text-white bg-white/20"
+                          : "text-white hover:text-yellow-200 hover:bg-white/10"
+                      }`}
+                    >
+                      <ClipboardCheck className="h-4 w-4" />
+                      My umpiring
+                    </Link>
+                    <button
+                      onClick={handleLogout}
+                      className="flex items-center gap-2 px-4 py-2 bg-yellow-400 text-[#06054e] rounded-md text-sm font-bold uppercase tracking-wider hover:bg-yellow-300 transition-colors shadow-lg ml-2"
+                    >
+                      <LogOut className="h-4 w-4" />
+                      <span className="max-w-[160px] truncate">
+                        Logout — {user?.firstName} {user?.lastName}
+                      </span>
+                    </button>
+                  </>
                 ) : (
                   <LinkButton
                     href="/login"
@@ -360,21 +374,37 @@ export default function TopNavbar({ clubs }: TopNavbarProps) {
             </span>
           </button>
 
-          {/* Mobile Login/Logout */}
-          <div className="mt-4 px-2">
+          {/* Mobile My umpiring / Login / Logout */}
+          <div className="mt-4 px-2 space-y-2">
             {isAuthenticated ? (
-              <button
-                onClick={() => {
-                  setIsOpen(false);
-                  handleLogout();
-                }}
-                className="flex w-full items-center gap-4 px-6 py-4 rounded-2xl bg-yellow-400 text-[#06054e] hover:bg-yellow-300"
-              >
-                <LogOut className="h-5 w-5 shrink-0" />
-                <span className="uppercase text-[11px] font-bold tracking-widest truncate">
-                  Logout — {user?.firstName} {user?.lastName}
-                </span>
-              </button>
+              <>
+                <Link
+                  href="/my-umpiring"
+                  onClick={() => setIsOpen(false)}
+                  className={`flex w-full items-center gap-4 px-6 py-4 rounded-2xl ${
+                    pathname === "/my-umpiring"
+                      ? "bg-white/20 text-white"
+                      : "text-slate-300 hover:text-white hover:bg-white/10"
+                  }`}
+                >
+                  <ClipboardCheck className="h-5 w-5 shrink-0 text-white" />
+                  <span className="uppercase text-[11px] font-bold tracking-widest">
+                    My umpiring
+                  </span>
+                </Link>
+                <button
+                  onClick={() => {
+                    setIsOpen(false);
+                    handleLogout();
+                  }}
+                  className="flex w-full items-center gap-4 px-6 py-4 rounded-2xl bg-yellow-400 text-[#06054e] hover:bg-yellow-300"
+                >
+                  <LogOut className="h-5 w-5 shrink-0" />
+                  <span className="uppercase text-[11px] font-bold tracking-widest truncate">
+                    Logout — {user?.firstName} {user?.lastName}
+                  </span>
+                </button>
+              </>
             ) : (
               <Link
                 href="/login"
