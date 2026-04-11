@@ -166,13 +166,46 @@ function TournamentModal({
   const [drawSnap, setDrawSnap] = useState<TournamentDrawState | null>(null);
   const [drawBusy, setDrawBusy] = useState(false);
   const [drawSectionError, setDrawSectionError] = useState("");
-  const [genKind, setGenKind] = useState<
-    "snake_pools" | "single_elimination" | "pools_then_knockout"
-  >("snake_pools");
+  type DrawGenKind =
+    | "snake_pools"
+    | "single_elimination"
+    | "pools_then_knockout"
+    | "division_ranked_snake_pools"
+    | "division_playoff_skeleton";
+  const [genKind, setGenKind] = useState<DrawGenKind>("snake_pools");
   const [genPoolCount, setGenPoolCount] = useState("4");
   const [genRandom, setGenRandom] = useState(false);
   const [importSeasonCompetitionId, setImportSeasonCompetitionId] = useState("");
   const [importPublishedOnly, setImportPublishedOnly] = useState(true);
+  type DivisionDraftRow = {
+    divisionId: string;
+    label: string;
+    maxTeams: string;
+    entryIdsText: string;
+    poolCountGen: string;
+  };
+  const [divRows, setDivRows] = useState<DivisionDraftRow[]>([
+    {
+      divisionId: "division-1",
+      label: "Division 1",
+      maxTeams: "",
+      entryIdsText: "",
+      poolCountGen: "4",
+    },
+  ]);
+  const [playoffDivisionId, setPlayoffDivisionId] = useState("");
+  const [playoffTpl, setPlayoffTpl] = useState<
+    | "none"
+    | "same_place_parallel"
+    | "qf_top_two_four_pools"
+    | "semis_top_two_two_pools"
+    | "pool_winners_cross_pairs"
+  >("qf_top_two_four_pools");
+  const [samePlaceMax, setSamePlaceMax] = useState("4");
+
+  useEffect(() => {
+    setPlayoffDivisionId("");
+  }, [tournamentApiId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -232,6 +265,25 @@ function TournamentModal({
       cancelled = true;
     };
   }, [isEdit, tournamentApiId]);
+
+  useEffect(() => {
+    if (!drawSnap) return;
+    if (drawSnap.structure === "multi_division" && drawSnap.divisions?.length) {
+      setDivRows(
+        drawSnap.divisions.map((d) => ({
+          divisionId: d.divisionId,
+          label: d.label,
+          maxTeams: d.maxTeams != null ? String(d.maxTeams) : "",
+          entryIdsText: d.entryIds.join(", "),
+          poolCountGen: "4",
+        })),
+      );
+      setPlayoffDivisionId((prev) => {
+        if (prev) return prev;
+        return drawSnap.divisions![0]!.divisionId;
+      });
+    }
+  }, [drawSnap, tournamentApiId]);
 
   useEffect(() => {
     if (isEdit) return;
@@ -399,32 +451,157 @@ function TournamentModal({
     }
   }
 
+  function buildPlayoffTemplatePayload():
+    | { type: "none" }
+    | { type: "same_place_parallel"; maxPlace: number }
+    | { type: "qf_top_two_four_pools"; pairing: "a1_b2_b1_a2_c1_d2_d1_c2" }
+    | { type: "semis_top_two_two_pools" }
+    | { type: "pool_winners_cross_pairs" } {
+    switch (playoffTpl) {
+      case "none":
+        return { type: "none" };
+      case "same_place_parallel": {
+        const n = parseInt(samePlaceMax, 10);
+        return { type: "same_place_parallel", maxPlace: Number.isNaN(n) ? 1 : n };
+      }
+      case "qf_top_two_four_pools":
+        return {
+          type: "qf_top_two_four_pools",
+          pairing: "a1_b2_b1_a2_c1_d2_d1_c2",
+        };
+      case "semis_top_two_two_pools":
+        return { type: "semis_top_two_two_pools" };
+      case "pool_winners_cross_pairs":
+        return { type: "pool_winners_cross_pairs" };
+      default:
+        return { type: "none" };
+    }
+  }
+
+  async function saveDivisionsLayout() {
+    if (!tournamentApiId || !drawSnap) return;
+    setDrawBusy(true);
+    setDrawSectionError("");
+    try {
+      const mergedDivs = divRows
+        .filter((r) => r.divisionId.trim() && r.label.trim())
+        .map((row) => {
+          const id = row.divisionId.trim();
+          const existing = drawSnap.divisions?.find((d) => d.divisionId === id);
+          const maxT = row.maxTeams.trim();
+          return {
+            divisionId: id,
+            label: row.label.trim(),
+            maxTeams: maxT ? parseInt(maxT, 10) : null,
+            entryIds: row.entryIdsText
+              .split(",")
+              .map((s) => s.trim())
+              .filter(Boolean),
+            ...(existing && {
+              pools: existing.pools,
+              knockoutMatches: existing.knockoutMatches,
+              poolPhase: existing.poolPhase,
+              afterPools: existing.afterPools,
+            }),
+          };
+        });
+      if (!mergedDivs.length) {
+        setDrawSectionError("Add at least one division with id and label.");
+        return;
+      }
+      const r = await fetch(
+        `/api/admin/tournaments/${encodeURIComponent(tournamentApiId)}/draw`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            structure: "multi_division",
+            format: "multi_division",
+            divisions: mergedDivs,
+            pools: [],
+            knockoutMatches: [],
+          }),
+        },
+      );
+      const j = await r.json();
+      if (!r.ok) {
+        setDrawSectionError(typeof j.error === "string" ? j.error : "Save failed");
+        return;
+      }
+      setDrawSnap(j.draw ?? null);
+    } catch {
+      setDrawSectionError("Save failed");
+    } finally {
+      setDrawBusy(false);
+    }
+  }
+
   async function runDrawGenerate() {
     if (!tournamentApiId) return;
     setDrawBusy(true);
     setDrawSectionError("");
     try {
-      const poolCount =
-        genKind === "single_elimination"
-          ? undefined
-          : parseInt(genPoolCount, 10);
-      if (
-        genKind !== "single_elimination" &&
-        (Number.isNaN(poolCount) || (poolCount ?? 0) < 2)
-      ) {
-        setDrawSectionError("Enter a pool count between 2 and 16.");
-        return;
+      let body: Record<string, unknown>;
+
+      if (genKind === "division_ranked_snake_pools") {
+        const divisionsPayload = divRows
+          .filter((r) => r.divisionId.trim())
+          .map((r) => ({
+            divisionId: r.divisionId.trim(),
+            poolCount: parseInt(r.poolCountGen, 10),
+          }))
+          .filter((x) => !Number.isNaN(x.poolCount) && x.poolCount >= 1);
+        if (!divisionsPayload.length) {
+          setDrawSectionError(
+            "Each division needs a pool count (1–16). Save division entry lists first.",
+          );
+          return;
+        }
+        body = {
+          kind: genKind,
+          divisions: divisionsPayload,
+          randomizeOrder: genRandom,
+        };
+      } else if (genKind === "division_playoff_skeleton") {
+        const divId = playoffDivisionId.trim();
+        if (!divId) {
+          setDrawSectionError("Select a division for the playoff skeleton.");
+          return;
+        }
+        body = {
+          kind: genKind,
+          divisionId: divId,
+          playoffTemplate: buildPlayoffTemplatePayload(),
+          randomizeOrder: false,
+        };
+      } else {
+        const poolCount =
+          genKind === "single_elimination"
+            ? undefined
+            : parseInt(genPoolCount, 10);
+        if (genKind !== "single_elimination") {
+          if (Number.isNaN(poolCount ?? NaN) || (poolCount ?? 0) < 1) {
+            setDrawSectionError("Enter a pool count between 1 and 16.");
+            return;
+          }
+          if (genKind === "pools_then_knockout" && (poolCount ?? 0) < 2) {
+            setDrawSectionError("Pools + cross-pool winners needs at least 2 pools.");
+            return;
+          }
+        }
+        body = {
+          kind: genKind,
+          poolCount,
+          randomizeOrder: genRandom,
+        };
       }
+
       const r = await fetch(
         `/api/admin/tournaments/${encodeURIComponent(tournamentApiId)}/draw/generate`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            kind: genKind,
-            poolCount,
-            randomizeOrder: genRandom,
-          }),
+          body: JSON.stringify(body),
         },
       );
       const j = await r.json();
@@ -483,7 +660,7 @@ function TournamentModal({
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-3xl max-w-2xl w-full shadow-2xl my-4"
+        className="bg-white rounded-3xl max-w-3xl w-full shadow-2xl my-4"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Modal header */}
@@ -884,9 +1061,15 @@ function TournamentModal({
                 </button>
               </div>
               <p className="text-xs text-slate-600 leading-relaxed">
-                Assign pools (snake draft), single-elimination first round, or pools plus a cross-pool
-                winner round. Seeds control ordering unless you randomize. Import seeds from a season
-                ladder using each entry&apos;s team.
+                <strong>Single-table</strong> draw: snake pools (1–16 pools, including one pool for a
+                full round-robin group), single elimination, or pools + first-place cross-overs.{" "}
+                <strong>Multi-division</strong>: each division has its own entry list, optional cap,
+                independent pool count (e.g. four pools in one division, one pool in another), and
+                playoff skeletons (same-place crosses, four-pool QF from top-two, two-pool semis, or
+                winner cross-pairs). Rank teams with seeds (import from league ladder or manual); for
+                division pools, unseeded entries sort after seeded, then alphabetically by team name.
+                Prior-year ladder import can be added later via{" "}
+                <code className="text-[11px]">priorYearTournamentId</code> on the draw.
               </p>
               {drawSectionError && (
                 <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-700 rounded-xl px-3 py-2 text-xs font-semibold">
@@ -896,18 +1079,129 @@ function TournamentModal({
               )}
               <div className="rounded-xl bg-white/80 border border-indigo-100 px-3 py-2.5 text-xs text-slate-700 space-y-1">
                 <p>
+                  <span className="font-bold text-slate-500">Structure:</span>{" "}
+                  {drawBusy && !drawSnap ? "…" : drawSnap?.structure ?? "legacy_flat"} ·{" "}
                   <span className="font-bold text-slate-500">Format:</span>{" "}
                   {drawBusy && !drawSnap ? "…" : drawSnap?.format ?? "none"}
                 </p>
                 <p>
-                  <span className="font-bold text-slate-500">Pools:</span>{" "}
-                  {drawSnap?.pools?.length ?? 0} ·{" "}
-                  <span className="font-bold text-slate-500">Knockout rows:</span>{" "}
-                  {drawSnap?.knockoutMatches?.length ?? 0} ·{" "}
+                  <span className="font-bold text-slate-500">Top-level pools / KO:</span>{" "}
+                  {drawSnap?.pools?.length ?? 0} / {drawSnap?.knockoutMatches?.length ?? 0} ·{" "}
+                  <span className="font-bold text-slate-500">Divisions:</span>{" "}
+                  {drawSnap?.divisions?.length ?? 0} ·{" "}
                   <span className="font-bold text-slate-500">Seeds:</span>{" "}
                   {drawSnap?.seeds ? Object.keys(drawSnap.seeds).length : 0}
                 </p>
               </div>
+
+              <div className="border border-indigo-100 rounded-xl p-3 space-y-3 bg-white/60">
+                <p className="text-[10px] font-black uppercase text-indigo-900">
+                  Multi-division layout
+                </p>
+                <p className="text-[11px] text-slate-600">
+                  Use <code className="text-[10px]">team_tournament_entries</code> entry ids
+                  (comma-separated). Save, then run &quot;Division: ranked snake pools&quot; using the
+                  pool count per row.
+                </p>
+                {divRows.map((row, idx) => (
+                  <div
+                    key={idx}
+                    className="grid grid-cols-1 sm:grid-cols-2 gap-2 border border-slate-100 rounded-lg p-2 bg-slate-50/80"
+                  >
+                    <input
+                      type="text"
+                      value={row.divisionId}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        setDivRows((rows) =>
+                          rows.map((r, i) => (i === idx ? { ...r, divisionId: v } : r)),
+                        );
+                      }}
+                      placeholder="divisionId (e.g. opens)"
+                      className="px-2 py-1.5 border rounded-lg text-xs font-mono"
+                    />
+                    <input
+                      type="text"
+                      value={row.label}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        setDivRows((rows) =>
+                          rows.map((r, i) => (i === idx ? { ...r, label: v } : r)),
+                        );
+                      }}
+                      placeholder="Label (e.g. Open)"
+                      className="px-2 py-1.5 border rounded-lg text-xs"
+                    />
+                    <input
+                      type="text"
+                      value={row.maxTeams}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        setDivRows((rows) =>
+                          rows.map((r, i) => (i === idx ? { ...r, maxTeams: v } : r)),
+                        );
+                      }}
+                      placeholder="Max teams (optional)"
+                      className="px-2 py-1.5 border rounded-lg text-xs"
+                    />
+                    <input
+                      type="number"
+                      min={1}
+                      max={16}
+                      value={row.poolCountGen}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        setDivRows((rows) =>
+                          rows.map((r, i) => (i === idx ? { ...r, poolCountGen: v } : r)),
+                        );
+                      }}
+                      title="Pool count for division snake generator"
+                      className="px-2 py-1.5 border rounded-lg text-xs"
+                    />
+                    <textarea
+                      value={row.entryIdsText}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        setDivRows((rows) =>
+                          rows.map((r, i) => (i === idx ? { ...r, entryIdsText: v } : r)),
+                        );
+                      }}
+                      placeholder="entryId, entryId, …"
+                      rows={2}
+                      className="sm:col-span-2 px-2 py-1.5 border rounded-lg text-xs font-mono w-full"
+                    />
+                  </div>
+                ))}
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setDivRows((rows) => [
+                        ...rows,
+                        {
+                          divisionId: `division-${rows.length + 1}`,
+                          label: `Division ${rows.length + 1}`,
+                          maxTeams: "",
+                          entryIdsText: "",
+                          poolCountGen: "2",
+                        },
+                      ])
+                    }
+                    className="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase bg-white border border-indigo-200 text-indigo-800"
+                  >
+                    Add division
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void saveDivisionsLayout()}
+                    disabled={drawBusy || !drawSnap}
+                    className="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase bg-indigo-600 text-white disabled:opacity-50"
+                  >
+                    Save divisions
+                  </button>
+                </div>
+              </div>
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-[10px] font-black uppercase text-slate-500 mb-1">
@@ -915,46 +1209,115 @@ function TournamentModal({
                   </label>
                   <select
                     value={genKind}
-                    onChange={(e) =>
-                      setGenKind(
-                        e.target.value as
-                          | "snake_pools"
-                          | "single_elimination"
-                          | "pools_then_knockout",
-                      )
-                    }
+                    onChange={(e) => setGenKind(e.target.value as DrawGenKind)}
                     className="w-full px-3 py-2 border-2 border-slate-200 rounded-xl text-sm font-bold text-[#06054e]"
                   >
-                    <option value="snake_pools">Snake pools (round-robin pools)</option>
-                    <option value="single_elimination">Single elimination (round 1)</option>
+                    <option value="snake_pools">Snake pools (single table)</option>
+                    <option value="single_elimination">Single elimination (single table)</option>
                     <option value="pools_then_knockout">Pools + cross-pool winners</option>
+                    <option value="division_ranked_snake_pools">
+                      Division: ranked snake → pools
+                    </option>
+                    <option value="division_playoff_skeleton">
+                      Division: playoff skeleton
+                    </option>
                   </select>
                 </div>
-                {genKind !== "single_elimination" && (
+                {genKind !== "single_elimination" &&
+                  genKind !== "division_ranked_snake_pools" &&
+                  genKind !== "division_playoff_skeleton" && (
+                    <div>
+                      <label className="block text-[10px] font-black uppercase text-slate-500 mb-1">
+                        Pool count
+                      </label>
+                      <input
+                        type="number"
+                        min={1}
+                        max={16}
+                        value={genPoolCount}
+                        onChange={(e) => setGenPoolCount(e.target.value)}
+                        className="w-full px-3 py-2 border-2 border-slate-200 rounded-xl text-sm"
+                      />
+                    </div>
+                  )}
+              </div>
+              {genKind === "division_playoff_skeleton" && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block text-[10px] font-black uppercase text-slate-500 mb-1">
-                      Pool count
+                      Division
                     </label>
-                    <input
-                      type="number"
-                      min={2}
-                      max={16}
-                      value={genPoolCount}
-                      onChange={(e) => setGenPoolCount(e.target.value)}
-                      className="w-full px-3 py-2 border-2 border-slate-200 rounded-xl text-sm"
-                    />
+                    <select
+                      value={playoffDivisionId}
+                      onChange={(e) => setPlayoffDivisionId(e.target.value)}
+                      className="w-full px-3 py-2 border-2 border-slate-200 rounded-xl text-sm font-bold text-[#06054e]"
+                    >
+                      <option value="">Select…</option>
+                      {divRows
+                        .filter((r) => r.divisionId.trim())
+                        .map((r) => (
+                          <option key={r.divisionId} value={r.divisionId.trim()}>
+                            {r.label} ({r.divisionId.trim()})
+                          </option>
+                        ))}
+                    </select>
                   </div>
-                )}
-              </div>
-              <label className="flex items-center gap-2 text-xs font-semibold text-slate-700 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={genRandom}
-                  onChange={(e) => setGenRandom(e.target.checked)}
-                  className="rounded border-slate-300"
-                />
-                Randomize team order (ignore seeds)
-              </label>
+                  <div>
+                    <label className="block text-[10px] font-black uppercase text-slate-500 mb-1">
+                      Playoff template
+                    </label>
+                    <select
+                      value={playoffTpl}
+                      onChange={(e) =>
+                        setPlayoffTpl(e.target.value as typeof playoffTpl)
+                      }
+                      className="w-full px-3 py-2 border-2 border-slate-200 rounded-xl text-sm font-bold text-[#06054e]"
+                    >
+                      <option value="none">None (clear skeleton)</option>
+                      <option value="same_place_parallel">
+                        Same place (1v1, 2v2, … across pool pairs)
+                      </option>
+                      <option value="qf_top_two_four_pools">
+                        QF — top 2 × 4 pools (A1vB2, B1vA2, …)
+                      </option>
+                      <option value="semis_top_two_two_pools">
+                        Semis — top 2 × 2 pools (A1vB2, B1vA2)
+                      </option>
+                      <option value="pool_winners_cross_pairs">
+                        Pool winners cross (paired pools)
+                      </option>
+                    </select>
+                  </div>
+                  {playoffTpl === "same_place_parallel" && (
+                    <div className="sm:col-span-2">
+                      <label className="block text-[10px] font-black uppercase text-slate-500 mb-1">
+                        Max place (e.g. 4 for places 1–4)
+                      </label>
+                      <input
+                        type="number"
+                        min={1}
+                        max={16}
+                        value={samePlaceMax}
+                        onChange={(e) => setSamePlaceMax(e.target.value)}
+                        className="w-full px-3 py-2 border-2 border-slate-200 rounded-xl text-sm"
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
+              {(genKind === "snake_pools" ||
+                genKind === "division_ranked_snake_pools" ||
+                genKind === "pools_then_knockout") && (
+                <label className="flex items-center gap-2 text-xs font-semibold text-slate-700 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={genRandom}
+                    onChange={(e) => setGenRandom(e.target.checked)}
+                    className="rounded border-slate-300"
+                  />
+                  Randomize team order (ignore seeds)
+                </label>
+              )}
               <button
                 type="button"
                 onClick={() => void runDrawGenerate()}

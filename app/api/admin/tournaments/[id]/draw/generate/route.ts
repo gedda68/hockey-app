@@ -10,10 +10,14 @@ import {
   requireRepTournamentResourceAccess,
   type RepTournamentHostDoc,
 } from "@/lib/auth/repTournamentScope";
+import type { TournamentDrawState } from "@/lib/db/schemas/repTournamentDraw.schema";
 import { DrawGenerateBodySchema } from "@/lib/db/schemas/repTournamentDraw.schema";
 import {
+  applyDivisionPlayoffSkeleton,
+  applyDivisionRankedSnakePools,
   generateTournamentDrawState,
   loadEntryIdsForTournament,
+  loadTeamNameByEntryId,
   mergeDrawState,
   validateDrawStateReferences,
 } from "@/lib/tournaments/tournamentDraw";
@@ -47,19 +51,62 @@ export async function POST(
     if (scope.response) return scope.response;
 
     const tournamentId = String(existing.tournamentId ?? id);
-    const entryIds = await loadEntryIdsForTournament(db, tournamentId);
-    if (entryIds.length < 2) {
-      return NextResponse.json(
-        { error: "At least two non-withdrawn team entries are required to generate a draw." },
-        { status: 400 },
-      );
-    }
-
     const prev = mergeDrawState(existing.draw, {});
-    const next = generateTournamentDrawState(body, entryIds, {
-      seeds: prev.seeds,
-      notes: prev.notes,
-    });
+
+    const isLegacy =
+      body.kind === "snake_pools" ||
+      body.kind === "single_elimination" ||
+      body.kind === "pools_then_knockout";
+
+    let next: TournamentDrawState;
+
+    if (body.kind === "division_ranked_snake_pools") {
+      if (!prev.divisions?.length) {
+        return NextResponse.json(
+          {
+            error:
+              "Add at least one division with entryIds on the draw (PUT /draw) before generating pools.",
+          },
+          { status: 400 },
+        );
+      }
+      const names = await loadTeamNameByEntryId(db, tournamentId);
+      try {
+        next = applyDivisionRankedSnakePools(prev, body.divisions!, {
+          randomizeOrder: body.randomizeOrder,
+          teamNameByEntryId: names,
+        });
+      } catch (e: unknown) {
+        return NextResponse.json(
+          { error: e instanceof Error ? e.message : "Generate failed" },
+          { status: 400 },
+        );
+      }
+    } else if (body.kind === "division_playoff_skeleton") {
+      try {
+        next = applyDivisionPlayoffSkeleton(prev, body.divisionId!, body.playoffTemplate!);
+      } catch (e: unknown) {
+        return NextResponse.json(
+          { error: e instanceof Error ? e.message : "Generate failed" },
+          { status: 400 },
+        );
+      }
+    } else {
+      const entryIds = await loadEntryIdsForTournament(db, tournamentId);
+      if (entryIds.length < 2) {
+        return NextResponse.json(
+          {
+            error:
+              "At least two non-withdrawn team entries are required to generate a single-table draw.",
+          },
+          { status: 400 },
+        );
+      }
+      next = generateTournamentDrawState(body, entryIds, {
+        seeds: prev.seeds,
+        notes: prev.notes,
+      });
+    }
 
     const v = await validateDrawStateReferences(db, tournamentId, next);
     if (!v.ok) {
