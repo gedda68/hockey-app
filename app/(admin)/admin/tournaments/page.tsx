@@ -4,6 +4,7 @@
 // Representative Tournament / Competition management
 
 import { useState, useEffect, useCallback } from "react";
+import Link from "next/link";
 import { sanitizeHtml } from "@/lib/utils/sanitize";
 import {
   Trophy,
@@ -21,6 +22,7 @@ import {
   Users,
   GitBranch,
   RefreshCw,
+  ListOrdered,
 } from "lucide-react";
 import RichTextEditor from "@/app/(admin)/admin/components/RichTextEditor";
 import type {
@@ -1355,6 +1357,23 @@ function TournamentModal({
                   Import seeds
                 </button>
               </div>
+              <div className="border-t border-indigo-100 pt-3">
+                <p className="text-[10px] font-black uppercase text-slate-500 mb-2 flex items-center gap-2">
+                  <ListOrdered size={12} />
+                  Pool fixtures &amp; results (D4)
+                </p>
+                <p className="text-[11px] text-slate-600 mb-2">
+                  After pools exist on the draw, open the fixtures screen to generate pool
+                  round-robins, publish matches, and enter scores.
+                </p>
+                <Link
+                  href={`/admin/tournaments/${encodeURIComponent(tournamentApiId)}/fixtures`}
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black uppercase bg-white border-2 border-emerald-300 text-emerald-900 hover:bg-emerald-50"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  Open fixtures
+                </Link>
+              </div>
             </div>
           )}
 
@@ -1503,7 +1522,15 @@ function TournamentCard({
           </div>
 
           {/* Actions */}
-          <div className="flex gap-2 flex-shrink-0">
+          <div className="flex gap-2 flex-shrink-0 items-center">
+            <Link
+              href={`/admin/tournaments/${encodeURIComponent(tournament._id ?? tournament.tournamentId)}/fixtures`}
+              className="p-2 rounded-xl hover:bg-emerald-50 text-slate-400 hover:text-emerald-700 transition-colors"
+              title="Fixtures"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <ListOrdered size={15} />
+            </Link>
             <button
               onClick={onEdit}
               className="p-2 rounded-xl hover:bg-slate-100 text-slate-400 hover:text-[#06054e] transition-colors"

@@ -76,6 +76,7 @@ function isPublicPath(path: string): boolean {
     "/api/nominations/windows",
     "/api/rep-nominations",
     "/api/tournaments",
+    "/api/rep-tournament-fixtures",
     "/api/associations",
     "/_next",
     "/favicon",
