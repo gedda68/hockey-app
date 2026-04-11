@@ -5,7 +5,7 @@
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import { ArrowLeft, Loader2, RefreshCw } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Loader2, RefreshCw } from "lucide-react";
 
 type RepFx = {
   fixtureId: string;
@@ -219,6 +219,38 @@ export default function RepTournamentFixturesPage() {
     }
   }
 
+  async function approveResult(f: RepFx) {
+    setBusy(true);
+    setMsg("");
+    try {
+      const r = await fetch(
+        `${apiBase}/fixtures/${encodeURIComponent(f.fixtureId)}/result`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            result: {},
+            status: "approved",
+            setMatchStatusCompleted: true,
+          }),
+        },
+      );
+      const j = await r.json();
+      if (!r.ok) {
+        setMsg(typeof j.error === "string" ? j.error : "Approve failed");
+        return;
+      }
+      setFixtures((prev) =>
+        prev.map((x) => (x.fixtureId === f.fixtureId ? { ...x, ...j } : x)),
+      );
+      setMsg("Result approved.");
+    } catch {
+      setMsg("Approve failed");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
       <div className="flex items-center gap-3 mb-6">
@@ -240,9 +272,11 @@ export default function RepTournamentFixturesPage() {
           {title && <p className="text-lg font-bold text-slate-800 mt-2">{title}</p>}
           {resultApprovalRequired && (
             <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 mt-2 max-w-xl">
-              Result approval is on: new scores are submitted first; the public site shows
-              them only after approval (users with <span className="font-mono">results.approve</span>
-              ).
+              Result approval is on: use <strong>Save</strong> to submit scores, then{" "}
+              <strong>Approve result</strong> on each row (requires{" "}
+              <span className="font-mono">results.approve</span> or{" "}
+              <span className="font-mono">selection.manage</span>). The public site shows scores
+              only after approval.
             </p>
           )}
         </div>
@@ -339,7 +373,7 @@ export default function RepTournamentFixturesPage() {
                 <th className="px-3 py-2">Round / pool</th>
                 <th className="px-3 py-2">Match</th>
                 <th className="px-3 py-2">TBD assign</th>
-                <th className="px-3 py-2">Score</th>
+                <th className="px-3 py-2">Score / approve</th>
                 <th className="px-3 py-2">Public</th>
                 <th className="px-3 py-2">Status</th>
               </tr>
@@ -350,9 +384,11 @@ export default function RepTournamentFixturesPage() {
                   key={`${f.fixtureId}-${f.resultStatus ?? ""}-${f.result?.homeScore ?? ""}-${f.result?.awayScore ?? ""}-e-${f.homeEntryId ?? ""}-${f.awayEntryId ?? ""}`}
                   f={f}
                   busy={busy}
+                  resultApprovalRequired={resultApprovalRequired}
                   onTogglePublished={(pub) => void togglePublished(f, pub)}
                   onSaveScore={(h, a) => void saveScore(f, h, a)}
                   onAssignEntries={(h, a) => void assignEntries(f, h, a)}
+                  onApproveResult={() => void approveResult(f)}
                 />
               ))}
             </tbody>
@@ -366,15 +402,19 @@ export default function RepTournamentFixturesPage() {
 function FixtureRow({
   f,
   busy,
+  resultApprovalRequired,
   onTogglePublished,
   onSaveScore,
   onAssignEntries,
+  onApproveResult,
 }: {
   f: RepFx;
   busy: boolean;
+  resultApprovalRequired: boolean;
   onTogglePublished: (p: boolean) => void;
   onSaveScore: (h: string, a: string) => void;
   onAssignEntries: (home: string, away: string) => void;
+  onApproveResult: () => void;
 }) {
   const [home, setHome] = useState(
     String(f.result?.homeScore ?? f.homeScore ?? ""),
@@ -396,6 +436,11 @@ function FixtureRow({
     f.homeTeamName || f.homeSourceLabel || (f.homeEntryId ? "?" : "TBD");
   const awayDisp =
     f.awayTeamName || f.awaySourceLabel || (f.awayEntryId ? "?" : "TBD");
+
+  const canApprove =
+    resultApprovalRequired &&
+    f.resultStatus === "submitted" &&
+    f.result != null;
 
   return (
     <tr className="border-t border-slate-100 hover:bg-slate-50/80 align-top">
@@ -442,30 +487,46 @@ function FixtureRow({
         )}
       </td>
       <td className="px-3 py-2">
-        <div className="flex items-center gap-1 flex-wrap">
-          <input
-            type="number"
-            min={0}
-            className="w-14 px-2 py-1 border rounded-lg text-xs"
-            value={home}
-            onChange={(e) => setHome(e.target.value)}
-          />
-          <span className="text-slate-400">–</span>
-          <input
-            type="number"
-            min={0}
-            className="w-14 px-2 py-1 border rounded-lg text-xs"
-            value={away}
-            onChange={(e) => setAway(e.target.value)}
-          />
-          <button
-            type="button"
-            disabled={busy}
-            onClick={() => onSaveScore(home, away)}
-            className="ml-1 px-2 py-1 rounded-lg text-[10px] font-black uppercase bg-indigo-600 text-white disabled:opacity-50"
-          >
-            Save
-          </button>
+        <div className="flex flex-col gap-2 items-start">
+          <div className="flex items-center gap-1 flex-wrap">
+            <input
+              type="number"
+              min={0}
+              className="w-14 px-2 py-1 border rounded-lg text-xs"
+              value={home}
+              onChange={(e) => setHome(e.target.value)}
+            />
+            <span className="text-slate-400">–</span>
+            <input
+              type="number"
+              min={0}
+              className="w-14 px-2 py-1 border rounded-lg text-xs"
+              value={away}
+              onChange={(e) => setAway(e.target.value)}
+            />
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => onSaveScore(home, away)}
+              className="ml-1 px-2 py-1 rounded-lg text-[10px] font-black uppercase bg-indigo-600 text-white disabled:opacity-50"
+            >
+              Save
+            </button>
+          </div>
+          {canApprove && (
+            <button
+              type="button"
+              disabled={busy}
+              onClick={onApproveResult}
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-black uppercase bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50"
+            >
+              <CheckCircle2 size={12} />
+              Approve result
+            </button>
+          )}
+          {resultApprovalRequired && f.resultStatus === "approved" && (
+            <span className="text-[10px] font-bold text-emerald-700">Approved</span>
+          )}
         </div>
       </td>
       <td className="px-3 py-2">
