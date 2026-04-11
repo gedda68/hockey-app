@@ -10,6 +10,7 @@
     "migrate:clubs": "tsx scripts/migrate-clubs.ts --replace",
     "setup:indexes": "tsx --env-file=.env.local scripts/setup-indexes.ts",
     "reset:passwords": "tsx --env-file=.env.local scripts/reset-passwords.ts",
+    "backfill:tte-canonical": "tsx --env-file=.env.local scripts/backfill-team-tournament-entry-canonical.ts",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage"
