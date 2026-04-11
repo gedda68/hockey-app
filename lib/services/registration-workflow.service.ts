@@ -10,6 +10,7 @@ import type {
   FeeLineItem,
 } from "@/types/registration";
 import type { Association } from "@/lib/db/schemas/association.schema";
+import { finalizeFeeLineItemsForRegistration } from "@/lib/fees/feeStack";
 import { Db, type Document } from "mongodb";
 
 // ============================================================================
@@ -137,10 +138,12 @@ export class RegistrationWorkflowService {
         name: "Personal Accident Insurance",
         amount: 25.0,
         gstIncluded: false,
+        stackLayer: "insurance",
+        collectedBy: "insurer",
       });
     }
 
-    return lineItems;
+    return finalizeFeeLineItemsForRegistration(lineItems);
   }
 
   /**
@@ -531,6 +534,12 @@ export class RegistrationWorkflowService {
       gstIncluded: fee.gstIncluded,
       associationId: type === "association" ? entityId : undefined,
       clubId: type === "club" ? entityId : undefined,
+      stackLayer: type === "association" ? ("association" as const) : ("club" as const),
+      collectedBy: type === "association" ? "association" : "club",
+      associationHierarchyLevel:
+        type === "association" && typeof entity.level === "number"
+          ? entity.level
+          : undefined,
     }));
   }
 

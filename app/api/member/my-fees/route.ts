@@ -286,6 +286,34 @@ export async function GET(req: NextRequest) {
           paidDate: pay.paidDate ? new Date(pay.paidDate as string).toISOString() : undefined,
           paymentId: pay.paymentId as string,
         });
+      } else if (
+        rawItem.type === "competition" ||
+        rawItem.type === "tournament"
+      ) {
+        const eventKey =
+          (rawItem.tournamentId as string | undefined) ??
+          (rawItem.competitionId as string | undefined) ??
+          "general";
+        const section = getOrCreateSection(year, `event-${eventKey}-${year}`, {
+          sectionId: `event-${eventKey}-${year}`,
+          entityType: "tournament",
+          entityName:
+            rawItem.type === "competition"
+              ? "Competition fees"
+              : "Tournament fees",
+          sortOrder: 150,
+        });
+        addItem(section, {
+          itemId: `${pay.paymentId}-${rawItem.itemId ?? rawItem.feeId ?? rawItem.name}`,
+          sourceType: "payment",
+          sourceId: pay.paymentId as string,
+          name: rawItem.name as string,
+          description: rawItem.description as string | undefined,
+          amountCents,
+          status: feeItemStatus,
+          paidDate: pay.paidDate ? new Date(pay.paidDate as string).toISOString() : undefined,
+          paymentId: pay.paymentId as string,
+        });
       }
     }
 

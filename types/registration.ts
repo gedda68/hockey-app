@@ -7,10 +7,30 @@ import { z } from "zod";
 // REGISTRATION FEE LINE ITEM
 // ============================================================================
 
+export const FeeStackLayerSchema = z.enum([
+  "association",
+  "club",
+  "competition",
+  "tournament",
+  "insurance",
+  "levy",
+  "other",
+]);
+
+export type FeeStackLayer = z.infer<typeof FeeStackLayerSchema>;
+
 export const FeeLineItemSchema = z.object({
   itemId: z.string(),
   feeId: z.string(),
-  type: z.enum(["association", "club", "insurance", "levy", "other"]),
+  type: z.enum([
+    "association",
+    "club",
+    "insurance",
+    "levy",
+    "other",
+    "competition",
+    "tournament",
+  ]),
   name: z.string(),
   description: z.string().optional(),
   amount: z.number(),
@@ -18,6 +38,16 @@ export const FeeLineItemSchema = z.object({
   gstAmount: z.number().optional(),
   associationId: z.string().optional(),
   clubId: z.string().optional(),
+  competitionId: z.string().optional(),
+  tournamentId: z.string().optional(),
+  /** Canonical stack layer (defaults from `type` when omitted). */
+  stackLayer: FeeStackLayerSchema.optional(),
+  /** Who notionally collects / remits this component (policy default if omitted). */
+  collectedBy: z.string().optional(),
+  /** Sort position for collection / remittance (set by `finalizeFeeLineItemsForRegistration`). */
+  collectionSequence: z.number().int().positive().optional(),
+  /** Association document `level` (0 = national); used to order hierarchy fees. */
+  associationHierarchyLevel: z.number().optional(),
 });
 
 export type FeeLineItem = z.infer<typeof FeeLineItemSchema>;
@@ -226,6 +256,46 @@ export interface ReturningPlayerInfo {
       shirtSize?: string;
       photoConsent?: boolean;
     };
+  };
+}
+
+// ============================================================================
+// ELIGIBILITY (Epic H2 — registration flows)
+// ============================================================================
+
+export interface RegistrationEligibilitySnapshot {
+  clubId: string;
+  seasonYear: string;
+  primaryAssociationId: string;
+  flags: {
+    requiresInsurance: boolean;
+    requiresClearance: boolean;
+    requiresApproval: boolean;
+    autoApproveReturningPlayers: boolean;
+  };
+  windows: {
+    registration: {
+      state: "open" | "before_open" | "after_close" | "unconfigured";
+      open?: string;
+      close?: string;
+    };
+    transfer: {
+      state: "open" | "before_open" | "after_close" | "unconfigured";
+      open?: string;
+      close?: string;
+    };
+  };
+  /** When true, transfer eligibility uses the general registration window (no separate transfer dates). */
+  transferWindowFollowsRegistration: boolean;
+  member?: {
+    memberId: string;
+    isReturningToThisClub: boolean;
+    isTransferFromAnotherClub: boolean;
+    lastClubId?: string;
+    lastSeasonYear?: string;
+    isBanned: boolean;
+    banReason?: string;
+    bannedUntil?: string;
   };
 }
 

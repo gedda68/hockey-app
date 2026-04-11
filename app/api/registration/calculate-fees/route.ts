@@ -5,6 +5,10 @@ import { NextRequest, NextResponse } from "next/server";
 import type { Db, Document, WithId } from "mongodb";
 import clientPromise from "@/lib/mongodb";
 import type { FeeLineItem } from "@/types/registration";
+import {
+  finalizeFeeLineItemsForRegistration,
+  feeStackPolicySummary,
+} from "@/lib/fees/feeStack";
 
 // ============================================================================
 // POST /api/registration/calculate-fees
@@ -123,6 +127,10 @@ export async function POST(request: NextRequest) {
           amount: fee.amount,
           gstIncluded: fee.gstIncluded ?? true,
           associationId: association.associationId,
+          stackLayer: "association",
+          collectedBy: "association",
+          associationHierarchyLevel:
+            typeof association.level === "number" ? association.level : undefined,
         });
       }
     }
@@ -174,6 +182,8 @@ export async function POST(request: NextRequest) {
           amount: fee.amount,
           gstIncluded: fee.gstIncluded ?? true,
           clubId: club.id,
+          stackLayer: "club",
+          collectedBy: "club",
         });
       }
     }
@@ -204,17 +214,21 @@ export async function POST(request: NextRequest) {
         description: "Compulsory personal accident insurance",
         amount: insuranceAmount,
         gstIncluded: false,
+        stackLayer: "insurance",
+        collectedBy: "insurer",
       });
     }
+
+    const orderedLineItems = finalizeFeeLineItemsForRegistration(lineItems);
 
     // ========================================================================
     // CALCULATE TOTALS
     // ========================================================================
 
-    const subtotal = lineItems.reduce((sum, item) => sum + item.amount, 0);
+    const subtotal = orderedLineItems.reduce((sum, item) => sum + item.amount, 0);
 
     // Calculate GST (for items where GST is included, extract it)
-    const gst = lineItems.reduce((sum, item) => {
+    const gst = orderedLineItems.reduce((sum, item) => {
       if (item.gstIncluded) {
         // GST = amount - (amount / 1.1)
         return sum + (item.amount - item.amount / 1.1);
@@ -226,22 +240,23 @@ export async function POST(request: NextRequest) {
 
     // Group fees by type for display
     const feesByType = {
-      association: lineItems.filter((f) => f.type === "association"),
-      club: lineItems.filter((f) => f.type === "club"),
-      insurance: lineItems.filter((f) => f.type === "insurance"),
-      other: lineItems.filter(
+      association: orderedLineItems.filter((f) => f.type === "association"),
+      club: orderedLineItems.filter((f) => f.type === "club"),
+      insurance: orderedLineItems.filter((f) => f.type === "insurance"),
+      other: orderedLineItems.filter(
         (f) => !["association", "club", "insurance"].includes(f.type)
       ),
     };
 
     return NextResponse.json({
-      lineItems,
+      lineItems: orderedLineItems,
+      feeStack: feeStackPolicySummary(),
       feesByType,
       summary: {
         subtotal,
         gst,
         total,
-        itemCount: lineItems.length,
+        itemCount: orderedLineItems.length,
       },
       associations: associations.map((a) => ({
         associationId: a.associationId,

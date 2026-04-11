@@ -63,6 +63,11 @@ const AssociationSchema = z.object({
       allowMultipleClubs: z.boolean().default(true),
       seasonStartMonth: z.number().min(1).max(12).default(1),
       seasonEndMonth: z.number().min(1).max(12).default(12),
+      registrationOpenDate: z.coerce.date().optional(),
+      registrationCloseDate: z.coerce.date().optional(),
+      transferRegistrationOpenDate: z.coerce.date().optional(),
+      transferRegistrationCloseDate: z.coerce.date().optional(),
+      requiresClearance: z.boolean().default(false),
       requiresInsurance: z.boolean().default(true),
       requiresMedicalInfo: z.boolean().default(true),
       requiresEmergencyContact: z.boolean().default(true),
@@ -345,6 +350,13 @@ export async function POST(request: NextRequest) {
         allowMultipleClubs: validated.settings?.allowMultipleClubs ?? true,
         seasonStartMonth: validated.settings?.seasonStartMonth || 1,
         seasonEndMonth: validated.settings?.seasonEndMonth || 12,
+        registrationOpenDate: validated.settings?.registrationOpenDate,
+        registrationCloseDate: validated.settings?.registrationCloseDate,
+        transferRegistrationOpenDate:
+          validated.settings?.transferRegistrationOpenDate,
+        transferRegistrationCloseDate:
+          validated.settings?.transferRegistrationCloseDate,
+        requiresClearance: validated.settings?.requiresClearance ?? false,
         requiresInsurance: validated.settings?.requiresInsurance ?? true,
         requiresMedicalInfo: validated.settings?.requiresMedicalInfo ?? true,
         requiresEmergencyContact:

@@ -85,9 +85,9 @@ Multi-level association → club → team operations, independent portals, compe
 
 ## Epic H — Fees, registration, membership
 
-- [ ] **H1** Fee stack model: association + club + competition + tournament; rules for who collects and in what order.
-- [ ] **H2** Registration flows: returning player, eligibility, transfer windows, insurance flags.
-- [ ] **H3** Financial reporting: per club, per association, GST, exports, reconciliation.
+- [X] **H1** Fee stack model: association + club + competition + tournament; rules for who collects and in what order. **Baseline:** `FeeLineItem` extended in `types/registration.ts` (`stackLayer`, `collectedBy`, `collectionSequence`, `associationHierarchyLevel`, optional `competitionId` / `tournamentId`, types `competition` / `tournament`). `lib/fees/feeStack.ts` — layer order, default collector per layer, `finalizeFeeLineItemsForRegistration()`; `POST /api/registration/calculate-fees` returns ordered line items + `feeStack` policy summary; `registration-workflow.service` aligns. **My fees:** `competition` / `tournament` line items bucketed under tournament-style sections in `my-fees`.
+- [X] **H2** Registration flows: returning player, eligibility, transfer windows, insurance flags. **Baseline:** existing `POST /api/registration/check-returning-player`; **new** `POST /api/registration/eligibility` + `lib/registration/registrationEligibility.ts` — registration vs transfer windows (`transferWindowFollowsRegistration` when transfer dates unset), `requiresInsurance` / `requiresClearance` / approval flags, optional member context (returning vs transfer-from-other-club, ban). Association `settings`: `transferRegistrationOpenDate` / `transferRegistrationCloseDate` (and registration dates) on canonical schema + admin create/PUT Zod.
+- [X] **H3** Financial reporting: per club, per association, GST, exports, reconciliation. **Baseline:** `GET /api/admin/financials/registration-summary` (`reports.financial` **or** `registration.payments` **or** `registration.manage` **or** `registration.approve`) — scoped like other admin routes; aggregates from `payments` (`lib/financials/registrationPaymentSummary.ts`); query `seasonYear`, `status`, `clubId`; `format=csv` line-level export with GST component column. **Note:** hard cap 5000 payments per request; full reconciliation may need pagination later.
 
 ---
 

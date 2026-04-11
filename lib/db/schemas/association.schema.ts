@@ -142,6 +142,9 @@ export const AssociationSchema = z.object({
     seasonEndMonth: z.number().min(1).max(12),
     registrationOpenDate: z.date().optional(),
     registrationCloseDate: z.date().optional(),
+    /** Optional window for inter-club transfers (defaults to general registration window when unset). */
+    transferRegistrationOpenDate: z.date().optional(),
+    transferRegistrationCloseDate: z.date().optional(),
     requiresClearance: z.boolean().default(false),
     requiresInsurance: z.boolean().default(true),
     requiresMedicalInfo: z.boolean().default(true),
