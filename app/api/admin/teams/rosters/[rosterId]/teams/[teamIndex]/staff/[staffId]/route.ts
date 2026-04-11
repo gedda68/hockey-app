@@ -1,14 +1,14 @@
-// app/api/admin/teams/rosters/[rosterId]/teams/[teamIndex]/staff/[staffId]/route.ts
-// FIXED: Hard delete - actually remove staff from array
+// PATCH/DELETE .../staff/[staffId] — Epic G validated PATCH fields.
 
 import { NextRequest, NextResponse } from "next/server";
+import { ZodError } from "zod";
 import clientPromise from "@/lib/mongodb";
 import {
   requirePermission,
   requireResourceAccess,
 } from "@/lib/auth/middleware";
+import { PatchTeamStaffBodySchema } from "@/lib/db/schemas/teamRosterStaff.schema";
 
-// UPDATE staff member
 export async function PATCH(
   request: NextRequest,
   context: {
@@ -17,9 +17,12 @@ export async function PATCH(
 ) {
   try {
     const { rosterId, teamIndex: teamIndexStr, staffId } = await context.params;
-    const teamIndex = parseInt(teamIndexStr);
-    const body = await request.json();
+    const teamIndex = parseInt(teamIndexStr, 10);
+    if (Number.isNaN(teamIndex) || teamIndex < 0) {
+      return NextResponse.json({ error: "Invalid team index" }, { status: 400 });
+    }
 
+    const body = PatchTeamStaffBodySchema.parse(await request.json());
 
     const client = await clientPromise;
     const db = client.db("hockey-app");
@@ -44,9 +47,8 @@ export async function PATCH(
       return NextResponse.json({ error: "Team not found" }, { status: 404 });
     }
 
-    // Find staff index
     const staffIndex = roster.teams[teamIndex].staff?.findIndex(
-      (s: any) => s.id === staffId,
+      (s: { id?: string }) => s.id === staffId,
     );
 
     if (staffIndex === -1 || staffIndex === undefined) {
@@ -56,15 +58,28 @@ export async function PATCH(
       );
     }
 
-    // Update staff fields
     const updatePath = `teams.${teamIndex}.staff.${staffIndex}`;
     const updates: Record<string, unknown> = {};
 
-    if (body.role) updates[`${updatePath}.role`] = body.role;
-    if (body.memberId) updates[`${updatePath}.memberId`] = body.memberId;
-    if (body.memberName) updates[`${updatePath}.memberName`] = body.memberName;
+    const assign = (key: string, v: unknown) => {
+      updates[`${updatePath}.${key}`] = v;
+    };
+
+    if (body.role !== undefined) assign("role", body.role);
+    if (body.memberId !== undefined) assign("memberId", body.memberId);
+    if (body.memberName !== undefined) assign("memberName", body.memberName);
     if (body.qualifications !== undefined)
-      updates[`${updatePath}.qualifications`] = body.qualifications;
+      assign("qualifications", body.qualifications);
+    if (body.staffRoleCode !== undefined)
+      assign("staffRoleCode", body.staffRoleCode);
+    if (body.wwccCardNumber !== undefined)
+      assign("wwccCardNumber", body.wwccCardNumber);
+    if (body.wwccExpiresAt !== undefined)
+      assign("wwccExpiresAt", body.wwccExpiresAt);
+    if (body.showEmailOnPublicSite !== undefined)
+      assign("showEmailOnPublicSite", body.showEmailOnPublicSite);
+    if (body.showPhoneOnPublicSite !== undefined)
+      assign("showPhoneOnPublicSite", body.showPhoneOnPublicSite);
 
     const result = await db.collection("teamRosters").updateOne(
       { id: rosterId },
@@ -76,13 +91,18 @@ export async function PATCH(
       },
     );
 
-
     return NextResponse.json({
       success: true,
       modified: result.modifiedCount > 0,
     });
   } catch (error: unknown) {
-    console.error("❌ Error updating staff:", error);
+    if (error instanceof ZodError) {
+      return NextResponse.json(
+        { error: "Validation error", details: error.flatten() },
+        { status: 400 },
+      );
+    }
+    console.error("Error updating staff:", error);
     return NextResponse.json(
       {
         error: "Failed to update staff",
@@ -93,7 +113,6 @@ export async function PATCH(
   }
 }
 
-// DELETE staff member - HARD DELETE (actually remove from array)
 export async function DELETE(
   request: NextRequest,
   context: {
@@ -102,15 +121,13 @@ export async function DELETE(
 ) {
   try {
     const { rosterId, teamIndex: teamIndexStr, staffId } = await context.params;
-    const teamIndex = parseInt(teamIndexStr);
-
+    const teamIndex = parseInt(teamIndexStr, 10);
 
     const client = await clientPromise;
     const db = client.db("hockey-app");
 
     const roster = await db.collection("teamRosters").findOne({ id: rosterId });
     if (!roster) {
-      console.error("❌ Roster not found:", rosterId);
       return NextResponse.json({ error: "Roster not found" }, { status: 404 });
     }
 
@@ -125,28 +142,21 @@ export async function DELETE(
       if (scopeRes) return scopeRes;
     }
 
-
     if (!roster.teams || !roster.teams[teamIndex]) {
-      console.error("❌ Team not found at index:", teamIndex);
       return NextResponse.json({ error: "Team not found" }, { status: 404 });
     }
 
-
-    // Check if staff exists
     const staffMember = roster.teams[teamIndex].staff?.find(
-      (s: any) => s.id === staffId,
+      (s: { id?: string }) => s.id === staffId,
     );
 
     if (!staffMember) {
-      console.error("❌ Staff member not found:", staffId);
       return NextResponse.json(
         { error: "Staff member not found" },
         { status: 404 },
       );
     }
 
-
-    // HARD DELETE - Remove from array using $pull
     const result = await db.collection("teamRosters").updateOne(
       { id: rosterId },
       {
@@ -159,18 +169,12 @@ export async function DELETE(
       } as unknown as import("mongodb").UpdateFilter<import("mongodb").Document>,
     );
 
-
     if (result.modifiedCount === 0) {
-      console.error("❌ Staff not removed - no changes made");
       return NextResponse.json(
         { error: "Failed to remove staff" },
         { status: 500 },
       );
     }
-
-    console.log(
-      `✅ Successfully removed ${staffMember.memberName} from team ${roster.teams[teamIndex].name}`,
-    );
 
     return NextResponse.json({
       success: true,
@@ -178,7 +182,7 @@ export async function DELETE(
     });
   } catch (error: unknown) {
     const err = error instanceof Error ? error : new Error(String(error));
-    console.error("❌ Error deleting staff:", err);
+    console.error("Error deleting staff:", err);
     return NextResponse.json(
       { error: "Failed to delete staff", details: err.message },
       { status: 500 },

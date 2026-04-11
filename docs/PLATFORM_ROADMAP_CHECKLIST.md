@@ -77,9 +77,9 @@ Multi-level association → club → team operations, independent portals, compe
 
 ## Epic G — Coaching & team staff
 
-- [ ] **G1** Staff roles (head coach, assistant, manager, physio, etc.) linked to members where possible.
-- [ ] **G2** Credential/WWCC tracking with expiry and compliance reporting.
-- [ ] **G3** Public-safe display vs private contact details (especially juniors).
+- [X] **G1** Staff roles (head coach, assistant, manager, physio, etc.) linked to members where possible. **Baseline:** `teamRosters.teams[].staff[]` validated via `PostTeamStaffBodySchema` / `PatchTeamStaffBodySchema` (`lib/db/schemas/teamRosterStaff.schema.ts`); optional canonical `staffRoleCode` (`head_coach`, `assistant_coach`, `manager`, `physio`, `team_manager`, `other`) alongside human `role` label; `POST/PATCH .../rosters/[rosterId]/teams/[teamIndex]/staff`.
+- [X] **G2** Credential/WWCC tracking with expiry and compliance reporting. **Baseline:** optional `wwccCardNumber`, `wwccExpiresAt` on roster staff; helpers `lib/coaching/teamStaffCompliance.ts`; `GET /api/admin/teams/rosters/[rosterId]/staff-compliance?expiringWithinDays=` (`team.edit` + club scope) returns per-staff status (`missing` / `expired` / `expiring` / `ok`) and summary counts.
+- [ ] **G3** Public-safe display vs private contact details (especially juniors). **Partial:** `showEmailOnPublicSite` / `showPhoneOnPublicSite` on roster staff (default false); **follow-up:** strip/mask contacts on public team APIs and junior-facing pages.
 
 ---
 
