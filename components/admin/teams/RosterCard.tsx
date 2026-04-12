@@ -3,8 +3,9 @@
 
 "use client";
 
-import { useState } from "react";
-import { useDroppable } from "@dnd-kit/core";
+import { useState, type ReactNode } from "react";
+import { useDraggable, useDroppable } from "@dnd-kit/core";
+import { CSS } from "@dnd-kit/utilities";
 import {
   SortableContext,
   verticalListSortingStrategy,
@@ -48,6 +49,67 @@ function weeksRemaining(unavailableUntil?: string): number | null {
   return Math.ceil(diffMs / (7 * 24 * 60 * 60 * 1000));
 }
 
+/**
+ * Pool rows (shadow / unavailable) must use @dnd-kit `useDraggable`, not HTML5
+ * `draggable`, so they share the same DndContext as team SortablePlayers.
+ */
+function DraggablePoolPlayerRow({
+  dragId,
+  rosterId,
+  location,
+  player,
+  className,
+  children,
+}: {
+  dragId: string;
+  rosterId: string;
+  location: "emergency" | "unavailable";
+  player: Player;
+  className: string;
+  children: (dragHandle: ReactNode) => ReactNode;
+}) {
+  const { attributes, listeners, setNodeRef, transform, isDragging } =
+    useDraggable({
+      id: dragId,
+      data: {
+        player,
+        rosterId,
+        location,
+        teamIndex: undefined,
+        teamName: undefined,
+      },
+    });
+
+  const style = {
+    transform: CSS.Translate.toString(transform),
+    opacity: isDragging ? 0.45 : 1,
+  };
+
+  const handle = (
+    <span
+      {...attributes}
+      {...listeners}
+      className="flex-shrink-0 cursor-grab active:cursor-grabbing touch-none text-slate-400 hover:text-slate-600"
+      aria-label="Drag to move player"
+    >
+      <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+          d="M4 8h16M4 16h16"
+        />
+      </svg>
+    </span>
+  );
+
+  return (
+    <div ref={setNodeRef} style={style} className={className}>
+      {children(handle)}
+    </div>
+  );
+}
+
 // ── Shadow zone ───────────────────────────────────────────────────────────────
 
 function ShadowZone({ rosterId, players, onReturn }: {
@@ -88,28 +150,36 @@ function ShadowZone({ rosterId, players, onReturn }: {
               ? `${player.firstName} ${player.lastName}`
               : player.name || "Player";
             return (
-              <div
+              <DraggablePoolPlayerRow
                 key={player.id}
-                draggable
-                className="flex items-center justify-between px-3 py-2 bg-white border border-amber-200 rounded-xl cursor-grab active:cursor-grabbing group hover:border-amber-400 transition-all"
+                dragId={`pool-emergency-${rosterId}-${player.id}`}
+                rosterId={rosterId}
+                location="emergency"
+                player={player}
+                className="flex items-center justify-between px-3 py-2 bg-white border border-amber-200 rounded-xl group hover:border-amber-400 transition-all"
               >
-                <div className="flex items-center gap-2">
-                  <span className="text-amber-500">⋮⋮</span>
-                  <div>
-                    <p className="text-sm font-bold text-slate-800">{name}</p>
-                    {player.position && (
-                      <p className="text-[10px] text-slate-400">{player.position}</p>
-                    )}
-                  </div>
-                </div>
-                <button
-                  onClick={() => onReturn(player)}
-                  className="text-[10px] font-black text-amber-700 uppercase opacity-0 group-hover:opacity-100 transition-opacity hover:text-amber-900 px-2 py-1 rounded-lg hover:bg-amber-100"
-                  title="Move back to pool"
-                >
-                  Return
-                </button>
-              </div>
+                {(dragHandle) => (
+                  <>
+                    <div className="flex items-center gap-2 min-w-0">
+                      {dragHandle}
+                      <div>
+                        <p className="text-sm font-bold text-slate-800">{name}</p>
+                        {player.position && (
+                          <p className="text-[10px] text-slate-400">{player.position}</p>
+                        )}
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => onReturn(player)}
+                      className="text-[10px] font-black text-amber-700 uppercase opacity-0 group-hover:opacity-100 transition-opacity hover:text-amber-900 px-2 py-1 rounded-lg hover:bg-amber-100 flex-shrink-0"
+                      title="Move back to pool"
+                    >
+                      Return
+                    </button>
+                  </>
+                )}
+              </DraggablePoolPlayerRow>
             );
           })}
         </div>
@@ -162,44 +232,54 @@ function UnavailableZone({ rosterId, players, onReturn }: {
             const typeLabel = player.unavailableType ? UNAVAIL_LABELS[player.unavailableType] : "Unavailable";
 
             return (
-              <div
+              <DraggablePoolPlayerRow
                 key={player.id}
+                dragId={`pool-unavailable-${rosterId}-${player.id}`}
+                rosterId={rosterId}
+                location="unavailable"
+                player={player}
                 className="flex items-start justify-between px-3 py-2.5 bg-white border border-red-200 rounded-xl group hover:border-red-300 transition-all"
               >
-                <div className="flex items-start gap-2.5">
-                  <span className="text-base mt-0.5">{typeIcon}</span>
-                  <div>
-                    <p className="text-sm font-bold text-slate-800">{name}</p>
-                    <p className="text-[10px] text-slate-500 font-semibold">{typeLabel}</p>
-                    {player.unavailableNote && (
-                      <p className="text-[10px] text-slate-400 italic">{player.unavailableNote}</p>
-                    )}
-                    {player.unavailableUntil && (
-                      <div className="flex items-center gap-1.5 mt-1">
-                        {weeks !== null && weeks > 0 ? (
-                          <span className="inline-flex items-center px-1.5 py-0.5 bg-orange-100 text-orange-700 rounded-full text-[10px] font-black">
-                            {weeks} wk{weeks !== 1 ? "s" : ""} remaining
-                          </span>
-                        ) : weeks !== null && weeks <= 0 ? (
-                          <span className="inline-flex items-center px-1.5 py-0.5 bg-green-100 text-green-700 rounded-full text-[10px] font-black">
-                            Return due
-                          </span>
-                        ) : null}
-                        <span className="text-[10px] text-slate-400">
-                          Back {new Date(player.unavailableUntil).toLocaleDateString("en-AU", { day: "numeric", month: "short" })}
-                        </span>
+                {(dragHandle) => (
+                  <>
+                    <div className="flex items-start gap-2.5 min-w-0">
+                      {dragHandle}
+                      <span className="text-base mt-0.5 flex-shrink-0">{typeIcon}</span>
+                      <div>
+                        <p className="text-sm font-bold text-slate-800">{name}</p>
+                        <p className="text-[10px] text-slate-500 font-semibold">{typeLabel}</p>
+                        {player.unavailableNote && (
+                          <p className="text-[10px] text-slate-400 italic">{player.unavailableNote}</p>
+                        )}
+                        {player.unavailableUntil && (
+                          <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                            {weeks !== null && weeks > 0 ? (
+                              <span className="inline-flex items-center px-1.5 py-0.5 bg-orange-100 text-orange-700 rounded-full text-[10px] font-black">
+                                {weeks} wk{weeks !== 1 ? "s" : ""} remaining
+                              </span>
+                            ) : weeks !== null && weeks <= 0 ? (
+                              <span className="inline-flex items-center px-1.5 py-0.5 bg-green-100 text-green-700 rounded-full text-[10px] font-black">
+                                Return due
+                              </span>
+                            ) : null}
+                            <span className="text-[10px] text-slate-400">
+                              Back {new Date(player.unavailableUntil).toLocaleDateString("en-AU", { day: "numeric", month: "short" })}
+                            </span>
+                          </div>
+                        )}
                       </div>
-                    )}
-                  </div>
-                </div>
-                <button
-                  onClick={() => onReturn(player)}
-                  className="text-[10px] font-black text-slate-400 uppercase opacity-0 group-hover:opacity-100 transition-opacity hover:text-[#06054e] px-2 py-1 rounded-lg hover:bg-slate-100 flex-shrink-0 mt-0.5"
-                  title="Return to squad"
-                >
-                  Return
-                </button>
-              </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => onReturn(player)}
+                      className="text-[10px] font-black text-slate-400 uppercase opacity-0 group-hover:opacity-100 transition-opacity hover:text-[#06054e] px-2 py-1 rounded-lg hover:bg-slate-100 flex-shrink-0 mt-0.5"
+                      title="Return to squad"
+                    >
+                      Return
+                    </button>
+                  </>
+                )}
+              </DraggablePoolPlayerRow>
             );
           })}
         </div>

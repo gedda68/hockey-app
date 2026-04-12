@@ -87,6 +87,10 @@ export default function ClubTeamsPage() {
   const [activeTeamIndex, setActiveTeamIndex] = useState<number | null>(null);
 
   const [activePlayer, setActivePlayer] = useState<Player | null>(null);
+  /** Matches SortablePlayer `variant` for DragOverlay styling */
+  const [activePlayerVariant, setActivePlayerVariant] = useState<
+    "normal" | "emergency" | "unavailable"
+  >("normal");
   // Pending unavailability — player awaiting modal confirmation
   const [pendingUnavailable, setPendingUnavailable] = useState<{
     player: Player;
@@ -229,12 +233,17 @@ export default function ClubTeamsPage() {
 
   const handleDragStart = (event: any) => {
     const { active } = event;
-    setActivePlayer(active.data.current.player);
+    const loc = active.data.current?.location as string | undefined;
+    setActivePlayer(active.data.current?.player ?? null);
+    if (loc === "emergency") setActivePlayerVariant("emergency");
+    else if (loc === "unavailable") setActivePlayerVariant("unavailable");
+    else setActivePlayerVariant("normal");
   };
 
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
     setActivePlayer(null);
+    setActivePlayerVariant("normal");
 
     if (!over) return;
 
@@ -531,6 +540,7 @@ export default function ClubTeamsPage() {
             {/* Current Division Content */}
             {currentRoster && (
               <DndContext
+                collisionDetection={closestCenter}
                 onDragStart={handleDragStart}
                 onDragEnd={handleDragEnd}
               >
@@ -550,7 +560,7 @@ export default function ClubTeamsPage() {
                   {activePlayer ? (
                     <SortablePlayer
                       player={activePlayer}
-                      variant="normal"
+                      variant={activePlayerVariant}
                       isDragging
                     />
                   ) : null}
