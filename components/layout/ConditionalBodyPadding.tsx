@@ -14,5 +14,6 @@ export default function ConditionalBodyPadding({
   const pathname = usePathname();
   const isAdmin = pathname?.startsWith("/admin");
 
-  return <div className={isAdmin ? "" : "pt-16"}>{children}</div>;
+  // Public header is fixed and ~4.5–5.5rem tall after compacting; pt-20 clears it reliably.
+  return <div className={isAdmin ? "" : "pt-20"}>{children}</div>;
 }

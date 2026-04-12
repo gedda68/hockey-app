@@ -9,7 +9,7 @@ export default function WebsiteLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="mt-16 min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col">
       {/* Main content - no padding needed (in root layout) */}
       <main className="flex-grow">{children}</main>
 

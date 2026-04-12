@@ -65,7 +65,6 @@ export default function TopNavbar({ clubs }: TopNavbarProps) {
   const [openSubMenu, setOpenSubMenu] = useState<string | null>(null);
   const [openDesktopMenu, setOpenDesktopMenu] = useState<string | null>(null);
   const [clubsDrawerOpen, setClubsDrawerOpen] = useState(false);
-  const [scrolled, setScrolled] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
   const { user, logout } = useAuth();
@@ -106,13 +105,6 @@ export default function TopNavbar({ clubs }: TopNavbarProps) {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Scroll listener
-  useEffect(() => {
-    const handleScroll = () => setScrolled(window.scrollY > 50);
-    window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
-
   const handleLogout = async () => {
     try {
       await logout();
@@ -129,27 +121,28 @@ export default function TopNavbar({ clubs }: TopNavbarProps) {
 
   return (
     <>
-      {/* NAVBAR */}
-      <div className="w-full">
+      {/* NAVBAR — compact single row so fixed header + pt-20 does not overlap content */}
+      <div className="w-full shadow-md">
         <nav className="w-full bg-gradient-to-r from-green-500 via-yellow-400 to-[#06054e] transition-all duration-300 ease-out">
-          <div className="relative px-6 pt-3 pb-16">
-            {/* LEFT LOGO */}
-            <div className="absolute left-6 top-1/2 -translate-y-1/2">
-              <Link href="/" aria-label="Home" className="block">
+          <div className="max-w-[1600px] mx-auto px-3 sm:px-4 py-2 flex flex-wrap items-center gap-x-3 gap-y-2">
+            <div className="flex items-center gap-2 sm:gap-3 min-w-0 shrink-0">
+              <Link href="/" aria-label="Home" className="block shrink-0">
                 <Image
                   src="/icons/BHA-bg.png"
                   alt="Brisbane Hockey"
-                  width={180}
-                  height={90}
-                  className="transition-all duration-300 ease-out object-contain max-h-[100px] w-auto"
+                  width={140}
+                  height={56}
+                  className="object-contain h-10 sm:h-11 w-auto max-w-[140px]"
                   priority
                 />
               </Link>
+              <span className="hidden sm:inline font-extrabold text-white text-[10px] sm:text-xs md:text-sm uppercase tracking-wide leading-tight max-w-[10rem] sm:max-w-[14rem] md:max-w-[18rem] truncate">
+                Brisbane Hockey Association
+              </span>
             </div>
 
-            {/* RIGHT - Desktop Links */}
             <div
-              className="flex items-center justify-end gap-4 pl-[260px]"
+              className="flex flex-1 min-w-0 justify-end items-center gap-1 sm:gap-2"
               ref={dropdownRef}
             >
               {/* Mobile Hamburger */}
@@ -280,13 +273,6 @@ export default function TopNavbar({ clubs }: TopNavbarProps) {
                 )}
               </div>
             </div>
-
-            {/* Title text at bottom */}
-            <div className="mt-3 pt-1 pb-4">
-              <h1 className="text-3xl md:text-4xl font-extrabold text-white uppercase tracking-wide text-center">
-                Brisbane Hockey Association
-              </h1>
-            </div>
           </div>
         </nav>
       </div>
@@ -312,7 +298,7 @@ export default function TopNavbar({ clubs }: TopNavbarProps) {
           isOpen ? "translate-x-0" : "translate-x-full"
         } md:hidden`}
       >
-        <div className="flex flex-col py-6 px-2 mt-16">
+        <div className="flex flex-col py-6 px-2 pt-20">
           {navItems.map((item) => {
             const isSubOpen = openSubMenu === item.name;
 
