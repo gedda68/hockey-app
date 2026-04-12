@@ -3,6 +3,7 @@
 
 import { MongoClient } from "mongodb";
 import TopNavbar from "./TopNavbar";
+import { clubPortalHomeUrl } from "@/lib/tenant/subdomainUrls";
 
 async function getActiveClubs(): Promise<any[]> {
   const client = new MongoClient(process.env.MONGODB_URI!);
@@ -17,6 +18,12 @@ async function getActiveClubs(): Promise<any[]> {
     const plainClubs = clubs.map((club) => ({
       name: club.name || club.title || "Unknown Club",
       slug: club.slug || "",
+      portalHomeUrl: clubPortalHomeUrl({
+        shortName: club.shortName,
+        abbreviation: club.abbreviation,
+        portalSlug: club.portalSlug,
+        slug: club.slug || "",
+      }),
       icon: club.icon,
       iconSrc: club.iconSrc,
       logo: club.logo,

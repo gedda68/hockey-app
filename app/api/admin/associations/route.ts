@@ -18,6 +18,11 @@ const AssociationSchema = z.object({
   name: z.string().min(1),
   fullName: z.string().min(1),
   acronym: z.string().optional(),
+  portalSlug: z
+    .string()
+    .max(63)
+    .regex(/^[a-z0-9-]*$/i)
+    .optional(),
 
   parentAssociationId: z.string().optional(),
   level: z.number().optional(), // Auto-calculated

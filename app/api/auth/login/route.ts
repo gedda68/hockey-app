@@ -10,6 +10,11 @@ import { getPrimaryRole, numericLevelToString } from "@/lib/types/roles";
 import type { RoleAssignment, AssociationLevel } from "@/lib/types/roles";
 import bcrypt from "bcryptjs";
 import { escapeRegex } from "@/lib/utils/regex";
+import { buildTenantOrigin } from "@/lib/tenant/subdomainUrls";
+import {
+  associationPortalSubdomain,
+  clubPortalSubdomain,
+} from "@/lib/tenant/portalLabels";
 
 /** Convert a DB roles[] array into the minimal ScopedRole[] for the JWT */
 function toScopedRoles(roles: RoleAssignment[]): ScopedRole[] {
@@ -79,23 +84,23 @@ export async function POST(request: NextRequest) {
         : (user.role || "member");
       const scopedRoles = toScopedRoles(dbRoles);
 
-      // Resolve club name + slug
+      // Resolve club name + slug (+ doc for portal URL)
       let clubName: string | undefined;
       let clubSlug: string | undefined;
+      let clubDoc: Record<string, unknown> | null = null;
       if (user.clubId) {
-        const club = await db.collection("clubs").findOne({
+        clubDoc = (await db.collection("clubs").findOne({
           $or: [{ id: user.clubId }, { clubId: user.clubId }],
-        });
-        if (club) {
-          clubName = club.name;
-          // Use stored slug, or generate + persist it
-          if (club.slug) {
-            clubSlug = club.slug;
-          } else if (club.name) {
-            clubSlug = generateSlug(club.name);
+        })) as Record<string, unknown> | null;
+        if (clubDoc) {
+          clubName = clubDoc.name as string | undefined;
+          if (clubDoc.slug) {
+            clubSlug = String(clubDoc.slug);
+          } else if (clubDoc.name) {
+            clubSlug = generateSlug(String(clubDoc.name));
             await db.collection("clubs").updateOne(
-              { _id: club._id },
-              { $set: { slug: clubSlug } }
+              { _id: clubDoc._id },
+              { $set: { slug: clubSlug } },
             );
           }
         }
@@ -103,17 +108,36 @@ export async function POST(request: NextRequest) {
 
       const forcePasswordChange = user.forcePasswordChange === true;
 
-      // Resolve association level (national / state / city / district)
       let associationLevel: AssociationLevel | undefined;
+      let associationPortalOrigin: string | undefined;
       if (user.associationId) {
         const assoc = await db.collection("associations").findOne(
           { associationId: user.associationId },
-          { projection: { level: 1 } }
+          { projection: { level: 1, code: 1, portalSlug: 1 } },
         );
         if (assoc && typeof assoc.level === "number") {
           associationLevel = numericLevelToString(assoc.level);
         }
+        if (assoc) {
+          associationPortalOrigin = buildTenantOrigin(
+            associationPortalSubdomain({
+              code: assoc.code as string | undefined,
+              portalSlug: assoc.portalSlug as string | undefined,
+            }),
+          );
+        }
       }
+
+      const clubPortalOrigin = clubDoc
+        ? buildTenantOrigin(
+            clubPortalSubdomain({
+              shortName: clubDoc.shortName as string | undefined,
+              abbreviation: clubDoc.abbreviation as string | undefined,
+              portalSlug: clubDoc.portalSlug as string | undefined,
+              slug: clubDoc.slug as string | undefined,
+            }),
+          )
+        : undefined;
 
       await createSession({
         userId:           user.userId || user._id.toString(),
@@ -140,6 +164,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({
         success: true,
         forcePasswordChange,
+        clubPortalOrigin,
+        associationPortalOrigin,
         user: {
           userId:        user.userId || user._id.toString(),
           username:      user.username,
@@ -199,35 +225,55 @@ export async function POST(request: NextRequest) {
 
       let clubName: string | undefined;
       let memberClubSlug: string | undefined;
+      let memberClubDoc: Record<string, unknown> | null = null;
       if (memberClubId) {
-        const club = await db.collection("clubs").findOne({
+        memberClubDoc = (await db.collection("clubs").findOne({
           $or: [{ id: memberClubId }, { clubId: memberClubId }],
-        });
-        if (club) {
-          clubName = club.name;
-          if (club.slug) {
-            memberClubSlug = club.slug;
-          } else if (club.name) {
-            memberClubSlug = generateSlug(club.name);
+        })) as Record<string, unknown> | null;
+        if (memberClubDoc) {
+          clubName = memberClubDoc.name as string | undefined;
+          if (memberClubDoc.slug) {
+            memberClubSlug = String(memberClubDoc.slug);
+          } else if (memberClubDoc.name) {
+            memberClubSlug = generateSlug(String(memberClubDoc.name));
             await db.collection("clubs").updateOne(
-              { _id: club._id },
-              { $set: { slug: memberClubSlug } }
+              { _id: memberClubDoc._id },
+              { $set: { slug: memberClubSlug } },
             );
           }
         }
       }
 
-      // Resolve association level for member (if they have an assoc scope)
       let memberAssocLevel: AssociationLevel | undefined;
+      let memberAssociationPortalOrigin: string | undefined;
       if (memberAssocId) {
         const memberAssoc = await db.collection("associations").findOne(
           { associationId: memberAssocId },
-          { projection: { level: 1 } }
+          { projection: { level: 1, code: 1, portalSlug: 1 } },
         );
         if (memberAssoc && typeof memberAssoc.level === "number") {
           memberAssocLevel = numericLevelToString(memberAssoc.level);
         }
+        if (memberAssoc) {
+          memberAssociationPortalOrigin = buildTenantOrigin(
+            associationPortalSubdomain({
+              code: memberAssoc.code as string | undefined,
+              portalSlug: memberAssoc.portalSlug as string | undefined,
+            }),
+          );
+        }
       }
+
+      const memberClubPortalOrigin = memberClubDoc
+        ? buildTenantOrigin(
+            clubPortalSubdomain({
+              shortName: memberClubDoc.shortName as string | undefined,
+              abbreviation: memberClubDoc.abbreviation as string | undefined,
+              portalSlug: memberClubDoc.portalSlug as string | undefined,
+              slug: memberClubDoc.slug as string | undefined,
+            }),
+          )
+        : undefined;
 
       await createSession({
         userId:           member._id.toString(),
@@ -255,6 +301,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({
         success: true,
         forcePasswordChange,
+        clubPortalOrigin: memberClubPortalOrigin,
+        associationPortalOrigin: memberAssociationPortalOrigin,
         user: {
           memberId:      member._id.toString(),
           username:      member.auth.username,

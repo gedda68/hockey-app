@@ -410,6 +410,15 @@ export const menuConfig: MenuItem[] = [
       "club-admin", "club-committee",
     ],
   },
+  {
+    label: "Home page gallery",
+    href: "/admin/settings/home-gallery",
+    icon: "🖼️",
+    description: "Photos for the public home page carousel",
+    color: "from-violet-500 to-indigo-600",
+    section: "content",
+    allowedRoles: SETTINGS_ROLES,
+  },
 
   // ── Reports & Analytics ──────────────────────────────────────────────────────
   {

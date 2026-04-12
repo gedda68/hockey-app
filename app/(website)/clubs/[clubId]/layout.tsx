@@ -1,18 +1,9 @@
-// app/clubs/[clubId]/layout.tsx
 // Shared layout for all club pages - with padding for fixed main header
 
 import Link from "next/link";
-import {
-  Home,
-  Users,
-  Shield,
-  Calendar,
-  Settings,
-  UserRoundPlus,
-} from "lucide-react";
+import ClubSiteShell from "@/components/clubs/ClubSiteShell";
 
 async function getClub(clubId: string) {
-  // Try slug first, then ID
   const res = await fetch(
     `${
       process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000"
@@ -45,7 +36,7 @@ export default async function ClubLayout({
         <div className="text-center">
           <h1 className="text-4xl font-black text-red-600">Club Not Found</h1>
           <p className="mt-4 text-slate-600">
-            The club you're looking for doesn't exist.
+            The club you&apos;re looking for doesn&apos;t exist.
           </p>
           <Link
             href="/"
@@ -58,108 +49,11 @@ export default async function ClubLayout({
     );
   }
 
-  const primaryColor = club.colors?.primary || "#06054e";
-  const secondaryColor = club.colors?.secondary || "#090836";
+  const routeSlug = club.slug || clubId;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
-      {/* Club Header - Now positioned correctly below main header */}
-      <header
-        className="shadow-lg mt-12"
-        style={{
-          background: `linear-gradient(135deg, ${primaryColor} 0%, ${secondaryColor} 100%)`,
-        }}
-      >
-        <div className="max-w-7xl mx-auto px-8 py-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              {club.logo && (
-                <img
-                  src={club.logo}
-                  alt={club.name}
-                  className="w-16 h-16 object-contain bg-white rounded-lg p-2"
-                />
-              )}
-              <div>
-                <h1 className="text-3xl font-black text-white uppercase">
-                  {club.name}
-                </h1>
-                <p className="text-white/80 text-sm mt-1">
-                  {club.shortName} • Est. {club.established || "N/A"}
-                </p>
-              </div>
-            </div>
-
-            <Link
-              href="/clubs"
-              className="p-1 bg-white/10 hover:bg-white/20 rounded-xl transition-all"
-              title="Back to Clubs List"
-            >
-              <Home className="text-white" size={24} />
-            </Link>
-          </div>
-
-          {/* Navigation */}
-          <nav className="mt-3 flex gap-2 overflow-x-auto pb-1">
-            <NavLink href={`/clubs/${clubId}`} icon={<Shield size={18} />}>
-              Dashboard
-            </NavLink>
-            <NavLink
-              href={`/clubs/${clubId}/members`}
-              icon={<Users size={18} />}
-            >
-              Members
-            </NavLink>
-            <NavLink
-              href={`/clubs/${clubId}/teams`}
-              icon={<Shield size={18} />}
-            >
-              Teams
-            </NavLink>
-            <NavLink
-              href={`/clubs/${clubId}/fixtures`}
-              icon={<Calendar size={18} />}
-            >
-              Fixtures
-            </NavLink>
-            <NavLink
-              href={`/clubs/${clubId}/register`}
-              icon={<UserRoundPlus size={18} />}
-            >
-              Register
-            </NavLink>
-            <NavLink
-              href={`/clubs/${clubId}/settings`}
-              icon={<Settings size={18} />}
-            >
-              Settings
-            </NavLink>
-          </nav>
-        </div>
-      </header>
-
-      {/* Page Content */}
-      <main>{children}</main>
-    </div>
-  );
-}
-
-function NavLink({
-  href,
-  icon,
-  children,
-}: {
-  href: string;
-  icon: React.ReactNode;
-  children: React.ReactNode;
-}) {
-  return (
-    <Link
-      href={href}
-      className="flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-xl font-bold transition-all whitespace-nowrap"
-    >
-      {icon}
+    <ClubSiteShell club={club} routeSlug={routeSlug}>
       {children}
-    </Link>
+    </ClubSiteShell>
   );
 }

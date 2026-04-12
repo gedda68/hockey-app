@@ -50,6 +50,16 @@ export default function IdentitySection({
         error={errors.slug}
       />
 
+      <FormField
+        label="Portal subdomain"
+        name="portalSlug"
+        value={formData.portalSlug}
+        onChange={(val) => onChange("portalSlug", val)}
+        placeholder="e.g. chcbrisbane"
+        hint="Optional URL label for your club portal (letters, numbers, hyphens). If empty, Slug is used for host matching."
+        error={errors.portalSlug}
+      />
+
       <div>
         <label className="block text-xs font-black uppercase text-slate-400 mb-2 ml-1">
           Association <span className="text-red-500">*</span>

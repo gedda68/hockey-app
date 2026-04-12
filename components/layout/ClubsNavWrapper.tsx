@@ -2,6 +2,7 @@
 // Server component that fetches clubs from database
 
 import { MongoClient } from "mongodb";
+import { clubPortalHomeUrl } from "@/lib/tenant/subdomainUrls";
 import ClubsNavClient from "./ClubsNav";
 
 async function getActiveClubs(): Promise<any[]> {
@@ -24,6 +25,12 @@ async function getActiveClubs(): Promise<any[]> {
       abbreviation: club.abbreviation,
       shortName: club.shortName,
       slug: club.slug, // ← Explicitly include slug
+      portalHomeUrl: clubPortalHomeUrl({
+        shortName: club.shortName,
+        abbreviation: club.abbreviation,
+        portalSlug: club.portalSlug,
+        slug: club.slug || "",
+      }),
       description: club.description,
       icon: club.icon,
       iconSrc: club.iconSrc,

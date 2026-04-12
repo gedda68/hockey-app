@@ -72,17 +72,23 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center p-4">
+    <div
+      className="min-h-screen flex items-center justify-center p-4"
+      style={{
+        background:
+          "linear-gradient(to bottom right, var(--brand-primary), color-mix(in srgb, var(--brand-primary) 75%, white 25%))",
+      }}
+    >
       <div className="w-full max-w-md">
         {/* Logo/Header */}
         <div className="text-center mb-8">
-          <div className="w-20 h-20 bg-gradient-to-br from-[#06054e] to-blue-700 rounded-3xl mx-auto mb-4 flex items-center justify-center">
+          <div className="w-20 h-20 rounded-3xl mx-auto mb-4 flex items-center justify-center border-2 border-white/25 bg-white/10 backdrop-blur-sm shadow-lg">
             <User size={40} className="text-white" />
           </div>
-          <h1 className="text-3xl font-black uppercase text-[#06054e] tracking-tight mb-2">
+          <h1 className="text-3xl font-black uppercase text-white tracking-tight mb-2 drop-shadow-sm">
             Teams Management
           </h1>
-          <p className="text-slate-600 font-medium">
+          <p className="text-white/80 font-medium">
             Sign in to manage your club's teams
           </p>
         </div>
@@ -119,7 +125,7 @@ export default function LoginPage() {
                     required
                     autoFocus
                     autoComplete="username"
-                    className="w-full pl-12 pr-4 py-3 bg-slate-50 border-2 border-slate-200 rounded-xl font-bold focus:border-[#06054e] outline-none transition-colors"
+                    className="w-full pl-12 pr-4 py-3 bg-slate-50 border-2 border-slate-200 rounded-xl font-bold focus:border-[var(--brand-primary)] outline-none transition-colors"
                     placeholder="ga or g@gmail.com"
                   />
                 </div>
@@ -144,7 +150,7 @@ export default function LoginPage() {
                     onChange={(e) => setPassword(e.target.value)}
                     required
                     autoComplete="current-password"
-                    className="w-full pl-12 pr-4 py-3 bg-slate-50 border-2 border-slate-200 rounded-xl font-bold focus:border-[#06054e] outline-none transition-colors"
+                    className="w-full pl-12 pr-4 py-3 bg-slate-50 border-2 border-slate-200 rounded-xl font-bold focus:border-[var(--brand-primary)] outline-none transition-colors"
                     placeholder="••••••••"
                   />
                 </div>
@@ -154,7 +160,7 @@ export default function LoginPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full px-6 py-3 bg-[#06054e] hover:bg-blue-900 disabled:bg-slate-300 text-white rounded-xl font-black uppercase text-sm transition-all shadow-lg shadow-[#06054e]/20 disabled:shadow-none flex items-center justify-center gap-2"
+                className="w-full px-6 py-3 bg-[var(--brand-primary)] hover:opacity-90 disabled:bg-slate-300 text-white rounded-xl font-black uppercase text-sm transition-all shadow-lg shadow-black/20 disabled:shadow-none flex items-center justify-center gap-2"
               >
                 {loading ? (
                   <>
@@ -192,11 +198,11 @@ export default function LoginPage() {
 
         {/* Dev Info */}
         {process.env.NODE_ENV === "development" && (
-          <div className="mt-6 p-4 bg-blue-50 border-2 border-blue-200 rounded-xl">
-            <p className="text-xs font-bold text-blue-900 mb-2">
+          <div className="mt-6 p-4 rounded-xl border-2 border-white/30 bg-white/10 backdrop-blur-sm">
+            <p className="text-xs font-bold text-white mb-2">
               Development Mode:
             </p>
-            <div className="text-xs text-blue-800 space-y-1">
+            <div className="text-xs text-white/85 space-y-1">
               <p>
                 Existing user: <strong>ga</strong> or{" "}
                 <strong>g@gmail.com</strong>

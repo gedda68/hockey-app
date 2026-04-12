@@ -22,6 +22,8 @@ export interface ClubFormData {
   name: string;
   shortName: string;
   slug: string;
+  /** Optional portal host label ({portalSlug}.your-domain); falls back to slug */
+  portalSlug: string;
   parentAssociationId: string;
 
   // Details
@@ -95,6 +97,7 @@ export const DEFAULT_CLUB_DATA: ClubFormData = {
   name: "",
   shortName: "",
   slug: "",
+  portalSlug: "",
   parentAssociationId: "",
 
   // Details

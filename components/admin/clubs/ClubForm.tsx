@@ -90,6 +90,10 @@ function validateSection(
     if (!formData.name.trim()) errs.name = "Required";
     if (!formData.shortName.trim()) errs.shortName = "Required";
     if (!formData.parentAssociationId) errs.parentAssociationId = "Required";
+    const ps = formData.portalSlug?.trim();
+    if (ps && !/^[a-z0-9-]+$/i.test(ps)) {
+      errs.portalSlug = "Use letters, numbers, and hyphens only";
+    }
   }
 
   if (section === "contact") {
@@ -134,6 +138,7 @@ export default function ClubForm({
         name: initialData.name || "",
         shortName: initialData.shortName || "",
         slug: initialData.slug || "",
+        portalSlug: initialData.portalSlug || "",
         parentAssociationId: initialData.parentAssociationId || "",
         logo: initialData.logo || "",
         established: initialData.established || "",
@@ -264,6 +269,7 @@ export default function ClubForm({
         name: formData.name,
         shortName: formData.shortName,
         slug: formData.slug,
+        portalSlug: formData.portalSlug?.trim() || undefined,
         parentAssociationId: formData.parentAssociationId,
         logo: formData.logo || undefined,
         established: formData.established || undefined,

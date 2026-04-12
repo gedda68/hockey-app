@@ -10,6 +10,7 @@ interface ClubsDrawerProps {
   clubs: Array<{
     name: string;
     slug: string;
+    portalHomeUrl: string;
     icon?: string;
     iconSrc?: string;
     logo?: string;
@@ -77,6 +78,7 @@ export default function ClubsDrawer({
                         name={name}
                         shortName={club.shortName}
                         slug={club.slug}
+                        href={club.portalHomeUrl}
                         iconUrl={iconUrl}
                         primaryColor={club.colors?.primary}
                         variant="soft"

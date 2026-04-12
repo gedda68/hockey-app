@@ -18,11 +18,12 @@ import {
   useEffect,
   ReactNode,
 } from "react";
-import { useAuth } from "@/lib/auth/AuthContext";
+import { useAuth, type User } from "@/lib/auth/AuthContext";
 
 export interface BrandColors {
   primaryColor: string;
   secondaryColor: string;
+  tertiaryColor: string;
   accentColor: string;
   logo?: string;
   name: string;
@@ -37,6 +38,7 @@ interface BrandContextType {
 const DEFAULT_BRAND: BrandColors = {
   primaryColor: "#06054e",
   secondaryColor: "#1a1870",
+  tertiaryColor: "#2d2a8c",
   accentColor: "#FFD700",
   name: "Hockey Admin",
 };
@@ -69,6 +71,40 @@ const ASSOC_ROLES = new Set([
   "media-marketing",
 ]);
 
+/** Club portal roles including members who should see club colours after login. */
+const PORTAL_CLUB_ROLES = new Set<string>([
+  ...CLUB_ROLES,
+  "player",
+  "member",
+  "parent",
+]);
+
+function userShouldLoadClubBrand(user: User): boolean {
+  if (!(user.clubId || user.clubSlug)) return false;
+  if (PORTAL_CLUB_ROLES.has(user.role)) return true;
+  return (
+    user.scopedRoles?.some(
+      (r) =>
+        r.scopeType === "club" ||
+        r.scopeType === "team" ||
+        CLUB_ROLES.has(r.role),
+    ) ?? false
+  );
+}
+
+function userShouldLoadAssocBrand(user: User): boolean {
+  if (user.role === "super-admin") return false;
+  if (userShouldLoadClubBrand(user)) return false;
+  if (!user.associationId) return false;
+  if (ASSOC_ROLES.has(user.role)) return true;
+  return (
+    user.scopedRoles?.some(
+      (r) =>
+        r.scopeType === "association" && ASSOC_ROLES.has(r.role),
+    ) ?? false
+  );
+}
+
 export function BrandProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   const [brand, setBrand] = useState<BrandColors | null>(null);
@@ -76,55 +112,86 @@ export function BrandProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!user) {
+      setBrand(null);
       setIsLoading(false);
       return;
     }
 
-    const isClub  = CLUB_ROLES.has(user.role);
-    const isAssoc = ASSOC_ROLES.has(user.role);
+    if (user.role === "super-admin") {
+      setBrand(null);
+      setIsLoading(false);
+      return;
+    }
 
-    if (isClub && (user.clubSlug || user.clubId)) {
+    setIsLoading(true);
+
+    if (userShouldLoadClubBrand(user)) {
       const ref = user.clubSlug || user.clubId;
+      if (!ref) {
+        setIsLoading(false);
+        return;
+      }
       fetch(`/api/admin/clubs/${ref}`)
         .then((r) => r.json())
         .then((data) => {
           const club = data.club;
           if (club) {
+            const c = club.colors ?? {};
+            const p = c.primaryColor ?? c.primary ?? DEFAULT_BRAND.primaryColor;
+            const s = c.secondaryColor ?? c.secondary ?? DEFAULT_BRAND.secondaryColor;
+            const a = c.accentColor ?? c.accent ?? DEFAULT_BRAND.accentColor;
             setBrand({
-              primaryColor:   club.colors?.primaryColor   ?? DEFAULT_BRAND.primaryColor,
-              secondaryColor: club.colors?.secondaryColor ?? DEFAULT_BRAND.secondaryColor,
-              accentColor:    club.colors?.accentColor    ?? DEFAULT_BRAND.accentColor,
-              logo:           club.logo ?? undefined,
-              name:           club.name,
-              shortName:      club.shortName ?? undefined,
+              primaryColor: p,
+              secondaryColor: s,
+              tertiaryColor:
+                c.tertiaryColor ?? c.tertiary ?? s ?? DEFAULT_BRAND.tertiaryColor,
+              accentColor: a,
+              logo: club.logo ?? undefined,
+              name: club.name,
+              shortName: club.shortName ?? undefined,
             });
+          } else {
+            setBrand(null);
           }
         })
-        .catch(() => {})
+        .catch(() => setBrand(null))
         .finally(() => setIsLoading(false));
-    } else if (isAssoc && user.associationId) {
+      return;
+    }
+
+    if (userShouldLoadAssocBrand(user) && user.associationId) {
       fetch(`/api/admin/associations/${user.associationId}`)
         .then((r) => r.json())
         .then((data) => {
           const assoc = data.association || data;
           if (assoc?.name || assoc?.fullName) {
+            const b = assoc.branding ?? {};
             setBrand({
-              primaryColor:   assoc.branding?.primaryColor   ?? DEFAULT_BRAND.primaryColor,
-              secondaryColor: assoc.branding?.secondaryColor ?? DEFAULT_BRAND.secondaryColor,
-              accentColor:    assoc.branding?.accentColor    ?? DEFAULT_BRAND.accentColor,
-              logo:           assoc.branding?.logo ?? undefined,
-              name:           assoc.name || assoc.fullName,
-              shortName:      assoc.code || assoc.acronym,
+              primaryColor: b.primaryColor ?? DEFAULT_BRAND.primaryColor,
+              secondaryColor: b.secondaryColor ?? DEFAULT_BRAND.secondaryColor,
+              tertiaryColor:
+                b.tertiaryColor ?? b.secondaryColor ?? DEFAULT_BRAND.tertiaryColor,
+              accentColor: b.accentColor ?? DEFAULT_BRAND.accentColor,
+              logo: b.logo ?? undefined,
+              name: assoc.name || assoc.fullName,
+              shortName: assoc.acronym
+                ? String(assoc.acronym)
+                : assoc.code
+                  ? String(assoc.code)
+                  : undefined,
             });
+          } else {
+            setBrand(null);
           }
         })
-        .catch(() => {})
+        .catch(() => setBrand(null))
         .finally(() => setIsLoading(false));
-    } else {
-      // super-admin or unscoped role — use system defaults
-      setIsLoading(false);
+      return;
     }
-  }, [user?.clubId, user?.clubSlug, user?.associationId, user?.role]);
+
+    setBrand(null);
+    setIsLoading(false);
+  }, [user]);
 
   return (
     <BrandContext.Provider value={{ brand, isLoading }}>

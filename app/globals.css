@@ -67,7 +67,7 @@ body,
 .home-marquee-track {
   display: flex;
   width: max-content;
-  animation: home-marquee 50s linear infinite;
+  animation: home-marquee var(--home-marquee-duration, 140s) linear infinite;
 }
 
 .home-marquee-track:hover {

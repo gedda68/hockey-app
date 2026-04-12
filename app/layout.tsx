@@ -5,6 +5,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/lib/auth/AuthContext";
+import { PublicTenantProvider } from "@/lib/contexts/PublicTenantContext";
 import { Toaster } from "sonner";
 import ConditionalPublicHeader from "@/components/layout/ConditionalPublicHeader";
 import ConditionalBodyPadding from "@/components/layout/ConditionalBodyPadding";
@@ -26,13 +27,15 @@ export default function RootLayout({
     <html lang="en">
       <body className={inter.className}>
         <AuthProvider>
-          {/* Public header — hidden automatically on /admin routes */}
-          <ConditionalPublicHeader>
-            <TopNavbarWrapper />
-          </ConditionalPublicHeader>
+          <PublicTenantProvider>
+            {/* Public header — hidden automatically on /admin routes */}
+            <ConditionalPublicHeader>
+              <TopNavbarWrapper />
+            </ConditionalPublicHeader>
 
-          {/* Body content — public pages get pt-16 for fixed header; admin routes handle their own top spacing */}
-          <ConditionalBodyPadding>{children}</ConditionalBodyPadding>
+            {/* Body content — public pages get top padding for fixed header; admin routes handle their own top spacing */}
+            <ConditionalBodyPadding>{children}</ConditionalBodyPadding>
+          </PublicTenantProvider>
 
           {/* Toast Notifications */}
           <Toaster

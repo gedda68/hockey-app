@@ -59,6 +59,8 @@ interface AssociationInitialData {
   name?: string;
   fullName?: string;
   acronym?: string;
+  /** Host label: {portalSlug}.your-domain — optional; falls back to code */
+  portalSlug?: string;
   parentAssociationId?: string;
   status?: string;
   level?: number;
@@ -152,6 +154,7 @@ const defaultFormData = {
   name: "",
   fullName: "",
   acronym: "",
+  portalSlug: "",
   parentAssociationId: "",
   status: "active",
 
@@ -212,6 +215,10 @@ function validateSection(
     if (!formData.code.trim()) errs.code = "Required";
     if (!formData.name.trim()) errs.name = "Required";
     if (!formData.fullName.trim()) errs.fullName = "Required";
+    const ps = formData.portalSlug?.trim();
+    if (ps && !/^[a-z0-9-]+$/i.test(ps)) {
+      errs.portalSlug = "Use letters, numbers, and hyphens only";
+    }
   }
 
   if (section === "contact") {
@@ -279,6 +286,7 @@ export default function AssociationForm({
         name: initialData.name || "",
         fullName: initialData.fullName || "",
         acronym: initialData.acronym || "",
+        portalSlug: initialData.portalSlug || "",
         parentAssociationId: initialData.parentAssociationId || "",
         status: initialData.status || "active",
         primaryEmail: initialData.contact?.primaryEmail || "",
@@ -447,6 +455,7 @@ export default function AssociationForm({
         name: formData.name,
         fullName: formData.fullName,
         acronym: formData.acronym || undefined,
+        portalSlug: formData.portalSlug?.trim() || undefined,
         parentAssociationId: formData.parentAssociationId || undefined,
         level: levelValue,
         region: formData.region,
@@ -605,6 +614,11 @@ export default function AssociationForm({
       </div>
 
       {field("Acronym", "acronym", { placeholder: "Optional short acronym" })}
+
+      {field("Portal subdomain", "portalSlug", {
+        placeholder: "e.g. bha",
+        hint: "Optional host label for your multi-tenant portal URL (letters, numbers, hyphens). If empty, the association Code is used when it matches NEXT_PUBLIC_PORTAL_ROOT_DOMAIN.",
+      })}
 
       <div>
         <label className="block text-xs font-black uppercase text-slate-400 mb-2 ml-1">

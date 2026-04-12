@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ChevronRight, Plus } from "lucide-react";
 import { gradientFromColors } from "@/lib/utils/colorUtils";
 import Image from "next/image";
+import { clubPortalHomeUrl } from "@/lib/tenant/subdomainUrls";
 
 export type HierarchyNode =
   | {
@@ -163,7 +164,11 @@ export default function TreeNode({
                   return (
                     <Link
                       key={club.id}
-                      href={`/clubs/${club.id}`}
+                      href={clubPortalHomeUrl({
+                        shortName: club.code,
+                        abbreviation: club.code,
+                        slug: club.id,
+                      })}
                       className="rounded-lg border bg-white p-3 hover:shadow-md transition group"
                     >
                       {/* LOGO / FALLBACK */}

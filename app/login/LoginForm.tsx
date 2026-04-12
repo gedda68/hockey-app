@@ -7,7 +7,10 @@
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { usePublicTenant } from "@/lib/contexts/PublicTenantContext";
 import { getRoleDashboard, getRoleDisplayName } from "@/lib/auth/roleRedirects";
+import { pickTenantOriginForLogin } from "@/lib/auth/postLoginTenant";
+import { buildApexSiteOrigin } from "@/lib/tenant/subdomainUrls";
 import { toast } from "sonner";
 import { Loader, Lock, User, Trophy, AlertCircle, CheckCircle } from "lucide-react";
 
@@ -23,9 +26,36 @@ function LoginFormInner() {
   const passwordChanged = searchParams.get("changed") === "1";
 
   const { refreshUser } = useAuth();
+  const { tenant: portalTenant } = usePublicTenant();
   const [formData, setFormData] = useState({ username: "", password: "" });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  function withTenantOriginIfNeeded(
+    pathOrUrl: string,
+    role: string,
+    clubPortalOrigin?: string | null,
+    associationPortalOrigin?: string | null,
+  ): string {
+    if (
+      !pathOrUrl ||
+      pathOrUrl.startsWith("http://") ||
+      pathOrUrl.startsWith("https://")
+    ) {
+      return pathOrUrl;
+    }
+    const tenant = pickTenantOriginForLogin(
+      role,
+      clubPortalOrigin,
+      associationPortalOrigin,
+    );
+    if (!tenant || typeof window === "undefined") return pathOrUrl;
+    const apex = buildApexSiteOrigin().replace(/\/$/, "");
+    const here = window.location.origin.replace(/\/$/, "");
+    if (here !== apex) return pathOrUrl;
+    const path = pathOrUrl.startsWith("/") ? pathOrUrl : `/${pathOrUrl}`;
+    return `${tenant}${path}`;
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -49,7 +79,20 @@ function LoginFormInner() {
 
       // Force password change takes priority — send to change-password page
       if (data.forcePasswordChange) {
-        const next = callbackUrl || nextParam || getRoleDashboard(data.user.role, data.user.clubSlug || data.user.clubId, data.user.associationId);
+        const nextRaw =
+          callbackUrl ||
+          nextParam ||
+          getRoleDashboard(
+            data.user.role,
+            data.user.clubSlug || data.user.clubId,
+            data.user.associationId,
+          );
+        const next = withTenantOriginIfNeeded(
+          nextRaw,
+          data.user.role,
+          data.clubPortalOrigin,
+          data.associationPortalOrigin,
+        );
         router.push(`/change-password?next=${encodeURIComponent(next)}&force=1`);
         return;
       }
@@ -64,7 +107,20 @@ function LoginFormInner() {
         callbackUrl ||
         nextParam ||
         getRoleDashboard(data.user.role, data.user.clubSlug || data.user.clubId, data.user.associationId);
-      router.push(destination);
+      const finalDest = withTenantOriginIfNeeded(
+        destination,
+        data.user.role,
+        data.clubPortalOrigin,
+        data.associationPortalOrigin,
+      );
+      if (
+        finalDest.startsWith("http://") ||
+        finalDest.startsWith("https://")
+      ) {
+        window.location.href = finalDest;
+      } else {
+        router.push(finalDest);
+      }
     } catch {
       setError("An error occurred during login. Please try again.");
       setIsLoading(false);
@@ -74,7 +130,20 @@ function LoginFormInner() {
   const isPortalContext = callbackUrl.startsWith("/nominate") || callbackUrl.startsWith("/nomination");
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#06054e] via-[#0a0970] to-[#06054e] flex items-center justify-center p-4">
+    <div
+      className={`min-h-screen flex items-center justify-center p-4 ${
+        portalTenant
+          ? ""
+          : "bg-gradient-to-br from-[#06054e] via-[#0a0970] to-[#06054e]"
+      }`}
+      style={
+        portalTenant
+          ? {
+              background: `linear-gradient(135deg, ${portalTenant.primaryColor} 0%, ${portalTenant.tertiaryColor} 40%, ${portalTenant.secondaryColor} 100%)`,
+            }
+          : undefined
+      }
+    >
       <div className="w-full max-w-md">
         {/* Back to Home */}
         <div className="mb-6 flex items-center justify-between">
@@ -98,16 +167,45 @@ function LoginFormInner() {
         {/* Login Card */}
         <div className="bg-white rounded-[2rem] shadow-2xl p-8">
           <div className="text-center mb-8">
-            <div className="w-16 h-16 bg-[#06054e] rounded-2xl flex items-center justify-center mx-auto mb-4">
-              <User size={32} className="text-yellow-400" />
-            </div>
+            {portalTenant?.logo ? (
+              <div className="w-20 h-20 mx-auto mb-4 flex items-center justify-center">
+                {/* eslint-disable-next-line @next/next/no-img-element -- tenant logos may be any origin */}
+                <img
+                  src={portalTenant.logo}
+                  alt=""
+                  className="max-h-full max-w-full object-contain"
+                />
+              </div>
+            ) : (
+              <div
+                className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4"
+                style={{
+                  backgroundColor: portalTenant?.primaryColor ?? "#06054e",
+                }}
+              >
+                <User
+                  size={32}
+                  className="text-yellow-400"
+                  style={{
+                    color: portalTenant?.accentColor ?? undefined,
+                  }}
+                />
+              </div>
+            )}
             <h1 className="text-3xl font-black text-[#06054e] uppercase mb-2">
-              Sign In
+              Sign in
+              {portalTenant ? (
+                <span className="block text-lg font-black text-slate-600 normal-case mt-1">
+                  {portalTenant.displayName}
+                </span>
+              ) : null}
             </h1>
             <p className="text-slate-500 font-bold text-sm">
               {isPortalContext
                 ? "Log in to pre-fill your nomination details"
-                : "Enter your username and password"}
+                : portalTenant
+                  ? `Portal · ${portalTenant.kind === "club" ? "Club" : "Association"}`
+                  : "Enter your username and password"}
             </p>
           </div>
 

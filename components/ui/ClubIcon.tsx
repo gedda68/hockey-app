@@ -13,6 +13,8 @@ export interface ClubIconProps {
   name: string;
   shortName?: string;
   slug: string;
+  /** Full URL for club portal home (shortName subdomain). Defaults to /clubs/{slug}. */
+  href?: string;
   iconUrl?: string | null;
   primaryColor?: string;
   variant?: ClubIconVariant;
@@ -26,6 +28,7 @@ export default function ClubIcon({
   name,
   shortName,
   slug,
+  href: hrefProp,
   iconUrl,
   primaryColor = "#06054e",
   variant = "square",
@@ -97,9 +100,11 @@ export default function ClubIcon({
     );
   }
 
+  const href = hrefProp ?? `/clubs/${slug}`;
+
   return (
     <Link
-      href={`/clubs/${slug}`}
+      href={href}
       className="flex flex-col items-center justify-center p-2 rounded-lg hover:bg-slate-50 transition-all group"
       title={tooltip || name}
     >

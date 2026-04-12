@@ -74,6 +74,17 @@ async function decrypt(token: string): Promise<SessionData | null> {
   }
 }
 
+function sessionCookieBase() {
+  const domain = process.env.SESSION_COOKIE_DOMAIN?.trim();
+  return {
+    httpOnly: true as const,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax" as const,
+    path: "/",
+    ...(domain ? { domain } : {}),
+  };
+}
+
 // Create session (sets HttpOnly cookie)
 export async function createSession(data: SessionData): Promise<void> {
   const expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
@@ -81,11 +92,8 @@ export async function createSession(data: SessionData): Promise<void> {
 
   const cookieStore = await cookies();
   cookieStore.set("session", token, {
+    ...sessionCookieBase(),
     expires,
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    path: "/",
   });
 }
 
@@ -100,7 +108,10 @@ export async function getSession(): Promise<SessionData | null> {
 // Delete session cookie
 export async function deleteSession(): Promise<void> {
   const cookieStore = await cookies();
-  cookieStore.delete("session");
+  cookieStore.set("session", "", {
+    ...sessionCookieBase(),
+    expires: new Date(0),
+  });
 }
 
 // Helpers

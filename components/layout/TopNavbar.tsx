@@ -20,6 +20,7 @@ import {
   ClipboardCheck,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { usePublicTenant } from "@/lib/contexts/PublicTenantContext";
 import { toast } from "sonner";
 import { LinkButton } from "@/components/ui/LinkButton";
 import ClubsDrawer from "@/components/ui/ClubsDrawer";
@@ -50,6 +51,7 @@ interface TopNavbarProps {
   clubs: Array<{
     name: string;
     slug: string;
+    portalHomeUrl: string;
     icon?: string;
     iconSrc?: string;
     logo?: string;
@@ -68,6 +70,7 @@ export default function TopNavbar({ clubs }: TopNavbarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const { user, logout } = useAuth();
+  const { tenant: portalTenant } = usePublicTenant();
   const isAuthenticated = !!user;
   const umpiringRoles = ["umpire", "technical-official"];
   const showMyUmpiring =
@@ -123,21 +126,43 @@ export default function TopNavbar({ clubs }: TopNavbarProps) {
     <>
       {/* NAVBAR — compact single row so fixed header + pt-20 does not overlap content */}
       <div className="w-full shadow-md">
-        <nav className="w-full bg-gradient-to-r from-green-500 via-yellow-400 to-[#06054e] transition-all duration-300 ease-out">
+        <nav
+          className={
+            portalTenant
+              ? "w-full transition-all duration-300 ease-out"
+              : "w-full bg-gradient-to-r from-green-500 via-yellow-400 to-[#06054e] transition-all duration-300 ease-out"
+          }
+          style={
+            portalTenant
+              ? {
+                  background: `linear-gradient(90deg, ${portalTenant.primaryColor} 0%, ${portalTenant.accentColor} 42%, ${portalTenant.secondaryColor} 100%)`,
+                }
+              : undefined
+          }
+        >
           <div className="max-w-[1600px] mx-auto px-3 sm:px-4 py-2 flex flex-wrap items-center gap-x-3 gap-y-2">
             <div className="flex items-center gap-2 sm:gap-3 min-w-0 shrink-0">
               <Link href="/" aria-label="Home" className="block shrink-0">
-                <Image
-                  src="/icons/BHA-bg.png"
-                  alt="Brisbane Hockey"
-                  width={140}
-                  height={56}
-                  className="object-contain h-10 sm:h-11 w-auto max-w-[140px]"
-                  priority
-                />
+                {portalTenant?.logo ? (
+                  // eslint-disable-next-line @next/next/no-img-element -- remote club/assoc logos
+                  <img
+                    src={portalTenant.logo}
+                    alt=""
+                    className="h-10 sm:h-11 w-auto max-w-[140px] object-contain rounded-lg bg-white/10 p-1"
+                  />
+                ) : (
+                  <Image
+                    src="/icons/BHA-bg.png"
+                    alt="Brisbane Hockey"
+                    width={140}
+                    height={56}
+                    className="object-contain h-10 sm:h-11 w-auto max-w-[140px]"
+                    priority
+                  />
+                )}
               </Link>
               <span className="hidden sm:inline font-extrabold text-white text-[10px] sm:text-xs md:text-sm uppercase tracking-wide leading-tight max-w-[10rem] sm:max-w-[14rem] md:max-w-[18rem] truncate">
-                Brisbane Hockey Association
+                {portalTenant?.displayName ?? "Brisbane Hockey Association"}
               </span>
             </div>
 

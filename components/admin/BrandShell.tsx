@@ -12,6 +12,7 @@ export default function BrandShell({ children }: { children: ReactNode }) {
 
   const primary   = brand?.primaryColor   ?? "#06054e";
   const secondary = brand?.secondaryColor ?? "#1a1870";
+  const tertiary  = brand?.tertiaryColor ?? secondary;
   const accent    = brand?.accentColor    ?? "#FFD700";
 
   return (
@@ -21,6 +22,7 @@ export default function BrandShell({ children }: { children: ReactNode }) {
         {
           "--brand-primary":   primary,
           "--brand-secondary": secondary,
+          "--brand-tertiary":  tertiary,
           "--brand-accent":    accent,
         } as React.CSSProperties
       }

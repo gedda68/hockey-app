@@ -5,6 +5,7 @@ import {
   getPublicLeagueById,
 } from "@/lib/public/publicLeagues";
 import { getPublicAssociationById } from "@/lib/public/publicAssociation";
+import { associationPortalHomeUrl } from "@/lib/tenant/subdomainUrls";
 
 export const dynamic = "force-dynamic";
 
@@ -52,7 +53,7 @@ export default async function LeagueHubPage({ params }: Props) {
         {assoc && (
           <p className="mt-2 text-sm text-white/70">
             <Link
-              href={`/associations/${assoc.associationId}`}
+              href={associationPortalHomeUrl({ code: assoc.code })}
               className="underline decoration-white/30 underline-offset-4 hover:text-white"
             >
               {assoc.name}

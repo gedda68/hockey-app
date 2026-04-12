@@ -35,6 +35,7 @@ export default function ClubsNav({ clubs, activeSlug }: ClubsNavProps) {
                   name={name}
                   shortName={club.shortName}
                   slug={slug}
+                  href={club.portalHomeUrl}
                   iconUrl={club.iconSrc || club.icon || club.logo}
                   primaryColor={club.colors?.primary}
                   variant="soft"
@@ -67,6 +68,7 @@ export default function ClubsNav({ clubs, activeSlug }: ClubsNavProps) {
                 name={name}
                 shortName={club.shortName}
                 slug={slug}
+                href={club.portalHomeUrl}
                 iconUrl={club.iconSrc || club.icon || club.logo}
                 primaryColor={club.colors?.primary}
                 variant="square"
