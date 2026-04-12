@@ -25,23 +25,25 @@ async function getClub(id: string, cookie: string) {
   }
 }
 
-async function getAssociations(cookie: string) {
+/** Parent-association dropdown — uses club-scoped API so club admins are not blocked by association.view */
+async function getAssociationOptionsForClub(clubRef: string, cookie: string) {
   try {
     const baseUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
-    const res = await fetch(`${baseUrl}/api/admin/associations`, {
-      cache: "no-store",
-      headers: cookie ? { cookie } : {},
-    });
+    const res = await fetch(
+      `${baseUrl}/api/admin/clubs/${encodeURIComponent(clubRef)}/association-options`,
+      {
+        cache: "no-store",
+        headers: cookie ? { cookie } : {},
+      },
+    );
 
     if (!res.ok) {
-      console.error("Failed to fetch associations:", res.status);
       return [];
     }
 
     const data = await res.json();
     return data.associations || [];
-  } catch (error) {
-    console.error("Error fetching associations:", error);
+  } catch {
     return [];
   }
 }
@@ -59,7 +61,7 @@ export default async function EditClubPage({
 
   const [club, associations] = await Promise.all([
     getClub(id, cookie),
-    getAssociations(cookie),
+    getAssociationOptionsForClub(id, cookie),
   ]);
 
   if (!club) {
