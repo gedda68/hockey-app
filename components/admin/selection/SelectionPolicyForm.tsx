@@ -2,7 +2,10 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useAuth, type User } from "@/lib/auth/AuthContext";
-import type { TeamSelectionPolicy } from "@/lib/selection/teamSelectionPolicy";
+import {
+  representativeEligibilityCanon,
+  type TeamSelectionPolicy,
+} from "@/lib/selection/teamSelectionPolicy";
 
 type Props = {
   apiUrl: string;
@@ -10,6 +13,8 @@ type Props = {
   subtitle?: string;
   /** e.g. National / State / Metro — informational */
   tierHint?: string;
+  /** Stored association `level` (0 national … 3+ region); omit on club policy page */
+  associationLevel?: number;
 };
 
 function roleSet(user: User | null): Set<string> {
@@ -47,6 +52,7 @@ export default function SelectionPolicyForm({
   title,
   subtitle,
   tierHint,
+  associationLevel,
 }: Props) {
   const { user } = useAuth();
   const isClubApi = apiUrl.includes("/api/admin/clubs/");
@@ -111,6 +117,22 @@ export default function SelectionPolicyForm({
         ? {
             ...p,
             rosterGovernance: { ...p.rosterGovernance, ...patch },
+          }
+        : p,
+    );
+  };
+
+  const updateRepresentative = (
+    patch: Partial<TeamSelectionPolicy["representativeEligibility"]>,
+  ) => {
+    setPolicy((p) =>
+      p
+        ? {
+            ...p,
+            representativeEligibility: {
+              ...p.representativeEligibility,
+              ...patch,
+            },
           }
         : p,
     );
@@ -286,6 +308,147 @@ export default function SelectionPolicyForm({
               className="w-full rounded-xl border-2 border-slate-200 px-4 py-3 font-bold"
             />
           </div>
+        </div>
+      </section>
+
+      <section className="space-y-4">
+        <h2 className="text-xs font-black uppercase tracking-wider text-slate-400">
+          Representative (scoped) eligibility
+        </h2>
+        <p className="text-sm text-slate-600">
+          Rules for national, state, and metro/regional rep squads — who may be picked outside
+          standard title pathways. Wire into nominations and rep roster workflows when those
+          flows enforce policy.
+        </p>
+
+        {isClubApi ? (
+          <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+            National, state, and city/regional representative rules are set on each parent
+            association&apos;s policy and merge automatically. Use the checkboxes and notes
+            below only for club-specific programmes or local clarifications.
+          </div>
+        ) : associationLevel !== undefined ? (
+          <ul className="list-disc space-y-1 rounded-xl border border-blue-200 bg-blue-50/80 px-5 py-3 text-sm text-blue-950">
+            {representativeEligibilityCanon(associationLevel).map((line, i) => (
+              <li key={i} className="ml-1">
+                {line}
+              </li>
+            ))}
+          </ul>
+        ) : null}
+
+        <div className="grid gap-3 md:grid-cols-2">
+          <label className="flex cursor-pointer items-center gap-3 rounded-xl border-2 border-slate-200 p-4">
+            <input
+              type="checkbox"
+              checked={policy.representativeEligibility.requireTitleOrChampionshipPathway}
+              disabled={!canSave}
+              onChange={(e) =>
+                updateRepresentative({
+                  requireTitleOrChampionshipPathway: e.target.checked,
+                })
+              }
+              className="h-5 w-5"
+            />
+            <span className="font-bold text-slate-800">
+              Require title/championship pathway as the primary pool
+            </span>
+          </label>
+          <label className="flex cursor-pointer items-center gap-3 rounded-xl border-2 border-slate-200 p-4">
+            <input
+              type="checkbox"
+              checked={policy.representativeEligibility.allowSelectionPanelDiscretion}
+              disabled={!canSave}
+              onChange={(e) =>
+                updateRepresentative({
+                  allowSelectionPanelDiscretion: e.target.checked,
+                })
+              }
+              className="h-5 w-5"
+            />
+            <span className="font-bold text-slate-800">
+              Allow selection panel discretion for out-of-path players (typical at national)
+            </span>
+          </label>
+          <label className="flex cursor-pointer items-center gap-3 rounded-xl border-2 border-slate-200 p-4">
+            <input
+              type="checkbox"
+              checked={policy.representativeEligibility.restrictOffPathToDocumentedExceptions}
+              disabled={!canSave}
+              onChange={(e) =>
+                updateRepresentative({
+                  restrictOffPathToDocumentedExceptions: e.target.checked,
+                })
+              }
+              className="h-5 w-5"
+            />
+            <span className="font-bold text-slate-800">
+              Limit off-path picks to documented exceptions (typical at state)
+            </span>
+          </label>
+          <label className="flex cursor-pointer items-center gap-3 rounded-xl border-2 border-slate-200 p-4">
+            <input
+              type="checkbox"
+              checked={policy.representativeEligibility.offPathRequiresSupportingEvidence}
+              disabled={!canSave}
+              onChange={(e) =>
+                updateRepresentative({
+                  offPathRequiresSupportingEvidence: e.target.checked,
+                })
+              }
+              className="h-5 w-5"
+            />
+            <span className="font-bold text-slate-800">
+              Off-path / exception cases require supporting evidence on file
+            </span>
+          </label>
+          <label className="flex cursor-pointer items-center gap-3 rounded-xl border-2 border-slate-200 p-4">
+            <input
+              type="checkbox"
+              checked={policy.representativeEligibility.requireReasonForTrialsTrainingAbsence}
+              disabled={!canSave}
+              onChange={(e) =>
+                updateRepresentative({
+                  requireReasonForTrialsTrainingAbsence: e.target.checked,
+                })
+              }
+              className="h-5 w-5"
+            />
+            <span className="font-bold text-slate-800">
+              Require reason when absent from trials or training (city/regional flexibility)
+            </span>
+          </label>
+          <label className="flex cursor-pointer items-center gap-3 rounded-xl border-2 border-slate-200 p-4">
+            <input
+              type="checkbox"
+              checked={policy.representativeEligibility.dutyExemptionOnlyWhenActivelyEngaged}
+              disabled={!canSave}
+              onChange={(e) =>
+                updateRepresentative({
+                  dutyExemptionOnlyWhenActivelyEngaged: e.target.checked,
+                })
+              }
+              className="h-5 w-5"
+            />
+            <span className="font-bold text-slate-800">
+              State/national duty exemption only if actively engaged (camp / away playing)
+            </span>
+          </label>
+        </div>
+        <div>
+          <label className="mb-2 block text-xs font-black uppercase text-slate-400">
+            Eligibility guidance notes (selectors & panels)
+          </label>
+          <textarea
+            value={policy.representativeEligibility.eligibilityGuidanceNotes}
+            disabled={!canSave}
+            onChange={(e) =>
+              updateRepresentative({ eligibilityGuidanceNotes: e.target.value })
+            }
+            rows={4}
+            className="w-full rounded-xl border-2 border-slate-200 px-4 py-3 font-medium"
+            placeholder="e.g. Evidence types, appeal contacts, title series that count for this season…"
+          />
         </div>
       </section>
 

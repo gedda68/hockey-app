@@ -5,11 +5,35 @@
  * **Runtime API:** `GET /api/admin/teams/effective-selection-policy?clubId=<id|slug>` returns the
  * merged policy for roster moves, eligibility checks, and (later) fixture game-count caps — keep
  * those code paths aligned with this document rather than hard-coding rules.
+ *
+ * **Representative squads:** `representativeEligibility` captures national vs state vs city/regional
+ * rules for scoped selection (title pathways, panel discretion, evidence, trials absence, duty
+ * exemptions). Nominations / rep roster UIs should read the merged policy when enforcing.
  */
 
 import type { Db } from "mongodb";
 
 export const SELECTION_POLICIES_COLLECTION = "selection_policies";
+
+/** Canonical copy for admin UI: representative eligibility expectations by stored `associations.level`. */
+export function representativeEligibilityCanon(associationLevel: number): string[] {
+  if (associationLevel <= 0) {
+    return [
+      "National scoped squads: players should normally come from national titles/championship pathways only.",
+      "Anyone outside that path may be selected only if the selection panel deems them eligible; record panel discretion clearly.",
+    ];
+  }
+  if (associationLevel === 1) {
+    return [
+      "State scoped squads: players should normally come from state titles/championships only.",
+      "Very limited exceptions (e.g. injury, family bereavement, national duties). Every exception must have supporting evidence on file.",
+    ];
+  }
+  return [
+    "City / regional: more flexibility than state or national, but players who miss trials or training should still document why.",
+    "Exemptions for state or national duties apply only when the player is actively engaged (e.g. in camp or away playing)—not merely named on a squad.",
+  ];
+}
 
 export type SelectionPolicyScope = "association" | "club";
 
@@ -48,8 +72,30 @@ export interface TeamSelectionPolicy {
     /** More teams in a slot than maxTeamsPerClub require governing-body approval. */
     extraTeamsBeyondSlotCapRequireApproval: boolean;
   };
+  /**
+   * Representative / “scoped” squads (national, state, metro) — who may be selected outside
+   * the standard title pathway. Enforced in nomination/rep UIs when wired.
+   */
+  representativeEligibility: RepresentativeEligibilityPolicy;
   /** Optional guidance shown only in admin (not for players). */
   adminNotes?: string;
+}
+
+export interface RepresentativeEligibilityPolicy {
+  /** Pool is primarily players from title/championship pathways at this tier (e.g. national titles). */
+  requireTitleOrChampionshipPathway: boolean;
+  /** National-style: selection panel may deem additional players eligible at their discretion. */
+  allowSelectionPanelDiscretion: boolean;
+  /** State-style: off-path selection limited to narrow, documented cases (injury, bereavement, higher-tier duty). */
+  restrictOffPathToDocumentedExceptions: boolean;
+  /** Off-path or exception cases require supporting evidence on file. */
+  offPathRequiresSupportingEvidence: boolean;
+  /** City/regional: absent from trials/training must be explained (more flexibility than state/national). */
+  requireReasonForTrialsTrainingAbsence: boolean;
+  /** State/national duty exemptions only if actively engaged (camp, away fixtures), not merely named. */
+  dutyExemptionOnlyWhenActivelyEngaged: boolean;
+  /** Extra wording for selectors, panels, and appeals (admin-facing). */
+  eligibilityGuidanceNotes: string;
 }
 
 export const DEFAULT_TEAM_SELECTION_POLICY: TeamSelectionPolicy = {
@@ -69,6 +115,15 @@ export const DEFAULT_TEAM_SELECTION_POLICY: TeamSelectionPolicy = {
     clubsMustUsePublishedDivisionCatalog: true,
     extraTeamsBeyondSlotCapRequireApproval: true,
   },
+  representativeEligibility: {
+    requireTitleOrChampionshipPathway: true,
+    allowSelectionPanelDiscretion: false,
+    restrictOffPathToDocumentedExceptions: false,
+    offPathRequiresSupportingEvidence: true,
+    requireReasonForTrialsTrainingAbsence: true,
+    dutyExemptionOnlyWhenActivelyEngaged: true,
+    eligibilityGuidanceNotes: "",
+  },
   adminNotes: "",
 };
 
@@ -80,6 +135,10 @@ export function deepMergePolicies(
     movement: { ...base.movement, ...override.movement },
     visibility: { ...base.visibility, ...override.visibility },
     rosterGovernance: { ...base.rosterGovernance, ...override.rosterGovernance },
+    representativeEligibility: {
+      ...base.representativeEligibility,
+      ...override.representativeEligibility,
+    },
     adminNotes:
       override.adminNotes !== undefined ? override.adminNotes : base.adminNotes,
   };
@@ -119,6 +178,9 @@ export async function resolveEffectiveTeamSelectionPolicy(
     movement: { ...DEFAULT_TEAM_SELECTION_POLICY.movement },
     visibility: { ...DEFAULT_TEAM_SELECTION_POLICY.visibility },
     rosterGovernance: { ...DEFAULT_TEAM_SELECTION_POLICY.rosterGovernance },
+    representativeEligibility: {
+      ...DEFAULT_TEAM_SELECTION_POLICY.representativeEligibility,
+    },
     adminNotes: DEFAULT_TEAM_SELECTION_POLICY.adminNotes,
   };
 
@@ -154,7 +216,9 @@ export function normalizePolicyInput(raw: unknown): TeamSelectionPolicy {
   const m = (o.movement ?? {}) as Record<string, unknown>;
   const v = (o.visibility ?? {}) as Record<string, unknown>;
   const r = (o.rosterGovernance ?? {}) as Record<string, unknown>;
+  const rep = (o.representativeEligibility ?? {}) as Record<string, unknown>;
   const d = DEFAULT_TEAM_SELECTION_POLICY;
+  const dr = d.representativeEligibility;
 
   const capRaw = m.seniorMaxGamesInDivisionTwoBandsAbove;
   const cap =
@@ -201,6 +265,33 @@ export function normalizePolicyInput(raw: unknown): TeamSelectionPolicy {
         r.extraTeamsBeyondSlotCapRequireApproval ??
           d.rosterGovernance.extraTeamsBeyondSlotCapRequireApproval,
       ),
+    },
+    representativeEligibility: {
+      requireTitleOrChampionshipPathway: Boolean(
+        rep.requireTitleOrChampionshipPathway ?? dr.requireTitleOrChampionshipPathway,
+      ),
+      allowSelectionPanelDiscretion: Boolean(
+        rep.allowSelectionPanelDiscretion ?? dr.allowSelectionPanelDiscretion,
+      ),
+      restrictOffPathToDocumentedExceptions: Boolean(
+        rep.restrictOffPathToDocumentedExceptions ??
+          dr.restrictOffPathToDocumentedExceptions,
+      ),
+      offPathRequiresSupportingEvidence: Boolean(
+        rep.offPathRequiresSupportingEvidence ?? dr.offPathRequiresSupportingEvidence,
+      ),
+      requireReasonForTrialsTrainingAbsence: Boolean(
+        rep.requireReasonForTrialsTrainingAbsence ??
+          dr.requireReasonForTrialsTrainingAbsence,
+      ),
+      dutyExemptionOnlyWhenActivelyEngaged: Boolean(
+        rep.dutyExemptionOnlyWhenActivelyEngaged ??
+          dr.dutyExemptionOnlyWhenActivelyEngaged,
+      ),
+      eligibilityGuidanceNotes:
+        typeof rep.eligibilityGuidanceNotes === "string"
+          ? rep.eligibilityGuidanceNotes.slice(0, 4000)
+          : dr.eligibilityGuidanceNotes,
     },
     adminNotes:
       typeof o.adminNotes === "string"

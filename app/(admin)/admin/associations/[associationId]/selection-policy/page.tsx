@@ -46,6 +46,7 @@ export default async function AssociationSelectionPolicyPage({
         title={`${name}`}
         subtitle="Team selection & roster governance for this association and its subtree"
         tierHint={tier}
+        associationLevel={Number(assoc.level ?? 0)}
       />
     </div>
   );
