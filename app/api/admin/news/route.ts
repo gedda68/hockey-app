@@ -1,27 +1,31 @@
 // app/api/admin/news/route.ts
-// Admin API for managing news items with image upload
+// Admin API for managing news items with image upload (tenant-scoped).
 
 import { NextRequest, NextResponse } from "next/server";
-import { MongoClient, ObjectId } from "mongodb";
-import { requireRole } from "@/lib/auth/middleware";
+import { ObjectId } from "mongodb";
+import clientPromise from "@/lib/mongodb";
+import { requireRole, requireResourceAccess } from "@/lib/auth/middleware";
 import { MEDIA_CONTENT_ADMIN_ROLES } from "@/lib/auth/mediaContentRoles";
+import {
+  adminNewsListFilter,
+  resolveNewsScopeForCreate,
+} from "@/lib/portal/newsScope";
 import { writeFile, mkdir } from "fs/promises";
 import path from "path";
 
-// GET - Fetch all news (including inactive/expired)
+// GET — list news visible to this admin (portal-scoped)
 export async function GET(request: NextRequest) {
-  const { response } = await requireRole(request, MEDIA_CONTENT_ADMIN_ROLES);
+  const { user, response } = await requireRole(request, MEDIA_CONTENT_ADMIN_ROLES);
   if (response) return response;
 
-  const client = new MongoClient(process.env.MONGODB_URI!);
-
   try {
-    await client.connect();
+    const client = await clientPromise;
     const database = client.db(process.env.DB_NAME || "hockey-app");
     const newsCollection = database.collection("news");
 
+    const q = adminNewsListFilter(user);
     const newsItems = await newsCollection
-      .find({})
+      .find(q)
       .sort({ publishDate: -1 })
       .toArray();
 
@@ -38,26 +42,40 @@ export async function GET(request: NextRequest) {
       active: item.active,
       createdAt: item.createdAt,
       updatedAt: item.updatedAt,
+      scopeType: item.scopeType ?? "platform",
+      scopeId: item.scopeId ?? null,
     }));
 
-    return NextResponse.json(plainNewsItems);
+    return NextResponse.json({
+      items: plainNewsItems,
+      editorContext: {
+        role: user.role,
+        associationId: user.associationId,
+        clubId: user.clubId,
+        defaultScopeType:
+          user.role === "super-admin"
+            ? "platform"
+            : user.clubId
+              ? "club"
+              : user.associationId
+                ? "association"
+                : "platform",
+        defaultScopeId: user.clubId ?? user.associationId ?? null,
+      },
+    });
   } catch (error) {
     console.error("Error fetching news:", error);
     return NextResponse.json(
       { error: "Failed to fetch news" },
       { status: 500 },
     );
-  } finally {
-    await client.close();
   }
 }
 
-// POST - Create new news item with image upload
+// POST — create news in allowed scope
 export async function POST(request: NextRequest) {
-  const { response } = await requireRole(request, MEDIA_CONTENT_ADMIN_ROLES);
+  const { user, response } = await requireRole(request, MEDIA_CONTENT_ADMIN_ROLES);
   if (response) return response;
-
-  const client = new MongoClient(process.env.MONGODB_URI!);
 
   try {
     const formData = await request.formData();
@@ -69,6 +87,8 @@ export async function POST(request: NextRequest) {
     const author = formData.get("author") as string;
     const active = formData.get("active") === "true";
     const imageFile = formData.get("image") as File | null;
+    const scopeTypeField = formData.get("scopeType") as string | null;
+    const scopeIdField = formData.get("scopeId") as string | null;
 
     if (!title || !content || !publishDate || !expiryDate) {
       return NextResponse.json(
@@ -77,12 +97,36 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const resolved = resolveNewsScopeForCreate(user, {
+      scopeType: scopeTypeField ?? undefined,
+      scopeId: scopeIdField,
+    });
+    if (!resolved.ok) {
+      return NextResponse.json({ error: resolved.error }, { status: 400 });
+    }
+    const { scope } = resolved;
+
+    if (
+      user.role !== "super-admin" &&
+      scope.scopeType === "association" &&
+      scope.scopeId
+    ) {
+      const ra = await requireResourceAccess(
+        request,
+        "association",
+        scope.scopeId,
+      );
+      if (ra.response) return ra.response;
+    }
+    if (user.role !== "super-admin" && scope.scopeType === "club" && scope.scopeId) {
+      const rc = await requireResourceAccess(request, "club", scope.scopeId);
+      if (rc.response) return rc.response;
+    }
+
     let imageUrl = null;
 
-    // Handle image upload
     if (imageFile && imageFile.size > 0) {
       try {
-        // Create uploads directory if it doesn't exist
         const uploadsDir = path.join(
           process.cwd(),
           "public",
@@ -91,21 +135,17 @@ export async function POST(request: NextRequest) {
         );
         await mkdir(uploadsDir, { recursive: true });
 
-        // Generate unique filename
         const timestamp = Date.now();
         const originalName = imageFile.name;
         const extension = path.extname(originalName);
         const filename = `news-${timestamp}${extension}`;
         const filepath = path.join(uploadsDir, filename);
 
-        // Convert File to Buffer
         const bytes = await imageFile.arrayBuffer();
         const buffer = Buffer.from(bytes);
 
-        // Write file
         await writeFile(filepath, buffer);
 
-        // Set image URL (public path)
         imageUrl = `/uploads/news/${filename}`;
       } catch (error) {
         console.error("Error uploading image:", error);
@@ -116,7 +156,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    await client.connect();
+    const client = await clientPromise;
     const database = client.db(process.env.DB_NAME || "hockey-app");
     const newsCollection = database.collection("news");
 
@@ -130,6 +170,8 @@ export async function POST(request: NextRequest) {
       expiryDate: new Date(expiryDate),
       author: author || null,
       active,
+      scopeType: scope.scopeType,
+      scopeId: scope.scopeId,
       createdAt: new Date(),
       updatedAt: new Date(),
     };
@@ -146,7 +188,5 @@ export async function POST(request: NextRequest) {
       { error: "Failed to create news" },
       { status: 500 },
     );
-  } finally {
-    await client.close();
   }
 }

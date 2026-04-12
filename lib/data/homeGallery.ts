@@ -1,6 +1,8 @@
 import { readdir } from "fs/promises";
 import path from "path";
 import { HOME_GALLERY_CATEGORY } from "@/lib/constants/homeGallery";
+import type { PublicTenantPayload } from "@/lib/tenant/portalHost";
+import { homeGallerySegmentFromTenant } from "@/lib/tenant/homeGalleryScope";
 
 const ICONS_SEGMENT = path.join("public", "icons", HOME_GALLERY_CATEGORY);
 
@@ -61,23 +63,43 @@ function shuffle<T>(items: T[]): T[] {
   return a;
 }
 
-export async function listHomeGalleryImageUrls(): Promise<string[]> {
-  const dir = path.join(process.cwd(), ICONS_SEGMENT);
+async function listUrlsInDir(relDirFromCategory: string): Promise<string[]> {
+  const dir = path.join(process.cwd(), "public", "icons", HOME_GALLERY_CATEGORY, relDirFromCategory);
   try {
     const files = await readdir(dir);
     return files
       .filter((f) => /\.(jpe?g|png|gif|webp)$/i.test(f))
-      .map((f) => `/icons/${HOME_GALLERY_CATEGORY}/${f}`);
+      .map(
+        (f) =>
+          `/icons/${HOME_GALLERY_CATEGORY}/${relDirFromCategory ? `${relDirFromCategory}/` : ""}${f}`,
+      );
   } catch {
     return [];
   }
 }
 
+/**
+ * Tenant-scoped uploads live under `home-gallery/<segment>/`.
+ * Apex (`platform`) also merges legacy flat files in `home-gallery/` root.
+ */
+export async function listHomeGalleryImageUrlsForTenant(
+  tenant: PublicTenantPayload | null,
+): Promise<string[]> {
+  const segment = homeGallerySegmentFromTenant(tenant);
+  const scoped = await listUrlsInDir(segment);
+  if (segment !== "platform") {
+    return scoped;
+  }
+  const legacyRoot = await listUrlsInDir("");
+  return [...scoped, ...legacyRoot];
+}
+
 /** Random order each request; always `slotCount` slides (images + gradient placeholders). */
 export async function getRandomHomeGallerySlides(
   slotCount = 7,
+  tenant: PublicTenantPayload | null = null,
 ): Promise<HomeGallerySlide[]> {
-  const urls = shuffle(await listHomeGalleryImageUrls());
+  const urls = shuffle(await listHomeGalleryImageUrlsForTenant(tenant));
   const placeholders = shuffle(
     PLACEHOLDER_POOL.map((p, idx) => ({ ...p, idx })),
   );

@@ -83,7 +83,8 @@ export const AssociationSchema = z.object({
 
   // Hierarchy
   parentAssociationId: z.string().optional(), // Links to parent association
-  level: z.number(), // 0 = National, 1 = State, 2 = Regional
+  // Align with `numericLevelToString` in `lib/types/roles.ts` and `docs/domain/CANONICAL_GRAPH.md`
+  level: z.number(), // 0 = national, 1 = state, 2 = city/metro, 3+ = region/district
   hierarchy: z.array(z.string()), // ["HA", "HQ", "BHA"] for path
 
   // Location

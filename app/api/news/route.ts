@@ -1,22 +1,23 @@
 // app/api/news/route.ts
-// API route to fetch active news items
+// Active news items for the current portal (Host / ?portal=).
 
-import { NextResponse } from "next/server";
-import { MongoClient } from "mongodb";
+import { NextRequest, NextResponse } from "next/server";
+import clientPromise from "@/lib/mongodb";
+import { getPublicTenantFromRequest } from "@/lib/tenant/requestTenant";
+import { publicNewsMongoFilter } from "@/lib/portal/newsScope";
 
-export async function GET() {
-  const client = new MongoClient(process.env.MONGODB_URI!);
-
+export async function GET(request: NextRequest) {
   try {
-    await client.connect();
+    const tenant = await getPublicTenantFromRequest(request);
+    const client = await clientPromise;
     const database = client.db(process.env.DB_NAME || "hockey-app");
-    const newsCollection = database.collection("news");
-
     const now = new Date();
+    const scope = publicNewsMongoFilter(tenant);
 
-    // Fetch active news items that are published and not expired
-    const newsItems = await newsCollection
+    const newsItems = await database
+      .collection("news")
       .find({
+        ...scope,
         active: true,
         publishDate: { $lte: now },
         expiryDate: { $gte: now },
@@ -25,7 +26,6 @@ export async function GET() {
       .limit(10)
       .toArray();
 
-    // Convert to plain objects
     const plainNewsItems = newsItems.map((item) => ({
       _id: item._id.toString(),
       id: item.id || item._id.toString(),
@@ -48,7 +48,5 @@ export async function GET() {
       { error: "Failed to fetch news" },
       { status: 500 },
     );
-  } finally {
-    await client.close();
   }
 }

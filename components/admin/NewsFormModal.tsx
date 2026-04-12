@@ -8,11 +8,18 @@ import { NewsItem } from "@/types/news";
 import { toast } from "sonner";
 import Image from "next/image";
 
+export type NewsEditorContext = {
+  role: string;
+  defaultScopeType: "platform" | "association" | "club";
+  defaultScopeId: string | null;
+};
+
 interface NewsFormModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
   editingNews: NewsItem | null;
+  editorContext: NewsEditorContext | null;
 }
 
 export default function NewsFormModal({
@@ -20,6 +27,7 @@ export default function NewsFormModal({
   onClose,
   onSuccess,
   editingNews,
+  editorContext,
 }: NewsFormModalProps) {
   const [formData, setFormData] = useState({
     title: "",
@@ -29,6 +37,10 @@ export default function NewsFormModal({
     author: "",
     active: true,
   });
+  const [superScopeType, setSuperScopeType] = useState<
+    "platform" | "association" | "club"
+  >("platform");
+  const [superScopeId, setSuperScopeId] = useState("");
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string>("");
   const [saving, setSaving] = useState(false);
@@ -76,8 +88,11 @@ export default function NewsFormModal({
       if (contentRef.current) {
         contentRef.current.innerHTML = "";
       }
+      const d = editorContext?.defaultScopeType ?? "platform";
+      setSuperScopeType(d);
+      setSuperScopeId(editorContext?.defaultScopeId ?? "");
     }
-  }, [editingNews, isOpen]);
+  }, [editingNews, isOpen, editorContext]);
 
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -148,6 +163,16 @@ export default function NewsFormModal({
       formDataToSend.append("expiryDate", formData.expiryDate);
       formDataToSend.append("author", formData.author);
       formDataToSend.append("active", String(formData.active));
+
+      if (
+        !editingNews &&
+        editorContext?.role === "super-admin"
+      ) {
+        formDataToSend.append("scopeType", superScopeType);
+        if (superScopeType !== "platform") {
+          formDataToSend.append("scopeId", superScopeId.trim());
+        }
+      }
 
       // Add image if selected
       if (imageFile) {
@@ -222,6 +247,46 @@ export default function NewsFormModal({
                 className="flex-1 overflow-y-auto p-6"
               >
                 <div className="space-y-6">
+                  {!editingNews &&
+                    editorContext?.role === "super-admin" && (
+                      <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 space-y-3">
+                        <p className="text-xs font-bold text-amber-900 uppercase">
+                          Portal scope (new item)
+                        </p>
+                        <div>
+                          <label className="block text-xs font-semibold text-slate-600 mb-1">
+                            Scope
+                          </label>
+                          <select
+                            value={superScopeType}
+                            onChange={(e) =>
+                              setSuperScopeType(
+                                e.target.value as typeof superScopeType,
+                              )
+                            }
+                            className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
+                          >
+                            <option value="platform">Platform (apex only)</option>
+                            <option value="association">Association</option>
+                            <option value="club">Club</option>
+                          </select>
+                        </div>
+                        {superScopeType !== "platform" && (
+                          <div>
+                            <label className="block text-xs font-semibold text-slate-600 mb-1">
+                              Association or club ID
+                            </label>
+                            <input
+                              type="text"
+                              value={superScopeId}
+                              onChange={(e) => setSuperScopeId(e.target.value)}
+                              placeholder="e.g. bha or club id"
+                              className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm font-mono"
+                            />
+                          </div>
+                        )}
+                      </div>
+                    )}
                   {/* Title */}
                   <div>
                     <label className="block text-sm font-bold text-slate-700 mb-2">

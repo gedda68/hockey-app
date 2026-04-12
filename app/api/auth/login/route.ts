@@ -237,7 +237,7 @@ export async function POST(request: NextRequest) {
           } else if (memberClubDoc.name) {
             memberClubSlug = generateSlug(String(memberClubDoc.name));
             await db.collection("clubs").updateOne(
-              { _id: memberClubDoc._id },
+              { $or: [{ id: memberClubId }, { clubId: memberClubId }] },
               { $set: { slug: memberClubSlug } },
             );
           }

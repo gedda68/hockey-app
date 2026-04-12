@@ -1,13 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { writeFile, mkdir, readdir } from "fs/promises";
 import path from "path";
-import { requirePermission } from "@/lib/auth/middleware";
+import { requirePermission, requireRole } from "@/lib/auth/middleware";
+import { MEDIA_CONTENT_ADMIN_ROLES } from "@/lib/auth/mediaContentRoles";
+import { adminHomeGallerySegment } from "@/lib/tenant/homeGalleryScope";
+
+const HOME_GALLERY_PREFIX = "home-gallery/";
+
+function isHomeGalleryCategory(category: string): boolean {
+  return category.startsWith(HOME_GALLERY_PREFIX);
+}
 
 // POST - Upload a new image to a specific category (e.g., clubs, staff)
 export async function POST(request: NextRequest) {
-  const { response } = await requirePermission(request, "club.settings");
-  if (response) return response;
-
   try {
     const formData = await request.formData();
     const file = formData.get("file") as File;
@@ -15,6 +20,28 @@ export async function POST(request: NextRequest) {
 
     if (!file) {
       return NextResponse.json({ error: "No file provided" }, { status: 400 });
+    }
+
+    if (isHomeGalleryCategory(category)) {
+      const { user, response } = await requireRole(
+        request,
+        MEDIA_CONTENT_ADMIN_ROLES,
+      );
+      if (response) return response;
+      const segment = category.slice(HOME_GALLERY_PREFIX.length);
+      const seg = adminHomeGallerySegment(user, segment);
+      if (!seg.ok) {
+        return NextResponse.json({ error: seg.error }, { status: 403 });
+      }
+      if (`${HOME_GALLERY_PREFIX}${seg.segment}` !== category) {
+        return NextResponse.json(
+          { error: "Gallery path does not match your org scope" },
+          { status: 403 },
+        );
+      }
+    } else {
+      const { response } = await requirePermission(request, "club.settings");
+      if (response) return response;
     }
 
     // 1. Validate file type
@@ -54,8 +81,8 @@ export async function POST(request: NextRequest) {
     const originalName = file.name.replace(/[^a-zA-Z0-9.-]/g, "_");
     const filename = `${timestamp}-${originalName}`;
 
-    // 5. Define local storage path
-    const uploadDir = path.join(process.cwd(), "public", "icons", category);
+    // 5. Define local storage path (category may be nested e.g. home-gallery/platform)
+    const uploadDir = path.join(process.cwd(), "public", "icons", ...category.split("/"));
     const filepath = path.join(uploadDir, filename);
 
     // 6. Ensure directory exists
@@ -69,7 +96,7 @@ export async function POST(request: NextRequest) {
     await writeFile(filepath, buffer);
 
     // 8. Construct public URL
-    const publicUrl = `/icons/${category}/${filename}`;
+    const publicUrl = `/icons/${category.replace(/\\/g, "/")}/${filename}`;
 
     console.log(`✅ Uploaded to ${category}:`, publicUrl);
 
@@ -99,17 +126,22 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const category = searchParams.get("category") || "clubs";
 
-    const uploadDir = path.join(process.cwd(), "public", "icons", category);
+    const uploadDir = path.join(
+      process.cwd(),
+      "public",
+      "icons",
+      ...category.split("/").filter(Boolean),
+    );
 
     try {
       const files = await readdir(uploadDir);
 
-      // Filter for image extensions only and map to URLs
+      const catPath = category.replace(/\\/g, "/");
       const images = files
         .filter((file) => /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(file))
         .map((file) => ({
           filename: file,
-          url: `/icons/${category}/${file}`,
+          url: `/icons/${catPath}/${file}`,
         }));
 
       // Sort by filename (most recent timestamp first)

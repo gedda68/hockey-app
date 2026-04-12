@@ -8,6 +8,9 @@ import { HOME_GALLERY_CATEGORY } from "@/lib/constants/homeGallery";
 type Row = { filename: string; url: string };
 
 export default function HomeGalleryAdminPage() {
+  const [scopeKey, setScopeKey] = useState("platform");
+  const [resolvedScope, setResolvedScope] = useState<string | null>(null);
+  const [scopeLocked, setScopeLocked] = useState(false);
   const [images, setImages] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
@@ -18,19 +21,34 @@ export default function HomeGalleryAdminPage() {
   const [error, setError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
+  const fetchGallery = useCallback(async (scopeForQuery?: string | null) => {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/admin/home-gallery", {
-        credentials: "include",
-      });
+      const q = new URLSearchParams();
+      if (scopeForQuery != null && scopeForQuery !== "") {
+        q.set("scope", scopeForQuery);
+      }
+      const qs = q.toString();
+      const res = await fetch(
+        qs ? `/api/admin/home-gallery?${qs}` : "/api/admin/home-gallery",
+        { credentials: "include" },
+      );
       if (!res.ok) {
         const j = await res.json().catch(() => ({}));
         throw new Error(j.error || res.statusText);
       }
-      const data = (await res.json()) as { images: Row[] };
+      const data = (await res.json()) as {
+        images: Row[];
+        scopeKey?: string;
+        scopeLocked?: boolean;
+      };
       setImages(data.images ?? []);
+      setScopeLocked(Boolean(data.scopeLocked));
+      if (data.scopeKey) {
+        setResolvedScope(data.scopeKey);
+        setScopeKey(data.scopeKey);
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load");
     } finally {
@@ -39,8 +57,8 @@ export default function HomeGalleryAdminPage() {
   }, []);
 
   useEffect(() => {
-    void load();
-  }, [load]);
+    void fetchGallery(null);
+  }, [fetchGallery]);
 
   const onUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files ?? []);
@@ -77,7 +95,8 @@ export default function HomeGalleryAdminPage() {
 
         const formData = new FormData();
         formData.append("file", file);
-        formData.append("category", HOME_GALLERY_CATEGORY);
+        const uploadCategory = `${HOME_GALLERY_CATEGORY}/${resolvedScope ?? scopeKey}`;
+        formData.append("category", uploadCategory);
 
         try {
           const res = await fetch("/api/admin/upload/image", {
@@ -96,7 +115,7 @@ export default function HomeGalleryAdminPage() {
         }
       }
 
-      await load();
+      await fetchGallery(resolvedScope ?? scopeKey);
 
       if (failures.length > 0) {
         setError(
@@ -120,11 +139,14 @@ export default function HomeGalleryAdminPage() {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ filename }),
+        body: JSON.stringify({
+          filename,
+          scope: resolvedScope ?? scopeKey,
+        }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || "Delete failed");
-      await load();
+      await fetchGallery(resolvedScope ?? scopeKey);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Delete failed");
     } finally {
@@ -150,10 +172,47 @@ export default function HomeGalleryAdminPage() {
           filling empty slots.
         </p>
         <p className="mt-1 text-xs text-slate-500">
-          Files are stored under{" "}
-          <code className="rounded bg-slate-100 px-1">public/icons/{HOME_GALLERY_CATEGORY}/</code>
+          Files are stored per portal under{" "}
+          <code className="rounded bg-slate-100 px-1">
+            public/icons/{HOME_GALLERY_CATEGORY}/&lt;scope&gt;/
+          </code>
+          (e.g. <code className="px-1">platform</code>,{" "}
+          <code className="px-1">association-yourId</code>).
         </p>
       </div>
+
+      {!scopeLocked && (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50/80 p-4 mb-6">
+          <label className="block text-xs font-bold text-amber-900 uppercase mb-2">
+            Gallery scope (super-admin)
+          </label>
+          <p className="text-xs text-amber-900/80 mb-2">
+            Type a scope key (e.g. <code className="px-1">platform</code>,{" "}
+            <code className="px-1">association-bha</code>), then load the list.
+          </p>
+          <div className="flex flex-wrap gap-2 items-center">
+            <input
+              type="text"
+              value={scopeKey}
+              onChange={(e) => setScopeKey(e.target.value.trim() || "platform")}
+              placeholder="platform"
+              className="flex-1 min-w-[200px] px-3 py-2 border border-amber-300 rounded-lg text-sm font-mono"
+            />
+            <button
+              type="button"
+              onClick={() => void fetchGallery(scopeKey)}
+              className="px-4 py-2 rounded-lg bg-amber-600 text-white text-sm font-bold hover:bg-amber-700"
+            >
+              Load scope
+            </button>
+          </div>
+        </div>
+      )}
+      {resolvedScope && (
+        <p className="mb-4 text-xs font-mono text-slate-600">
+          Editing gallery folder: <strong>{resolvedScope}</strong>
+        </p>
+      )}
 
       <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm mb-8">
         <label className="block text-sm font-bold text-slate-700 mb-3">

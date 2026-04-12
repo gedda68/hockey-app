@@ -115,8 +115,8 @@ export default async function HomePage({
       getRecentMatches(24),
       getCurrentSeasonStandings(),
       getClubs(),
-      getPublicNewsItems(8),
-      getRandomHomeGallerySlides(7),
+      getPublicNewsItems(8, associationPortal),
+      getRandomHomeGallerySlides(7, associationPortal),
     ]);
 
   const featureMatch = upcomingMatches[0];

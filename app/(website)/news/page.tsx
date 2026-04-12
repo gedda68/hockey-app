@@ -1,12 +1,19 @@
 import Link from "next/link";
 import { getPublicNewsItems } from "@/lib/data/publicNews";
+import { getPublicTenantForServerPage } from "@/lib/tenant/serverTenant";
 
 export const metadata = {
   title: "News",
 };
 
-export default async function NewsPage() {
-  const items = await getPublicNewsItems(30);
+export default async function NewsPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const sp = await searchParams;
+  const tenant = await getPublicTenantForServerPage(sp);
+  const items = await getPublicNewsItems(30, tenant);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-50 to-white">

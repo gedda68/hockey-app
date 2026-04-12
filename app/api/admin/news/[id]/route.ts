@@ -1,10 +1,14 @@
 // app/api/admin/news/[id]/route.ts
-// Admin API for updating/deleting news items with image upload
+// Admin API for updating/deleting news items (tenant-scoped).
 
 import { NextRequest, NextResponse } from "next/server";
-import { MongoClient } from "mongodb";
+import clientPromise from "@/lib/mongodb";
 import { requireRole } from "@/lib/auth/middleware";
 import { MEDIA_CONTENT_ADMIN_ROLES } from "@/lib/auth/mediaContentRoles";
+import {
+  parseNewsScope,
+  userCanMutateNewsItem,
+} from "@/lib/portal/newsScope";
 import { writeFile, mkdir, unlink } from "fs/promises";
 import path from "path";
 
@@ -13,10 +17,8 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const { response } = await requireRole(request, MEDIA_CONTENT_ADMIN_ROLES);
+  const { user, response } = await requireRole(request, MEDIA_CONTENT_ADMIN_ROLES);
   if (response) return response;
-
-  const client = new MongoClient(process.env.MONGODB_URI!);
 
   try {
     const { id } = await params;
@@ -31,11 +33,10 @@ export async function PUT(
     const imageFile = formData.get("image") as File | null;
     const existingImage = formData.get("existingImage") as string | null;
 
-    await client.connect();
+    const client = await clientPromise;
     const database = client.db(process.env.DB_NAME || "hockey-app");
     const newsCollection = database.collection("news");
 
-    // Get existing news item
     const existingNews = await newsCollection.findOne({ id });
     if (!existingNews) {
       return NextResponse.json(
@@ -44,22 +45,26 @@ export async function PUT(
       );
     }
 
+    const scope = parseNewsScope(
+      existingNews as unknown as Record<string, unknown>,
+    );
+    if (!userCanMutateNewsItem(user, scope)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
     let imageUrl = existingNews.image || existingNews.imageUrl;
 
-    // Handle new image upload
     if (imageFile && imageFile.size > 0) {
       try {
-        // Delete old image if exists
-        if (imageUrl && imageUrl.startsWith("/uploads/")) {
-          const oldImagePath = path.join(process.cwd(), "public", imageUrl);
+        if (imageUrl && String(imageUrl).startsWith("/uploads/")) {
+          const oldImagePath = path.join(process.cwd(), "public", String(imageUrl));
           try {
             await unlink(oldImagePath);
-          } catch (err) {
-            // Ignore if file doesn't exist
+          } catch {
+            /* ignore */
           }
         }
 
-        // Create uploads directory if it doesn't exist
         const uploadsDir = path.join(
           process.cwd(),
           "public",
@@ -68,21 +73,17 @@ export async function PUT(
         );
         await mkdir(uploadsDir, { recursive: true });
 
-        // Generate unique filename
         const timestamp = Date.now();
         const originalName = imageFile.name;
         const extension = path.extname(originalName);
         const filename = `news-${timestamp}${extension}`;
         const filepath = path.join(uploadsDir, filename);
 
-        // Convert File to Buffer
         const bytes = await imageFile.arrayBuffer();
         const buffer = Buffer.from(bytes);
 
-        // Write file
         await writeFile(filepath, buffer);
 
-        // Set new image URL
         imageUrl = `/uploads/news/${filename}`;
       } catch (error) {
         console.error("Error uploading image:", error);
@@ -92,7 +93,6 @@ export async function PUT(
         );
       }
     } else if (existingImage) {
-      // Keep existing image
       imageUrl = existingImage;
     }
 
@@ -108,13 +108,10 @@ export async function PUT(
       updatedAt: new Date(),
     };
 
-    const result = await newsCollection.findOneAndUpdate(
-      { id },
-      { $set: updateData },
-      { returnDocument: "after" },
-    );
+    await newsCollection.updateOne({ id }, { $set: updateData });
+    const updated = await newsCollection.findOne({ id });
 
-    if (!result) {
+    if (!updated) {
       return NextResponse.json(
         { error: "News item not found" },
         { status: 404 },
@@ -122,8 +119,8 @@ export async function PUT(
     }
 
     return NextResponse.json({
-      ...result,
-      _id: result._id.toString(),
+      ...updated,
+      _id: updated._id.toString(),
     });
   } catch (error) {
     console.error("Error updating news:", error);
@@ -131,41 +128,49 @@ export async function PUT(
       { error: "Failed to update news" },
       { status: 500 },
     );
-  } finally {
-    await client.close();
   }
 }
 
-// PATCH - Partial update (e.g., toggle active)
+// PATCH - Partial update (e.g., toggle active); ignores unknown keys
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const { response } = await requireRole(request, MEDIA_CONTENT_ADMIN_ROLES);
+  const { user, response } = await requireRole(request, MEDIA_CONTENT_ADMIN_ROLES);
   if (response) return response;
-
-  const client = new MongoClient(process.env.MONGODB_URI!);
 
   try {
     const { id } = await params;
-    const body = await request.json();
+    const body = (await request.json()) as Record<string, unknown>;
 
-    await client.connect();
+    const client = await clientPromise;
     const database = client.db(process.env.DB_NAME || "hockey-app");
     const newsCollection = database.collection("news");
 
-    const result = await newsCollection.findOneAndUpdate(
-      { id },
-      {
-        $set: {
-          ...body,
-          updatedAt: new Date(),
-        },
-      },
-      { returnDocument: "after" },
-    );
+    const existingNews = await newsCollection.findOne({ id });
+    if (!existingNews) {
+      return NextResponse.json(
+        { error: "News item not found" },
+        { status: 404 },
+      );
+    }
 
-    if (!result) {
+    const scope = parseNewsScope(
+      existingNews as unknown as Record<string, unknown>,
+    );
+    if (!userCanMutateNewsItem(user, scope)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    const allowed: Record<string, unknown> = { updatedAt: new Date() };
+    if (typeof body.active === "boolean") {
+      allowed.active = body.active;
+    }
+
+    await newsCollection.updateOne({ id }, { $set: allowed });
+    const updated = await newsCollection.findOne({ id });
+
+    if (!updated) {
       return NextResponse.json(
         { error: "News item not found" },
         { status: 404 },
@@ -173,8 +178,8 @@ export async function PATCH(
     }
 
     return NextResponse.json({
-      ...result,
-      _id: result._id.toString(),
+      ...updated,
+      _id: updated._id.toString(),
     });
   } catch (error) {
     console.error("Error updating news:", error);
@@ -182,29 +187,24 @@ export async function PATCH(
       { error: "Failed to update news" },
       { status: 500 },
     );
-  } finally {
-    await client.close();
   }
 }
 
-// DELETE - Delete news item and associated image
+// DELETE
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const { response } = await requireRole(request, MEDIA_CONTENT_ADMIN_ROLES);
+  const { user, response } = await requireRole(request, MEDIA_CONTENT_ADMIN_ROLES);
   if (response) return response;
-
-  const client = new MongoClient(process.env.MONGODB_URI!);
 
   try {
     const { id } = await params;
 
-    await client.connect();
+    const client = await clientPromise;
     const database = client.db(process.env.DB_NAME || "hockey-app");
     const newsCollection = database.collection("news");
 
-    // Get news item to find image
     const newsItem = await newsCollection.findOne({ id });
 
     if (!newsItem) {
@@ -214,19 +214,21 @@ export async function DELETE(
       );
     }
 
-    // Delete image file if exists
+    const scope = parseNewsScope(newsItem as unknown as Record<string, unknown>);
+    if (!userCanMutateNewsItem(user, scope)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
     const imageUrl = newsItem.image || newsItem.imageUrl;
-    if (imageUrl && imageUrl.startsWith("/uploads/")) {
-      const imagePath = path.join(process.cwd(), "public", imageUrl);
+    if (imageUrl && String(imageUrl).startsWith("/uploads/")) {
+      const imagePath = path.join(process.cwd(), "public", String(imageUrl));
       try {
         await unlink(imagePath);
-      } catch (err) {
-        // Ignore if file doesn't exist
+      } catch {
         console.log("Image file not found or already deleted");
       }
     }
 
-    // Delete news item from database
     const result = await newsCollection.deleteOne({ id });
 
     if (result.deletedCount === 0) {
@@ -243,7 +245,5 @@ export async function DELETE(
       { error: "Failed to delete news" },
       { status: 500 },
     );
-  } finally {
-    await client.close();
   }
 }

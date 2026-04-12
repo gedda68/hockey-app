@@ -14,6 +14,9 @@ export interface NewsItem {
   active: boolean;
   createdAt: Date | string;
   updatedAt: Date | string;
+  /** Portal scope; missing treated as platform (apex-only) for public reads */
+  scopeType?: "platform" | "association" | "club";
+  scopeId?: string | null;
 }
 
 export interface NewsItemCreate {

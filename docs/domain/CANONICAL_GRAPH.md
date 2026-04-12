@@ -8,6 +8,25 @@ This document defines the **canonical domain graph** for organizing entities acr
   - Represents an organization node in a hierarchy (e.g. national → state → region → city).
   - Associations form a **tree** (single parent, many children) with one or more roots.
 
+### Stored `level` vs business tier (single source of truth)
+
+The database field `associations.level` is a **small integer** used for RBAC and UI (`numericLevelToString` in `lib/types/roles.ts`). Stakeholders sometimes use labels like “Level 0 / 2 / 4”; map those to **stored** values as follows:
+
+| Stakeholder label | Typical role | Stored `associations.level` | `AssociationLevel` string |
+|-------------------|--------------|----------------------------|---------------------------|
+| National (“L0”) | National body: rep, academy, national championships | **0** | `national` |
+| State (“L2”) | State body: state rep, state titles | **1** | `state` |
+| Metro / district (“L4”) | Regional association: **primary** operator of club-vs-club season leagues (many ages/divisions), plus local rep/titles as configured | **2** (city/metro) or **3** (region/district) | `city` or `district` |
+
+**Rules of thumb**
+
+- **Season league** (`SeasonCompetition` club-vs-club) should normally be owned by an association at **level 2 or 3** (under state), not by the national or state root unless the product explicitly allows it.
+- **National / state** nodes focus on rep teams, pathways, and championships; portal content (news, galleries, staff) should be **scoped to that association** (see `docs/PLATFORM_ROADMAP_CHECKLIST_V2.md`).
+
+> **Legacy data:** If any rows were filtered or created using an old string map that treated `State` as `2`, reconcile those documents so `level` matches the table above.
+
+**Operational script:** `pnpm run reconcile:association-levels` (dry-run) or `pnpm run reconcile:association-levels --apply` — recomputes each row’s `level` and `hierarchy` from `parentAssociationId` (see `scripts/reconcile-association-levels.ts`).
+
 - **Club**
   - Represents a single club organization.
   - A club has **exactly one canonical parent association** (single parent).

@@ -226,6 +226,28 @@ export async function POST(request: NextRequest) {
         );
       }
 
+      const ownerAssoc = await db.collection("associations").findOne({
+        associationId: req.owningAssociationId,
+      });
+      if (!ownerAssoc || typeof ownerAssoc.level !== "number") {
+        return NextResponse.json(
+          {
+            error:
+              "Owning association must exist with a numeric hierarchy level before creating a season league.",
+          },
+          { status: 400 },
+        );
+      }
+      if (ownerAssoc.level <= 1) {
+        return NextResponse.json(
+          {
+            error:
+              "Season league competitions must be owned by a regional/metro association (stored level ≥ 2). National/state bodies should use tournaments or other products for rep play.",
+          },
+          { status: 400 },
+        );
+      }
+
       const now = new Date();
       const seasonCompetition: SeasonCompetition = SeasonCompetitionSchema.parse({
         seasonCompetitionId: newId("scomp"),

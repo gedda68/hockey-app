@@ -37,7 +37,7 @@ The platform hosts **many independent portals** (per association subdomain and p
 
 - **`news` collection** — No `associationId` / `clubId` / `portalScope` on types or public query (`lib/data/publicNews.ts`, `app/api/news/route.ts`, admin `app/api/admin/news/route.ts`). **All portals risk showing the same news.**
 - **Home gallery** — Platform-level hero imagery (`lib/data/homeGallery.ts`, admin home-gallery API) is not clearly keyed per tenant; **risk of one gallery for every subdomain.**
-- **Association `level`** — `lib/types/roles.ts` maps `0–2` to national/state/city; `app/api/admin/associations/route.ts` string filter maps `State` → `2`, which **does not match** `numericLevelToString(1) === "state"`. **Align before** building level-gated features.
+- **Association `level`** — **Partially fixed:** `app/api/admin/associations/route.ts` string filter now matches `numericLevelToString` (`State` → `1`, etc.). Canonical table lives in `docs/domain/CANONICAL_GRAPH.md`. **Remaining:** audit any seed/data that assumed the old map; admin create/edit UI labels vs stored integers.
 - **Competition ownership** — Epic C enforces owning association for season leagues; **confirm** UI defaults create season comps only for **Level 4–equivalent** associations (policy + optional API guard).
 
 ---
@@ -59,12 +59,12 @@ Federation-grade sites optimise for **repeat visits**, **mobile**, and **clear m
 
 ## Epic L — Levels, tenancy, and data isolation
 
-- [ ] **L1** **Single source of truth for `association.level`** — Document business tier ↔ integer mapping in `docs/domain/CANONICAL_GRAPH.md`; fix admin `GET` level filter string↔number drift (`app/api/admin/associations/route.ts`); align `AssociationSchema` comments with `numericLevelToString`.
-- [ ] **L2** **Tenant-scoped news** — Add `scopeType: 'platform' | 'association' | 'club'` + `scopeId`; migrate existing rows to `platform` or default association; `getPublicNewsItems(limit, { associationId?, clubId? })`; public `/api/news` respects host/subdomain tenant (`lib/tenant`, `PublicTenantContext`); admin news list/create filtered by user’s resource access; optional **syndicate up** (club post visible on parent association — off by default).
-- [ ] **L3** **Tenant-scoped media gallery** — Same pattern as L2 for home hero / albums; admin upload UI scoped to current tenant.
-- [ ] **L4** **Portal RBAC for media** — Extend `media-marketing` (or split roles) so association media users **cannot** edit another association’s news/gallery; club media **cannot** touch parent association content.
-- [ ] **L5** **Competition creation guardrails** — Wizard or API validation: “primary club league” `SeasonCompetition` may only be created under associations whose level is **in the allowed set** (e.g. Level 4–equivalent); national/state **tournaments** and **rep** comps allowed at L0/L2 with different templates.
-- [ ] **L6** **Cross-tenant leakage audit** — Sweep public APIs (`/api/news`, `/api/fixtures`, `/api/public/*`, calendars) for queries missing `associationId` / `clubId` when running on a tenant host; add integration tests per subdomain.
+- [ ] **L1** **Single source of truth for `association.level`** — Docs + admin filter + schema comments (**done**). **Data pass:** `pnpm run reconcile:association-levels` (dry-run) / `--apply` — recomputes `level` + `hierarchy[]` from the parent chain (`scripts/reconcile-association-levels.ts`). **Remaining:** association create/edit UI consistency if labels still confuse operators.
+- [x] **L2** **Tenant-scoped news** — Shipped: `scopeType` + `scopeId` on `news`; `lib/portal/newsScope.ts`; `getPublicNewsItems(limit, tenant)`; `GET /api/news` + website pages use host tenant; admin list/create/PUT/PATCH/DELETE scoped (`app/api/admin/news/**`). Backfill: `pnpm run backfill:news-scope` / `--apply`. *Not done:* optional **syndicate up** (club → parent association).
+- [x] **L3** **Tenant-scoped media gallery** — Shipped: files under `public/icons/home-gallery/<scope>/` (`platform`, `association-*`, `club-*`); `lib/data/homeGallery.ts` + `lib/tenant/homeGalleryScope.ts`; admin API + upload path `home-gallery/<scope>`; migrate loose files: `pnpm run migrate:home-gallery-platform` / `--apply`.
+- [x] **L4** **Portal RBAC for media** — Shipped: admin news + gallery enforce scope; super-admin may pick gallery scope / news scope on create; org admins locked to their folder/list; `POST /api/admin/upload/image` validates `home-gallery/...` paths against session scope.
+- [x] **L5** **Competition creation guardrails** — Shipped: `POST /api/admin/competitions` blocks new **`seasonCompetition`** when owning association `level <= 1` (national/state); requires association doc with numeric `level`. Base `competition` create unchanged. *Follow-up:* admin UI wizard copy.
+- [x] **L6** **Cross-tenant leakage audit** — Shipped for league season reads: `seasonCompetitionVisibleForPortalTenant` on `GET /api/fixtures`, `/api/standings`, `/api/calendar/league`, `/api/competitions/player-stats` (404 if tenant host ≠ owning association / club parent). Vitest: `__tests__/lib/tenant/seasonCompetitionTenantGate.test.ts`, `__tests__/lib/portal/newsScope.test.ts`. *Remaining:* sweep `/api/public/*` and Playwright per-subdomain smoke.
 
 ---
 
@@ -82,14 +82,14 @@ Federation-grade sites optimise for **repeat visits**, **mobile**, and **clear m
 
 - [x] **T1** **`app/api/auth/login/route.ts` build typing** — Avoid untyped `_id` in `updateOne` (use stable filter on `clubId`/`id`). *Shipped in V2 pass.*
 - [ ] **T2** **Next.js middleware → proxy migration** — When ready, migrate from deprecated middleware (`middleware.ts` deprecation warning) to the supported replacement per Next 16+ guidance.
-- [ ] **T3** **Consistent Mongo client usage** — Prefer shared `clientPromise` in routes that still spin up `new MongoClient` (e.g. some news routes) for connection pooling.
+- [x] **T3** **Consistent Mongo client usage** — Admin news routes migrated to `clientPromise`; residual `MongoClient` instances elsewhere tracked opportunistically.
 - [ ] **T4** **Observability** — Structured logging for tenant resolution failures; metrics on public API 404/403 by host.
 
 ---
 
 ## Epic M — Migration & content ops
 
-- [ ] **M1** **Data migration script** — Backfill `news` and gallery documents with `scopeType`/`scopeId`; default platform scope for legacy items on main domain only.
+- [x] **M1** **Data migration script** — News: `pnpm run backfill:news-scope --apply`. Gallery: `pnpm run migrate:home-gallery-platform --apply`. Association levels: `pnpm run reconcile:association-levels --apply`.
 - [ ] **M2** **Admin UX** — Tenant indicator in admin shell (“Editing: BHA” / club name); block save if resource ID does not match session scope.
 
 ---
@@ -117,4 +117,4 @@ Federation-grade sites optimise for **repeat visits**, **mobile**, and **clear m
 
 ---
 
-*Last updated: 2026-04-12 — V2 introduces portal ownership model, benchmark epics, and tenancy backlog; V1 checklist remains the record of completed baseline epics.*
+*Last updated: 2026-04-12 — Epic L (levels/tenancy) implemented in code + migration scripts; benchmark (B\*) and product hub epics (P\*) still open.*

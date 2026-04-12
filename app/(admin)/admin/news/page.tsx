@@ -7,10 +7,15 @@ import { useState, useEffect } from "react";
 import { Plus, Edit, Trash2, Eye, EyeOff } from "lucide-react";
 import { NewsItem } from "@/types/news";
 import { toast } from "sonner";
-import NewsFormModal from "@/components/admin/NewsFormModal";
+import NewsFormModal, {
+  type NewsEditorContext,
+} from "@/components/admin/NewsFormModal";
 
 export default function AdminNewsPage() {
   const [newsItems, setNewsItems] = useState<NewsItem[]>([]);
+  const [editorContext, setEditorContext] = useState<NewsEditorContext | null>(
+    null,
+  );
   const [loading, setLoading] = useState(true);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingNews, setEditingNews] = useState<NewsItem | null>(null);
@@ -21,7 +26,22 @@ export default function AdminNewsPage() {
       const res = await fetch("/api/admin/news");
       if (res.ok) {
         const data = await res.json();
-        setNewsItems(data);
+        if (Array.isArray(data)) {
+          setNewsItems(data);
+          setEditorContext(null);
+        } else {
+          setNewsItems(data.items ?? []);
+          const ec = data.editorContext;
+          if (ec?.role) {
+            setEditorContext({
+              role: ec.role,
+              defaultScopeType: ec.defaultScopeType ?? "platform",
+              defaultScopeId: ec.defaultScopeId ?? null,
+            });
+          } else {
+            setEditorContext(null);
+          }
+        }
       }
     } catch (error) {
       toast.error("Failed to fetch news");
@@ -107,7 +127,7 @@ export default function AdminNewsPage() {
             News Management
           </h1>
           <p className="text-slate-600 mt-2">
-            Manage news items for the homepage sidebar
+            News is scoped to each portal (platform, association, or club).
           </p>
         </div>
         <button
@@ -128,6 +148,9 @@ export default function AdminNewsPage() {
                 Title
               </th>
               <th className="px-6 py-4 text-left text-xs font-black uppercase text-slate-600">
+                Scope
+              </th>
+              <th className="px-6 py-4 text-left text-xs font-black uppercase text-slate-600">
                 Publish Date
               </th>
               <th className="px-6 py-4 text-left text-xs font-black uppercase text-slate-600">
@@ -145,7 +168,7 @@ export default function AdminNewsPage() {
             {newsItems.length === 0 ? (
               <tr>
                 <td
-                  colSpan={5}
+                  colSpan={6}
                   className="px-6 py-8 text-center text-slate-500"
                 >
                   No news items found. Create your first news item to get
@@ -169,6 +192,14 @@ export default function AdminNewsPage() {
                           By {item.author}
                         </div>
                       )}
+                    </td>
+                    <td className="px-6 py-4 text-xs font-mono text-slate-600">
+                      {item.scopeType ?? "platform"}
+                      {item.scopeId ? (
+                        <span className="block text-[10px] text-slate-400 truncate max-w-[140px]">
+                          {item.scopeId}
+                        </span>
+                      ) : null}
                     </td>
                     <td className="px-6 py-4 text-sm text-slate-600">
                       {new Date(item.publishDate).toLocaleDateString()}
@@ -245,6 +276,7 @@ export default function AdminNewsPage() {
         }}
         onSuccess={handleFormSuccess}
         editingNews={editingNews}
+        editorContext={editorContext}
       />
     </div>
   );

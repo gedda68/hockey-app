@@ -3,6 +3,8 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
+import { getPublicTenantFromRequest } from "@/lib/tenant/requestTenant";
+import { seasonCompetitionVisibleForPortalTenant } from "@/lib/tenant/seasonCompetitionTenantGate";
 
 const PUBLIC_SC_STATUSES = new Set([
   "published",
@@ -22,12 +24,26 @@ export async function GET(request: NextRequest) {
     }
 
     const client = await clientPromise;
-    const db = client.db("hockey-app");
+    const db = client.db(process.env.DB_NAME || "hockey-app");
 
     const sc = await db.collection("season_competitions").findOne({
       seasonCompetitionId,
     });
     if (!sc) {
+      return NextResponse.json(
+        { error: "Season competition not found" },
+        { status: 404 },
+      );
+    }
+
+    const tenant = await getPublicTenantFromRequest(request);
+    const owner = String(sc.owningAssociationId ?? "");
+    const visible = await seasonCompetitionVisibleForPortalTenant(
+      db,
+      owner,
+      tenant,
+    );
+    if (!visible) {
       return NextResponse.json(
         { error: "Season competition not found" },
         { status: 404 },

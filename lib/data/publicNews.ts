@@ -1,4 +1,6 @@
 import clientPromise from "@/lib/mongodb";
+import type { PublicTenantPayload } from "@/lib/tenant/portalHost";
+import { publicNewsMongoFilter } from "@/lib/portal/newsScope";
 
 export type PublicNewsItem = {
   id: string;
@@ -12,14 +14,17 @@ export type PublicNewsItem = {
 
 export async function getPublicNewsItems(
   limit = 6,
+  tenant: PublicTenantPayload | null = null,
 ): Promise<PublicNewsItem[]> {
   try {
     const client = await clientPromise;
-    const db = client.db("hockey-app");
+    const db = client.db(process.env.DB_NAME || "hockey-app");
     const now = new Date();
+    const scope = publicNewsMongoFilter(tenant);
     const rows = await db
       .collection("news")
       .find({
+        ...scope,
         active: true,
         publishDate: { $lte: now },
         expiryDate: { $gte: now },

@@ -173,8 +173,8 @@ export async function GET(request: NextRequest) {
         // It's a string: 'National', 'State', 'City', 'Region'
         const levelMap: Record<string, number> = {
           National: 0,
-          State: 2, // Note: State is level 2, not 1!
-          City: 3, // City is level 3
+          State: 1,
+          City: 2,
           Region: 3,
         };
         query.level = levelMap[level] ?? 0;
