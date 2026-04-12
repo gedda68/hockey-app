@@ -3,6 +3,11 @@
 
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth/session";
+import clientPromise from "@/lib/mongodb";
+import {
+  activePersonaKeyFromSession,
+  buildPersonaOptions,
+} from "@/lib/auth/sessionPersona";
 
 export async function GET() {
   try {
@@ -12,23 +17,32 @@ export async function GET() {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
     }
 
-    // Map session fields to a user object the client understands
+    const client = await clientPromise;
+    const db = client.db("hockey-app");
+    const personas = await buildPersonaOptions(db, session);
+    const activePersonaKey = activePersonaKeyFromSession(session);
+
     return NextResponse.json({
       user: {
-        userId:        session.userId,
-        memberId:      session.memberId || null,
-        username:      session.username || "",
-        email:         session.email    || "",
-        firstName:     session.firstName || session.name?.split(" ")[0] || "",
-        lastName:      session.lastName  || session.name?.split(" ").slice(1).join(" ") || "",
-        name:          session.name,
-        role:             session.role,
-        associationId:    session.associationId    || null,
-        associationLevel: session.associationLevel || null,
-        clubId:           session.clubId           || null,
-        clubSlug:         session.clubSlug         || null,
-        clubName:         session.clubName         || null,
+        userId: session.userId,
+        memberId: session.memberId || null,
+        username: session.username || "",
+        email: session.email || "",
+        firstName:
+          session.firstName || session.name?.split(" ")[0] || "",
+        lastName:
+          session.lastName || session.name?.split(" ").slice(1).join(" ") || "",
+        name: session.name,
+        role: session.role,
+        scopedRoles: session.scopedRoles ?? [],
+        associationId: session.associationId ?? null,
+        associationLevel: session.associationLevel ?? null,
+        clubId: session.clubId ?? null,
+        clubSlug: session.clubSlug ?? null,
+        clubName: session.clubName ?? null,
         forcePasswordChange: session.forcePasswordChange || false,
+        activePersonaKey,
+        personas,
       },
     });
   } catch {

@@ -93,10 +93,10 @@ Multi-level association → club → team operations, independent portals, compe
 
 ## Epic I — Public site & UX
 
-- [ ] **I1** Public hubs: association, club, competition (season), team.
-- [ ] **I2** Fixtures & results; standings; stat leaders (as data exists).
-- [ ] **I3** Stable URLs and basic SEO for entities above.
-- [ ] **I4** Mobile-friendly fixture/result views.
+- [X] **I1** Public hubs: association, club, competition (season), team. **Baseline:** `/associations/[associationId]` (leagues + tournaments for that org); `/competitions/leagues` + `/competitions/leagues/[seasonCompetitionId]` (hub links to matches, standings, statistics); existing `/clubs/[clubId]` and `/clubs/[clubId]/teams/[teamId]`; `/tournaments` directory → existing `/tournaments/[tournamentId]`. APIs: `GET /api/public/leagues`, `GET /api/public/associations/[associationId]`, `GET /api/tournaments`.
+- [X] **I2** Fixtures & results; standings; stat leaders (as data exists). **Baseline:** league hub deep-links to `/competitions/matches`, `/competitions/standings` (with `seasonCompetitionId`), `/competitions/statistics`; tournaments use existing public fixtures API. **Sample data:** `npm run seed:public-demo` — 2025/2026 demo season comps, fixtures with results, rep tournaments + pool fixtures.
+- [X] **I3** Stable URLs and basic SEO for entities above. **Baseline:** `generateMetadata` on league hub, association hub, and team page (`/clubs/.../teams/[teamId]`); Open Graph titles on league + association hubs.
+- [X] **I4** Mobile-friendly fixture/result views. **Baseline:** new hub pages use responsive grids (`sm:` breakpoints), readable typography, full-width tap targets on cards; existing tournament and match list pages unchanged (already responsive).
 
 ---
 

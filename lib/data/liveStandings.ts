@@ -3,6 +3,7 @@
 
 import clientPromise from "@/lib/mongodb";
 import { computeSeasonCompetitionStandings } from "@/lib/competitions/standings";
+import { listPublicLeagues } from "@/lib/public/publicLeagues";
 import type { Division, Team } from "@/types";
 
 const PUBLIC_SC_STATUSES = new Set(["published", "in_progress", "completed"]);
@@ -77,49 +78,8 @@ export async function listPublicSeasonCompetitions(): Promise<
     status: string;
   }>
 > {
-  const client = await clientPromise;
-  const db = client.db("hockey-app");
-
-  const scs = await db
-    .collection("season_competitions")
-    .find({ status: { $in: [...PUBLIC_SC_STATUSES] } })
-    .project({
-      seasonCompetitionId: 1,
-      season: 1,
-      competitionId: 1,
-      owningAssociationId: 1,
-      status: 1,
-    })
-    .toArray();
-
-  const competitionIds = Array.from(
-    new Set(scs.map((s) => String(s.competitionId ?? "")).filter(Boolean)),
-  );
-
-  const comps =
-    competitionIds.length > 0
-      ? await db
-          .collection("competitions")
-          .find({ competitionId: { $in: competitionIds } })
-          .project({ competitionId: 1, name: 1 })
-          .toArray()
-      : [];
-
-  const compNameById = new Map<string, string>();
-  for (const c of comps) {
-    if (c.competitionId && c.name)
-      compNameById.set(String(c.competitionId), String(c.name));
-  }
-
-  return scs
-    .map((s) => ({
-      seasonCompetitionId: String(s.seasonCompetitionId),
-      season: String(s.season ?? ""),
-      competitionId: String(s.competitionId ?? ""),
-      competitionName: compNameById.get(String(s.competitionId)) ?? null,
-      owningAssociationId: String(s.owningAssociationId ?? ""),
-      status: String(s.status ?? ""),
-    }))
+  const rows = await listPublicLeagues();
+  return rows
     .filter((s) => s.seasonCompetitionId && s.season && s.competitionId)
     .sort((a, b) => (b.season || "").localeCompare(a.season || ""));
 }

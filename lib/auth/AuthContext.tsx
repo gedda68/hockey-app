@@ -11,6 +11,8 @@ import {
   ReactNode,
 } from "react";
 import { useRouter } from "next/navigation";
+import type { ScopedRole } from "@/lib/auth/session";
+import type { PersonaOption } from "@/lib/auth/sessionPersona";
 
 const IDLE_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
 
@@ -22,6 +24,12 @@ export interface User {
   firstName: string;
   lastName: string;
   role: string;
+  /** All role assignments from the session (for menu / feature checks). */
+  scopedRoles?: ScopedRole[];
+  /** Switchable personas when the user has more than one role scope. */
+  personas?: PersonaOption[];
+  /** Matches JWT active scope (from session cookie). */
+  activePersonaKey?: string;
   associationId?: string | null;
   /**
    * Hierarchical tier of the user's primary association.
@@ -32,11 +40,44 @@ export interface User {
    *   "district"  = level 3+ (sub-regional bodies)
    * Absent for club-scoped users and super-admin.
    */
-  associationLevel?: "national" | "state" | "city" | "district";
+  associationLevel?: "national" | "state" | "city" | "district" | null;
   clubId?: string | null;
   clubSlug?: string | null;
   clubName?: string | null;
+  forcePasswordChange?: boolean;
   status?: string;
+}
+
+function mapMePayload(raw: Record<string, unknown>): User {
+  return {
+    userId: raw.userId as string | undefined,
+    memberId: raw.memberId ? String(raw.memberId) : undefined,
+    username: (raw.username as string) || "",
+    email: (raw.email as string) || "",
+    firstName:
+      (raw.firstName as string) ||
+      String(raw.name || "").split(" ")[0] ||
+      "",
+    lastName:
+      (raw.lastName as string) ||
+      String(raw.name || "").split(" ").slice(1).join(" ") ||
+      "",
+    role: (raw.role as string) || "player",
+    scopedRoles: Array.isArray(raw.scopedRoles)
+      ? (raw.scopedRoles as ScopedRole[])
+      : [],
+    personas: Array.isArray(raw.personas)
+      ? (raw.personas as PersonaOption[])
+      : undefined,
+    activePersonaKey: (raw.activePersonaKey as string) || undefined,
+    associationId: (raw.associationId as string) ?? null,
+    associationLevel:
+      (raw.associationLevel as User["associationLevel"]) ?? null,
+    clubId: (raw.clubId as string) ?? null,
+    clubSlug: (raw.clubSlug as string) ?? null,
+    clubName: (raw.clubName as string) ?? null,
+    forcePasswordChange: raw.forcePasswordChange === true,
+  };
 }
 
 interface AuthContextType {
@@ -44,6 +85,8 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isLoading: boolean;
   setUser: (user: User | null) => void;
+  refreshUser: () => Promise<void>;
+  switchPersona: (personaKey: string) => Promise<void>;
   logout: () => Promise<void>;
   hasPermission: (permission: string) => boolean;
   canAccessResource: (type: "association" | "club", id: string) => boolean;
@@ -89,57 +132,99 @@ function roleHasPermission(role: string, permission: string): boolean {
   return permissions[permission]?.includes(role) ?? false;
 }
 
+function effectiveRoles(user: User): string[] {
+  const roles = new Set<string>([user.role]);
+  for (const r of user.scopedRoles ?? []) {
+    if (r?.role) roles.add(r.role);
+  }
+  return Array.from(roles);
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUserState] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
   const idleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const refreshUser = useCallback(async () => {
+    try {
+      const res = await fetch("/api/auth/me", { credentials: "include" });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.user) {
+          const u = mapMePayload(data.user as Record<string, unknown>);
+          setUserState(u);
+          try {
+            localStorage.setItem("user", JSON.stringify(u));
+          } catch {
+            /* ignore quota */
+          }
+          return;
+        }
+      }
+      localStorage.removeItem("user");
+      setUserState(null);
+    } catch {
+      try {
+        const stored = localStorage.getItem("user");
+        if (stored) setUserState(JSON.parse(stored));
+      } catch {
+        /* ignore */
+      }
+    }
+  }, []);
+
   // Load user — verify against server session (authoritative), fall back to localStorage
   useEffect(() => {
     const loadUser = async () => {
       try {
-        // Try server session first
         const res = await fetch("/api/auth/me", { credentials: "include" });
         if (res.ok) {
           const data = await res.json();
           if (data.user) {
-            const u: User = {
-              userId:        data.user.userId,
-              memberId:      data.user.memberId,
-              username:      data.user.username || "",
-              email:         data.user.email    || "",
-              firstName:     data.user.firstName || data.user.name?.split(" ")[0] || "",
-              lastName:      data.user.lastName  || data.user.name?.split(" ").slice(1).join(" ") || "",
-              role:          data.user.role      || "player",
-              associationId: data.user.associationId || null,
-              clubId:        data.user.clubId        || null,
-              clubName:      data.user.clubName       || null,
-            };
+            const u = mapMePayload(data.user as Record<string, unknown>);
             setUserState(u);
-            localStorage.setItem("user", JSON.stringify(u));
+            try {
+              localStorage.setItem("user", JSON.stringify(u));
+            } catch {
+              /* ignore */
+            }
             return;
           }
         }
-
-        // Session gone — clear localStorage too
         localStorage.removeItem("user");
         setUserState(null);
       } catch {
-        // Network failure — try localStorage as offline fallback
         try {
           const stored = localStorage.getItem("user");
           if (stored) setUserState(JSON.parse(stored));
         } catch {
-          // ignore
+          /* ignore */
         }
       } finally {
         setIsLoading(false);
       }
     };
 
-    loadUser();
+    void loadUser();
   }, []);
+
+  const switchPersona = useCallback(
+    async (personaKey: string) => {
+      const res = await fetch("/api/auth/switch-persona", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ personaKey }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error((err as { error?: string }).error || "Switch failed");
+      }
+      await refreshUser();
+    },
+    [refreshUser],
+  );
 
   const setUser = useCallback((u: User | null) => {
     setUserState(u);
@@ -196,9 +281,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const hasPermission = useCallback(
     (permission: string) => {
       if (!user) return false;
-      return roleHasPermission(user.role, permission);
+      if (user.role === "super-admin") return true;
+      return effectiveRoles(user).some((r) => roleHasPermission(r, permission));
     },
-    [user]
+    [user],
   );
 
   const canAccessResource = useCallback(
@@ -229,6 +315,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isAuthenticated: !!user,
         isLoading,
         setUser,
+        refreshUser,
+        switchPersona,
         logout,
         hasPermission,
         canAccessResource,

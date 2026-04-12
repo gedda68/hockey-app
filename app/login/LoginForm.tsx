@@ -22,7 +22,7 @@ function LoginFormInner() {
   // ?changed=1 is set by change-password after a successful forced reset
   const passwordChanged = searchParams.get("changed") === "1";
 
-  const { setUser } = useAuth();
+  const { refreshUser } = useAuth();
   const [formData, setFormData] = useState({ username: "", password: "" });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -54,8 +54,7 @@ function LoginFormInner() {
         return;
       }
 
-      // Store user in context
-      setUser(data.user);
+      await refreshUser();
 
       const roleDisplayName = getRoleDisplayName(data.user.role);
       toast.success(`Welcome back, ${data.user.firstName || data.user.username}! Logged in as ${roleDisplayName}`);

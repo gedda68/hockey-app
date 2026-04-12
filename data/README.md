@@ -25,3 +25,7 @@ is **not** imported directly by application code.
    and expose typed accessor functions to the Next.js app.
 4. **Rosters** are managed in MongoDB after the initial migration. Do not
    edit `public/data/rosters.json` directly — re-run the migration script.
+
+## MongoDB public demo (Epic I)
+
+Run `npm run seed:public-demo` (with `MONGODB_URI` in `.env.local`) to load **sample league and tournament data** for **2025** and **2026**: premier-style season competitions, teams, published league fixtures with results, and two representative tournaments with pool fixtures. Optional env `DEMO_SEED_ASSOCIATION_ID`; otherwise the script uses the first association in the DB and creates demo clubs if needed. See `scripts/seed-public-demo.ts` for collection keys and IDs.

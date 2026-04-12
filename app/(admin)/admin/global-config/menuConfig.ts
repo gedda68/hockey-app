@@ -16,6 +16,11 @@ export interface MenuItem {
   description?: string;
   badge?: string;
   color?: string;
+  /**
+   * Sidebar grouping key (top-level items only). Render order follows MENU_SECTION_ORDER
+   * in AdminSidebar.
+   */
+  section?: string;
   /** If present, only users whose primary OR scoped role is in this list can see the item. */
   allowedRoles?: string[];
   subItems?: MenuItem[];
@@ -119,6 +124,7 @@ export const menuConfig: MenuItem[] = [
     icon: "📊",
     description: "Overview and quick stats",
     color: "from-blue-500 to-blue-600",
+    section: "overview",
     allowedRoles: ALL_ADMIN,
   },
 
@@ -129,6 +135,7 @@ export const menuConfig: MenuItem[] = [
     icon: "👥",
     description: "Manage teams and rosters",
     color: "from-sky-500 to-sky-600",
+    section: "competition",
     allowedRoles: TEAM_ROLES,
   },
 
@@ -139,6 +146,7 @@ export const menuConfig: MenuItem[] = [
     icon: "📋",
     description: "Manage divisions, representative teams, and rosters",
     color: "from-purple-500 to-purple-600",
+    section: "competition",
     allowedRoles: ASSOC_ROLES,
     subItems: [
       {
@@ -201,6 +209,7 @@ export const menuConfig: MenuItem[] = [
     icon: "⭐",
     description: "Player management and nominations",
     color: "from-yellow-500 to-yellow-600",
+    section: "competition",
     allowedRoles: PLAYER_MGMT,
     subItems: [
       {
@@ -235,6 +244,7 @@ export const menuConfig: MenuItem[] = [
     icon: "📝",
     description: "Manage club members and registrations",
     color: "from-cyan-500 to-cyan-600",
+    section: "directory",
     allowedRoles: [
       "super-admin",
       "association-admin", "assoc-committee", "assoc-registrar",
@@ -269,6 +279,7 @@ export const menuConfig: MenuItem[] = [
     icon: "🏛️",
     description: "Association hierarchy and management",
     color: "from-teal-500 to-teal-600",
+    section: "directory",
     allowedRoles: ["super-admin", "association-admin", "assoc-committee"],
     subItems: [
       {
@@ -316,6 +327,7 @@ export const menuConfig: MenuItem[] = [
     icon: "🏢",
     description: "Club profiles and management",
     color: "from-indigo-500 to-indigo-600",
+    section: "directory",
     allowedRoles: CLUBS_ROLES,
     subItems: [
       {
@@ -343,6 +355,7 @@ export const menuConfig: MenuItem[] = [
     icon: "💵",
     description: "Fee management for your scope",
     color: "from-green-500 to-green-600",
+    section: "finance",
     allowedRoles: FINANCE_ROLES,
   },
   {
@@ -351,6 +364,7 @@ export const menuConfig: MenuItem[] = [
     icon: "🏆",
     description: "Manage team entries, cost breakdowns, and per-member allocations",
     color: "from-violet-500 to-violet-600",
+    section: "finance",
     allowedRoles: [
       "super-admin",
       "association-admin", "assoc-registrar",
@@ -365,6 +379,7 @@ export const menuConfig: MenuItem[] = [
     icon: "✅",
     description: "Approve or reject role assignment requests",
     color: "from-amber-500 to-amber-600",
+    section: "governance",
     allowedRoles: APPROVALS_ROLES,
   },
   {
@@ -373,6 +388,7 @@ export const menuConfig: MenuItem[] = [
     icon: "⏳",
     description: "Monitor expiring roles and run seasonal cleanup",
     color: "from-red-500 to-red-600",
+    section: "governance",
     allowedRoles: [
       "super-admin",
       "association-admin",
@@ -387,6 +403,7 @@ export const menuConfig: MenuItem[] = [
     icon: "📰",
     description: "News articles, media, and announcements",
     color: "from-pink-500 to-rose-500",
+    section: "content",
     allowedRoles: [
       "super-admin",
       "association-admin", "assoc-committee", "media-marketing",
@@ -401,6 +418,7 @@ export const menuConfig: MenuItem[] = [
     icon: "📈",
     description: "Member counts, gender/age breakdowns, historic trends and more",
     color: "from-teal-500 to-teal-600",
+    section: "reporting",
     allowedRoles: REPORTING_ROLES,
     subItems: [
       { label: "Member Analytics",  href: "/admin/reports",                   icon: "👥", description: "Total members, players, roles by gender & age group", allowedRoles: REPORTING_ROLES },
@@ -417,6 +435,7 @@ export const menuConfig: MenuItem[] = [
     icon: "📥",
     description: "Bulk upload clubs, associations, members, users, teams and more",
     color: "from-emerald-500 to-emerald-600",
+    section: "reporting",
     allowedRoles: ["super-admin", "association-admin", "club-admin"],
     subItems: [
       { label: "Members",      href: "/admin/bulk-import?tab=members",      icon: "📝", description: "Upload members via CSV/Excel",       allowedRoles: ["super-admin", "association-admin", "club-admin"] },
@@ -436,6 +455,7 @@ export const menuConfig: MenuItem[] = [
     icon: "🎫",
     description: "View and submit your role registration requests",
     color: "from-amber-400 to-amber-500",
+    section: "personal",
   },
   {
     label: "My Nominations",
@@ -443,6 +463,7 @@ export const menuConfig: MenuItem[] = [
     icon: "🏆",
     description: "View your nomination status for teams and positions",
     color: "from-yellow-400 to-yellow-500",
+    section: "personal",
   },
   {
     label: "My Fees & Payments",
@@ -450,6 +471,7 @@ export const menuConfig: MenuItem[] = [
     icon: "💳",
     description: "View outstanding and paid fees across all levels",
     color: "from-indigo-400 to-indigo-500",
+    section: "personal",
   },
 
   // ── Users (super-admin only) ─────────────────────────────────────────────────
@@ -459,6 +481,7 @@ export const menuConfig: MenuItem[] = [
     icon: "👥",
     description: "Admin user accounts and permissions",
     color: "from-pink-500 to-pink-600",
+    section: "platform",
     allowedRoles: ["super-admin"],
     // Sub-items (users/roles, users/activity) to be built
   },
@@ -470,6 +493,7 @@ export const menuConfig: MenuItem[] = [
     icon: "⚙️",
     description: "System configuration",
     color: "from-slate-500 to-slate-600",
+    section: "platform",
     allowedRoles: SETTINGS_ROLES,
     subItems: [
       {
@@ -504,6 +528,7 @@ export const menuConfig: MenuItem[] = [
     icon: "🎛️",
     description: "System-wide configuration lists",
     color: "from-violet-500 to-violet-600",
+    section: "platform",
     allowedRoles: ["super-admin"],
     subItems: [
       { label: "Gender Options",     href: "/admin/config/gender",           icon: "👤", description: "Manage gender types",              allowedRoles: ["super-admin"] },

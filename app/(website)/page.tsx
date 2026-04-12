@@ -3,471 +3,266 @@ import Link from "next/link";
 import { getUpcomingMatches, getRecentMatches } from "@/lib/data/matches";
 import { getCurrentSeasonStandings } from "@/lib/data/standings";
 import { getClubs } from "@/lib/data/clubs";
+import { getPublicNewsItems } from "@/lib/data/publicNews";
+import HomeResultsTicker, {
+  type TickerLine,
+} from "@/components/website/home/HomeResultsTicker";
+import HomeDivisionExplorer from "@/components/website/home/HomeDivisionExplorer";
+
+const GALLERY_PLACEHOLDERS = [
+  { title: "Premier division", tone: "from-emerald-600 to-[#06054e]" },
+  { title: "Junior finals", tone: "from-amber-500 to-orange-700" },
+  { title: "Community day", tone: "from-sky-600 to-indigo-900" },
+  { title: "Representative", tone: "from-violet-600 to-[#06054e]" },
+];
 
 export default async function HomePage() {
-  // Fetch data
-  const upcomingMatches = await getUpcomingMatches();
-  const recentMatches = await getRecentMatches(3);
-  const divisions = await getCurrentSeasonStandings();
-  const clubs = await getClubs();
+  const [upcomingMatches, recentMatches, divisions, clubs, newsItems] =
+    await Promise.all([
+      getUpcomingMatches(),
+      getRecentMatches(24),
+      getCurrentSeasonStandings(),
+      getClubs(),
+      getPublicNewsItems(5),
+    ]);
 
-  // Get feature match (first upcoming)
   const featureMatch = upcomingMatches[0];
 
-  // Get top division standings (first 5 teams)
-  const topDivision = divisions[0];
-  const topTeams = topDivision?.teams.slice(0, 5) || [];
+  const tickerLines: TickerLine[] = recentMatches.map((m) => {
+    const hs = m.score?.home ?? "—";
+    const awayScr = m.score?.away ?? "—";
+    return {
+      key: m.matchId,
+      text: `${m.division} · ${m.homeTeam.name} ${hs}–${awayScr} ${m.awayTeam.name}`,
+    };
+  });
+
+  const divisionExplorerData = divisions.map((d) => ({
+    divisionName: d.divisionName,
+    slug: d.slug,
+    teams: d.teams.map((t) => ({
+      club: t.club,
+      icon: t.icon,
+      pts: t.pts,
+    })),
+  }));
+
+  const upcomingLite = upcomingMatches.map((m) => ({
+    matchId: m.matchId,
+    division: m.division,
+    dateTime: m.dateTime,
+    venue: m.venue,
+    homeTeam: { name: m.homeTeam.name, icon: m.homeTeam.icon },
+    awayTeam: { name: m.awayTeam.name, icon: m.awayTeam.icon },
+  }));
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#06054e] via-slate-900 to-slate-800">
-      {/* Hero Section - Feature Match */}
-      {featureMatch && (
-        <section className="relative bg-gradient-to-br from-[#06054e] to-[#0a0870] text-white overflow-hidden">
-          <div className="absolute inset-0 opacity-10">
-            <div className="absolute inset-0 bg-[url('/pattern.svg')] bg-repeat"></div>
-          </div>
+    <div className="min-h-screen bg-gradient-to-br from-slate-100 via-white to-slate-100">
+      <HomeResultsTicker lines={tickerLines} />
 
-          <div className="relative max-w-7xl mx-auto px-4 py-16 md:py-24">
-            <div className="text-center mb-8">
-              <div className="inline-block px-4 py-2 bg-white/10 backdrop-blur-md rounded-full mb-4">
-                <span className="text-xs font-black uppercase tracking-wider">
-                  Feature Match
-                </span>
-              </div>
-              <h1 className="text-4xl md:text-6xl font-black uppercase mb-2">
+      {/* Compact feature strip */}
+      {featureMatch && (
+        <section className="bg-gradient-to-r from-[#06054e] to-[#12106e] text-white">
+          <div className="max-w-7xl mx-auto px-4 py-8 flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-widest text-yellow-300/90 mb-1">
+                Next feature fixture
+              </p>
+              <h1 className="text-2xl md:text-3xl font-black uppercase">
                 {featureMatch.division}
               </h1>
-              <p className="text-lg opacity-80">
-                {new Date(featureMatch.dateTime).toLocaleDateString("en-AU", {
+              <p className="text-sm text-white/75 mt-1">
+                {new Date(featureMatch.dateTime).toLocaleString("en-AU", {
                   weekday: "long",
-                  year: "numeric",
-                  month: "long",
                   day: "numeric",
-                })}
+                  month: "long",
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}{" "}
+                · {featureMatch.venue}
+              </p>
+              <p className="mt-2 font-bold text-lg">
+                {featureMatch.homeTeam.name}{" "}
+                <span className="text-white/50 font-black mx-1">v</span>{" "}
+                {featureMatch.awayTeam.name}
               </p>
             </div>
-
-            {/* Match Details */}
-            <div className="max-w-4xl mx-auto">
-              <div className="bg-white/10 backdrop-blur-md rounded-3xl p-8 border border-white/20">
-                <div className="grid grid-cols-3 gap-8 items-center">
-                  {/* Home Team */}
-                  <div className="text-center">
-                    <div className="relative w-24 h-24 mx-auto mb-4">
-                      {featureMatch.homeTeam.icon ? (
-                        <Image
-                          src={featureMatch.homeTeam.icon}
-                          alt={featureMatch.homeTeam.name}
-                          fill
-                          className="object-contain"
-                        />
-                      ) : (
-                        <div
-                          className="w-24 h-24 rounded-2xl bg-white/10 border border-white/20"
-                          aria-hidden
-                        />
-                      )}
-                    </div>
-                    <h2 className="text-xl font-black uppercase">
-                      {featureMatch.homeTeam.name}
-                    </h2>
-                  </div>
-
-                  {/* VS / Time */}
-                  <div className="text-center">
-                    <div className="text-5xl font-black mb-2">VS</div>
-                    <div className="text-sm opacity-80">
-                      {new Date(featureMatch.dateTime).toLocaleTimeString(
-                        "en-AU",
-                        {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        },
-                      )}
-                    </div>
-                    <div className="text-xs opacity-60 mt-1">
-                      {featureMatch.venue}
-                    </div>
-                  </div>
-
-                  {/* Away Team */}
-                  <div className="text-center">
-                    <div className="relative w-24 h-24 mx-auto mb-4">
-                      {featureMatch.awayTeam.icon ? (
-                        <Image
-                          src={featureMatch.awayTeam.icon}
-                          alt={featureMatch.awayTeam.name}
-                          fill
-                          className="object-contain"
-                        />
-                      ) : (
-                        <div
-                          className="w-24 h-24 rounded-2xl bg-white/10 border border-white/20"
-                          aria-hidden
-                        />
-                      )}
-                    </div>
-                    <h2 className="text-xl font-black uppercase">
-                      {featureMatch.awayTeam.name}
-                    </h2>
-                  </div>
-                </div>
-
-                <div className="mt-8 text-center">
-                  <Link
-                    href={`/competitions/matches`}
-                    className="inline-block px-8 py-3 bg-white text-[#06054e] rounded-full font-black uppercase text-sm hover:bg-slate-100 transition-all"
-                  >
-                    View Match Details
-                  </Link>
-                </div>
-              </div>
-            </div>
+            <Link
+              href="/competitions/matches"
+              className="inline-flex items-center justify-center px-8 py-3 rounded-full bg-yellow-400 text-[#06054e] text-sm font-black uppercase hover:bg-yellow-300 transition-colors shrink-0"
+            >
+              All fixtures
+            </Link>
           </div>
         </section>
       )}
 
-      {/* Main Content Grid */}
-      <section className="max-w-7xl mx-auto px-4 py-12">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Left Column - Latest Results & Upcoming */}
-          <div className="lg:col-span-2 space-y-8">
-            {/* Latest Results */}
-            <div>
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-2xl font-black uppercase text-[#06054e]">
-                  Latest Results
-                </h2>
-                <Link
-                  href="/competitions/matches"
-                  className="text-sm font-black uppercase text-slate-600 hover:text-[#06054e]"
-                >
-                  View All →
-                </Link>
-              </div>
-
-              <div className="space-y-4">
-                {recentMatches.map((match) => (
-                  <div
-                    key={match.matchId}
-                    className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 hover:shadow-md transition-all"
-                  >
-                    <div className="flex items-center justify-between mb-4">
-                      <span className="text-xs font-black uppercase text-slate-400">
-                        {match.division}
-                      </span>
-                      <span className="px-3 py-1 bg-slate-100 rounded-full text-xs font-bold text-slate-600">
-                        {match.status}
-                      </span>
-                    </div>
-
-                    <div className="grid grid-cols-3 gap-4 items-center">
-                      {/* Home Team */}
-                      <div className="flex items-center gap-3">
-                        <div className="relative w-10 h-10 flex-shrink-0">
-                          {match.homeTeam.icon ? (
-                            <Image
-                              src={match.homeTeam.icon}
-                              alt={match.homeTeam.name}
-                              fill
-                              className="object-contain"
-                            />
-                          ) : (
-                            <div
-                              className="w-10 h-10 rounded-lg bg-slate-100 border border-slate-200"
-                              aria-hidden
-                            />
-                          )}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="font-black text-sm truncate">
-                            {match.homeTeam.name}
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Score */}
-                      <div className="text-center">
-                        {match.score ? (
-                          <div className="text-2xl font-black">
-                            {match.score.home} - {match.score.away}
-                          </div>
-                        ) : (
-                          <div className="text-sm font-bold text-slate-400">
-                            VS
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Away Team */}
-                      <div className="flex items-center gap-3 justify-end">
-                        <div className="flex-1 min-w-0 text-right">
-                          <div className="font-black text-sm truncate">
-                            {match.awayTeam.name}
-                          </div>
-                        </div>
-                        <div className="relative w-10 h-10 flex-shrink-0">
-                          {match.awayTeam.icon ? (
-                            <Image
-                              src={match.awayTeam.icon}
-                              alt={match.awayTeam.name}
-                              fill
-                              className="object-contain"
-                            />
-                          ) : (
-                            <div
-                              className="w-10 h-10 rounded-lg bg-slate-100 border border-slate-200"
-                              aria-hidden
-                            />
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
+      {/* Gallery strip */}
+      <section className="max-w-7xl mx-auto px-4 py-10">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-black uppercase text-[#06054e]">
+            Gallery
+          </h2>
+          <span className="text-xs text-slate-500">
+            Highlights from around the grounds
+          </span>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+          {GALLERY_PLACEHOLDERS.map((g) => (
+            <div
+              key={g.title}
+              className={`relative aspect-[4/3] rounded-2xl overflow-hidden bg-gradient-to-br ${g.tone} shadow-md border border-white/20`}
+            >
+              <div className="absolute inset-0 flex items-end p-4">
+                <span className="text-white text-xs font-black uppercase tracking-wide drop-shadow-md">
+                  {g.title}
+                </span>
               </div>
             </div>
+          ))}
+        </div>
+      </section>
 
-            {/* Upcoming Matches */}
+      <section className="max-w-7xl mx-auto px-4 pb-14">
+        <div className="grid grid-cols-1 xl:grid-cols-12 gap-10">
+          {/* News + sponsors */}
+          <div className="xl:col-span-4 space-y-10">
             <div>
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-2xl font-black uppercase text-[#06054e]">
-                  Upcoming Matches
-                </h2>
-                <Link
-                  href="/competitions/matches"
-                  className="text-sm font-black uppercase text-slate-600 hover:text-[#06054e]"
-                >
-                  View All →
-                </Link>
-              </div>
-
-              <div className="space-y-4">
-                {upcomingMatches.slice(0, 3).map((match) => (
-                  <div
-                    key={match.matchId}
-                    className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 hover:shadow-md transition-all"
-                  >
-                    <div className="flex items-center justify-between mb-4">
-                      <span className="text-xs font-black uppercase text-slate-400">
-                        {match.division}
-                      </span>
-                      <span className="text-xs font-bold text-slate-600">
-                        {new Date(match.dateTime).toLocaleDateString("en-AU", {
-                          month: "short",
-                          day: "numeric",
-                        })}{" "}
-                        {new Date(match.dateTime).toLocaleTimeString("en-AU", {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
-                      </span>
-                    </div>
-
-                    <div className="grid grid-cols-3 gap-4 items-center">
-                      {/* Home Team */}
-                      <div className="flex items-center gap-3">
-                        <div className="relative w-10 h-10 flex-shrink-0">
-                          {match.homeTeam.icon ? (
-                            <Image
-                              src={match.homeTeam.icon}
-                              alt={match.homeTeam.name}
-                              fill
-                              className="object-contain"
-                            />
-                          ) : (
-                            <div
-                              className="w-10 h-10 rounded-lg bg-slate-100 border border-slate-200"
-                              aria-hidden
-                            />
-                          )}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="font-black text-sm truncate">
-                            {match.homeTeam.name}
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* VS */}
-                      <div className="text-center">
-                        <div className="text-sm font-bold text-slate-400">
-                          VS
-                        </div>
-                      </div>
-
-                      {/* Away Team */}
-                      <div className="flex items-center gap-3 justify-end">
-                        <div className="flex-1 min-w-0 text-right">
-                          <div className="font-black text-sm truncate">
-                            {match.awayTeam.name}
-                          </div>
-                        </div>
-                        <div className="relative w-10 h-10 flex-shrink-0">
-                          {match.awayTeam.icon ? (
-                            <Image
-                              src={match.awayTeam.icon}
-                              alt={match.awayTeam.name}
-                              fill
-                              className="object-contain"
-                            />
-                          ) : (
-                            <div
-                              className="w-10 h-10 rounded-lg bg-slate-100 border border-slate-200"
-                              aria-hidden
-                            />
-                          )}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="mt-3 pt-3 border-t border-slate-100">
-                      <div className="text-xs text-slate-500">
-                        📍 {match.venue}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Right Column - Ladder & News */}
-          <div className="space-y-8">
-            {/* Ladder Preview */}
-            <div>
-              <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center justify-between mb-4">
                 <h2 className="text-xl font-black uppercase text-[#06054e]">
-                  Ladder
+                  News
                 </h2>
                 <Link
-                  href="/competitions/standings"
-                  className="text-xs font-black uppercase text-slate-600 hover:text-[#06054e]"
+                  href="/news"
+                  className="text-xs font-black uppercase text-slate-500 hover:text-[#06054e]"
                 >
-                  Full Ladder →
+                  All news →
                 </Link>
               </div>
-
-              {topDivision && (
-                <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-                  <div className="bg-[#06054e] px-4 py-3">
-                    <h3 className="text-sm font-black uppercase text-white">
-                      {topDivision.divisionName}
-                    </h3>
-                  </div>
-
-                  <div className="divide-y divide-slate-100">
-                    {topTeams.map((team, index) => (
-                      <div
-                        key={team.club}
-                        className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 transition-colors"
-                      >
-                        <div className="w-6 text-center">
-                          <span className="text-sm font-black text-slate-400">
-                            {index + 1}
-                          </span>
-                        </div>
-                        <div className="relative w-8 h-8 flex-shrink-0">
-                          <Image
-                            src={team.icon}
-                            alt={team.club}
-                            fill
-                            className="object-contain"
-                          />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="text-sm font-bold truncate">
-                            {team.club}
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <div className="text-sm font-black text-[#06054e]">
-                            {team.pts}
-                          </div>
-                          <div className="text-xs text-slate-400">pts</div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+              {newsItems.length === 0 ? (
+                <p className="text-sm text-slate-500 rounded-2xl border border-dashed border-slate-200 p-6">
+                  News articles will appear here when published.
+                </p>
+              ) : (
+                <ul className="space-y-3">
+                  {newsItems.map((n) => (
+                    <li
+                      key={n.id}
+                      className="rounded-2xl bg-white border border-slate-200 p-4 shadow-sm"
+                    >
+                      <h3 className="font-black text-slate-900 text-sm leading-snug">
+                        {n.title}
+                      </h3>
+                      {n.publishDate && (
+                        <p className="text-[10px] text-slate-400 mt-1 uppercase font-bold">
+                          {n.publishDate.toLocaleDateString("en-AU")}
+                        </p>
+                      )}
+                    </li>
+                  ))}
+                </ul>
               )}
             </div>
 
-            {/* Featured Clubs */}
             <div>
-              <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-black uppercase text-[#06054e] mb-4">
+                Sponsors
+              </h2>
+              <div className="rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50/80 p-8 text-center">
+                <p className="text-sm font-bold text-slate-500">
+                  Partner logos and sponsor messaging will be shown here.
+                </p>
+                <p className="text-xs text-slate-400 mt-2">
+                  Contact the association to support local hockey.
+                </p>
+              </div>
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-4">
                 <h2 className="text-xl font-black uppercase text-[#06054e]">
-                  Featured Clubs
+                  Clubs
                 </h2>
                 <Link
                   href="/clubs"
-                  className="text-xs font-black uppercase text-slate-600 hover:text-[#06054e]"
+                  className="text-xs font-black uppercase text-slate-500 hover:text-[#06054e]"
                 >
-                  All Clubs →
+                  Directory →
                 </Link>
               </div>
-
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-3">
                 {clubs.slice(0, 4).map((club) => (
                   <Link
                     key={club.slug}
                     href={`/clubs/${club.slug}`}
-                    className="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 hover:shadow-md transition-all text-center group"
+                    className="bg-white rounded-2xl p-4 border border-slate-200 hover:shadow-md transition-shadow text-center"
                   >
-                    <div className="relative w-16 h-16 mx-auto mb-3">
+                    <div className="relative w-12 h-12 mx-auto mb-2">
                       {club.logo || club.iconSrc ? (
                         <Image
                           src={(club.logo || club.iconSrc) as string}
-                          alt={club.name || club.title || "Club"}
+                          alt=""
                           fill
-                          className="object-contain group-hover:scale-110 transition-transform"
+                          className="object-contain"
                         />
                       ) : (
-                        <span className="text-4xl" aria-hidden>
+                        <span className="text-2xl" aria-hidden>
                           {club.icon ?? "🏑"}
                         </span>
                       )}
                     </div>
-                    <div className="text-xs font-black uppercase text-slate-900">
-                      {(club.shortName || club.name || club.title || "")
-                        .split(" ")[0]}
+                    <div className="text-[10px] font-black uppercase text-slate-800 truncate">
+                      {club.shortName || club.name || club.title || "Club"}
                     </div>
                   </Link>
                 ))}
               </div>
             </div>
           </div>
+
+          {/* Division fixtures + ladder */}
+          <div className="xl:col-span-8 rounded-3xl bg-white border border-slate-200 shadow-sm p-6 md:p-8">
+            <HomeDivisionExplorer
+              divisions={divisionExplorerData}
+              upcoming={upcomingLite}
+            />
+          </div>
         </div>
       </section>
 
-      {/* CTA Section */}
-      <section className="bg-gradient-to-r from-[#06054e] to-[#0a0870] text-white py-16">
+      <section className="bg-gradient-to-r from-[#06054e] to-[#0a0870] text-white py-14">
         <div className="max-w-7xl mx-auto px-4 text-center">
-          <h2 className="text-3xl md:text-4xl font-black uppercase mb-4">
-            Join Brisbane Hockey League
+          <h2 className="text-2xl md:text-3xl font-black uppercase mb-3">
+            Join Brisbane Hockey
           </h2>
-          <p className="text-lg opacity-80 mb-8 max-w-2xl mx-auto">
-            Be part of Queensland&apos;s premier hockey competition. Find a club
-            near you and start your journey today.
+          <p className="text-white/80 mb-8 max-w-xl mx-auto text-sm">
+            Find a club, follow your division, and get involved as a player,
+            coach, or volunteer.
           </p>
-          <div className="flex flex-wrap gap-4 justify-center">
+          <div className="flex flex-wrap gap-3 justify-center">
             <Link
               href="/clubs"
-              className="px-8 py-4 bg-white text-[#06054e] rounded-full font-black uppercase text-sm hover:bg-slate-100 transition-all"
+              className="px-6 py-3 bg-yellow-400 text-[#06054e] rounded-full font-black uppercase text-xs hover:bg-yellow-300"
             >
-              Find a Club
+              Find a club
+            </Link>
+            <Link
+              href="/competitions/leagues"
+              className="px-6 py-3 border-2 border-white/80 rounded-full font-black uppercase text-xs hover:bg-white/10"
+            >
+              Leagues
+            </Link>
+            <Link
+              href="/tournaments"
+              className="px-6 py-3 border-2 border-white/80 rounded-full font-black uppercase text-xs hover:bg-white/10"
+            >
+              Tournaments
             </Link>
             <Link
               href="/representative"
-              className="px-8 py-4 border-2 border-white rounded-full font-black uppercase text-sm hover:bg-white/10 transition-all"
+              className="px-6 py-3 border-2 border-white/80 rounded-full font-black uppercase text-xs hover:bg-white/10"
             >
-              Representative Teams
-            </Link>
-            <Link
-              href="/about"
-              className="px-8 py-4 border-2 border-white rounded-full font-black uppercase text-sm hover:bg-white/10 transition-all"
-            >
-              Learn More
+              Representative
             </Link>
           </div>
         </div>

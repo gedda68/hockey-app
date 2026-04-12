@@ -9,6 +9,7 @@ import { useAuth } from "@/lib/auth/AuthContext";
 import { User } from "@/lib/auth/AuthContext";
 import { useBrand } from "@/lib/contexts/BrandContext";
 import { toast } from "sonner";
+import AdminPersonaSwitcher from "@/components/admin/AdminPersonaSwitcher";
 
 // Roles that are scoped to a club
 const SIDEBAR_CLUB_ROLES = [
@@ -30,9 +31,60 @@ const SIDEBAR_ASSOC_ROLES = [
  */
 function getUserRoles(user: User): string[] {
   const roles = new Set<string>([user.role]);
-  // scopedRoles is not exposed on the client User type yet, but we check
-  // the primary role which covers most cases. Future: extend User with scopedRoles.
+  for (const sr of user.scopedRoles ?? []) {
+    if (sr?.role) roles.add(sr.role);
+  }
   return Array.from(roles);
+}
+
+const MENU_SECTION_ORDER = [
+  "workspace",
+  "overview",
+  "competition",
+  "directory",
+  "finance",
+  "governance",
+  "content",
+  "reporting",
+  "personal",
+  "platform",
+  "other",
+] as const;
+
+const MENU_SECTION_LABELS: Record<string, string> = {
+  workspace: "Your organisation",
+  overview: "Overview",
+  competition: "Competition",
+  directory: "People & clubs",
+  finance: "Finance",
+  governance: "Access & roles",
+  content: "Content",
+  reporting: "Reporting & data",
+  personal: "For you",
+  platform: "Platform",
+  other: "More",
+};
+
+function groupMenuBySection(items: MenuItem[]): { key: string; label: string; items: MenuItem[] }[] {
+  const buckets = new Map<string, MenuItem[]>();
+  for (const item of items) {
+    const sec = item.section ?? "other";
+    const list = buckets.get(sec) ?? [];
+    list.push(item);
+    buckets.set(sec, list);
+  }
+  const ordered: string[] = [];
+  for (const k of MENU_SECTION_ORDER) {
+    if (buckets.has(k)) ordered.push(k);
+  }
+  for (const k of buckets.keys()) {
+    if (!ordered.includes(k)) ordered.push(k);
+  }
+  return ordered.map((key) => ({
+    key,
+    label: MENU_SECTION_LABELS[key] ?? key,
+    items: buckets.get(key)!,
+  }));
 }
 
 /**
@@ -123,6 +175,7 @@ function buildMenuForUser(user: User | null): MenuItem[] {
       href: `/admin/clubs/${clubRef}/edit`,
       icon: "🏢",
       description: "Club management",
+      section: "workspace",
     };
     items = [myClub, ...items];
   } else if (SIDEBAR_ASSOC_ROLES.includes(role) && assocId) {
@@ -131,6 +184,7 @@ function buildMenuForUser(user: User | null): MenuItem[] {
       href: `/admin/associations/${assocId}`,
       icon: "🏛️",
       description: "Association management",
+      section: "workspace",
     };
     items = [myAssoc, ...items];
   }
@@ -164,7 +218,7 @@ export default function AdminSidebar() {
     toast.success("Logged out");
   };
 
-  const visibleMenu  = buildMenuForUser(user);
+  const visibleMenu  = groupMenuBySection(buildMenuForUser(user));
   const displayName  = user
     ? `${user.firstName || ""} ${user.lastName || ""}`.trim() || user.username
     : "Admin User";
@@ -241,23 +295,31 @@ export default function AdminSidebar() {
 
         {/* Navigation */}
         <nav className="flex-1 overflow-y-auto py-4">
-          <ul className="space-y-1">
-            {visibleMenu.map((item) => (
-              <SidebarItem
-                key={item.label}
-                item={item}
-                pathname={pathname}
-                expandedMenus={expandedMenus}
-                toggleMenu={toggleMenu}
-                expandedSubMenus={expandedSubMenus}
-                toggleSubMenu={toggleSubMenu}
-              />
-            ))}
-          </ul>
+          {visibleMenu.map((group) => (
+            <div key={group.key} className="mb-5 last:mb-0">
+              <div className="px-4 pb-2 text-[10px] font-black uppercase tracking-widest text-white/45">
+                {group.label}
+              </div>
+              <ul className="space-y-1">
+                {group.items.map((item) => (
+                  <SidebarItem
+                    key={item.label}
+                    item={item}
+                    pathname={pathname}
+                    expandedMenus={expandedMenus}
+                    toggleMenu={toggleMenu}
+                    expandedSubMenus={expandedSubMenus}
+                    toggleSubMenu={toggleSubMenu}
+                  />
+                ))}
+              </ul>
+            </div>
+          ))}
         </nav>
 
-        {/* Footer — user info + logout */}
+        {/* Footer — persona switcher, user info + logout */}
         <div className="p-4 border-t border-white/10">
+          <AdminPersonaSwitcher />
           <div className="flex items-center gap-3">
             <div
               className="w-9 h-9 rounded-full flex items-center justify-center font-black text-sm flex-shrink-0"

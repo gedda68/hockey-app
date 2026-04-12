@@ -30,11 +30,14 @@ const navItems = [
     icon: Calendar,
     children: [
       { name: "Competitions", href: "/competitions" },
+      { name: "Leagues", href: "/competitions/leagues" },
+      { name: "Tournaments", href: "/tournaments" },
       { name: "Fixtures", href: "/competitions/matches" },
       { name: "Ladder", href: "/competitions/standings" },
       { name: "Calendar", href: "/competitions/events" },
-      { name: "Umpire Allocations", href: "/competitions/officials" },
+      { name: "Umpire allocations", href: "/competitions/officials" },
       { name: "Statistics", href: "/competitions/statistics" },
+      { name: "News", href: "/news" },
     ],
   },
   { name: "Play Hockey", href: "/play", icon: Play },
@@ -67,6 +70,13 @@ export default function TopNavbar({ clubs }: TopNavbarProps) {
   const router = useRouter();
   const { user, logout } = useAuth();
   const isAuthenticated = !!user;
+  const umpiringRoles = ["umpire", "technical-official"];
+  const showMyUmpiring =
+    !!user &&
+    umpiringRoles.some((r) => {
+      if (user.role === r) return true;
+      return (user.scopedRoles ?? []).some((sr) => sr.role === r);
+    });
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Lock vertical scroll only when mobile menu is open
@@ -233,6 +243,7 @@ export default function TopNavbar({ clubs }: TopNavbarProps) {
                 {/* My umpiring / Logout */}
                 {isAuthenticated ? (
                   <>
+                    {showMyUmpiring && (
                     <Link
                       href="/my-umpiring"
                       className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm font-bold uppercase tracking-wider transition-colors ml-1 ${
@@ -244,6 +255,7 @@ export default function TopNavbar({ clubs }: TopNavbarProps) {
                       <ClipboardCheck className="h-4 w-4" />
                       My umpiring
                     </Link>
+                    )}
                     <button
                       onClick={handleLogout}
                       className="flex items-center gap-2 px-4 py-2 bg-yellow-400 text-[#06054e] rounded-md text-sm font-bold uppercase tracking-wider hover:bg-yellow-300 transition-colors shadow-lg ml-2"
@@ -378,6 +390,7 @@ export default function TopNavbar({ clubs }: TopNavbarProps) {
           <div className="mt-4 px-2 space-y-2">
             {isAuthenticated ? (
               <>
+                {showMyUmpiring && (
                 <Link
                   href="/my-umpiring"
                   onClick={() => setIsOpen(false)}
@@ -392,6 +405,7 @@ export default function TopNavbar({ clubs }: TopNavbarProps) {
                     My umpiring
                   </span>
                 </Link>
+                )}
                 <button
                   onClick={() => {
                     setIsOpen(false);

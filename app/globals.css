@@ -53,3 +53,23 @@ body,
 .input {
   @apply w-full px-3 py-2 border rounded-xl font-bold;
 }
+
+/* Public home — scrolling results ticker */
+@keyframes home-marquee {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.home-marquee-track {
+  display: flex;
+  width: max-content;
+  animation: home-marquee 50s linear infinite;
+}
+
+.home-marquee-track:hover {
+  animation-play-state: paused;
+}

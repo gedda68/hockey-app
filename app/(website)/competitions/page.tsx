@@ -83,6 +83,20 @@ export default function EventDashboard() {
         <p className="text-center text-white/70 text-[10px] font-black uppercase tracking-[0.6em] mt-3">
           Brisbane Hockey Association • Season 2026
         </p>
+        <div className="flex flex-wrap justify-center gap-2 sm:gap-3 mt-6">
+          <Link
+            href="/competitions/leagues"
+            className="rounded-full border border-white/20 bg-white/5 px-4 py-2 text-[10px] font-black uppercase tracking-widest text-yellow-200 hover:bg-white/10 transition-colors"
+          >
+            League hubs (2025 / 2026)
+          </Link>
+          <Link
+            href="/tournaments"
+            className="rounded-full border border-white/20 bg-white/5 px-4 py-2 text-[10px] font-black uppercase tracking-widest text-sky-200 hover:bg-white/10 transition-colors"
+          >
+            Tournaments
+          </Link>
+        </div>
       </div>
 
       {/* 3. GRID CONTAINER (4 Wide on Desktop) */}
