@@ -189,4 +189,31 @@ describe("evaluateAdminRouteAccess", () => {
       ),
     ).toBe("allow");
   });
+
+  it("allows assoc-selector to association selection-policy hub (not ASSOCIATION_TREE_ROLES)", () => {
+    expect(
+      evaluateAdminRouteAccess(
+        "/admin/associations/selection-policy",
+        session({ role: "assoc-selector", associationId: "bha" }),
+      ),
+    ).toBe("allow");
+  });
+
+  it("denies assoc-selector from another association selection-policy page", () => {
+    expect(
+      evaluateAdminRouteAccess(
+        "/admin/associations/other-assoc/selection-policy",
+        session({ role: "assoc-selector", associationId: "bha" }),
+      ),
+    ).toBe("deny");
+  });
+
+  it("allows club-admin to clubs selection-policy hub", () => {
+    expect(
+      evaluateAdminRouteAccess(
+        "/admin/clubs/selection-policy",
+        session({ role: "club-admin", clubId: "chc" }),
+      ),
+    ).toBe("allow");
+  });
 });

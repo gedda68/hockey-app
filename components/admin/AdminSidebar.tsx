@@ -135,6 +135,22 @@ function resolvedFeesItem(
   return { label: "Fees", href: "/admin/fees", icon: "💵", description: "Fee management" };
 }
 
+/** Primary “Team selection policy” menu target: scoped org, else association hub. */
+function resolvedSelectionPolicyHref(user: User): string {
+  const roles = getUserRoles(user);
+  if (roles.includes("super-admin")) {
+    return "/admin/associations/selection-policy";
+  }
+  if (roles.some((r) => SIDEBAR_CLUB_ROLES.includes(r))) {
+    const ref = user.clubSlug || user.clubId;
+    if (ref) return `/admin/clubs/${ref}/selection-policy`;
+  }
+  if (roles.some((r) => SIDEBAR_ASSOC_ROLES.includes(r)) && user.associationId) {
+    return `/admin/associations/${user.associationId}/selection-policy`;
+  }
+  return "/admin/associations/selection-policy";
+}
+
 /**
  * Builds the full visible menu for a user:
  *   1. Start from menuConfig (role-filtered).
@@ -152,10 +168,14 @@ function buildMenuForUser(user: User | null): MenuItem[] {
   // ── 1. Filter all items by allowedRoles ─────────────────────────────────────
   let items = filterMenu(menuConfig, userRoles);
 
-  // ── 2. Replace generic Fees href with scope-specific one ────────────────────
+  // ── 2. Replace generic Fees / selection policy hrefs with scope-specific ones
   const fees = resolvedFeesItem(role, clubRef, assocId);
+  const selectionPolicyHref = resolvedSelectionPolicyHref(user);
   items = items.map((item) => {
     if (item.label === "Fees") return { ...item, href: fees.href };
+    if (item.label === "Team selection policy") {
+      return { ...item, href: selectionPolicyHref };
+    }
     // Also fix "Rep Fees" sub-item inside "Representative" for assoc roles
     if (item.label === "Representative" && item.subItems) {
       return {

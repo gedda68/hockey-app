@@ -2,6 +2,7 @@
 // Add player to a team roster + record selection history on the member.
 
 import { NextRequest, NextResponse } from "next/server";
+import { ObjectId } from "mongodb";
 import clientPromise from "@/lib/mongodb";
 import {
   requirePermission,
@@ -31,7 +32,7 @@ export async function POST(
     }
 
     const client = await clientPromise;
-    const db = client.db("hockey-app");
+    const db = client.db(process.env.DB_NAME || "hockey-app");
 
     // Get roster
     const roster = await db.collection("teamRosters").findOne({ id: rosterId });
@@ -62,11 +63,25 @@ export async function POST(
       );
     }
 
-    const member = await db.collection("members").findOne({
-      memberId: playerId,
+    const memberFilter = {
       ...memberBelongsToClubFilter(rosterClubId),
       "membership.status": { $in: ACTIVE_MEMBERSHIP_STATUSES },
+    };
+    const pid = String(playerId).trim();
+    let member = await db.collection("members").findOne({
+      memberId: pid,
+      ...memberFilter,
     });
+    if (!member && /^[0-9a-f]{24}$/i.test(pid)) {
+      try {
+        member = await db.collection("members").findOne({
+          _id: new ObjectId(pid),
+          ...memberFilter,
+        });
+      } catch {
+        /* invalid ObjectId */
+      }
+    }
     if (!member) {
       return NextResponse.json(
         {

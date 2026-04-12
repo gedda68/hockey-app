@@ -106,6 +106,15 @@ const STAFF_ROLES = [
   "club-admin", "club-committee",
 ];
 
+/** View/edit team selection policy at the right tier (sidebar rewrites primary link). */
+const SELECTION_POLICY_ROLES = [
+  "super-admin",
+  "association-admin", "assoc-committee", "assoc-coach", "assoc-selector", "assoc-registrar",
+  "assoc-competition",
+  "media-marketing",
+  "club-admin", "club-committee", "registrar", "coach", "manager", "team-selector",
+];
+
 /** Role-approval / expiry management */
 const APPROVALS_ROLES = [
   "super-admin",
@@ -137,6 +146,16 @@ export const menuConfig: MenuItem[] = [
     color: "from-sky-500 to-sky-600",
     section: "competition",
     allowedRoles: TEAM_ROLES,
+  },
+  {
+    label: "Team selection policy",
+    href: "/admin/associations/selection-policy",
+    icon: "📜",
+    description:
+      "National, state, metro, and club rules for roster movement, visibility, and approvals",
+    color: "from-indigo-500 to-violet-600",
+    section: "competition",
+    allowedRoles: SELECTION_POLICY_ROLES,
   },
 
   // ── Representative (association-level only) ──────────────────────────────────
@@ -317,6 +336,13 @@ export const menuConfig: MenuItem[] = [
         description: "View full association hierarchy",
         allowedRoles: ["super-admin", "association-admin", "assoc-committee"],
       },
+      {
+        label: "Association selection policy",
+        href: "/admin/associations/selection-policy",
+        icon: "📜",
+        description: "Movement, portal visibility, and roster governance by tier",
+        allowedRoles: SELECTION_POLICY_ROLES,
+      },
     ],
   },
 
@@ -343,6 +369,13 @@ export const menuConfig: MenuItem[] = [
         icon: "➕",
         description: "Register a new club",
         allowedRoles: ["super-admin", "association-admin"],
+      },
+      {
+        label: "Club selection policy",
+        href: "/admin/clubs/selection-policy",
+        icon: "📜",
+        description: "Club-level overrides on parent association rules",
+        allowedRoles: SELECTION_POLICY_ROLES,
       },
       // Future: /admin/clubs/profiles, /admin/clubs/stats
     ],

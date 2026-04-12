@@ -1,6 +1,8 @@
 /**
- * Product rules for moving players between competition divisions (senior ladder + juniors).
- * Cross-roster moves are not fully wired in the admin UI yet; callers can use this for validation later.
+ * Division strength ordering for movement checks (labels only).
+ * Configurable business rules live in Mongo (`selection_policies`) and merge via
+ * `resolveEffectiveTeamSelectionPolicy` in `@/lib/selection/teamSelectionPolicy`.
+ * Wire that merged policy into roster move / fixture validation when those APIs enforce caps.
  */
 
 export type DivisionBand = "junior" | "senior" | "masters" | "social";

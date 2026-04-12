@@ -97,6 +97,24 @@ const SETTINGS_ROLES = [
   "club-committee",
 ];
 
+/** Team selection policy UI + hubs (keep in sync with menuConfig SELECTION_POLICY_ROLES). */
+const SELECTION_POLICY_ROLES = [
+  "super-admin",
+  "association-admin",
+  "assoc-committee",
+  "assoc-coach",
+  "assoc-selector",
+  "assoc-registrar",
+  "assoc-competition",
+  "media-marketing",
+  "club-admin",
+  "club-committee",
+  "registrar",
+  "coach",
+  "manager",
+  "team-selector",
+];
+
 const ANY_ADMIN = [
   "super-admin",
   "association-admin",
@@ -134,6 +152,26 @@ const ROUTE_RULES: RouteRule[] = [
   { pattern: /^\/admin\/reports(\/|$)/, allowedRoles: ANY_ADMIN },
 
   { pattern: /^\/admin\/settings(\/|$)/, allowedRoles: SETTINGS_ROLES, scopeCheck: true },
+
+  {
+    pattern: /^\/admin\/associations\/selection-policy(\/|$)/,
+    allowedRoles: SELECTION_POLICY_ROLES,
+  },
+  {
+    pattern: /^\/admin\/associations\/[^/]+\/selection-policy(\/|$)/,
+    allowedRoles: SELECTION_POLICY_ROLES,
+    scopeCheck: true,
+  },
+  {
+    pattern: /^\/admin\/clubs\/selection-policy(\/|$)/,
+    allowedRoles: SELECTION_POLICY_ROLES,
+  },
+  {
+    pattern: /^\/admin\/clubs\/[^/]+\/selection-policy(\/|$)/,
+    allowedRoles: SELECTION_POLICY_ROLES,
+    scopeCheck: true,
+  },
+
   { pattern: /^\/admin\/associations(\/|$)/, allowedRoles: ASSOCIATION_TREE_ROLES, scopeCheck: true },
   { pattern: /^\/admin\/tournaments(\/|$)/, allowedRoles: ASSOCIATION_ROLES, scopeCheck: true },
 

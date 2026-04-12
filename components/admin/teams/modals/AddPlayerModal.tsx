@@ -7,8 +7,10 @@ import { useState, useEffect } from "react";
 import type { TeamRoster } from "@/types/admin/teams.types";
 
 interface Player {
+  /** Mongo _id (display/debug only) — API add-player expects `memberId`. */
   id: string;
   playerId: string;
+  memberId: string;
   firstName: string;
   lastName: string;
   preferredName?: string;
@@ -54,7 +56,8 @@ export default function AddPlayerModal({
   const [filteredPlayers, setFilteredPlayers] = useState<Player[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
-  const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
+  /** Canonical member id (e.g. CHC-0000009) — must match POST body `playerId`. */
+  const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
 
   const [playerNumber, setPlayerNumber] = useState("");
   const [playerPosition, setPlayerPosition] = useState("");
@@ -82,8 +85,8 @@ export default function AddPlayerModal({
 
   // When player is selected, apply smart defaults
   useEffect(() => {
-    if (selectedPlayerId) {
-      const player = players.find((p) => p.id === selectedPlayerId);
+    if (selectedMemberId) {
+      const player = players.find((p) => p.memberId === selectedMemberId);
       if (player) {
         // Smart defaults from last selection or primary position
         if (player.lastSelection) {
@@ -100,7 +103,7 @@ export default function AddPlayerModal({
       setPlayerNumber("");
       setPlayerPosition("");
     }
-  }, [selectedPlayerId, players]);
+  }, [selectedMemberId, players]);
 
   const fetchEligiblePlayers = async () => {
     setLoading(true);
@@ -118,16 +121,20 @@ export default function AddPlayerModal({
       const response = await fetch(url);
       const data = await response.json();
 
-      // Filter out players already in this roster
-      const allPlayersInRoster = new Set([
-        ...roster.teams.flatMap((t) => t.players.map((p) => p.id)),
-        ...roster.shadowPlayers.map((p) => p.id),
-        ...roster.withdrawn.map((p) => p.id),
-      ]);
+      const rosterMemberIds = new Set<string>();
+      const collect = (p: { id?: string; playerId?: string; memberId?: string }) => {
+        if (p.id) rosterMemberIds.add(String(p.id));
+        if (p.playerId) rosterMemberIds.add(String(p.playerId));
+        if (p.memberId) rosterMemberIds.add(String(p.memberId));
+      };
+      for (const t of roster.teams) for (const p of t.players) collect(p);
+      for (const p of roster.shadowPlayers) collect(p);
+      for (const p of roster.withdrawn) collect(p);
 
-      const eligible = (data.players || []).filter(
-        (p: Player) => !allPlayersInRoster.has(p.id),
-      );
+      const eligible = (data.players || []).filter((p: Player) => {
+        const mid = p.memberId || p.playerId;
+        return mid && !rosterMemberIds.has(mid) && !rosterMemberIds.has(p.id);
+      });
 
       setPlayers(eligible);
       setFilteredPlayers(eligible);
@@ -140,15 +147,15 @@ export default function AddPlayerModal({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (selectedPlayerId) {
-      onSubmit(selectedPlayerId, {
+    if (selectedMemberId) {
+      onSubmit(selectedMemberId, {
         number: playerNumber,
         position: playerPosition,
       });
     }
   };
 
-  const selectedPlayer = players.find((p) => p.id === selectedPlayerId);
+  const selectedPlayer = players.find((p) => p.memberId === selectedMemberId);
 
   return (
     <>
@@ -159,12 +166,15 @@ export default function AddPlayerModal({
 
       <div className="fixed inset-0 flex items-center justify-center p-4 z-[9999]">
         <div
-          className="bg-white rounded-3xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col"
+          className="flex min-h-0 max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-3xl bg-white shadow-2xl"
           onClick={(e) => e.stopPropagation()}
         >
-          <form onSubmit={handleSubmit} className="flex flex-col h-full">
+          <form
+            onSubmit={handleSubmit}
+            className="flex min-h-0 flex-1 flex-col overflow-hidden"
+          >
             {/* Header */}
-            <div className="bg-white border-b border-slate-200 px-8 py-6">
+            <div className="shrink-0 bg-white border-b border-slate-200 px-8 py-6">
               <div className="flex items-center justify-between mb-4">
                 <div>
                   <h2 className="text-2xl font-black uppercase text-[#06054e]">
@@ -211,10 +221,10 @@ export default function AddPlayerModal({
               </div>
             </div>
 
-            {/* Player List + Details */}
-            <div className="flex-1 overflow-hidden flex">
+            {/* Player List + Details — min-h-0 lets overflow-y-auto scroll inside flex */}
+            <div className="flex min-h-0 flex-1 overflow-hidden">
               {/* Player List (Left) */}
-              <div className="flex-1 overflow-y-auto px-8 py-6 border-r border-slate-200">
+              <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-8 py-6 border-r border-slate-200">
                 {loading ? (
                   <div className="text-center py-12">
                     <div className="w-12 h-12 border-4 border-[#06054e] border-t-transparent rounded-full animate-spin mx-auto"></div>
@@ -230,13 +240,20 @@ export default function AddPlayerModal({
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    {filteredPlayers.map((player) => (
+                    {filteredPlayers.map((player) => {
+                      const memberKey = player.memberId || player.playerId;
+                      return (
                       <button
-                        key={player.id}
+                        key={memberKey}
                         type="button"
-                        onClick={() => setSelectedPlayerId(player.id)}
+                        onClick={() =>
+                          setSelectedMemberId((prev) =>
+                            prev === memberKey ? null : memberKey,
+                          )
+                        }
+                        aria-pressed={selectedMemberId === memberKey}
                         className={`w-full p-4 rounded-xl border-2 transition-all text-left ${
-                          selectedPlayerId === player.id
+                          selectedMemberId === memberKey
                             ? "bg-blue-50 border-blue-500"
                             : "bg-white border-slate-200 hover:border-slate-300"
                         }`}
@@ -278,7 +295,7 @@ export default function AddPlayerModal({
                             </div>
                           </div>
 
-                          {selectedPlayerId === player.id && (
+                          {selectedMemberId === memberKey && (
                             <svg
                               className="w-6 h-6 text-blue-600 flex-shrink-0 ml-4"
                               fill="currentColor"
@@ -293,13 +310,14 @@ export default function AddPlayerModal({
                           )}
                         </div>
                       </button>
-                    ))}
+                    );
+                    })}
                   </div>
                 )}
               </div>
 
               {/* Player Details (Right) */}
-              <div className="w-96 bg-slate-50 p-8">
+              <div className="min-h-0 w-96 shrink-0 overflow-y-auto overscroll-contain bg-slate-50 p-8">
                 {selectedPlayer ? (
                   <div className="space-y-6">
                     <div>
@@ -394,7 +412,8 @@ export default function AddPlayerModal({
                     </svg>
                     <p className="font-bold">Select a player</p>
                     <p className="text-sm mt-2">
-                      Choose from the list to add details
+                      Choose from the list to add details. Click a selected
+                      player again to deselect.
                     </p>
                   </div>
                 )}
@@ -402,7 +421,7 @@ export default function AddPlayerModal({
             </div>
 
             {/* Footer */}
-            <div className="bg-slate-50 border-t border-slate-200 px-8 py-6 flex gap-3">
+            <div className="shrink-0 bg-slate-50 border-t border-slate-200 px-8 py-6 flex gap-3">
               <button
                 type="button"
                 onClick={onClose}
@@ -412,7 +431,7 @@ export default function AddPlayerModal({
               </button>
               <button
                 type="submit"
-                disabled={!selectedPlayerId}
+                disabled={!selectedMemberId}
                 className="flex-1 px-6 py-3 bg-[#06054e] text-white rounded-xl font-black uppercase text-sm hover:bg-blue-900 transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {selectedPlayer
