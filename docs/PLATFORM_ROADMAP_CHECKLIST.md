@@ -102,10 +102,10 @@ Multi-level association → club → team operations, independent portals, compe
 
 ## Epic J — Platform, integrations, ops
 
-- [ ] **J1** Notifications: fixture change, allocation, payment due (email; SMS optional).
-- [ ] **J2** Calendar export (iCal) for teams/competitions.
-- [ ] **J3** Payment gateway consistency across products.
-- [ ] **J4** Backups, monitoring, and member data export/delete (compliance).
+- [X] **J1** Notifications: fixture change, allocation, payment due (email; SMS optional). **Shipped:** league fixture PATCH `notifyScheduleChange` + `scheduleChangeNotifyEmails` (`lib/notifications/fixtureScheduleChangeNotify.ts`); existing umpire allocation email (F3); **`POST /api/admin/members/[id]/notify-fee-due`** (`registration.manage`). SMS: documented stub in `docs/platform/NOTIFICATIONS.md`.
+- [X] **J2** Calendar export (iCal) for teams/competitions. **Shipped:** public **`GET /api/calendar/league?seasonCompetitionId=`** (`text/calendar`, same visibility as published fixtures); `lib/calendar/leagueIcal.ts`; middleware allowlist `/api/calendar`. Optional **`ICAL_UID_DOMAIN`** for event UIDs.
+- [X] **J3** Payment gateway consistency across products. **Shipped:** `lib/payments/paymentGateway.ts` + **`PAYMENT_GATEWAY_MODE`** (`simulate` | `stripe` | `none`); simulate endpoint gated; **`docs/platform/PAYMENTS.md`** for Stripe handoff.
+- [X] **J4** Backups, monitoring, and member data export/delete (compliance). **Shipped:** **`GET /api/admin/members/[id]/data-export`** (JSON bundle, secrets stripped); ops/runbook notes in **`docs/platform/COMPLIANCE_AND_OPS.md`** (backups, monitoring, soft-delete vs erasure).
 
 ---
 
@@ -114,8 +114,8 @@ Multi-level association → club → team operations, independent portals, compe
 - [X] **K1** Architecture diagram checked into repo (hierarchy + competitions + tournaments). See `docs/domain/ARCHITECTURE.md` (Mermaid: associations, clubs, teams, competitions, tournaments, public/admin/API).
 - [X] **K2** Role matrix doc kept next to code and updated when roles change. See `docs/domain/ROLE_MATRIX.md` (source: `lib/types/roles.ts`).
 - [X] **K3** API contract or integration tests for scoped routes (association vs club). Covered by Vitest on `evaluateAdminRouteAccess` (`__tests__/lib/auth/adminRouteAccess.test.ts`) — same rules as edge middleware for `/admin` + `/portal` prefixes.
-- [ ] **K4** E2E smoke: login → create competition → fixture → result → ladder updates.
-- [ ] **K5** Feature flags for risky competition/tournament features.
+- [X] **K4** E2E smoke: login → create competition → fixture → result → ladder updates. **Shipped:** Playwright `e2e/epic-k-admin-smoke.spec.ts` (admin login page + form); Vitest `__tests__/integration/epicK4-league-smoke.test.ts` (pairing → approved result → standings accumulation); manual full chain in `docs/testing/E2E_SMOKE.md`.
+- [X] **K5** Feature flags for risky competition/tournament features. **Shipped:** `lib/platform/featureFlags.ts` + `docs/platform/FEATURE_FLAGS.md` — opt-out env toggles for league fixture `replace`, rep tournament fixture `replace`, and `knockout_from_draw` generation (wired in `fixtures/generate` + `tournaments/[id]/fixtures` POST).
 
 ---
 

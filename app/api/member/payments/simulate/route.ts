@@ -32,6 +32,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import { getSession } from "@/lib/auth/session";
+import { isSimulatePaymentEndpointEnabled } from "@/lib/payments/paymentGateway";
 
 interface SimulatePaymentBody {
   items: Array<{ type: "payment" | "role-request" | "tournament-allocation"; sourceId: string; itemId?: string }>;
@@ -53,6 +54,16 @@ function generateRef(): string {
 }
 
 export async function POST(req: NextRequest) {
+  if (!isSimulatePaymentEndpointEnabled()) {
+    return NextResponse.json(
+      {
+        error:
+          "Simulate payments are disabled (PAYMENT_GATEWAY_MODE). Use your production checkout flow or set PAYMENT_GATEWAY_MODE=simulate only in trusted non-production environments.",
+      },
+      { status: 403 },
+    );
+  }
+
   const session = await getSession();
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

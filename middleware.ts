@@ -63,6 +63,8 @@ function isPublicPath(path: string): boolean {
     "/api/auth/logout",
     "/api/auth/session",
     "/api/auth/me",
+    "/api/auth/forgot-password",
+    "/api/auth/reset-password",
     "/api/auth/switch-persona",
     "/api/auth/change-password",
     "/api/member/my-fees",
@@ -74,6 +76,7 @@ function isPublicPath(path: string): boolean {
     "/api/news",
     "/api/competitions",
     "/api/fixtures",
+    "/api/calendar",
     "/api/standings",
     "/api/players/lookup",
     "/api/nominations",
@@ -102,6 +105,17 @@ function isPublicPath(path: string): boolean {
 
 export async function middleware(request: NextRequest) {
   const path = request.nextUrl.pathname;
+
+  // 0. Login / auth UI — always allow (belt-and-suspenders; avoids any redirect loop if
+  //    path matching or list drift ever misses `/login` or `/admin/login`).
+  if (
+    path === "/login" ||
+    path.startsWith("/login/") ||
+    path === "/admin/login" ||
+    path.startsWith("/admin/login/")
+  ) {
+    return NextResponse.next();
+  }
 
   // 1. Skip fully public paths
   if (isPublicPath(path)) return NextResponse.next();

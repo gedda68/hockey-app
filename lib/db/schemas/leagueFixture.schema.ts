@@ -185,6 +185,12 @@ export const PatchLeagueFixtureBodySchema = z
      * When true with `umpires`, send assignment emails to officials with member emails (F3 follow-up).
      */
     notifyAssignedUmpires: z.boolean().optional(),
+    /**
+     * J1 — When true, send schedule/venue change emails to `scheduleChangeNotifyEmails`.
+     * Only runs if the fixture is published after this patch and time/venue/address changed.
+     */
+    notifyScheduleChange: z.boolean().optional(),
+    scheduleChangeNotifyEmails: z.array(z.string().email()).max(10).optional(),
   })
   .strict()
   .refine((data) => Object.values(data).some((v) => v !== undefined), {
@@ -195,6 +201,17 @@ export const PatchLeagueFixtureBodySchema = z
     {
       message: "notifyAssignedUmpires requires umpires in the same request",
       path: ["notifyAssignedUmpires"],
+    },
+  )
+  .refine(
+    (data) =>
+      !data.notifyScheduleChange ||
+      (Array.isArray(data.scheduleChangeNotifyEmails) &&
+        data.scheduleChangeNotifyEmails.length > 0),
+    {
+      message:
+        "notifyScheduleChange requires scheduleChangeNotifyEmails (1–10 addresses)",
+      path: ["scheduleChangeNotifyEmails"],
     },
   );
 

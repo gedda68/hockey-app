@@ -19,6 +19,10 @@ import {
   applyUmpireAssignmentEmailNotifications,
   type UmpireSlotInput,
 } from "@/lib/officiating/umpireAssignmentNotify";
+import {
+  scheduleOrVenueChanged,
+  sendFixtureScheduleChangeEmails,
+} from "@/lib/notifications/fixtureScheduleChangeNotify";
 
 type Params = {
   params: Promise<{ seasonCompetitionId: string; fixtureId: string }>;
@@ -207,6 +211,54 @@ export async function PATCH(request: NextRequest, { params }: Params) {
         ...(coiOverrides.length ? { coiOverrides } : {}),
       },
     });
+
+    if (
+      body.notifyScheduleChange &&
+      body.scheduleChangeNotifyEmails?.length &&
+      updated?.published
+    ) {
+      const beforeLoc = {
+        scheduledStart: existing.scheduledStart as string | null | undefined,
+        venueName: existing.venueName as string | null | undefined,
+        addressLine: existing.addressLine as string | null | undefined,
+      };
+      const afterLoc = {
+        scheduledStart: updated.scheduledStart as string | null | undefined,
+        venueName: updated.venueName as string | null | undefined,
+        addressLine: updated.addressLine as string | null | undefined,
+      };
+      if (scheduleOrVenueChanged({ before: beforeLoc, after: afterLoc })) {
+        const homeTeamId = String(updated.homeTeamId ?? "");
+        const awayTeamId = String(updated.awayTeamId ?? "");
+        const [home, away] = await Promise.all([
+          homeTeamId
+            ? db.collection("teams").findOne({ teamId: homeTeamId })
+            : null,
+          awayTeamId
+            ? db.collection("teams").findOne({ teamId: awayTeamId })
+            : null,
+        ]);
+        const homeName = String(home?.name ?? homeTeamId);
+        const awayName = String(away?.name ?? awayTeamId);
+        const label = String(
+          (sc as { displayName?: string }).displayName ??
+            (sc as { competitionName?: string }).competitionName ??
+            (sc as { competitionId?: string }).competitionId ??
+            seasonCompetitionId,
+        );
+        await sendFixtureScheduleChangeEmails({
+          to: body.scheduleChangeNotifyEmails,
+          competitionLabel: label,
+          round: Number(updated.round ?? 0),
+          homeName,
+          awayName,
+          fixtureId,
+          seasonCompetitionId,
+          before: beforeLoc,
+          after: afterLoc,
+        });
+      }
+    }
 
     return NextResponse.json({
       ...updated,

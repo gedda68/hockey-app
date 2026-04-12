@@ -53,5 +53,7 @@ flowchart TB
 - `docs/domain/ROLE_MATRIX.md` — roles, personas, enforcement layers.
 - `docs/domain/OWNERSHIP_MIGRATIONS.md` — club/association moves.
 - `docs/domain/MULTI_CLUB_AND_TRANSFERS.md` — multi-club membership, transfers, fee authority (A5).
+- `docs/platform/FEATURE_FLAGS.md` — opt-out toggles for risky league/tournament fixture operations (Epic K5).
+- `docs/platform/NOTIFICATIONS.md`, `PAYMENTS.md`, `COMPLIANCE_AND_OPS.md` — Epic J (email, payments mode, export/ops).
 
 **Edge middleware:** unauthenticated users are redirected to login; **forbidden** `/api/*` responses use **403 JSON** (not an HTML redirect) so clients can handle errors cleanly.

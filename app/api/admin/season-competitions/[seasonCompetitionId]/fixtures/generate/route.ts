@@ -11,6 +11,7 @@ import {
 import { generateRoundRobin } from "@/lib/competitions/roundRobin";
 import { logPlatformAudit } from "@/lib/audit/platformAuditLog";
 import { invalidateStandingsBundleCache } from "@/lib/competitions/standingsReadCache";
+import { isLeagueFixtureBulkReplaceEnabled } from "@/lib/platform/featureFlags";
 
 const BodySchema = z.object({
   teamIds: z.array(z.string().min(1)).min(2),
@@ -50,6 +51,16 @@ export async function POST(request: NextRequest, { params }: Params) {
       sc.owningAssociationId as string,
     );
     if (scope.response) return scope.response;
+
+    if (body.replace && !isLeagueFixtureBulkReplaceEnabled()) {
+      return NextResponse.json(
+        {
+          error:
+            "League fixture bulk replace is disabled (FEATURE_DISABLE_LEAGUE_FIXTURE_BULK_REPLACE).",
+        },
+        { status: 403 },
+      );
+    }
 
     const pairs = generateRoundRobin(body.teamIds, {
       doubleRound: body.doubleRound,

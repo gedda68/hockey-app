@@ -22,6 +22,10 @@ import {
   collectKnockoutSkeletonMatches,
   generateRepKnockoutFixturesFromDraw,
 } from "@/lib/tournaments/repTournamentKnockoutGenerate";
+import {
+  isRepTournamentFixtureReplaceEnabled,
+  isRepTournamentKnockoutFromDrawEnabled,
+} from "@/lib/platform/featureFlags";
 
 function buildFilter(id: string) {
   return ObjectId.isValid(id)
@@ -84,6 +88,26 @@ export async function POST(
     const { id } = await params;
     const body = RepTournamentFixturesGenerateBodySchema.parse(await request.json());
     const mode = body.mode ?? "pool_round_robin";
+
+    if (mode === "knockout_from_draw" && !isRepTournamentKnockoutFromDrawEnabled()) {
+      return NextResponse.json(
+        {
+          error:
+            "Knockout fixture generation is disabled (FEATURE_DISABLE_REP_TOURNAMENT_KNOCKOUT_GENERATE).",
+        },
+        { status: 403 },
+      );
+    }
+
+    if (body.replace && !isRepTournamentFixtureReplaceEnabled()) {
+      return NextResponse.json(
+        {
+          error:
+            "Tournament fixture replace is disabled (FEATURE_DISABLE_REP_TOURNAMENT_FIXTURE_REPLACE).",
+        },
+        { status: 403 },
+      );
+    }
 
     const client = await clientPromise;
     const db = client.db("hockey-app");
