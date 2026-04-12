@@ -7,6 +7,11 @@ import {
   requirePermission,
   requireResourceAccess,
 } from "@/lib/auth/middleware";
+import {
+  ACTIVE_MEMBERSHIP_STATUSES,
+  memberBelongsToClubFilter,
+} from "@/lib/rosters/memberClubQuery";
+import { sendTeamSelectionEmail } from "@/lib/notifications/teamSelectionNotify";
 
 export async function POST(
   request: NextRequest,
@@ -49,10 +54,28 @@ export async function POST(
       return NextResponse.json({ error: "Team not found" }, { status: 404 });
     }
 
-    // Look up player from members collection (playerId === memberId)
-    const member = await db.collection("members").findOne({ memberId: playerId });
+    const rosterClubId = roster.clubId != null ? String(roster.clubId) : "";
+    if (!rosterClubId) {
+      return NextResponse.json(
+        { error: "Roster has no club; cannot verify membership" },
+        { status: 400 },
+      );
+    }
+
+    const member = await db.collection("members").findOne({
+      memberId: playerId,
+      ...memberBelongsToClubFilter(rosterClubId),
+      "membership.status": { $in: ACTIVE_MEMBERSHIP_STATUSES },
+    });
     if (!member) {
-      return NextResponse.json({ error: "Player not found" }, { status: 404 });
+      return NextResponse.json(
+        {
+          error:
+            "Player not found or not an active member of this club",
+          code: "NOT_CLUB_MEMBER",
+        },
+        { status: 403 },
+      );
     }
 
     const pi  = member.personalInfo ?? {};
@@ -136,6 +159,26 @@ export async function POST(
         $set:  { updatedAt: new Date().toISOString() },
       },
     );
+
+    const contact = (member as { contact?: { email?: string } }).contact;
+    const to = contact?.email?.trim();
+    const displayName =
+      `${pi.firstName ?? ""} ${pi.lastName ?? ""}`.trim() ||
+      (member as { personalInfo?: { displayName?: string } }).personalInfo
+        ?.displayName ||
+      member.memberId;
+    const clubName =
+      (roster as { clubName?: string }).clubName?.trim() || "your club";
+    if (to) {
+      void sendTeamSelectionEmail({
+        to,
+        memberDisplayName: displayName,
+        clubName,
+        teamName: roster.teams[teamIndex].name,
+        division: String(roster.division ?? ""),
+        season: String(roster.season ?? new Date().getFullYear()),
+      }).catch(() => {});
+    }
 
     return NextResponse.json({
       success: true,

@@ -5,18 +5,40 @@
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import {
+  getUserFromRequest,
   requirePermission,
   requireResourceAccess,
 } from "@/lib/auth/middleware";
+import {
+  clubAssociationId,
+  findSlot,
+  getAssociationSeasonRosterDoc,
+  normalizeClubId,
+  rosterTripleKey,
+} from "@/lib/rosters/associationRosterDivisions";
 
 export async function GET(request: NextRequest) {
   try {
     const { response: authRes } = await requirePermission(request, "team.roster");
     if (authRes) return authRes;
 
+    const user = await getUserFromRequest(request);
+    const isSuperAdmin = user?.role === "super-admin";
+
     const { searchParams } = new URL(request.url);
     const season = searchParams.get("season");
-    const clubId = searchParams.get("clubId");
+    let clubId = searchParams.get("clubId");
+
+    if (!isSuperAdmin && user?.clubId) {
+      if (!clubId || clubId === "all") {
+        clubId = user.clubId;
+      } else if (clubId !== user.clubId) {
+        return NextResponse.json(
+          { error: "You can only view rosters for your club" },
+          { status: 403 },
+        );
+      }
+    }
 
     if (clubId && clubId !== "all") {
       const { response: scopeRes } = await requireResourceAccess(
@@ -28,7 +50,7 @@ export async function GET(request: NextRequest) {
     }
 
     const client = await clientPromise;
-    const db = client.db();
+    const db = client.db(process.env.DB_NAME || "hockey-app");
 
     const query: Record<string, unknown> = {};
     if (season) query.season = season;
@@ -40,7 +62,11 @@ export async function GET(request: NextRequest) {
       .sort({ createdAt: -1 })
       .toArray();
 
-    const userAccess = { clubId: null, clubName: null, isSuperAdmin: true };
+    const userAccess = {
+      clubId: user?.clubId ?? null,
+      clubName: null as string | null,
+      isSuperAdmin,
+    };
 
     return NextResponse.json({ rosters, userAccess });
   } catch (error: unknown) {
@@ -69,7 +95,7 @@ export async function POST(request: NextRequest) {
     if (scopeRes) return scopeRes;
 
     const client = await clientPromise;
-    const db = client.db();
+    const db = client.db(process.env.DB_NAME || "hockey-app");
 
     // Try id field first, then fall back to _id / clubId fields
     const club =
@@ -82,9 +108,48 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Club not found", clubId }, { status: 404 });
     }
 
+    const canonicalClubId = normalizeClubId(club);
+
+    const dup = await db.collection("teamRosters").findOne({
+      clubId: canonicalClubId,
+      season: String(season),
+      category,
+      division,
+      gender,
+    });
+    if (dup) {
+      return NextResponse.json(
+        {
+          error:
+            "A roster already exists for this club in that division. Add another team inside that roster instead of creating a new roster row.",
+          code: "duplicate_roster_triple",
+        },
+        { status: 409 },
+      );
+    }
+
+    const assocId = clubAssociationId(club);
+    if (assocId) {
+      const catalog = await getAssociationSeasonRosterDoc(db, assocId, String(season));
+      if (catalog?.slots?.length) {
+        const slot = findSlot(catalog.slots, category, division, gender);
+        if (!slot) {
+          return NextResponse.json(
+            {
+              error:
+                "That division is not offered by the governing association for this season. The association must publish roster divisions first.",
+              code: "slot_not_in_catalog",
+            },
+            { status: 400 },
+          );
+        }
+      }
+    }
+
     const newRoster = {
       id: `roster-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      clubId:        club.id ?? club.clubId ?? club._id?.toString(),
+      clubId:        canonicalClubId,
+      divisionKey:   rosterTripleKey(category, division, gender),
       clubName:      club.name,
       clubShortName: club.shortName,
       clubColors:    club.colors ?? { primary: "#06054e", secondary: "#3b82f6" },

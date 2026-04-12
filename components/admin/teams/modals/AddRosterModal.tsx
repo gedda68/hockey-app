@@ -1,9 +1,8 @@
-// app/admin/teams/components/modals/AddRosterModal.tsx
-// FINAL FIX: Ensure clubId (not name) is sent
+// Add roster row — division triple comes from association-published catalog when present.
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 
 interface Club {
   clubId: string;
@@ -11,10 +10,19 @@ interface Club {
   associationId?: string;
 }
 
+type CatalogSlot = {
+  category: string;
+  division: string;
+  gender: string;
+  sortOrder: number;
+  maxTeamsPerClub: number;
+};
+
 interface AddRosterModalProps {
   clubs: Club[];
   defaultClubId?: string;
   disableClubSelection?: boolean;
+  season: string;
   onClose: () => void;
   onSubmit: (data: {
     clubId: string;
@@ -24,6 +32,10 @@ interface AddRosterModalProps {
   }) => void;
 }
 
+function tripleKey(category: string, division: string, gender: string): string {
+  return `${category.trim().toLowerCase()}|${division.trim()}|${gender.trim().toLowerCase()}`;
+}
+
 const TEAM_CATEGORIES = ["junior", "senior", "masters", "social"] as const;
 const GENDERS = ["male", "female", "mixed"] as const;
 
@@ -31,6 +43,7 @@ export default function AddRosterModal({
   clubs,
   defaultClubId,
   disableClubSelection = false,
+  season,
   onClose,
   onSubmit,
 }: AddRosterModalProps) {
@@ -41,27 +54,66 @@ export default function AddRosterModal({
   const [divisions, setDivisions] = useState<string[]>([]);
   const [loadingDivisions, setLoadingDivisions] = useState(false);
 
-  // Debug: Log clubs structure
-  useEffect(() => {
-    console.log("📋 Clubs array structure:", clubs);
-    clubs.forEach((club, idx) => {
-      console.log(`Club ${idx}:`, {
-        clubId: club.clubId,
-        name: club.name,
-        hasClubId: !!club.clubId,
-        typeofClubId: typeof club.clubId,
-      });
-    });
-  }, [clubs]);
+  const [catalogLoading, setCatalogLoading] = useState(false);
+  const [catalogActive, setCatalogActive] = useState(false);
+  const [catalogSlots, setCatalogSlots] = useState<CatalogSlot[]>([]);
+  const [existingTriples, setExistingTriples] = useState<string[]>([]);
+  const [catalogPickKey, setCatalogPickKey] = useState("");
 
-  // Debug: Log selected club
   useEffect(() => {
-    console.log("✅ Selected clubId:", clubId);
-    const found = clubs.find((c) => c.clubId === clubId);
-    console.log("🏢 Selected club object:", found);
-  }, [clubs, clubId]);
+    if (defaultClubId) setClubId(defaultClubId);
+  }, [defaultClubId]);
 
-  // Fetch divisions when category changes
+  useEffect(() => {
+    if (!clubId || !season) {
+      setCatalogActive(false);
+      setCatalogSlots([]);
+      setExistingTriples([]);
+      setCatalogPickKey("");
+      return;
+    }
+
+    let cancelled = false;
+    (async () => {
+      setCatalogLoading(true);
+      try {
+        const res = await fetch(
+          `/api/admin/clubs/${encodeURIComponent(clubId)}/roster-division-options?season=${encodeURIComponent(season)}`,
+          { credentials: "include" },
+        );
+        const data = await res.json();
+        if (cancelled) return;
+        setCatalogActive(Boolean(data.catalogActive && data.slots?.length));
+        const slots = (data.slots || []) as CatalogSlot[];
+        setCatalogSlots(
+          [...slots].sort(
+            (a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0),
+          ),
+        );
+        setExistingTriples(data.existingTriples || []);
+        setCatalogPickKey("");
+      } catch {
+        if (!cancelled) {
+          setCatalogActive(false);
+          setCatalogSlots([]);
+        }
+      } finally {
+        if (!cancelled) setCatalogLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [clubId, season]);
+
+  const availableCatalogSlots = useMemo(() => {
+    const ex = new Set(existingTriples);
+    return catalogSlots.filter(
+      (s) => !ex.has(tripleKey(s.category, s.division, s.gender)),
+    );
+  }, [catalogSlots, existingTriples]);
+
   useEffect(() => {
     if (!category) return;
 
@@ -73,20 +125,18 @@ export default function AddRosterModal({
         );
         if (response.ok) {
           const data = await response.json();
-          console.log(`📊 Divisions for ${category}:`, data.divisions);
           setDivisions(data.divisions || []);
         } else {
           setDivisions(getDefaultDivisions(category));
         }
-      } catch (error) {
-        console.error("❌ Error fetching divisions:", error);
+      } catch {
         setDivisions(getDefaultDivisions(category));
       } finally {
         setLoadingDivisions(false);
       }
     };
 
-    fetchDivisions();
+    void fetchDivisions();
     setDivision("");
   }, [category]);
 
@@ -122,59 +172,68 @@ export default function AddRosterModal({
     e.preventDefault();
 
     const selectedClub = clubs.find((c) => c.clubId === clubId);
+    if (!clubId || !selectedClub) {
+      alert("Select a club");
+      return;
+    }
 
-    console.log("🚀 SUBMIT - Form data:", {
-      clubId,
-      selectedClub,
-      category,
-      division,
-      gender,
-    });
+    if (catalogActive) {
+      if (!catalogPickKey) {
+        alert("Select a division offering from the association list");
+        return;
+      }
+      const slot = availableCatalogSlots.find(
+        (s) => tripleKey(s.category, s.division, s.gender) === catalogPickKey,
+      );
+      if (!slot) {
+        alert("That division is not available (you may already have a roster there).");
+        return;
+      }
+      onSubmit({
+        clubId: selectedClub.clubId,
+        category: slot.category,
+        division: slot.division,
+        gender: slot.gender,
+      });
+      return;
+    }
 
-    if (!clubId || !category || !division || !gender) {
+    if (!category || !division || !gender) {
       alert("Please fill in all required fields");
       return;
     }
 
-    // CRITICAL: Verify we're sending clubId, not name
-    if (!selectedClub) {
-      console.error("❌ ERROR: Club not found in clubs array!");
-      console.log("Looking for clubId:", clubId);
-      console.log("Available clubs:", clubs);
-      alert("Error: Selected club not found. Please try again.");
-      return;
-    }
-
-    console.log("✅ Submitting with clubId:", selectedClub.clubId);
-
-    // Send the actual clubId, not the name
     onSubmit({
-      clubId: selectedClub.clubId, // Use clubId from the found club
+      clubId: selectedClub.clubId,
       category,
       division,
       gender,
     });
   };
 
-  // Get selected club for display
   const selectedClub = clubs.find((c) => c.clubId === clubId);
+
+  const useCatalogUi = catalogActive && !catalogLoading;
+  const canSubmit = Boolean(
+    selectedClub &&
+      (useCatalogUi
+        ? catalogPickKey && availableCatalogSlots.length > 0
+        : division && category && gender),
+  );
 
   return (
     <>
-      {/* Backdrop */}
       <div
         className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[9998]"
         onClick={onClose}
       ></div>
 
-      {/* Modal */}
       <div className="fixed inset-0 flex items-center justify-center p-4 z-[9999]">
         <div
           className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto"
           onClick={(e) => e.stopPropagation()}
         >
           <form onSubmit={handleSubmit}>
-            {/* Header */}
             <div className="sticky top-0 bg-white border-b border-slate-200 px-8 py-6 rounded-t-3xl z-10">
               <div className="flex items-center justify-between">
                 <div>
@@ -182,7 +241,8 @@ export default function AddRosterModal({
                     Add Team Roster
                   </h2>
                   <p className="text-sm text-slate-500 mt-1">
-                    Create a new roster for a club
+                    Season {season} · Divisions offered by the association apply
+                    to clubs under that body.
                   </p>
                 </div>
                 <button
@@ -207,227 +267,192 @@ export default function AddRosterModal({
               </div>
             </div>
 
-            {/* Content */}
             <div className="px-8 py-6 space-y-6">
-              {/* Club Assignment */}
               <div>
                 <label className="block text-xs font-black uppercase text-slate-400 tracking-wider mb-2">
                   Assign to Club *
                 </label>
                 {disableClubSelection && clubId ? (
-                  // Locked for club admins
                   <div className="px-4 py-3 bg-blue-50 border-2 border-blue-200 rounded-xl">
-                    <div className="flex items-center gap-3">
-                      <svg
-                        className="w-5 h-5 text-blue-600 flex-shrink-0"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
-                        />
-                      </svg>
-                      <div>
-                        <div className="font-bold text-blue-900">
-                          {selectedClub?.name || "Your Club"}
-                        </div>
-                        <div className="text-xs text-blue-700 mt-0.5">
-                          This roster will be assigned to your club
-                        </div>
-                      </div>
+                    <div className="font-bold text-blue-900">
+                      {selectedClub?.name || "Your Club"}
+                    </div>
+                    <div className="text-xs text-blue-700 mt-0.5">
+                      Rosters are only created for your club. Players must be
+                      registered members of this club.
                     </div>
                   </div>
                 ) : (
-                  // Dropdown for super admins
-                  <>
-                    <select
-                      value={clubId}
-                      onChange={(e) => {
-                        const newValue = e.target.value;
-                        console.log(
-                          "🔄 Dropdown changed - Raw value:",
-                          newValue,
-                        );
-                        console.log("🔄 Type of value:", typeof newValue);
-
-                        // Find the club to verify
-                        const foundClub = clubs.find(
-                          (c) => c.clubId === newValue,
-                        );
-                        console.log("🔍 Found club by clubId:", foundClub);
-
-                        setClubId(newValue);
-                      }}
-                      required
-                      className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-200 rounded-xl font-bold focus:border-[#06054e] outline-none transition-colors"
-                    >
-                      <option value="">Select Club...</option>
-                      {clubs.map((club) => {
-                        // Debug each option
-                        console.log("Rendering option:", {
-                          key: club.clubId,
-                          value: club.clubId,
-                          display: club.name,
-                        });
-
-                        return (
-                          <option
-                            key={club.clubId}
-                            value={club.clubId} // MUST be clubId, not name
-                          >
-                            {club.name}
-                          </option>
-                        );
-                      })}
-                    </select>
-
-                    {/* Show selected club details for debugging */}
-                    {clubId && (
-                      <div className="mt-2 space-y-2">
-                        {selectedClub ? (
-                          <div className="px-3 py-2 bg-green-50 border border-green-200 rounded-lg">
-                            <div className="text-xs font-bold text-green-700">
-                              ✅ Selected: {selectedClub.name}
-                            </div>
-                            <div className="text-xs text-green-600 mt-1">
-                              Club ID: {selectedClub.clubId}
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="px-3 py-2 bg-red-50 border border-red-200 rounded-lg">
-                            <div className="text-xs font-bold text-red-700">
-                              ⚠️ Warning: Club not found
-                            </div>
-                            <div className="text-xs text-red-600 mt-1">
-                              Selected value: {clubId}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    <p className="text-xs text-slate-500 mt-2 flex items-start gap-2">
-                      <svg
-                        className="w-4 h-4 text-slate-400 flex-shrink-0 mt-0.5"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                        />
-                      </svg>
-                      This roster will be assigned to the selected club
-                    </p>
-                  </>
-                )}
-                {clubs.length === 0 && (
-                  <p className="text-xs text-red-600 mt-2 font-bold">
-                    ⚠️ No clubs available. Please ensure clubs are configured.
-                  </p>
-                )}
-              </div>
-
-              {/* Category */}
-              <div>
-                <label className="block text-xs font-black uppercase text-slate-400 tracking-wider mb-2">
-                  Category *
-                </label>
-                <div className="grid grid-cols-2 gap-3">
-                  {TEAM_CATEGORIES.map((cat) => (
-                    <button
-                      key={cat}
-                      type="button"
-                      onClick={() => setCategory(cat)}
-                      className={`px-6 py-3 rounded-xl font-black uppercase text-sm transition-all ${
-                        category === cat
-                          ? "bg-[#06054e] text-white shadow-lg"
-                          : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                      }`}
-                    >
-                      {cat}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Division */}
-              <div>
-                <label className="block text-xs font-black uppercase text-slate-400 tracking-wider mb-2">
-                  Division *
-                </label>
-                {loadingDivisions ? (
-                  <div className="px-4 py-3 bg-slate-50 border-2 border-slate-200 rounded-xl text-slate-400 flex items-center gap-2">
-                    <div className="w-4 h-4 border-2 border-slate-300 border-t-[#06054e] rounded-full animate-spin"></div>
-                    Loading divisions...
-                  </div>
-                ) : (
                   <select
-                    value={division}
-                    onChange={(e) => setDivision(e.target.value)}
+                    value={clubId}
+                    onChange={(e) => setClubId(e.target.value)}
                     required
                     className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-200 rounded-xl font-bold focus:border-[#06054e] outline-none transition-colors"
                   >
-                    <option value="">Select Division...</option>
-                    {divisions.map((div) => (
-                      <option key={div} value={div}>
-                        {div}
+                    <option value="">Select Club...</option>
+                    {clubs.map((club) => (
+                      <option key={club.clubId} value={club.clubId}>
+                        {club.name}
                       </option>
                     ))}
                   </select>
                 )}
+                {clubs.length === 0 && (
+                  <p className="text-xs text-red-600 mt-2 font-bold">
+                    No clubs available.
+                  </p>
+                )}
               </div>
 
-              {/* Gender */}
-              <div>
-                <label className="block text-xs font-black uppercase text-slate-400 tracking-wider mb-2">
-                  Gender *
-                </label>
-                <div className="grid grid-cols-3 gap-3">
-                  {GENDERS.map((g) => (
-                    <button
-                      key={g}
-                      type="button"
-                      onClick={() => setGender(g)}
-                      className={`px-4 py-3 rounded-xl font-black uppercase text-sm transition-all ${
-                        gender === g
-                          ? "bg-[#06054e] text-white shadow-lg"
-                          : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                      }`}
-                    >
-                      {g}
-                    </button>
-                  ))}
+              {catalogLoading && clubId && (
+                <p className="text-sm text-slate-500">Loading division catalogue…</p>
+              )}
+
+              {useCatalogUi && (
+                <div className="rounded-2xl border-2 border-indigo-200 bg-indigo-50/60 p-4 space-y-2">
+                  <h3 className="text-xs font-black uppercase text-indigo-900">
+                    Association-published divisions
+                  </h3>
+                  {availableCatalogSlots.length === 0 ? (
+                    <p className="text-sm text-indigo-900">
+                      Every published slot for this season already has a roster
+                      row for this club, or the association has not published
+                      offerings yet. Use <strong>Add team</strong> on an existing
+                      roster, or ask the association to publish divisions.
+                    </p>
+                  ) : (
+                    <>
+                      <label className="block text-xs font-bold text-indigo-800">
+                        Choose division offering *
+                      </label>
+                      <select
+                        value={catalogPickKey}
+                        onChange={(e) => setCatalogPickKey(e.target.value)}
+                        className="w-full px-4 py-3 bg-white border-2 border-indigo-200 rounded-xl font-bold"
+                        required={useCatalogUi}
+                      >
+                        <option value="">Select…</option>
+                        {availableCatalogSlots.map((s) => {
+                          const k = tripleKey(s.category, s.division, s.gender);
+                          return (
+                            <option key={k} value={k}>
+                              {s.division} · {s.category} · {s.gender}
+                              {s.maxTeamsPerClub > 1
+                                ? ` (up to ${s.maxTeamsPerClub} teams)`
+                                : ""}
+                            </option>
+                          );
+                        })}
+                      </select>
+                    </>
+                  )}
                 </div>
-              </div>
+              )}
 
-              {/* Preview */}
-              {clubId && division && selectedClub && (
-                <div className="p-4 bg-green-50 border-2 border-green-200 rounded-xl">
-                  <div className="text-xs font-black uppercase text-green-600 mb-2">
-                    Roster Preview
+              {!useCatalogUi && clubId && !catalogLoading && (
+                <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
+                  No published catalogue for this club’s association and season
+                  — free selection is enabled. The association should publish
+                  divisions for production use.
+                </p>
+              )}
+
+              {!useCatalogUi && (
+                <>
+                  <div>
+                    <label className="block text-xs font-black uppercase text-slate-400 tracking-wider mb-2">
+                      Category *
+                    </label>
+                    <div className="grid grid-cols-2 gap-3">
+                      {TEAM_CATEGORIES.map((cat) => (
+                        <button
+                          key={cat}
+                          type="button"
+                          onClick={() => setCategory(cat)}
+                          className={`px-6 py-3 rounded-xl font-black uppercase text-sm transition-all ${
+                            category === cat
+                              ? "bg-[#06054e] text-white shadow-lg"
+                              : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                          }`}
+                        >
+                          {cat}
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                  <div className="text-lg font-black text-green-900 mb-2">
-                    {selectedClub.name} - {category} {division} {gender}
+
+                  <div>
+                    <label className="block text-xs font-black uppercase text-slate-400 tracking-wider mb-2">
+                      Division *
+                    </label>
+                    {loadingDivisions ? (
+                      <div className="px-4 py-3 bg-slate-50 border-2 border-slate-200 rounded-xl text-slate-400 flex items-center gap-2">
+                        <div className="w-4 h-4 border-2 border-slate-300 border-t-[#06054e] rounded-full animate-spin"></div>
+                        Loading divisions...
+                      </div>
+                    ) : (
+                      <select
+                        value={division}
+                        onChange={(e) => setDivision(e.target.value)}
+                        required
+                        className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-200 rounded-xl font-bold focus:border-[#06054e] outline-none transition-colors"
+                      >
+                        <option value="">Select Division...</option>
+                        {divisions.map((div) => (
+                          <option key={div} value={div}>
+                            {div}
+                          </option>
+                        ))}
+                      </select>
+                    )}
                   </div>
-                  <div className="text-xs text-green-700">
-                    Will be saved with Club ID:{" "}
-                    <code className="bg-green-100 px-1 py-0.5 rounded">
-                      {selectedClub.clubId}
-                    </code>
+
+                  <div>
+                    <label className="block text-xs font-black uppercase text-slate-400 tracking-wider mb-2">
+                      Gender *
+                    </label>
+                    <div className="grid grid-cols-3 gap-3">
+                      {GENDERS.map((g) => (
+                        <button
+                          key={g}
+                          type="button"
+                          onClick={() => setGender(g)}
+                          className={`px-4 py-3 rounded-xl font-black uppercase text-sm transition-all ${
+                            gender === g
+                              ? "bg-[#06054e] text-white shadow-lg"
+                              : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                          }`}
+                        >
+                          {g}
+                        </button>
+                      ))}
+                    </div>
                   </div>
+                </>
+              )}
+
+              {clubId && selectedClub && (useCatalogUi ? catalogPickKey : division) && (
+                <div className="p-4 bg-green-50 border-2 border-green-200 rounded-xl text-sm text-green-900">
+                  <span className="font-black uppercase text-green-700 text-xs block mb-1">
+                    Preview
+                  </span>
+                  {selectedClub.name}
+                  {useCatalogUi && catalogPickKey
+                    ? (() => {
+                        const s = availableCatalogSlots.find(
+                          (x) =>
+                            tripleKey(x.category, x.division, x.gender) ===
+                            catalogPickKey,
+                        );
+                        return s
+                          ? ` — ${s.division} · ${s.category} · ${s.gender}`
+                          : "";
+                      })()
+                    : ` — ${category} ${division} ${gender}`}
                 </div>
               )}
             </div>
 
-            {/* Footer */}
             <div className="sticky bottom-0 bg-slate-50 border-t border-slate-200 px-8 py-6 rounded-b-3xl flex gap-3">
               <button
                 type="button"
@@ -438,12 +463,10 @@ export default function AddRosterModal({
               </button>
               <button
                 type="submit"
-                disabled={!clubId || !division || !selectedClub}
+                disabled={!canSubmit}
                 className="flex-1 px-6 py-3 bg-[#06054e] text-white rounded-xl font-black uppercase text-sm hover:bg-blue-900 transition-all shadow-lg shadow-blue-900/20 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {selectedClub
-                  ? `Create Roster for ${selectedClub.name}`
-                  : "Create Roster"}
+                Create Roster
               </button>
             </div>
           </form>

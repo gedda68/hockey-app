@@ -151,7 +151,12 @@ export default function ClubTeamsPage() {
     }
   };
 
-  const handleAddRoster = async (data: any) => {
+  const handleAddRoster = async (data: {
+    clubId: string;
+    category: string;
+    division: string;
+    gender: string;
+  }) => {
     try {
       const response = await fetch("/api/admin/teams/rosters", {
         method: "POST",
@@ -162,13 +167,27 @@ export default function ClubTeamsPage() {
       if (response.ok) {
         await fetchRosters();
         setShowAddRoster(false);
+        return;
       }
+
+      let message = "Failed to create roster";
+      try {
+        const err = await response.json();
+        message =
+          err.error ||
+          err.message ||
+          (err.code ? `${err.code}` : message);
+      } catch {
+        message = response.statusText || message;
+      }
+      alert(message);
     } catch (error) {
       console.error("Error creating roster:", error);
+      alert("Failed to create roster");
     }
   };
 
-  const handleAddTeam = async (data: any) => {
+  const handleAddTeam = async (data: Record<string, unknown>) => {
     if (!activeRoster) return;
 
     try {
@@ -185,9 +204,23 @@ export default function ClubTeamsPage() {
         await fetchRosters();
         setShowAddTeam(false);
         setActiveRoster(null);
+        return;
       }
+
+      let message = "Failed to add team";
+      try {
+        const err = await response.json();
+        message =
+          err.error ||
+          err.message ||
+          (err.code ? `${err.code}` : message);
+      } catch {
+        message = response.statusText || message;
+      }
+      alert(message);
     } catch (error) {
       console.error("Error adding team:", error);
+      alert("Failed to add team");
     }
   };
 
@@ -223,7 +256,12 @@ export default function ClubTeamsPage() {
         setActiveTeamIndex(null);
       } else {
         const error = await response.json();
-        alert(error.details || error.error || "Failed to add player");
+        alert(
+          error.error ||
+            error.details ||
+            error.message ||
+            (error.code ? String(error.code) : "Failed to add player"),
+        );
       }
     } catch (error) {
       console.error("Error adding player:", error);
@@ -577,6 +615,7 @@ export default function ClubTeamsPage() {
           clubs={clubs}
           defaultClubId={userClubId}
           disableClubSelection={!isSuperAdmin}
+          season={season}
           onClose={() => setShowAddRoster(false)}
           onSubmit={handleAddRoster}
         />

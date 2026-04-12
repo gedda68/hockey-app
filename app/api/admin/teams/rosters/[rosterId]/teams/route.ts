@@ -1,5 +1,4 @@
-// app/api/admin/teams/rosters/[rosterId]/route.ts
-// Update roster WITH MOVE HISTORY - FIXED drag & drop
+// POST — append a new team row to a roster (was missing; duplicate PUT lived here by mistake).
 
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
@@ -7,146 +6,35 @@ import {
   requirePermission,
   requireResourceAccess,
 } from "@/lib/auth/middleware";
+import {
+  clubAssociationId,
+  countClubTeamsInDivisionSlot,
+  findSlot,
+  getAssociationSeasonRosterDoc,
+  maxTeamsAllowedForClubInSlot,
+} from "@/lib/rosters/associationRosterDivisions";
 
-export async function PUT(
+export async function POST(
   request: NextRequest,
   context: { params: Promise<{ rosterId: string }> },
 ) {
   try {
     const { rosterId } = await context.params;
-
-    const client = await clientPromise;
-    const db = client.db();
-
-    const oldRoster = await db
-      .collection("teamRosters")
-      .findOne({ id: rosterId });
-    if (!oldRoster) {
-      console.error("❌ Roster not found:", rosterId);
-      return NextResponse.json({ error: "Roster not found" }, { status: 404 });
-    }
 
     const { response: permRes } = await requirePermission(request, "team.edit");
     if (permRes) return permRes;
-    if (oldRoster.clubId) {
-      const { response: scopeRes } = await requireResourceAccess(
-        request,
-        "club",
-        String(oldRoster.clubId),
-      );
-      if (scopeRes) return scopeRes;
-    }
 
     const body = await request.json();
-
-    const userId = "admin-temp";
-    const userName = "Admin User";
-
-    // Prepare the update
-    const updates: Record<string, unknown> = {
-      teams: body.teams || oldRoster.teams,
-      shadowPlayers: body.shadowPlayers || oldRoster.shadowPlayers || [],
-      withdrawn: body.withdrawn || oldRoster.withdrawn || [],
-      lastUpdated: new Date().toISOString(),
-    };
-
-    // Handle move history if provided
-    if (body.moveDetails) {
-      const { player, from, to, reason } = body.moveDetails;
-
-      let action = "player_moved";
-      if (to.location === "unavailable") action = "player_unavailable";
-      if (to.location === "emergency") action = "player_emergency";
-      if (from.location === "unavailable") action = "player_returned";
-
-      const historyEntry = {
-        id: `change-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-        timestamp: new Date().toISOString(),
-        userId,
-        userName,
-        action,
-        details: {
-          playerId: player.id,
-          playerName: `${player.firstName} ${player.lastName}`,
-          from: {
-            location: from.location,
-            teamIndex: from.teamIndex,
-            teamName: from.teamName,
-          },
-          to: {
-            location: to.location,
-            teamIndex: to.teamIndex,
-            teamName: to.teamName,
-          },
-          reason: reason || undefined,
-        },
-      };
-
-      // Add to change history
-      const existingHistory = oldRoster.changeHistory || [];
-      updates.changeHistory = [...existingHistory, historyEntry];
-
-    }
-
-    // Perform the update
-    const result = await db
-      .collection("teamRosters")
-      .updateOne({ id: rosterId }, { $set: updates });
-
-    if (result.matchedCount === 0) {
-      console.error("❌ Update failed - roster not found");
-      return NextResponse.json({ error: "Roster not found" }, { status: 404 });
-    }
-
-    if (result.modifiedCount === 0) {
-    }
-
-
-    return NextResponse.json({
-      success: true,
-      modified: result.modifiedCount > 0,
-      roster: {
-        id: rosterId,
-        teams: updates.teams,
-        shadowPlayers: updates.shadowPlayers,
-        withdrawn: updates.withdrawn,
-      },
-    });
-  } catch (error: unknown) {
-    console.error("❌ Error updating roster:", error);
-    const msg = error instanceof Error ? error.message : String(error);
-    const stack = error instanceof Error ? error.stack : undefined;
-    return NextResponse.json(
-      {
-        error: "Failed to update roster",
-        details: msg,
-        stack,
-      },
-      { status: 500 },
-    );
-  }
-}
-
-export async function GET(
-  request: NextRequest,
-  context: { params: Promise<{ rosterId: string }> },
-) {
-  try {
-    const { rosterId } = await context.params;
-    const { searchParams } = new URL(request.url);
-    const includeHistory = searchParams.get("includeHistory") === "true";
+    const name = String(body.name ?? "").trim() || "Team";
 
     const client = await clientPromise;
-    const db = client.db();
+    const db = client.db(process.env.DB_NAME || "hockey-app");
 
     const roster = await db.collection("teamRosters").findOne({ id: rosterId });
-
     if (!roster) {
       return NextResponse.json({ error: "Roster not found" }, { status: 404 });
     }
 
-    const { response: getPermRes } = await requirePermission(request, "team.roster");
-    if (getPermRes) return getPermRes;
     if (roster.clubId) {
       const { response: scopeRes } = await requireResourceAccess(
         request,
@@ -156,21 +44,95 @@ export async function GET(
       if (scopeRes) return scopeRes;
     }
 
-    if (!includeHistory) {
-      delete roster.changeHistory;
+    const clubId = String(roster.clubId ?? "");
+    const season = String(roster.season ?? "");
+    const category = String(roster.category ?? "");
+    const division = String(roster.division ?? "");
+    const gender = String(roster.gender ?? "");
+
+    const club = clubId
+      ? (await db.collection("clubs").findOne({
+          $or: [{ id: clubId }, { clubId }],
+        })) ?? null
+      : null;
+
+    const associationId = clubAssociationId(club);
+    if (associationId) {
+      const catalog = await getAssociationSeasonRosterDoc(db, associationId, season);
+      if (catalog?.slots?.length) {
+        const slot = findSlot(catalog.slots, category, division, gender);
+        if (!slot) {
+          return NextResponse.json(
+            {
+              error:
+                "This roster division is not in the association’s published list for this season.",
+            },
+            { status: 403 },
+          );
+        }
+
+        const current = await countClubTeamsInDivisionSlot(
+          db,
+          clubId,
+          season,
+          category,
+          division,
+          gender,
+        );
+        const maxAllowed = await maxTeamsAllowedForClubInSlot(
+          db,
+          clubId,
+          associationId,
+          season,
+          category,
+          division,
+          gender,
+        );
+
+        if (current + 1 > maxAllowed) {
+          return NextResponse.json(
+            {
+              error:
+                "This club already has the maximum teams allowed in this division for the season. Request an extra team from the association.",
+              code: "team_cap_exceeded",
+              current,
+              maxAllowed,
+            },
+            { status: 403 },
+          );
+        }
+      }
+    }
+
+    const teams = Array.isArray(roster.teams) ? [...roster.teams] : [];
+    teams.push({
+      name,
+      players: [],
+    });
+
+    const result = await db.collection("teamRosters").updateOne(
+      { id: rosterId },
+      {
+        $set: {
+          teams,
+          lastUpdated: new Date().toISOString(),
+        },
+      },
+    );
+
+    if (result.matchedCount === 0) {
+      return NextResponse.json({ error: "Roster not found" }, { status: 404 });
     }
 
     return NextResponse.json({
-      roster,
-      historyCount: roster.changeHistory?.length || 0,
+      success: true,
+      teams,
+      addedIndex: teams.length - 1,
     });
-  } catch (error: unknown) {
-    console.error("❌ Error fetching roster:", error);
+  } catch (e: unknown) {
+    console.error("POST roster team:", e);
     return NextResponse.json(
-      {
-        error: "Failed to fetch roster",
-        details: error instanceof Error ? error.message : String(error),
-      },
+      { error: "Failed to add team" },
       { status: 500 },
     );
   }

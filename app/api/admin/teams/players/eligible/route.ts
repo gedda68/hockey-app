@@ -7,6 +7,10 @@ import {
   requirePermission,
   requireResourceAccess,
 } from "@/lib/auth/middleware";
+import {
+  ACTIVE_MEMBERSHIP_STATUSES,
+  memberBelongsToClubFilter,
+} from "@/lib/rosters/memberClubQuery";
 
 export async function GET(request: NextRequest) {
   try {
@@ -33,14 +37,13 @@ export async function GET(request: NextRequest) {
     if (scopeRes) return scopeRes;
 
     const client = await clientPromise;
-    const db = client.db("hockey-app");
+    const db = client.db(process.env.DB_NAME || "hockey-app");
 
-    // Query members that belong to this club and are active
     const members = await db
       .collection("members")
       .find({
-        "membership.clubId": clubId,
-        "membership.status": { $in: ["Active", "Life", "active"] },
+        ...memberBelongsToClubFilter(clubId),
+        "membership.status": { $in: ACTIVE_MEMBERSHIP_STATUSES },
       })
       .project({
         memberId:            1,
