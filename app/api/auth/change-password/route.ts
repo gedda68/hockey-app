@@ -4,7 +4,7 @@
 // Voluntary change: refreshes session in place.
 
 import { NextRequest, NextResponse } from "next/server";
-import clientPromise from "@/lib/mongodb";
+import { getDatabase } from "@/lib/mongodb";
 import { getSession, deleteSession } from "@/lib/auth/session";
 import { verifyPassword, hashPassword } from "@/lib/auth/username";
 import bcrypt from "bcryptjs";
@@ -40,8 +40,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const client = await clientPromise;
-    const db = client.db("hockey-app");
+    const db = await getDatabase();
 
     const isForced = session.forcePasswordChange === true;
 

@@ -40,6 +40,12 @@ describe("evaluateAdminRouteAccess", () => {
     ).toBe("allow");
   });
 
+  it("allows player to /admin/profile", () => {
+    expect(
+      evaluateAdminRouteAccess("/admin/profile", session({ role: "player" })),
+    ).toBe("allow");
+  });
+
   it("denies registrar from /admin/clubs/* (clubs route is CLUB_AND_ABOVE only)", () => {
     expect(
       evaluateAdminRouteAccess(

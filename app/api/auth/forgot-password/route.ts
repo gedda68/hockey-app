@@ -11,7 +11,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { randomBytes } from "crypto";
-import clientPromise from "@/lib/mongodb";
+import { getDatabase } from "@/lib/mongodb";
 import { sendEmail } from "@/lib/email/client";
 import { buildPasswordResetEmail } from "@/lib/email/templates/passwordReset";
 
@@ -30,8 +30,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const client = await clientPromise;
-    const db = client.db("hockey-app");
+    const db = await getDatabase();
 
     // ── 1. Find account (check users first, then members) ──────────────────
 

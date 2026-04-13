@@ -24,6 +24,7 @@ export async function GET(request: NextRequest) {
 
     const user = await getUserFromRequest(request);
     const isSuperAdmin = user?.role === "super-admin";
+    const userAssociationId = user?.associationId ?? null;
 
     const { searchParams } = new URL(request.url);
     const season = searchParams.get("season");
@@ -40,6 +41,29 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    const client = await clientPromise;
+    const db = client.db(process.env.DB_NAME || "hockey-app");
+
+    // Association-scoped users (no clubId) should only see rosters for clubs they directly govern.
+    // "Directly responsible" here means the club's governing associationId/parentAssociationId matches the user's associationId
+    // (we intentionally do NOT include descendant associations in the hierarchy).
+    let allowedClubIds: string[] | null = null;
+    const isAssociationScopedUser = !isSuperAdmin && !user?.clubId && !!userAssociationId;
+    if (isAssociationScopedUser) {
+      const clubs = await db
+        .collection("clubs")
+        .find({
+          $or: [
+            { parentAssociationId: userAssociationId },
+            { associationId: userAssociationId },
+            { parentAssocId: userAssociationId },
+          ],
+        })
+        .project({ id: 1, clubId: 1, _id: 1 })
+        .toArray();
+      allowedClubIds = clubs.map(normalizeClubId).filter(Boolean);
+    }
+
     if (clubId && clubId !== "all") {
       const { response: scopeRes } = await requireResourceAccess(
         request,
@@ -49,12 +73,20 @@ export async function GET(request: NextRequest) {
       if (scopeRes) return scopeRes;
     }
 
-    const client = await clientPromise;
-    const db = client.db(process.env.DB_NAME || "hockey-app");
-
     const query: Record<string, unknown> = {};
     if (season) query.season = season;
-    if (clubId && clubId !== "all") query.clubId = clubId;
+    if (clubId && clubId !== "all") {
+      if (allowedClubIds && !allowedClubIds.includes(clubId)) {
+        return NextResponse.json(
+          { error: "You can only view rosters for clubs in your association" },
+          { status: 403 },
+        );
+      }
+      query.clubId = clubId;
+    } else if (allowedClubIds) {
+      // If there are no clubs directly governed by this association, return an empty list (do not fall back to "all rosters").
+      query.clubId = allowedClubIds.length ? { $in: allowedClubIds } : "__none__";
+    }
 
     const rosters = await db
       .collection("teamRosters")
@@ -65,6 +97,7 @@ export async function GET(request: NextRequest) {
     const userAccess = {
       clubId: user?.clubId ?? null,
       clubName: null as string | null,
+      associationId: userAssociationId,
       isSuperAdmin,
     };
 

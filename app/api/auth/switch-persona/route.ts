@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import clientPromise from "@/lib/mongodb";
+import { getDatabase } from "@/lib/mongodb";
 import { getSession, createSession } from "@/lib/auth/session";
 import {
   parsePersonaKey,
@@ -29,8 +29,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Invalid persona" }, { status: 403 });
     }
 
-    const client = await clientPromise;
-    const db = client.db("hockey-app");
+    const db = await getDatabase();
     const nextSession = await sessionWithPersona(db, session, personaKey);
     if (!nextSession) {
       return NextResponse.json(
@@ -40,7 +39,10 @@ export async function POST(request: NextRequest) {
     }
 
     await createSession(nextSession);
-    return NextResponse.json({ success: true });
+    return NextResponse.json({
+      success: true,
+      portalSubdomain: nextSession.portalSubdomain ?? null,
+    });
   } catch (e) {
     console.error("switch-persona:", e);
     return NextResponse.json({ error: "Server error" }, { status: 500 });

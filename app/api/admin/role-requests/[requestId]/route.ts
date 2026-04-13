@@ -15,7 +15,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import clientPromise from "@/lib/mongodb";
+import clientPromise, { getDatabaseName } from "@/lib/mongodb";
 import { getSession } from "@/lib/auth/session";
 import { requirePermission } from "@/lib/auth/middleware";
 import { ROLE_DEFINITIONS } from "@/lib/types/roles";
@@ -30,6 +30,10 @@ import type {
 import type { Db } from "mongodb";
 import { sendEmail } from "@/lib/email/client";
 import { buildRoleRequestDecisionEmail } from "@/lib/email/templates/roleRequestDecision";
+import {
+  canApproveRoleRequestPrivilege,
+  collectGrantorRolesForRoleRequest,
+} from "@/lib/domain/roleGrantWorkflow";
 
 // ── Scope check helpers ───────────────────────────────────────────────────────
 
@@ -133,7 +137,7 @@ export async function GET(
 
     const { requestId } = await params;
     const client = await clientPromise;
-    const db = client.db("hockey-app");
+    const db = client.db(getDatabaseName());
 
     const req = await db.collection("role_requests").findOne({ requestId }) as RoleRequest | null;
     if (!req) return NextResponse.json({ error: "Request not found" }, { status: 404 });
@@ -174,7 +178,7 @@ export async function PATCH(
     }
 
     const client = await clientPromise;
-    const db = client.db("hockey-app");
+    const db = client.db(getDatabaseName());
 
     const req = await db.collection("role_requests").findOne({ requestId }) as RoleRequest | null;
     if (!req) return NextResponse.json({ error: "Request not found" }, { status: 404 });
@@ -314,6 +318,17 @@ export async function PATCH(
         return NextResponse.json(
           { error: "Request is not in awaiting_approval status" },
           { status: 409 }
+        );
+      }
+
+      const grantorRoles = await collectGrantorRolesForRoleRequest(session, db, req);
+      if (!canApproveRoleRequestPrivilege(grantorRoles, req.requestedRole)) {
+        return NextResponse.json(
+          {
+            error:
+              "You cannot approve this role. Use a club or association administrator, or someone with a more senior role than the one requested in this organisation.",
+          },
+          { status: 403 },
         );
       }
 

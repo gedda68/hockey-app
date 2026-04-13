@@ -5,6 +5,7 @@ import type { SessionData, ScopedRole } from "@/lib/auth/session";
 import { numericLevelToString } from "@/lib/types/roles";
 import type { AssociationLevel } from "@/lib/types/roles";
 import { generateSlug } from "@/lib/utils/slug";
+import { applyPortalSubdomainToSession } from "@/lib/tenant/applySessionPortalSubdomain";
 
 export type PersonaOption = {
   /** Stable key sent to POST /api/auth/switch-persona */
@@ -188,7 +189,7 @@ export async function sessionWithPersona(
   };
 
   if (parsed.role === "super-admin" && parsed.scopeType === "global") {
-    return {
+    return applyPortalSubdomainToSession(db, {
       ...base,
       role: "super-admin",
       associationId: null,
@@ -196,7 +197,7 @@ export async function sessionWithPersona(
       clubId: null,
       clubSlug: null,
       clubName: undefined,
-    };
+    });
   }
 
   if (parsed.scopeType === "association" && parsed.scopeId) {
@@ -208,7 +209,7 @@ export async function sessionWithPersona(
     if (assoc && typeof assoc.level === "number") {
       associationLevel = numericLevelToString(assoc.level);
     }
-    return {
+    return applyPortalSubdomainToSession(db, {
       ...base,
       role: parsed.role,
       associationId: parsed.scopeId,
@@ -216,7 +217,7 @@ export async function sessionWithPersona(
       clubId: null,
       clubSlug: null,
       clubName: undefined,
-    };
+    });
   }
 
   if (parsed.scopeType === "club" && parsed.scopeId) {
@@ -245,7 +246,7 @@ export async function sessionWithPersona(
         associationLevel = numericLevelToString(assoc.level);
       }
     }
-    return {
+    return applyPortalSubdomainToSession(db, {
       ...base,
       role: parsed.role,
       associationId: parentAssociationId,
@@ -253,7 +254,7 @@ export async function sessionWithPersona(
       clubId: id,
       clubSlug: clubSlug ?? null,
       clubName: club.name ? String(club.name) : undefined,
-    };
+    });
   }
 
   if (parsed.scopeType === "team" && parsed.scopeId) {
@@ -287,7 +288,7 @@ export async function sessionWithPersona(
         associationLevel = numericLevelToString(assoc.level);
       }
     }
-    return {
+    return applyPortalSubdomainToSession(db, {
       ...base,
       role: parsed.role,
       associationId: parentAssociationId,
@@ -295,11 +296,11 @@ export async function sessionWithPersona(
       clubId: id,
       clubSlug: clubSlug ?? null,
       clubName: club.name ? String(club.name) : undefined,
-    };
+    });
   }
 
   if (parsed.scopeType === "global") {
-    return {
+    return applyPortalSubdomainToSession(db, {
       ...base,
       role: parsed.role,
       associationId: null,
@@ -307,7 +308,7 @@ export async function sessionWithPersona(
       clubId: null,
       clubSlug: null,
       clubName: undefined,
-    };
+    });
   }
 
   return null;

@@ -6,7 +6,8 @@
 // POST - Reject registration
 
 import { NextRequest, NextResponse } from "next/server";
-import clientPromise from "@/lib/mongodb";
+import clientPromise, { getDatabaseName } from "@/lib/mongodb";
+import { applyApprovedClubRegistrationRoles } from "@/lib/domain/roleGrantWorkflow";
 import { getSession } from "@/lib/auth/session";
 import {
   // ApproveRegistrationRequestSchema,
@@ -33,7 +34,7 @@ export async function GET(
     const registrationType = searchParams.get("registrationType");
 
     const client = await clientPromise;
-    const db = client.db("hockey-app");
+    const db = client.db(getDatabaseName());
 
     // Verify club exists
     const club = await db.collection("clubs").findOne({
@@ -127,7 +128,7 @@ export async function approveRegistration(
     // const validatedData = ApproveRegistrationRequestSchema.parse(body);
 
     const client = await clientPromise;
-    const db = client.db("hockey-app");
+    const db = client.db(getDatabaseName());
 
     // Verify club exists
     const club = await db.collection("clubs").findOne({
@@ -228,6 +229,23 @@ export async function approveRegistration(
             { session: mongoSession }
           );
         }
+
+        await applyApprovedClubRegistrationRoles(
+          db,
+          mongoSession,
+          {
+            memberId: String(registration.memberId),
+            roleIds: Array.isArray(registration.roleIds)
+              ? (registration.roleIds as string[])
+              : [],
+            seasonYear:
+              typeof registration.seasonYear === "string"
+                ? registration.seasonYear
+                : undefined,
+          },
+          String(club.id),
+          adminId,
+        );
       });
 
       return NextResponse.json({
@@ -278,7 +296,7 @@ export async function rejectRegistration(
     //  const validatedData = RejectRegistrationRequestSchema.parse(body);
 
     const client = await clientPromise;
-    const db = client.db("hockey-app");
+    const db = client.db(getDatabaseName());
 
     // Verify club exists
     const club = await db.collection("clubs").findOne({

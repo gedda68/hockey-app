@@ -6,6 +6,13 @@ export default defineConfig({
     environment: "happy-dom",
     globals: true,
     setupFiles: ["./vitest.setup.ts"],
+    // Playwright specs live under `e2e/` with `*.spec.ts`; Vitest must not load them.
+    exclude: [
+      "**/node_modules/**",
+      "**/dist/**",
+      "e2e/**",
+      "**/.{idea,git,cache,output,temp}/**",
+    ],
     coverage: {
       provider: "v8",
       reporter: ["text", "lcov"],

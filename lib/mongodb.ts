@@ -70,7 +70,12 @@ const clientPromise = {
 
 export default clientPromise;
 
+/** Same default as seed scripts (`DB_NAME` in `.env.local`). Must match where users/clubs are written. */
+export function getDatabaseName(): string {
+  return process.env.DB_NAME?.trim() || "hockey-app";
+}
+
 export async function getDatabase(): Promise<Db> {
   const client = await clientPromise;
-  return client.db("hockey-app");
+  return client.db(getDatabaseName());
 }

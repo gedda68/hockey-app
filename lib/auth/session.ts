@@ -51,6 +51,11 @@ export interface SessionData {
   memberId?: string | null;
   username?: string;
   forcePasswordChange?: boolean;
+  /**
+   * Subdomain label for the active persona’s portal ({slug}.{PORTAL_ROOT_DOMAIN}).
+   * Used by middleware to keep /admin and /portal on the correct tenant host.
+   */
+  portalSubdomain?: string | null;
 }
 
 // Encrypt session data into a JWT
@@ -75,6 +80,7 @@ async function decrypt(token: string): Promise<SessionData | null> {
 }
 
 function sessionCookieBase() {
+  /** e.g. `.localhost` in dev so the same session works on `localhost` and `{slug}.localhost`. */
   const domain = process.env.SESSION_COOKIE_DOMAIN?.trim();
   return {
     httpOnly: true as const,

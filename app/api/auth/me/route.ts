@@ -3,7 +3,7 @@
 
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth/session";
-import clientPromise from "@/lib/mongodb";
+import { getDatabase } from "@/lib/mongodb";
 import {
   activePersonaKeyFromSession,
   buildPersonaOptions,
@@ -17,8 +17,7 @@ export async function GET() {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
     }
 
-    const client = await clientPromise;
-    const db = client.db("hockey-app");
+    const db = await getDatabase();
     const personas = await buildPersonaOptions(db, session);
     const activePersonaKey = activePersonaKeyFromSession(session);
 
@@ -41,6 +40,7 @@ export async function GET() {
         clubSlug: session.clubSlug ?? null,
         clubName: session.clubName ?? null,
         forcePasswordChange: session.forcePasswordChange || false,
+        portalSubdomain: session.portalSubdomain ?? null,
         activePersonaKey,
         personas,
       },

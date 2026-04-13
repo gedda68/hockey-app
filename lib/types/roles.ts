@@ -785,6 +785,12 @@ const ROLE_PRIORITY: UserRole[] = [
   "public",
 ];
 
+/** Lower number = higher privilege (used for role-request approval checks). */
+export function rolePrivilegeRank(role: string): number {
+  const idx = ROLE_PRIORITY.indexOf(role as UserRole);
+  return idx === -1 ? ROLE_PRIORITY.length : idx;
+}
+
 export function getPrimaryRole(assignments: RoleAssignment[]): UserRole {
   const activeRoles = assignments
     .filter((a) => a.active !== false)

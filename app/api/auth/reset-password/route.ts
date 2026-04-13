@@ -7,7 +7,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import clientPromise from "@/lib/mongodb";
+import { getDatabase } from "@/lib/mongodb";
 import { hashPassword } from "@/lib/auth/username";
 
 const MIN_PASSWORD_LENGTH = 8;
@@ -41,8 +41,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const client = await clientPromise;
-    const db = client.db("hockey-app");
+    const db = await getDatabase();
 
     // ── Look up token ──────────────────────────────────────────────────────
     const resetDoc = await db
@@ -124,8 +123,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const client = await clientPromise;
-    const db = client.db("hockey-app");
+    const db = await getDatabase();
 
     const resetDoc = await db
       .collection("password_reset_tokens")

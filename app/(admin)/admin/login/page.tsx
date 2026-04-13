@@ -3,12 +3,18 @@
 
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { User, Lock, AlertCircle } from "lucide-react";
 
-export default function LoginPage() {
+function AdminLoginInner() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const callbackUrl =
+    searchParams.get("callbackUrl") || "/admin/teams";
+  const ssoHref = `/api/auth/sso?callbackUrl=${encodeURIComponent(callbackUrl)}`;
+  const ssoButtonVisible = process.env.NEXT_PUBLIC_SSO_BUTTON === "true";
+
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -60,9 +66,10 @@ export default function LoginPage() {
         return;
       }
 
-      // Success - redirect to teams page
+      // Success — honour callbackUrl when present
       console.log("✅ Login successful, redirecting...");
-      router.push("/admin/teams");
+      const dest = callbackUrl.startsWith("/") ? callbackUrl : "/admin/teams";
+      router.push(dest);
       router.refresh();
     } catch (error) {
       console.error("💥 Login error:", error);
@@ -96,6 +103,20 @@ export default function LoginPage() {
         {/* Login Form */}
         <div className="bg-white rounded-3xl shadow-2xl border border-slate-100 overflow-hidden">
           <div className="p-8">
+            {ssoButtonVisible && (
+              <div className="mb-6">
+                <a
+                  href={ssoHref}
+                  className="flex w-full items-center justify-center gap-2 py-3 px-4 rounded-xl border-2 border-slate-200 bg-slate-50 font-black uppercase text-sm text-[var(--brand-primary)] hover:border-[var(--brand-primary)] transition-all"
+                >
+                  Continue with organisation account
+                </a>
+                <p className="text-center text-[10px] text-slate-500 font-semibold mt-2">
+                  SSO · same login as main site
+                </p>
+              </div>
+            )}
+
             <form onSubmit={handleSubmit} className="space-y-6">
               {/* Error Message */}
               {error && (
@@ -213,5 +234,19 @@ export default function LoginPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center bg-slate-100 text-slate-600 font-bold">
+          Loading…
+        </div>
+      }
+    >
+      <AdminLoginInner />
+    </Suspense>
   );
 }

@@ -1,3 +1,5 @@
+import "./load-env";
+
 /**
  * scripts/setup-indexes.ts
  *
@@ -14,7 +16,7 @@ import { MongoClient, type Collection, type IndexDescription } from "mongodb";
 
 const uri = process.env.MONGODB_URI;
 if (!uri) {
-  console.error("❌  MONGODB_URI is not set in .env.local");
+  console.error("❌  MONGODB_URI is not set (.env or .env.local)");
   process.exit(1);
 }
 
@@ -275,6 +277,41 @@ async function main() {
       { associationId: 1, memberId: 1 },
       { unique: true, sparse: true },
       "unique associationId + memberId (sparse)",
+    );
+
+    // ── member_playing_history (deep stats ledger) ────────────────────────
+    const playingHistory = db.collection("member_playing_history");
+    console.log("\nmember_playing_history:");
+
+    await idx(playingHistory, { historyId: 1 }, { unique: true },
+      "unique index on historyId");
+
+    await idx(
+      playingHistory,
+      { memberId: 1, seasonYear: -1, date: -1 },
+      {},
+      "compound memberId + seasonYear + date (list/summarize)",
+    );
+
+    // ── coach_team_analytics (season rollups) ─────────────────────────────
+    const coachAnalytics = db.collection("coach_team_analytics");
+    console.log("\ncoach_team_analytics:");
+
+    await idx(coachAnalytics, { analyticsId: 1 }, { unique: true },
+      "unique index on analyticsId");
+
+    await idx(
+      coachAnalytics,
+      { coachUserId: 1, seasonYear: -1, updatedAt: -1 },
+      { sparse: true },
+      "compound coachUserId + seasonYear + updatedAt (sparse)",
+    );
+
+    await idx(
+      coachAnalytics,
+      { coachMemberId: 1, seasonYear: -1, updatedAt: -1 },
+      { sparse: true },
+      "compound coachMemberId + seasonYear + updatedAt (sparse)",
     );
 
     console.log("\n🎉  Index setup complete.\n");

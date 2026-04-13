@@ -1,7 +1,7 @@
 // lib/auth/resourceAccessDb.ts
 // DB-backed scope checks (e.g. association admin → clubs under that association).
 
-import clientPromise from "@/lib/mongodb";
+import clientPromise, { getDatabaseName } from "@/lib/mongodb";
 import type { SessionData } from "@/lib/auth/session";
 import { sessionDataToAssignments } from "@/lib/auth/sessionAssignments";
 import { canAccessResource } from "@/lib/types/roles";
@@ -30,7 +30,7 @@ export async function userCanAccessClubResource(
 
   if (session.role === "association-admin" && session.associationId) {
     const client = await clientPromise;
-    const db = client.db("hockey-app");
+    const db = client.db(getDatabaseName());
     const club = await db.collection("clubs").findOne({
       $or: [{ slug: clubIdOrSlug }, { id: clubIdOrSlug }],
     });

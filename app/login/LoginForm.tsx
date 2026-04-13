@@ -24,6 +24,13 @@ function LoginFormInner() {
   const nextParam = searchParams.get("next") || "";
   // ?changed=1 is set by change-password after a successful forced reset
   const passwordChanged = searchParams.get("changed") === "1";
+  const ssoError = searchParams.get("sso_error");
+  const ssoHint = searchParams.get("hint");
+
+  const ssoButtonVisible = process.env.NEXT_PUBLIC_SSO_BUTTON === "true";
+  const ssoContinueHref = `/api/auth/sso?callbackUrl=${encodeURIComponent(
+    callbackUrl || nextParam || "/",
+  )}`;
 
   const { refreshUser } = useAuth();
   const { tenant: portalTenant } = usePublicTenant();
@@ -209,6 +216,25 @@ function LoginFormInner() {
             </p>
           </div>
 
+          {ssoError && (
+            <div className="flex items-start gap-3 p-4 mb-5 bg-amber-50 border border-amber-200 rounded-2xl">
+              <AlertCircle size={18} className="text-amber-700 flex-shrink-0 mt-0.5" />
+              <div className="text-amber-900 text-sm font-semibold space-y-1">
+                <p>Organisation sign-in could not complete.</p>
+                <p className="text-amber-800/90 font-normal text-xs break-words">
+                  {(() => {
+                    try {
+                      return decodeURIComponent(ssoError);
+                    } catch {
+                      return ssoError;
+                    }
+                  })()}
+                  {ssoHint ? ` (${ssoHint})` : ""}
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* Password-changed success banner */}
           {passwordChanged && (
             <div className="flex items-start gap-3 p-4 mb-5 bg-green-50 border border-green-300 rounded-2xl">
@@ -216,6 +242,28 @@ function LoginFormInner() {
               <p className="text-green-800 text-sm font-semibold">
                 Password updated successfully! Please sign in with your new password.
               </p>
+            </div>
+          )}
+
+          {ssoButtonVisible && (
+            <div className="mb-6">
+              <a
+                href={ssoContinueHref}
+                className="flex w-full items-center justify-center gap-2 py-3.5 px-4 rounded-xl border-2 border-slate-200 bg-white font-black uppercase text-sm text-[#06054e] hover:border-[#06054e] hover:bg-slate-50 transition-all shadow-sm"
+              >
+                Continue with organisation account
+              </a>
+              <p className="text-center text-[11px] text-slate-400 font-semibold mt-2">
+                Single sign-on (Microsoft, Google, or your identity provider)
+              </p>
+              <div className="relative my-6">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-slate-200" />
+                </div>
+                <div className="relative flex justify-center text-xs font-black uppercase text-slate-400">
+                  <span className="bg-white px-3">Or use username</span>
+                </div>
+              </div>
             </div>
           )}
 

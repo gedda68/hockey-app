@@ -6,6 +6,9 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { jwtVerify } from "jose";
 import { evaluateAdminRouteAccess } from "@/lib/auth/adminRouteAccess";
+import { ssoAutoRedirectFromMiddleware } from "@/lib/auth/oidc/config";
+import { tenantHostRedirectUrl } from "@/lib/tenant/middlewareTenantRedirect";
+import { tryApexToTenantPublicRedirect } from "@/lib/tenant/publicApexTenantRedirect";
 
 const SECRET_KEY = process.env.JWT_SECRET;
 if (!SECRET_KEY) throw new Error("JWT_SECRET environment variable is not set");
@@ -26,6 +29,7 @@ interface SessionData {
   clubSlug?: string | null;
   memberId?: string | null;
   forcePasswordChange?: boolean;
+  portalSubdomain?: string | null;
 }
 
 async function getSession(req: NextRequest): Promise<SessionData | null> {
@@ -117,14 +121,23 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // 0.5 Apex → tenant for public org URLs (/clubs/…, /associations/…, optional fallback prefixes)
+  const apexTenantRedirect = await tryApexToTenantPublicRedirect(request);
+  if (apexTenantRedirect) return apexTenantRedirect;
+
   // 1. Skip fully public paths
   if (isPublicPath(path)) return NextResponse.next();
 
   // 2. Get session
   const session = await getSession(request);
 
-  // 3. Unauthenticated → redirect to login
+  // 3. Unauthenticated → OIDC SSO (optional) or login
   if (!session) {
+    if (ssoAutoRedirectFromMiddleware()) {
+      const sso = new URL("/api/auth/sso", request.url);
+      sso.searchParams.set("callbackUrl", request.nextUrl.href);
+      return NextResponse.redirect(sso);
+    }
     const loginUrl = new URL("/login", request.url);
     loginUrl.searchParams.set("callbackUrl", request.nextUrl.href);
     return NextResponse.redirect(loginUrl);
@@ -144,6 +157,18 @@ export async function middleware(request: NextRequest) {
   // 5. Auth-required (any logged-in user)
   if (AUTH_REQUIRED_PATHS.some((p) => path.startsWith(p)))
     return NextResponse.next();
+
+  // 5b. Keep /admin and /portal on the session’s tenant host ({slug}.{root})
+  const tenantRedirect = tenantHostRedirectUrl({
+    pathname: path,
+    search: request.nextUrl.search,
+    hostHeader: request.headers.get("host"),
+    portalSubdomain: session.portalSubdomain,
+    role: session.role || "public",
+  });
+  if (tenantRedirect) {
+    return NextResponse.redirect(tenantRedirect);
+  }
 
   // 6. Admin + portal route RBAC (see lib/auth/adminRouteAccess.ts)
   const decision = evaluateAdminRouteAccess(path, {

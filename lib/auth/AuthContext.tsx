@@ -13,6 +13,7 @@ import {
 import { useRouter } from "next/navigation";
 import type { ScopedRole } from "@/lib/auth/session";
 import type { PersonaOption } from "@/lib/auth/sessionPersona";
+import { syncBrowserToPortalSubdomain } from "@/lib/tenant/clientTenantHost";
 
 const IDLE_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
 
@@ -46,6 +47,8 @@ export interface User {
   clubName?: string | null;
   forcePasswordChange?: boolean;
   status?: string;
+  /** Host slug for {slug}.{PORTAL_ROOT_DOMAIN} — aligns browser with middleware. */
+  portalSubdomain?: string | null;
 }
 
 function mapMePayload(raw: Record<string, unknown>): User {
@@ -77,6 +80,7 @@ function mapMePayload(raw: Record<string, unknown>): User {
     clubSlug: (raw.clubSlug as string) ?? null,
     clubName: (raw.clubName as string) ?? null,
     forcePasswordChange: raw.forcePasswordChange === true,
+    portalSubdomain: (raw.portalSubdomain as string) ?? null,
   };
 }
 
@@ -221,7 +225,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const err = await res.json().catch(() => ({}));
         throw new Error((err as { error?: string }).error || "Switch failed");
       }
+      const data = (await res.json().catch(() => ({}))) as {
+        portalSubdomain?: string | null;
+      };
       await refreshUser();
+      syncBrowserToPortalSubdomain(data.portalSubdomain);
     },
     [refreshUser],
   );
