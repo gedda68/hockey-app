@@ -513,13 +513,37 @@ export default function AssociationForm({
         body: JSON.stringify(payload),
       });
 
-      const responseData = await res.json();
+      const rawBody = await res.text();
+      const contentType = res.headers.get("content-type") || "";
+      let responseData: any = null;
+      if (rawBody) {
+        if (contentType.includes("application/json")) {
+          try {
+            responseData = JSON.parse(rawBody);
+          } catch {
+            responseData = { rawBody };
+          }
+        } else {
+          // Some failures come back as text/html or plain text (e.g. middleware/proxy).
+          responseData = { rawBody };
+        }
+      }
 
       if (!res.ok) {
-        console.error("❌ VALIDATION ERROR:", responseData);
-        throw new Error(
-          responseData.error || responseData.details || "Validation failed",
-        );
+        console.error("❌ VALIDATION ERROR:", {
+          status: res.status,
+          statusText: res.statusText,
+          contentType,
+          responseData,
+        });
+
+        const msg =
+          responseData?.error ||
+          responseData?.message ||
+          responseData?.details?.formErrors?.[0] ||
+          responseData?.rawBody ||
+          `Validation failed (${res.status})`;
+        throw new Error(msg);
       }
 
       success(
