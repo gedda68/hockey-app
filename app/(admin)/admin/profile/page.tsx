@@ -28,7 +28,10 @@ import {
   summarizeCoachAnalytics,
   summarizePlayingHistory,
 } from "@/lib/stats/memberStatsService";
-import type { CoachTeamAnalyticsRow } from "@/types/memberStats";
+import type {
+  CoachAnalyticsSummary,
+  CoachTeamAnalyticsRow,
+} from "@/types/memberStats";
 
 const COACH_LIKE_ROLES = new Set([
   "coach",
@@ -140,6 +143,41 @@ export default async function AdminProfilePage() {
 
   const pi = member?.personalInfo as Record<string, string> | undefined;
   const contact = member?.contact as Record<string, string> | undefined;
+
+  const historyMemberId = String(
+    (member?.memberId as string | undefined) ?? session.memberId ?? "",
+  ).trim();
+
+  const playingRows =
+    historyMemberId.length > 0
+      ? await listPlayingHistoryForMember(db, historyMemberId)
+      : [];
+  const playingSummary = summarizePlayingHistory(playingRows);
+
+  const isCoachLike = [...(userRoles ?? []), ...(memberRoles ?? [])].some((r) =>
+    COACH_LIKE_ROLES.has(String(r.role)),
+  );
+
+  let coachAnalyticsBlock: CoachAnalyticsSummary | null = null;
+  if (isCoachLike) {
+    const staffRows =
+      session.userId != null && session.userId !== ""
+        ? await listCoachAnalyticsForStaff(db, session.userId)
+        : [];
+    const memberCoachRows =
+      historyMemberId.length > 0
+        ? await listCoachAnalyticsForMemberCoach(db, historyMemberId)
+        : [];
+    const merged = new Map<string, CoachTeamAnalyticsRow>();
+    for (const row of [...staffRows, ...memberCoachRows]) {
+      merged.set(row.analyticsId, row);
+    }
+    const coachRows = [...merged.values()];
+    coachAnalyticsBlock = {
+      rows: coachRows,
+      totals: summarizeCoachAnalytics(coachRows),
+    };
+  }
 
   return (
     <div className="p-6 lg:p-10 max-w-4xl mx-auto space-y-8">

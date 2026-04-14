@@ -1,5 +1,5 @@
 /**
- * POST /api/admin/members/[memberId]/playing-history
+ * POST /api/admin/members/[id]/playing-history
  *
  * Append a playing-history event (ledger row). Requires club access for the member.
  */
@@ -38,14 +38,14 @@ const BodySchema = z.object({
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ memberId: string }> },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   const { response: permRes } = await requirePermission(request, "member.edit");
   if (permRes) return permRes;
 
-  const { memberId } = await params;
+  const { id: memberId } = await params;
   if (!memberId) {
-    return NextResponse.json({ error: "memberId required" }, { status: 400 });
+    return NextResponse.json({ error: "member id required" }, { status: 400 });
   }
 
   let body: z.infer<typeof BodySchema>;
