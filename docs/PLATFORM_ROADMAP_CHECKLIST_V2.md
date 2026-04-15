@@ -46,7 +46,7 @@ The platform hosts **many independent portals** (per association subdomain and p
 
 Federation-grade sites optimise for **repeat visits**, **mobile**, and **clear match-day journeys**. Use as **aspirational** targets (not all are in scope short term).
 
-- [ ] **B1** **Draw / ladder / results hub** — Single place for “this round”, filters by team/club, deep links to match centre. *We have:* league hubs, fixtures, standings APIs. *Improve:* match-centre style page per fixture (lineups, events timeline, venue map), spoiler-free option.
+- [ ] **B1** **Draw / ladder / results hub** — Single place for “this round”, filters by team/club, deep links to match centre. *Shipped (partial):* `/competitions/this-round` (This week / This round + round selector) linking to match centre; league hub card → “This round”. *Remaining:* club/team filters, ladders in the hub, spoiler-free mode.
 - [ ] **B2** **Video and rich media** — Highlights, embeds, club channels. *We have:* images in news/gallery. *Improve:* optional video URLs per article, oEmbed, or curated YouTube playlists per tenant.
 - [ ] **B3** **Identity / logged-in fan** — Tips, favourites, alerts. *We have:* member portal baseline. *Improve:* “follow my team(s)” → push/email from Epic J patterns.
 - [ ] **B4** **Pathways narrative** — Clear “Play”, “Coach”, “Umpire”, “Volunteer” entry points per **tenant** (not only global). Tie to registration and role-request flows.
@@ -71,9 +71,9 @@ Federation-grade sites optimise for **repeat visits**, **mobile**, and **clear m
 ## Epic P — Product & public experience
 
 - [ ] **P1** **Association hub content sections** — On `/associations/[id]`, group: Rep & pathways | Championships | Local league | News (scoped) | Contacts — driven by level and configured features.
-- [ ] **P2** **Club hub** — Prominent “Teams”, “News”, “Join”, “Fixture list (my teams)” using tenant-scoped data only.
+- [ ] **P2** **Club hub** — Prominent “Teams”, “News”, “Join”, “Fixture list (my teams)” using tenant-scoped data only. *Shipped (partial):* “My fixtures” strip on club hub (logged-in), and on matches page + association hub.
 - [ ] **P3** **Fixture match centre** — One URL per league fixture with narrative layout (teams, time, venue, result, link to stats if present).
-- [ ] **P4** **Staff / committee pages** — Public pages from `AssociationPosition` / club committee data with contact opt-in mirroring team staff rules (Epic G).
+- [ ] **P4** **Staff / committee pages** — Public pages from `AssociationPosition` / club committee data with contact opt-in mirroring team staff rules (Epic G). *Shipped (partial):* committee/contacts surfaced on association + club hubs; club committee opt-in flags added and enforced in public display.
 - [ ] **P5** **Search** — Tenant-scoped search across news, teams, clubs (avoid global Mongo text search without tenant filter).
 
 ---
