@@ -3,12 +3,15 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { listPublicTournaments } from "@/lib/public/publicTournaments";
+import { resolvePublicTenantFromRequest } from "@/lib/tenant/publicTenantRequest";
 
 export async function GET(request: NextRequest) {
   try {
     const season = request.nextUrl.searchParams.get("season")?.trim();
+    const tenant = await resolvePublicTenantFromRequest(request);
     const tournaments = await listPublicTournaments({
       season: season || undefined,
+      tenant,
     });
     return NextResponse.json({ tournaments });
   } catch (error: unknown) {

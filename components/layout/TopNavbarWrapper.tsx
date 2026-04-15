@@ -1,51 +1,95 @@
 // components/layout/TopNavbarWrapper.tsx
-// Server component that fetches clubs and passes to TopNavbar
+// Server component: tenant-scoped clubs drawer + ticker when on an association host.
 
-import { MongoClient } from "mongodb";
+import { headers } from "next/headers";
+import clientPromise from "@/lib/mongodb";
 import TopNavbar from "./TopNavbar";
 import { clubPortalHomeUrl } from "@/lib/tenant/subdomainUrls";
+import { getRecentMatches } from "@/lib/data/matches";
+import type { TickerLine } from "@/components/website/home/HomeResultsTicker";
+import {
+  resolvePortalSlugForRequest,
+  resolveTenantByPortalSlug,
+} from "@/lib/tenant/portalHost";
+import { listPublicClubsByAssociation } from "@/lib/public/publicClubs";
 
-async function getActiveClubs(): Promise<any[]> {
-  const client = new MongoClient(process.env.MONGODB_URI!);
-
-  try {
-    await client.connect();
-    const database = client.db(process.env.DB_NAME || "hockey-app");
-    const clubsCollection = database.collection("clubs");
-
-    const clubs = await clubsCollection.find({ active: true }).toArray();
-
-    const plainClubs = clubs.map((club) => ({
-      name: club.name || club.title || "Unknown Club",
-      slug: club.slug || "",
-      portalHomeUrl: clubPortalHomeUrl({
-        shortName: club.shortName,
-        abbreviation: club.abbreviation,
-        portalSlug: club.portalSlug,
-        slug: club.slug || "",
-      }),
-      icon: club.icon,
-      iconSrc: club.iconSrc,
-      logo: club.logo,
-      shortName: club.shortName || club.abbreviation,
-      colors: {
-        primary: club.colors?.primary || "#06054e",
-      },
-    }));
-
-    // Sort by name
-    plainClubs.sort((a, b) => a.name.localeCompare(b.name));
-
-    return plainClubs;
-  } catch (error) {
-    console.error("Error fetching clubs for navbar:", error);
-    return [];
-  } finally {
-    await client.close();
-  }
+function mapClubForNav(club: {
+  name?: string;
+  title?: string;
+  slug?: string;
+  shortName?: string;
+  abbreviation?: string;
+  portalSlug?: string;
+  icon?: string;
+  iconSrc?: string;
+  logo?: string;
+  colors?: { primary?: string };
+}) {
+  return {
+    name: String(club.name || club.title || "Unknown Club"),
+    slug: String(club.slug || ""),
+    portalHomeUrl: clubPortalHomeUrl({
+      shortName: club.shortName,
+      abbreviation: club.abbreviation,
+      portalSlug: club.portalSlug,
+      slug: String(club.slug || ""),
+    }),
+    icon: club.icon,
+    iconSrc: club.iconSrc,
+    logo: club.logo,
+    shortName: club.shortName || club.abbreviation,
+    colors: {
+      primary: club.colors?.primary || "#06054e",
+    },
+  };
 }
 
 export default async function TopNavbarWrapper() {
-  const clubs = await getActiveClubs();
-  return <TopNavbar clubs={clubs} />;
+  const headersList = await headers();
+  const host =
+    headersList.get("x-forwarded-host") ?? headersList.get("host") ?? "";
+  const slug = resolvePortalSlugForRequest(host, null);
+
+  const client = await clientPromise;
+  const db = client.db(process.env.DB_NAME || "hockey-app");
+  const tenant =
+    slug && slug.length > 0 ? await resolveTenantByPortalSlug(db, slug) : null;
+
+  let clubs: ReturnType<typeof mapClubForNav>[] = [];
+
+  if (tenant?.kind === "association") {
+    const rows = await listPublicClubsByAssociation(tenant.id, { limit: 200 });
+    clubs = rows.map((c) =>
+      mapClubForNav({
+        name: c.name,
+        slug: c.slug,
+        shortName: c.shortName,
+        logo: c.logo,
+        iconSrc: c.logo,
+        colors: c.colors,
+      }),
+    );
+  }
+
+  if (clubs.length === 0) {
+    const raw = await db.collection("clubs").find({ active: true }).toArray();
+    clubs = raw.map((club) => mapClubForNav(club as any));
+    clubs.sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  const matchOpts =
+    tenant?.kind === "association"
+      ? { owningAssociationId: tenant.id }
+      : undefined;
+  const recent = await getRecentMatches(24, matchOpts);
+  const tickerLines: TickerLine[] = recent.map((m) => {
+    const hs = m.score?.home ?? "—";
+    const awayScr = m.score?.away ?? "—";
+    return {
+      key: m.matchId,
+      text: `${m.division} · ${m.homeTeam.name} ${hs}–${awayScr} ${m.awayTeam.name}`,
+    };
+  });
+
+  return <TopNavbar clubs={clubs} tickerLines={tickerLines} />;
 }

@@ -93,18 +93,31 @@ function normalizeMatchStatus(fixtureStatus: unknown, hasShootout: boolean): str
   return "Scheduled";
 }
 
+export type GetMatchesOptions = {
+  /** When set, only fixtures in season competitions owned by this association are returned. */
+  owningAssociationId?: string;
+};
+
 /**
  * Get all matches (upcoming + results)
  */
-export async function getMatches(): Promise<Match[]> {
+export async function getMatches(opts?: GetMatchesOptions): Promise<Match[]> {
   try {
     const client = await clientPromise;
-    const db = client.db("hockey-app");
+    const db = client.db(process.env.DB_NAME || "hockey-app");
+
+    const scFilter: Record<string, unknown> = {
+      status: { $in: [...PUBLIC_SC_STATUSES] },
+    };
+    const assoc = opts?.owningAssociationId?.trim();
+    if (assoc) {
+      scFilter.owningAssociationId = assoc;
+    }
 
     // Only show season competitions that are publicly visible
     const seasonCompetitions = await db
       .collection("season_competitions")
-      .find({ status: { $in: [...PUBLIC_SC_STATUSES] } })
+      .find(scFilter)
       .project({
         seasonCompetitionId: 1,
         season: 1,
@@ -601,8 +614,10 @@ export async function getMatchesByStatus(status: string): Promise<Match[]> {
 /**
  * Get upcoming matches
  */
-export async function getUpcomingMatches(): Promise<Match[]> {
-  const matches = await getMatches();
+export async function getUpcomingMatches(
+  opts?: GetMatchesOptions,
+): Promise<Match[]> {
+  const matches = await getMatches(opts);
   const now = new Date();
 
   return matches
@@ -618,8 +633,10 @@ export async function getUpcomingMatches(): Promise<Match[]> {
 /**
  * Get completed matches (results)
  */
-export async function getCompletedMatches(): Promise<Match[]> {
-  const matches = await getMatches();
+export async function getCompletedMatches(
+  opts?: GetMatchesOptions,
+): Promise<Match[]> {
+  const matches = await getMatches(opts);
 
   return matches
     .filter((m) => m.status.toLowerCase().includes("final"))
@@ -791,8 +808,11 @@ export async function getMatchesForTeam(teamName: string): Promise<Match[]> {
 /**
  * Get recent matches (last 10)
  */
-export async function getRecentMatches(limit: number = 10): Promise<Match[]> {
-  const matches = await getCompletedMatches();
+export async function getRecentMatches(
+  limit: number = 10,
+  opts?: GetMatchesOptions,
+): Promise<Match[]> {
+  const matches = await getCompletedMatches(opts);
   return matches.slice(0, limit);
 }
 

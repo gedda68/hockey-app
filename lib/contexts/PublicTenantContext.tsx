@@ -23,11 +23,22 @@ const PublicTenantContext = createContext<PublicTenantContextValue | null>(
   null,
 );
 
-export function PublicTenantProvider({ children }: { children: ReactNode }) {
+export function PublicTenantProvider({
+  children,
+  initialTenant = null,
+}: {
+  children: ReactNode;
+  /** From root layout (Host); avoids default BHA chrome until client fetch completes. */
+  initialTenant?: PublicTenantPayload | null;
+}) {
   const pathname = usePathname();
-  const [tenant, setTenant] = useState<PublicTenantPayload | null>(null);
-  const [portalSlug, setPortalSlug] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [tenant, setTenant] = useState<PublicTenantPayload | null>(
+    () => initialTenant ?? null,
+  );
+  const [portalSlug, setPortalSlug] = useState<string | null>(
+    () => initialTenant?.portalSlug ?? null,
+  );
+  const [isLoading, setIsLoading] = useState(() => initialTenant == null);
 
   const refresh = useCallback(async () => {
     setIsLoading(true);

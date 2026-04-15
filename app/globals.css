@@ -4,6 +4,8 @@
 /* Optional: Define your default daisyUI theme */
 :root {
   --color-primary: var(--color-sky-500);
+  /* Fixed public header height to avoid layout shift */
+  --public-header-height: 120px;
 }
 
 @layer base {

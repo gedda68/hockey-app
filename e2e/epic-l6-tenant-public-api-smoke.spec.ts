@@ -82,3 +82,34 @@ test("tenant host defaults / constrains /api/public/leagues owningAssociationId"
   expect(Array.isArray(mj?.leagues) ? mj.leagues.length : 0).toBe(0);
 });
 
+test("tenant host constrains GET /api/tournaments", async ({ request }) => {
+  let bha: any;
+  let ha: any;
+  try {
+    bha = await ctxForHost(request, "bha.localhost:3000");
+    ha = await ctxForHost(request, "ha.localhost:3000");
+    await bha.get("/api/public/tenant");
+  } catch {
+    test.skip(true, "dev server not running on localhost:3000");
+  }
+
+  const bhaId = await getTenantId(bha);
+  const haId = await getTenantId(ha);
+  test.skip(!bhaId || !haId, "tenant ids not resolvable in current DB");
+
+  for (const [ctx, id] of [
+    [bha, bhaId],
+    [ha, haId],
+  ] as const) {
+    const res = await ctx.get("/api/tournaments");
+    expect(res.ok()).toBeTruthy();
+    const j = await res.json();
+    const list: any[] = Array.isArray(j?.tournaments) ? j.tournaments : [];
+    for (const t of list) {
+      const branding = String(t.brandingAssociationId ?? "");
+      const host = String(t.hostId ?? "");
+      expect(branding === id || host === id).toBeTruthy();
+    }
+  }
+});
+

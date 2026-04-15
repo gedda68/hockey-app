@@ -23,3 +23,19 @@ export async function getPublicTenantForServerPage(
   const db = client.db(process.env.DB_NAME || "hockey-app");
   return resolveTenantByPortalSlug(db, slug);
 }
+
+/**
+ * Host-only tenant (no `?portal=`). Used in the root layout so navbar / body padding
+ * match the subdomain on first paint; client `PublicTenantProvider` still refreshes for
+ * plain localhost + `?portal=` overrides.
+ */
+export async function loadPublicTenantFromIncomingHost(): Promise<PublicTenantPayload | null> {
+  const headersList = await headers();
+  const host =
+    headersList.get("x-forwarded-host") ?? headersList.get("host") ?? "";
+  const slug = resolvePortalSlugForRequest(host, null);
+  if (!slug) return null;
+  const client = await clientPromise;
+  const db = client.db(process.env.DB_NAME || "hockey-app");
+  return resolveTenantByPortalSlug(db, slug);
+}

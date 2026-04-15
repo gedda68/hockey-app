@@ -24,6 +24,9 @@ import { usePublicTenant } from "@/lib/contexts/PublicTenantContext";
 import { toast } from "sonner";
 import { LinkButton } from "@/components/ui/LinkButton";
 import ClubsDrawer from "@/components/ui/ClubsDrawer";
+import HomeResultsTicker, {
+  type TickerLine,
+} from "@/components/website/home/HomeResultsTicker";
 
 const navItems = [
   {
@@ -60,9 +63,10 @@ interface TopNavbarProps {
       primary?: string;
     };
   }>;
+  tickerLines?: TickerLine[];
 }
 
-export default function TopNavbar({ clubs }: TopNavbarProps) {
+export default function TopNavbar({ clubs, tickerLines = [] }: TopNavbarProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [openSubMenu, setOpenSubMenu] = useState<string | null>(null);
   const [openDesktopMenu, setOpenDesktopMenu] = useState<string | null>(null);
@@ -129,8 +133,8 @@ export default function TopNavbar({ clubs }: TopNavbarProps) {
         <nav
           className={
             portalTenant
-              ? "w-full transition-all duration-300 ease-out"
-              : "w-full bg-gradient-to-r from-green-500 via-yellow-400 to-[#06054e] transition-all duration-300 ease-out"
+              ? "w-full h-[var(--public-header-height)] flex flex-col transition-all duration-300 ease-out"
+              : "w-full h-[var(--public-header-height)] flex flex-col bg-gradient-to-r from-green-500 via-yellow-400 to-[#06054e] transition-all duration-300 ease-out"
           }
           style={
             portalTenant
@@ -140,28 +144,32 @@ export default function TopNavbar({ clubs }: TopNavbarProps) {
               : undefined
           }
         >
-          <div className="max-w-[1600px] mx-auto px-3 sm:px-4 py-2 flex flex-wrap items-center gap-x-3 gap-y-2">
-            <div className="flex items-center gap-2 sm:gap-3 min-w-0 shrink-0">
-              <Link href="/" aria-label="Home" className="block shrink-0">
+          <div className="flex-1 min-h-0 w-full max-w-[1600px] mx-auto pl-1.5 pr-3 sm:pl-2 sm:pr-4 flex items-center justify-between gap-2 sm:gap-3 min-h-[52px]">
+            <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1 md:flex-initial">
+              <Link
+                href="/"
+                aria-label="Home"
+                className="flex shrink-0 items-center self-stretch py-0.5 -ml-0.5 sm:-ml-1 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80 rounded-lg"
+              >
                 {portalTenant?.logo ? (
                   // eslint-disable-next-line @next/next/no-img-element -- remote club/assoc logos
                   <img
                     src={portalTenant.logo}
-                    alt=""
-                    className="h-10 sm:h-11 w-auto max-w-[140px] object-contain rounded-lg bg-white/10 p-1"
+                    alt={portalTenant.displayName}
+                    className="h-12 w-auto max-h-[calc(var(--public-header-height)-3.25rem)] sm:h-14 md:h-[3.75rem] max-w-[min(320px,46vw)] object-contain object-left rounded-lg bg-white/10 px-1 sm:px-1.5 py-0.5"
                   />
                 ) : (
                   <Image
                     src="/icons/BHA-bg.png"
-                    alt="Brisbane Hockey"
-                    width={140}
-                    height={56}
-                    className="object-contain h-10 sm:h-11 w-auto max-w-[140px]"
+                    alt="Brisbane Hockey Association"
+                    width={160}
+                    height={64}
+                    className="object-contain object-left h-12 w-auto max-h-[calc(var(--public-header-height)-3.25rem)] sm:h-14 md:h-[3.75rem] max-w-[min(280px,46vw)]"
                     priority
                   />
                 )}
               </Link>
-              <span className="hidden sm:inline font-extrabold text-white text-[10px] sm:text-xs md:text-sm uppercase tracking-wide leading-tight max-w-[10rem] sm:max-w-[14rem] md:max-w-[18rem] truncate">
+              <span className="hidden sm:inline font-extrabold text-white text-[10px] sm:text-xs md:text-sm uppercase tracking-wide leading-tight min-w-0 flex-1 md:max-w-[14rem] lg:max-w-[20rem] truncate">
                 {portalTenant?.displayName ?? "Brisbane Hockey Association"}
               </span>
             </div>
@@ -262,17 +270,17 @@ export default function TopNavbar({ clubs }: TopNavbarProps) {
                 {isAuthenticated ? (
                   <>
                     {showMyUmpiring && (
-                    <Link
-                      href="/my-umpiring"
-                      className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm font-bold uppercase tracking-wider transition-colors ml-1 ${
-                        pathname === "/my-umpiring"
-                          ? "text-white bg-white/20"
-                          : "text-white hover:text-yellow-200 hover:bg-white/10"
-                      }`}
-                    >
-                      <ClipboardCheck className="h-4 w-4" />
-                      My umpiring
-                    </Link>
+                      <Link
+                        href="/my-umpiring"
+                        className={`flex items-center gap-2 px-3 py-2 rounded-md text-sm font-bold uppercase tracking-wider transition-colors ml-1 ${
+                          pathname === "/my-umpiring"
+                            ? "text-white bg-white/20"
+                            : "text-white hover:text-yellow-200 hover:bg-white/10"
+                        }`}
+                      >
+                        <ClipboardCheck className="h-4 w-4" />
+                        My umpiring
+                      </Link>
                     )}
                     <button
                       onClick={handleLogout}
@@ -298,6 +306,10 @@ export default function TopNavbar({ clubs }: TopNavbarProps) {
                 )}
               </div>
             </div>
+          </div>
+
+          <div className="shrink-0 px-3 sm:px-4 pb-2">
+            <HomeResultsTicker lines={tickerLines} />
           </div>
         </nav>
       </div>
@@ -402,20 +414,20 @@ export default function TopNavbar({ clubs }: TopNavbarProps) {
             {isAuthenticated ? (
               <>
                 {showMyUmpiring && (
-                <Link
-                  href="/my-umpiring"
-                  onClick={() => setIsOpen(false)}
-                  className={`flex w-full items-center gap-4 px-6 py-4 rounded-2xl ${
-                    pathname === "/my-umpiring"
-                      ? "bg-white/20 text-white"
-                      : "text-slate-300 hover:text-white hover:bg-white/10"
-                  }`}
-                >
-                  <ClipboardCheck className="h-5 w-5 shrink-0 text-white" />
-                  <span className="uppercase text-[11px] font-bold tracking-widest">
-                    My umpiring
-                  </span>
-                </Link>
+                  <Link
+                    href="/my-umpiring"
+                    onClick={() => setIsOpen(false)}
+                    className={`flex w-full items-center gap-4 px-6 py-4 rounded-2xl ${
+                      pathname === "/my-umpiring"
+                        ? "bg-white/20 text-white"
+                        : "text-slate-300 hover:text-white hover:bg-white/10"
+                    }`}
+                  >
+                    <ClipboardCheck className="h-5 w-5 shrink-0 text-white" />
+                    <span className="uppercase text-[11px] font-bold tracking-widest">
+                      My umpiring
+                    </span>
+                  </Link>
                 )}
                 <button
                   onClick={() => {

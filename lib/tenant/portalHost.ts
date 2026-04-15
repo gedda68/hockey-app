@@ -138,17 +138,62 @@ export async function resolveTenantByPortalSlug(
   const key = slug.trim().toLowerCase();
   if (!key) return null;
 
-  const assoc = await db.collection("associations").findOne({
+  let assoc = await db.collection("associations").findOne({
     $or: [
       { portalSlug: safeRegexExact(key) },
       { code: safeRegexExact(key) },
+      { acronym: safeRegexExact(key) },
+      { associationId: safeRegexExact(key) },
     ],
   });
+
+  // Subdomains often use a short label (e.g. rha) while `code` may be a longer string; align
+  // with `associationPortalSubdomain` / `normalizePortalLabel` behaviour.
+  if (!assoc) {
+    const candidates = await db
+      .collection("associations")
+      .find({
+        status: { $nin: ["inactive", "suspended"] },
+      })
+      .project({
+        associationId: 1,
+        code: 1,
+        name: 1,
+        fullName: 1,
+        acronym: 1,
+        portalSlug: 1,
+        branding: 1,
+      })
+      .limit(400)
+      .toArray();
+    for (const a of candidates) {
+      const labels = [
+        normalizePortalLabel(
+          a.portalSlug != null ? String(a.portalSlug) : "",
+        ),
+        normalizePortalLabel(a.code != null ? String(a.code) : ""),
+        normalizePortalLabel(a.acronym != null ? String(a.acronym) : ""),
+        normalizePortalLabel(
+          a.associationId != null ? String(a.associationId) : "",
+        ),
+      ];
+      if (labels.some((l) => l === key)) {
+        assoc = a as any;
+        break;
+      }
+    }
+  }
 
   if (assoc) {
     const id = String(assoc.associationId ?? "");
     if (!id) return null;
-    const b = assoc.branding ?? {};
+    const ar = assoc as Record<string, unknown>;
+    const b = (ar.branding ?? {}) as Record<string, unknown>;
+    const logoRaw =
+      (typeof b.logo === "string" && b.logo.trim()) ||
+      (typeof b.logoUrl === "string" && b.logoUrl.trim()) ||
+      (typeof ar.logo === "string" && ar.logo.trim()) ||
+      "";
     return {
       kind: "association",
       id,
@@ -159,7 +204,7 @@ export async function resolveTenantByPortalSlug(
         : assoc.code
           ? String(assoc.code)
           : undefined,
-      logo: b.logo ? String(b.logo) : undefined,
+      logo: logoRaw || undefined,
       primaryColor: String(b.primaryColor ?? DEFAULT_PRIMARY),
       secondaryColor: String(b.secondaryColor ?? DEFAULT_SECONDARY),
       tertiaryColor: String(b.tertiaryColor ?? b.secondaryColor ?? DEFAULT_TERTIARY),

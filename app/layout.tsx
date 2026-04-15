@@ -10,6 +10,7 @@ import { Toaster } from "sonner";
 import ConditionalPublicHeader from "@/components/layout/ConditionalPublicHeader";
 import ConditionalBodyPadding from "@/components/layout/ConditionalBodyPadding";
 import TopNavbarWrapper from "@/components/layout/TopNavbarWrapper";
+import { loadPublicTenantFromIncomingHost } from "@/lib/tenant/serverTenant";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -18,16 +19,18 @@ export const metadata: Metadata = {
   description: "Brisbane Hockey Association Management System",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const initialTenant = await loadPublicTenantFromIncomingHost();
+
   return (
     <html lang="en">
       <body className={inter.className}>
         <AuthProvider>
-          <PublicTenantProvider>
+          <PublicTenantProvider initialTenant={initialTenant}>
             {/* Public header — hidden automatically on /admin routes */}
             <ConditionalPublicHeader>
               <TopNavbarWrapper />

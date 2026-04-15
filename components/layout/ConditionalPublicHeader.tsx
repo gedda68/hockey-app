@@ -18,6 +18,11 @@ export default function ConditionalPublicHeader({
   if (pathname?.startsWith("/admin")) return null;
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-[1000]">{children}</header>
+    <header
+      className="fixed top-0 left-0 right-0 z-[1000] overflow-hidden"
+      style={{ height: "var(--public-header-height)" }}
+    >
+      {children}
+    </header>
   );
 }

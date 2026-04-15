@@ -9,12 +9,13 @@ import {
   BarChart3,
   Shield,
 } from "lucide-react";
-import { getUpcomingMatches, getRecentMatches } from "@/lib/data/matches";
+import { getUpcomingMatches } from "@/lib/data/matches";
 import { getCurrentSeasonStandings } from "@/lib/data/standings";
 import { getClubs } from "@/lib/data/clubs";
 import { getPublicNewsItems } from "@/lib/data/publicNews";
 import clientPromise from "@/lib/mongodb";
 import {
+  isLocalDevHostname,
   resolvePortalSlugForRequest,
   resolveTenantByPortalSlug,
   type PublicTenantPayload,
@@ -22,13 +23,31 @@ import {
 import { clubPortalHomeUrl } from "@/lib/tenant/subdomainUrls";
 import ClubSiteShell from "@/components/clubs/ClubSiteShell";
 import ClubSiteDashboard from "@/components/clubs/ClubSiteDashboard";
-import HomeResultsTicker, {
-  type TickerLine,
-} from "@/components/website/home/HomeResultsTicker";
 import HomeDivisionExplorer from "@/components/website/home/HomeDivisionExplorer";
 import HomeNewsAside from "@/components/website/home/HomeNewsAside";
 import HomeHeroGallery from "@/components/website/home/HomeHeroGallery";
 import { getRandomHomeGallerySlides } from "@/lib/data/homeGallery";
+import { listPublicClubsByAssociation } from "@/lib/public/publicClubs";
+
+export const dynamic = "force-dynamic";
+
+function hexToRgba(hex: string, alpha: number): string | null {
+  const h = hex.trim().replace(/^#/, "");
+  if (!/^[0-9a-fA-F]{6}$/.test(h)) return null;
+  const r = parseInt(h.slice(0, 2), 16);
+  const g = parseInt(h.slice(2, 4), 16);
+  const b = parseInt(h.slice(4, 6), 16);
+  const a = Math.max(0, Math.min(1, alpha));
+  return `rgba(${r}, ${g}, ${b}, ${a})`;
+}
+
+function tenantPrimaryGradient(primary: string, endAlpha = 0.75): string {
+  const hex = String(primary ?? "").trim();
+  const h = hex.replace(/^#/, "");
+  const tail =
+    /^[0-9a-fA-F]{6}$/.test(h) ? hexToRgba(`#${h}`, endAlpha) ?? hex : hex;
+  return `linear-gradient(to bottom right, ${hex}, ${tail})`;
+}
 
 const QUICK_LINKS = [
   {
@@ -109,26 +128,61 @@ export default async function HomePage({
     }
   }
 
-  const [upcomingMatches, recentMatches, divisions, clubs, newsItems, gallerySlides] =
+  const associationId = associationPortal?.id;
+
+  const tenantClubRows = associationId
+    ? await listPublicClubsByAssociation(associationId, { limit: 24 })
+    : [];
+
+  const [upcomingMatches, divisions, jsonClubs, newsItems, gallerySlides] =
     await Promise.all([
-      getUpcomingMatches(),
-      getRecentMatches(24),
+      getUpcomingMatches(
+        associationId
+          ? { owningAssociationId: associationId }
+          : undefined,
+      ),
       getCurrentSeasonStandings(),
       getClubs(),
       getPublicNewsItems(8, associationPortal),
       getRandomHomeGallerySlides(7, associationPortal),
     ]);
 
+  const clubsForSidebar =
+    tenantClubRows.length > 0
+      ? tenantClubRows.map((c) => ({
+          slug: c.slug,
+          shortName: c.shortName,
+          name: c.name,
+          title: c.name,
+          logo: c.logo,
+          iconSrc: c.logo,
+          icon: undefined as string | undefined,
+          abbreviation: undefined as string | undefined,
+        }))
+      : jsonClubs.slice(0, 4);
+
   const featureMatch = upcomingMatches[0];
 
-  const tickerLines: TickerLine[] = recentMatches.map((m) => {
-    const hs = m.score?.home ?? "—";
-    const awayScr = m.score?.away ?? "—";
-    return {
-      key: m.matchId,
-      text: `${m.division} · ${m.homeTeam.name} ${hs}–${awayScr} ${m.awayTeam.name}`,
-    };
-  });
+  const clubsDirectoryHref = associationPortal
+    ? `/associations/${encodeURIComponent(associationPortal.id)}`
+    : "/clubs";
+
+  /** Keep `?portal=` on plain localhost so navigation stays on the same tenant. */
+  const queryPortalParam =
+    typeof sp.portal === "string" && sp.portal.trim()
+      ? sp.portal.trim()
+      : null;
+  const needsPortalQueryOnLinks = Boolean(
+    queryPortalParam && isLocalDevHostname(host),
+  );
+  function withPortalQuery(path: string): string {
+    if (!needsPortalQueryOnLinks || !queryPortalParam) return path;
+    if (path.startsWith("http://") || path.startsWith("https://")) return path;
+    const [base, frag] = path.split("#");
+    const join = base.includes("?") ? "&" : "?";
+    const out = `${base}${join}portal=${encodeURIComponent(queryPortalParam)}`;
+    return frag ? `${out}#${frag}` : out;
+  }
 
   const divisionExplorerData = divisions.map((d) => ({
     divisionName: d.divisionName,
@@ -162,9 +216,14 @@ export default async function HomePage({
   const assocHome = associationPortal != null;
   const assocBgStyle = associationPortal
     ? {
-        background: `linear-gradient(to bottom right, ${associationPortal.primaryColor}, color-mix(in srgb, ${associationPortal.primaryColor} 75%, white 25%))`,
+        background: tenantPrimaryGradient(
+          String(associationPortal.primaryColor ?? "#06054e"),
+          0.75,
+        ),
       }
     : undefined;
+
+  const joinOrgName = associationPortal?.displayName ?? "Brisbane Hockey";
 
   return (
     <div
@@ -175,12 +234,49 @@ export default async function HomePage({
       }
       style={assocBgStyle}
     >
-      <HomeResultsTicker lines={tickerLines} />
+      {/* Tenant home title + logo (admin: Association → branding logo / colours) */}
+      <section className="max-w-7xl mx-auto px-4 pt-6 pb-2 lg:pt-8">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6">
+          {associationPortal?.logo ? (
+            <Link href="/" className="shrink-0 block focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70 rounded-xl">
+              {/* eslint-disable-next-line @next/next/no-img-element -- remote branding */}
+              <img
+                src={associationPortal.logo}
+                alt=""
+                className="h-16 sm:h-20 md:h-24 w-auto max-w-[min(380px,88vw)] object-contain object-left rounded-xl bg-white/15 p-2 ring-1 ring-white/25"
+              />
+            </Link>
+          ) : !assocHome ? (
+            <Link href="/" className="shrink-0 block">
+              <Image
+                src="/icons/BHA-bg.png"
+                alt="Brisbane Hockey Association"
+                width={200}
+                height={80}
+                className="h-16 sm:h-20 w-auto object-contain object-left"
+                priority
+              />
+            </Link>
+          ) : null}
+          <div className="min-w-0">
+            <p
+              className={`text-[10px] font-black uppercase tracking-[0.28em] ${assocHome ? "text-white/75" : "text-slate-500"}`}
+            >
+              {assocHome ? "Official portal" : "Welcome"}
+            </p>
+            <h1
+              className={`mt-1 text-2xl sm:text-3xl md:text-4xl font-black uppercase tracking-tight ${assocHome ? "text-white" : "text-[#06054e]"}`}
+            >
+              {associationPortal?.displayName ?? "Brisbane Hockey Association"}
+            </h1>
+          </div>
+        </div>
+      </section>
 
       <div className="max-w-7xl mx-auto px-4 py-8 lg:py-10">
-        <div className="flex flex-col lg:flex-row lg:items-start gap-8 lg:gap-10">
-          {/* Sidebar: news, sponsors, clubs */}
-          <div className="w-full lg:w-80 shrink-0 order-2 lg:order-1">
+        <div className="flex flex-col lg:flex-row lg:items-start gap-8 lg:gap-8">
+          {/* Left sidebar: news, sponsors, clubs */}
+          <div className="w-full lg:w-72 shrink-0 order-2 lg:order-1">
             <div className="space-y-8 lg:sticky lg:top-24">
             <HomeNewsAside items={newsForAside} />
 
@@ -204,14 +300,21 @@ export default async function HomePage({
                   Clubs
                 </h2>
                 <Link
-                  href="/clubs"
+                  href={withPortalQuery(clubsDirectoryHref)}
                   className="text-[10px] font-black uppercase text-slate-500 hover:text-[#06054e]"
                 >
-                  Directory →
+                  {associationPortal ? "All member clubs →" : "Directory →"}
                 </Link>
               </div>
+              {clubsForSidebar.length === 0 ? (
+                <p className="text-sm font-semibold text-slate-600">
+                  {associationPortal
+                    ? "No clubs are linked to this association yet. Check back soon, or contact the association office."
+                    : "No clubs to show."}
+                </p>
+              ) : (
               <div className="grid grid-cols-2 gap-3">
-                {clubs.slice(0, 4).map((club) => (
+                {clubsForSidebar.map((club) => (
                   <Link
                     key={club.slug}
                     href={clubPortalHomeUrl({
@@ -241,63 +344,13 @@ export default async function HomePage({
                   </Link>
                 ))}
               </div>
+              )}
             </div>
             </div>
           </div>
 
-          {/* Main column */}
+          {/* Main column: gallery, feature fixture, explorer */}
           <div className="flex-1 min-w-0 space-y-10 order-1 lg:order-2">
-            <div className="text-center lg:text-left">
-              <h1
-                className={`text-3xl md:text-4xl font-black uppercase tracking-tight ${assocHome ? "text-white" : "text-[#06054e]"}`}
-              >
-                Hockey management
-                <span className="text-yellow-500"> made simple</span>
-              </h1>
-              <p
-                className={`mt-3 font-semibold text-sm md:text-base max-w-2xl mx-auto lg:mx-0 ${assocHome ? "text-white/80" : "text-slate-600"}`}
-              >
-                Fixtures, standings, news, and club links for Brisbane Hockey —
-                all in one place.
-              </p>
-            </div>
-
-            {featureMatch && (
-              <section className="rounded-3xl bg-gradient-to-r from-[#06054e] to-[#12106e] text-white p-6 md:p-8 shadow-lg">
-                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
-                  <div>
-                    <p className="text-[10px] font-black uppercase tracking-widest text-yellow-300/90 mb-1">
-                      Next feature fixture
-                    </p>
-                    <p className="text-xl md:text-2xl font-black uppercase">
-                      {featureMatch.division}
-                    </p>
-                    <p className="text-sm text-white/75 mt-1">
-                      {new Date(featureMatch.dateTime).toLocaleString("en-AU", {
-                        weekday: "long",
-                        day: "numeric",
-                        month: "long",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}{" "}
-                      · {featureMatch.venue}
-                    </p>
-                    <p className="mt-2 font-bold">
-                      {featureMatch.homeTeam.name}{" "}
-                      <span className="text-white/50 font-black mx-1">v</span>{" "}
-                      {featureMatch.awayTeam.name}
-                    </p>
-                  </div>
-                  <Link
-                    href="/competitions/matches"
-                    className="inline-flex items-center justify-center px-6 py-3 rounded-full bg-yellow-400 text-[#06054e] text-xs font-black uppercase hover:bg-yellow-300 transition-colors shrink-0"
-                  >
-                    All fixtures
-                  </Link>
-                </div>
-              </section>
-            )}
-
             <section>
               <div className="flex items-center justify-between mb-4">
                 <h2
@@ -314,34 +367,61 @@ export default async function HomePage({
               <HomeHeroGallery slides={gallerySlides} autoAdvanceMs={6500} />
             </section>
 
-            <section>
-              <h2
-                className={`text-xl font-black uppercase mb-4 ${assocHome ? "text-white" : "text-[#06054e]"}`}
+            {(featureMatch || assocHome) && (
+              <section
+                className={`rounded-3xl border-2 p-6 md:p-8 shadow-xl ${
+                  assocHome
+                    ? "border-white/30 text-white"
+                    : "border-transparent bg-gradient-to-r from-[#06054e] to-[#12106e] text-white"
+                }`}
+                style={
+                  assocHome && associationPortal
+                    ? {
+                        background: `linear-gradient(135deg, ${associationPortal.primaryColor} 0%, ${associationPortal.secondaryColor} 92%)`,
+                        boxShadow: "0 18px 40px rgba(0,0,0,0.28)",
+                      }
+                    : undefined
+                }
               >
-                Quick links
-              </h2>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                {QUICK_LINKS.map(({ href, label, desc, icon: Icon }) => (
-                  <Link
-                    key={href}
-                    href={href}
-                    className="flex items-start gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm hover:border-[#06054e]/20 hover:shadow transition-all"
-                  >
-                    <div className="w-10 h-10 rounded-xl bg-yellow-400 flex items-center justify-center shrink-0">
-                      <Icon className="w-5 h-5 text-[#06054e]" />
+                {featureMatch ? (
+                  <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+                    <div>
+                      <p className="text-[10px] font-black uppercase tracking-widest text-yellow-200 mb-1 drop-shadow-sm">
+                        Next feature fixture
+                      </p>
+                      <p className="text-xl md:text-2xl font-black uppercase drop-shadow-sm">
+                        {featureMatch.division}
+                      </p>
+                      <p className="text-sm text-white/90 mt-1">
+                        {new Date(featureMatch.dateTime).toLocaleString("en-AU", {
+                          weekday: "long",
+                          day: "numeric",
+                          month: "long",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}{" "}
+                        · {featureMatch.venue}
+                      </p>
+                      <p className="mt-2 font-bold text-white">
+                        {featureMatch.homeTeam.name}{" "}
+                        <span className="text-white/60 font-black mx-1">v</span>{" "}
+                        {featureMatch.awayTeam.name}
+                      </p>
                     </div>
-                    <div className="min-w-0 text-left">
-                      <div className="font-black text-sm text-slate-900 uppercase truncate">
-                        {label}
-                      </div>
-                      <div className="text-[10px] text-slate-500 font-bold mt-0.5">
-                        {desc}
-                      </div>
-                    </div>
-                  </Link>
-                ))}
-              </div>
-            </section>
+                    <Link
+                      href={withPortalQuery("/competitions/matches")}
+                      className="inline-flex items-center justify-center px-6 py-3 rounded-full bg-yellow-400 text-[#06054e] text-xs font-black uppercase hover:bg-yellow-300 transition-colors shrink-0 ring-2 ring-black/10"
+                    >
+                      All fixtures
+                    </Link>
+                  </div>
+                ) : (
+                  <p className="text-center text-sm sm:text-base font-bold text-white/95 py-2">
+                    No current leagues available.
+                  </p>
+                )}
+              </section>
+            )}
 
             <section className="rounded-3xl bg-white border border-slate-200 shadow-sm p-6 md:p-8">
               <HomeDivisionExplorer
@@ -350,39 +430,114 @@ export default async function HomePage({
               />
             </section>
           </div>
+
+          {/* Right sidebar: quick links (tenant paths; ?portal= on apex localhost) */}
+          <aside className="w-full lg:w-56 shrink-0 order-3 lg:pl-0">
+            <div
+              className={`space-y-2 lg:sticky lg:top-24 rounded-2xl p-4 ${
+                assocHome
+                  ? "border border-white/25 bg-white/10 backdrop-blur-md shadow-lg"
+                  : "border border-slate-200 bg-white shadow-sm"
+              }`}
+            >
+              <h2
+                className={`text-xs font-black uppercase tracking-[0.2em] mb-3 px-1 ${
+                  assocHome ? "text-white/90" : "text-[#06054e]"
+                }`}
+              >
+                Quick links
+              </h2>
+              <nav className="flex flex-col gap-2" aria-label="Quick links">
+                {QUICK_LINKS.map(({ href, label, desc, icon: Icon }) => {
+                  const rawHref = href === "/clubs" ? clubsDirectoryHref : href;
+                  const linkHref = withPortalQuery(rawHref);
+                  return (
+                    <Link
+                      key={href}
+                      href={linkHref}
+                      className={`group flex items-center gap-3 rounded-xl px-3 py-2.5 transition-all ${
+                        assocHome
+                          ? "border border-white/20 bg-white/10 text-white hover:bg-white/18"
+                          : "border border-slate-100 bg-slate-50/80 hover:bg-white hover:border-[#06054e]/20 hover:shadow-sm"
+                      }`}
+                    >
+                      <span
+                        className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-yellow-400 text-[#06054e] shadow-sm ${
+                          assocHome ? "ring-1 ring-black/10" : ""
+                        }`}
+                      >
+                        <Icon className="h-4 w-4" aria-hidden />
+                      </span>
+                      <span className="min-w-0 text-left">
+                        <span
+                          className={`block font-black text-[11px] uppercase leading-tight tracking-wide truncate ${
+                            assocHome ? "text-white" : "text-slate-900"
+                          }`}
+                        >
+                          {label}
+                        </span>
+                        <span
+                          className={`mt-0.5 block text-[9px] font-bold leading-snug line-clamp-2 ${
+                            assocHome ? "text-white/75" : "text-slate-500"
+                          }`}
+                        >
+                          {desc}
+                        </span>
+                      </span>
+                    </Link>
+                  );
+                })}
+              </nav>
+            </div>
+          </aside>
         </div>
       </div>
 
-      <section className="bg-gradient-to-r from-[#06054e] to-[#0a0870] text-white py-14 mt-4">
+      <section
+        className={`text-white py-14 mt-4 ${assocHome ? "" : "bg-gradient-to-r from-[#06054e] to-[#0a0870]"}`}
+        style={
+          assocHome && associationPortal
+            ? {
+                background: tenantPrimaryGradient(
+                  String(associationPortal.primaryColor ?? "#06054e"),
+                  0.75,
+                ),
+              }
+            : undefined
+        }
+      >
         <div className="max-w-7xl mx-auto px-4 text-center">
-          <h2 className="text-2xl md:text-3xl font-black uppercase mb-3">
-            Join Brisbane Hockey
+          <h2 className="text-2xl md:text-3xl font-black uppercase mb-3 drop-shadow-sm">
+            {associationPortal
+              ? `Join ${joinOrgName}`
+              : "Join Brisbane Hockey"}
           </h2>
-          <p className="text-white/80 mb-8 max-w-xl mx-auto text-sm">
-            Find a club, follow your division, and get involved as a player,
-            coach, or volunteer.
+          <p className="text-white/90 mb-8 max-w-xl mx-auto text-sm font-semibold drop-shadow-sm">
+            {associationPortal
+              ? "Find a member club, follow your division, and get involved as a player, coach, or volunteer."
+              : "Find a club, follow your division, and get involved as a player, coach, or volunteer."}
           </p>
           <div className="flex flex-wrap gap-3 justify-center">
             <Link
-              href="/clubs"
-              className="px-6 py-3 bg-yellow-400 text-[#06054e] rounded-full font-black uppercase text-xs hover:bg-yellow-300"
+              href={withPortalQuery(clubsDirectoryHref)}
+              className="px-6 py-3 bg-yellow-400 text-[#06054e] rounded-full font-black uppercase text-xs hover:bg-yellow-300 ring-2 ring-black/10"
             >
-              Find a club
+              {associationPortal ? "Member clubs" : "Find a club"}
             </Link>
             <Link
-              href="/competitions/leagues"
+              href={withPortalQuery("/competitions/leagues")}
               className="px-6 py-3 border-2 border-white/80 rounded-full font-black uppercase text-xs hover:bg-white/10"
             >
               Leagues
             </Link>
             <Link
-              href="/tournaments"
+              href={withPortalQuery("/tournaments")}
               className="px-6 py-3 border-2 border-white/80 rounded-full font-black uppercase text-xs hover:bg-white/10"
             >
               Tournaments
             </Link>
             <Link
-              href="/representative"
+              href={withPortalQuery("/representative")}
               className="px-6 py-3 border-2 border-white/80 rounded-full font-black uppercase text-xs hover:bg-white/10"
             >
               Representative

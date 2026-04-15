@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import type { Metadata } from "next";
 import { listPublicTournaments } from "@/lib/public/publicTournaments";
+import { getPublicTenantForServerPage } from "@/lib/tenant/serverTenant";
 
 export const dynamic = "force-dynamic";
 
@@ -14,10 +15,13 @@ export const metadata: Metadata = {
 export default async function TournamentsDirectoryPage({
   searchParams,
 }: {
-  searchParams: Promise<{ season?: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const { season: seasonFilter } = await searchParams;
-  const all = await listPublicTournaments({ limit: 200 });
+  const sp = await searchParams;
+  const seasonFilter =
+    typeof sp.season === "string" ? sp.season : undefined;
+  const tenant = await getPublicTenantForServerPage(sp);
+  const all = await listPublicTournaments({ limit: 200, tenant });
   const seasons = Array.from(new Set(all.map((t) => t.season).filter(Boolean))).sort(
     (a, b) => b.localeCompare(a),
   );
