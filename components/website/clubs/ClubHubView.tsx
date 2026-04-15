@@ -4,6 +4,7 @@ import clientPromise from "@/lib/mongodb";
 import { getPublicNewsItems } from "@/lib/data/publicNews";
 import type { PublicTenantPayload } from "@/lib/tenant/portalHost";
 import { sanitizeCommitteeForPublic } from "@/lib/portal/publicContacts";
+import MyFixturesStrip from "@/components/matches/MyFixturesStrip";
 
 type PublicClub = {
   id: string;
@@ -170,6 +171,8 @@ export default async function ClubHubView({
             News →
           </Link>
         </div>
+
+        <MyFixturesStrip scope={{ clubId: club.id }} title="My fixtures" />
 
         <section className="mt-12">
           <div className="flex items-end justify-between gap-4">

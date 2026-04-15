@@ -6,6 +6,7 @@ import { listPublicTournaments } from "@/lib/public/publicTournaments";
 import { buildApexSiteOrigin } from "@/lib/tenant/subdomainUrls";
 import { getPublicNewsItems } from "@/lib/data/publicNews";
 import type { PublicTenantPayload } from "@/lib/tenant/portalHost";
+import MyFixturesStrip from "@/components/matches/MyFixturesStrip";
 
 export default async function AssociationHubView({
   associationId,
@@ -65,6 +66,8 @@ export default async function AssociationHubView({
             Official website ↗
           </a>
         )}
+
+        <MyFixturesStrip scope={{ associationId }} title="My fixtures" />
 
         <section className="mt-12">
           <div className="flex items-end justify-between gap-4">

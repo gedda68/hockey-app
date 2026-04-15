@@ -4,6 +4,7 @@ import MatchList from "../../../../components/matches/MatchList";
 import MatchFilters from "../../../../components/matches/MatchFilters";
 import PageHeader from "../../../../components/shared/PageHeader";
 import StandingsTable from "../../../../components/standings/StandingsTable";
+import MyFixturesStrip from "../../../../components/matches/MyFixturesStrip";
 import type { ViewType } from "../../../../types";
 
 // Import data utility functions
@@ -121,6 +122,8 @@ export default async function MatchesPage({
           highlight={selectedView === "upcoming" ? "Fixtures" : "Results"}
           actions={viewToggle}
         />
+
+        <MyFixturesStrip title="My fixtures" />
 
         <MatchFilters
           seasonCompetitions={seasonCompetitions}
