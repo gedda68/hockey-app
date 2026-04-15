@@ -13,6 +13,7 @@ interface MatchListProps {
   /** Match id → allocation doc (shape varies by data source) */
   umpireAllocations?: Record<string, unknown>;
   umpireList?: UmpireDetails[];
+  spoilerFree?: boolean;
 }
 
 export default function MatchList({
@@ -21,6 +22,7 @@ export default function MatchList({
   isUpcoming = false,
   umpireAllocations = {},
   umpireList = [],
+  spoilerFree = false,
 }: MatchListProps) {
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
 
@@ -73,6 +75,7 @@ export default function MatchList({
             umpires={umpires}
             href={`/competitions/matches/${encodeURIComponent(match.matchId)}`}
             onQuickView={() => setSelectedMatch(match)}
+            spoilerFree={spoilerFree}
           />
         );
       })}

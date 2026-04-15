@@ -46,7 +46,7 @@ The platform hosts **many independent portals** (per association subdomain and p
 
 Federation-grade sites optimise for **repeat visits**, **mobile**, and **clear match-day journeys**. Use as **aspirational** targets (not all are in scope short term).
 
-- [ ] **B1** **Draw / ladder / results hub** — Single place for “this round”, filters by team/club, deep links to match centre. *Shipped (partial):* `/competitions/this-round` (This week / This round + round selector) linking to match centre; league hub card → “This round”. *Remaining:* club/team filters, ladders in the hub, spoiler-free mode.
+- [x] **B1** **Draw / ladder / results hub** — Single place for “this round”, filters by team/club, deep links to match centre. *Shipped:* `/competitions/this-round` (This week / This round + round selector), deep links to match centre, **club + team filters** (plus logged-in shortcuts: **My club / My teams**), **ladder snapshot** alongside fixtures, and a **spoiler-free toggle** (hide/reveal scores). League hub card → “This round”.
 - [ ] **B2** **Video and rich media** — Highlights, embeds, club channels. *We have:* images in news/gallery. *Improve:* optional video URLs per article, oEmbed, or curated YouTube playlists per tenant.
 - [ ] **B3** **Identity / logged-in fan** — Tips, favourites, alerts. *We have:* member portal baseline. *Improve:* “follow my team(s)” → push/email from Epic J patterns.
 - [ ] **B4** **Pathways narrative** — Clear “Play”, “Coach”, “Umpire”, “Volunteer” entry points per **tenant** (not only global). Tie to registration and role-request flows.

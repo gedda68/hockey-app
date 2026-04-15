@@ -35,6 +35,8 @@ interface MatchCardProps {
   umpires?: UmpireDetails[] | null;
   href: string;
   onQuickView?: () => void;
+  /** When true, hide scores until user chooses to reveal (B1 spoiler-free). */
+  spoilerFree?: boolean;
 }
 
 export default function MatchCard({
@@ -43,7 +45,14 @@ export default function MatchCard({
   umpires,
   href,
   onQuickView,
+  spoilerFree = false,
 }: MatchCardProps) {
+  const shouldHideScore =
+    spoilerFree &&
+    (match.status === "Final" ||
+      match.status === "Final (SO)" ||
+      match.status === "Live");
+
   return (
     <Card variant="default" className="p-0 group">
       <div className="p-6">
@@ -105,13 +114,13 @@ export default function MatchCard({
           {/* Score Area */}
           <div className="flex flex-col items-center justify-center min-w-[84px]">
             <div className={scoreVariants()}>
-              <span>{match.homeScore ?? "-"}</span>
+              <span>{shouldHideScore ? "—" : (match.homeScore ?? "-")}</span>
               <span className="text-slate-200 text-xl md:text-2xl">:</span>
-              <span>{match.awayScore ?? "-"}</span>
+              <span>{shouldHideScore ? "—" : (match.awayScore ?? "-")}</span>
             </div>
 
             {/* SHOOTOUT BADGE */}
-            {match.status === "Final (SO)" && (
+            {match.status === "Final (SO)" && !shouldHideScore && (
               <Badge variant="info" size="md" className="mt-2 bg-blue-600 text-white border-0">
                 <div className="flex flex-col items-center">
                   <span className="text-[7px] opacity-80 leading-none">
