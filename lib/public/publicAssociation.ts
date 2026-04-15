@@ -15,6 +15,14 @@ export type PublicAssociationProfile = {
     secondaryColor?: string;
   } | null;
   website: string | null;
+  positions?: Array<{
+    positionId: string;
+    title: string;
+    displayName?: string;
+    description?: string;
+    email?: string;
+    phone?: string;
+  }>;
 };
 
 export async function getPublicAssociationById(
@@ -38,6 +46,7 @@ export async function getPublicAssociationById(
         status: 1,
         branding: 1,
         "contact.website": 1,
+        positions: 1,
       },
     },
   );
@@ -56,5 +65,31 @@ export async function getPublicAssociationById(
     level: typeof a.level === "number" ? a.level : 0,
     branding: a.branding ?? null,
     website: a.contact?.website ? String(a.contact.website) : null,
+    positions: Array.isArray(a.positions)
+      ? a.positions
+          .filter((p: any) => p && typeof p === "object" && p.isActive !== false)
+          .map((p: any) => {
+            const contact = p.contactPerson ?? null;
+            const showEmail = contact?.showEmailOnPublicSite === true;
+            const showPhone = contact?.showPhoneOnPublicSite === true;
+            return {
+              positionId: String(p.positionId ?? p.title ?? ""),
+              title: String(p.title ?? p.displayName ?? ""),
+              displayName:
+                typeof p.displayName === "string" ? p.displayName : undefined,
+              description:
+                typeof p.description === "string" ? p.description : undefined,
+              email:
+                showEmail && typeof contact?.email === "string"
+                  ? contact.email
+                  : undefined,
+              phone:
+                showPhone && typeof contact?.phone === "string"
+                  ? contact.phone
+                  : undefined,
+            };
+          })
+          .filter((p: any) => p.positionId && p.title)
+      : undefined,
   };
 }

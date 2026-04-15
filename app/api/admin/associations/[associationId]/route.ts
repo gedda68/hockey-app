@@ -9,6 +9,7 @@ import {
   requirePermission,
   requireResourceAccess,
 } from "@/lib/auth/middleware";
+import { deriveAssociationLevelAndHierarchy } from "@/lib/domain/associationHierarchy";
 
 // Flexible schema for updates
 const AssociationSchema = z.object({
@@ -116,23 +117,9 @@ const AssociationSchema = z.object({
 async function calculateHierarchy(
   db: Db,
   parentAssociationId?: string,
+  opts?: { childAssociationId?: string },
 ): Promise<{ level: number; hierarchy: string[] }> {
-  if (!parentAssociationId) {
-    return { level: 0, hierarchy: [] };
-  }
-
-  const parent = await db
-    .collection("associations")
-    .findOne({ associationId: parentAssociationId });
-
-  if (!parent) {
-    throw new Error("Parent association not found");
-  }
-
-  return {
-    level: parent.level + 1,
-    hierarchy: [...(parent.hierarchy || []), parent.associationId],
-  };
+  return deriveAssociationLevelAndHierarchy(db, parentAssociationId, opts);
 }
 
 // Helper: Normalize fees
@@ -260,30 +247,20 @@ export async function PUT(
       );
     }
 
-    // Check if parent changed
-    const parentChanged =
-      validated.parentAssociationId !== existing.parentAssociationId;
-
-    // ✅ FIX: Respect submitted level, only auto-calculate if not provided
-    let level = validated.level ?? existing.level;
-    let hierarchy = existing.hierarchy;
-
-    if (parentChanged) {
-      const parent = validated.parentAssociationId
-        ? await db.collection("associations").findOne({
-            associationId: validated.parentAssociationId,
-          })
-        : null;
-
-      hierarchy = parent
-        ? [...(parent.hierarchy || []), parent.associationId]
-        : [];
-
-      // Only auto-calculate level if not explicitly provided
-      if (validated.level === undefined) {
-        level = parent ? parent.level + 1 : 0;
-      }
+    if (validated.parentAssociationId?.trim() === associationId) {
+      return NextResponse.json(
+        { error: "Invalid parentAssociationId (cannot be self)" },
+        { status: 400 },
+      );
     }
+
+    // `level` + `hierarchy` are derived from the parent chain.
+    // Never trust client-provided values; also prevents ancestor cycles.
+    const { level, hierarchy } = await calculateHierarchy(
+      db,
+      validated.parentAssociationId,
+      { childAssociationId: associationId },
+    );
 
     // Prepare update
     const updateData = {

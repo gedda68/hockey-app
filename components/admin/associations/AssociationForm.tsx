@@ -241,17 +241,14 @@ function validateSection(
   return errs;
 }
 
-// ─── Allowed parent levels ────────────────────────────────────────────────────
-
-function allowedParentLevels(selectedLevel: number): number[] {
-  const map: Record<number, number[]> = {
-    0: [], // National: no parent
-    1: [0], // Sub-national: parent must be National (0)
-    2: [0, 1], // State: parent can be National (0) or Sub-national (1)
-    3: [1, 2], // Regional: parent can be Sub-national (1) or State (2)
-    4: [2, 3], // City: parent can be State (2) or Regional (3)
-  };
-  return map[selectedLevel] ?? [];
+function levelFromParent(
+  parentAssociationId: string,
+  parentAssociations: ParentAssociation[],
+): number {
+  const pid = parentAssociationId?.trim();
+  if (!pid) return 0;
+  const parent = parentAssociations.find((p) => p.associationId === pid);
+  return typeof parent?.level === "number" ? parent.level + 1 : 0;
 }
 
 // ─── Main Component ───────────────────────────────────────────────────────────
@@ -273,7 +270,7 @@ export default function AssociationForm({
     Record<string, Record<string, string>>
   >({});
   const [isSaving, setIsSaving] = useState(false);
-  const [selectedLevel, setSelectedLevel] = useState<number | "">("");
+  const [selectedLevel, setSelectedLevel] = useState<number>(0);
 
   const [formData, setFormData] = useState(defaultFormData);
 
@@ -328,12 +325,14 @@ export default function AssociationForm({
 
       // ✅ FIX: Handle level 0 properly (0 is a valid level, not falsy!)
       const levelToSet =
-        typeof initialData.level === "number" ? initialData.level : "";
+        typeof initialData.level === "number"
+          ? initialData.level
+          : levelFromParent(initialData.parentAssociationId || "", parentAssociations);
       setSelectedLevel(levelToSet);
       setCompletedSections(new Set(SECTIONS.map((s) => s.id as SectionId)));
 
     }
-  }, [initialData]);
+  }, [initialData, parentAssociations]);
 
   const handleChange = (field: string, value: unknown) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -348,15 +347,13 @@ export default function AssociationForm({
     });
 
     if (field === "parentAssociationId") {
-      setSelectedLevel("");
+      setSelectedLevel(levelFromParent(String(value ?? ""), parentAssociations));
     }
   };
 
-  const validParents = selectedLevel
-    ? parentAssociations.filter((p) =>
-        allowedParentLevels(selectedLevel as number).includes(p.level),
-      )
-    : parentAssociations;
+  const validParents = parentAssociations.filter(
+    (p) => p.associationId !== formData.associationId,
+  );
 
   const currentIndex = SECTIONS.findIndex((s) => s.id === currentSection);
 
@@ -424,13 +421,8 @@ export default function AssociationForm({
     setIsSaving(true);
 
     try {
-      // Convert level properly
-      const levelValue =
-        selectedLevel === "" ||
-        selectedLevel === null ||
-        selectedLevel === undefined
-          ? undefined
-          : Number(selectedLevel);
+      // `associations.level` is derived from the parent chain (root=0, child=parent+1).
+      // The API computes it; the UI shows it for clarity.
 
       // ✅ CLEAN FEES: Remove date fields that cause validation issues
       const cleanedFees = (formData.fees || []).map((fee) => ({
@@ -457,7 +449,6 @@ export default function AssociationForm({
         acronym: formData.acronym || undefined,
         portalSlug: formData.portalSlug?.trim() || undefined,
         parentAssociationId: formData.parentAssociationId || undefined,
-        level: levelValue,
         region: formData.region,
         state: formData.state,
         country: formData.country,
@@ -646,72 +637,44 @@ export default function AssociationForm({
 
       <div>
         <label className="block text-xs font-black uppercase text-slate-400 mb-2 ml-1">
-          Level <span className="text-red-500">*</span>
+          Level (derived)
         </label>
-        <select
-          value={selectedLevel}
-          onChange={(e) => {
-            const val = e.target.value === "" ? "" : parseInt(e.target.value);
-            setSelectedLevel(val as number | "");
-            // Reset parent when level changes
-            setFormData((prev) => ({ ...prev, parentAssociationId: "" }));
-          }}
-          className="w-full px-5 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl font-bold focus:border-yellow-400 outline-none"
-        >
-          <option value="">Select level…</option>
-          <option value="0">Level 0 – National</option>
-          <option value="1">Level 1 – Sub-national</option>
-          <option value="2">Level 2 – State</option>
-          <option value="3">Level 3 – Regional</option>
-          <option value="4">Level 4 – City</option>
-        </select>
-        {selectedLevel && (
-          <p className="text-xs text-slate-500 font-bold mt-1 ml-1">
-            {LEVEL_MAP[selectedLevel as number]?.label}
-          </p>
-        )}
+        <div className="w-full px-5 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl font-bold">
+          {LEVEL_MAP[Number(selectedLevel)]?.short ?? `L${Number(selectedLevel)}`} —{" "}
+          {LEVEL_MAP[Number(selectedLevel)]?.label ??
+            `Level ${Number(selectedLevel)}`}
+        </div>
+        <p className="text-xs text-slate-400 font-bold mt-1 ml-1">
+          Derived from the selected parent association (root = L0, child = parent + 1). If the tree
+          changes, re-run{" "}
+          <span className="font-mono">
+            pnpm run reconcile:association-levels -- --apply
+          </span>
+          .
+        </p>
       </div>
 
-      {selectedLevel !== "" && (selectedLevel as number) > 0 && (
-        <div>
-          <label className="block text-xs font-black uppercase text-slate-400 mb-2 ml-1">
-            Parent Association
-          </label>
-          {validParents.length === 0 ? (
-            <div className="p-4 bg-yellow-50 border-2 border-yellow-200 rounded-2xl">
-              <p className="text-sm font-bold text-yellow-700">
-                No valid parent associations found for Level {selectedLevel}.
-                Valid parents are:{" "}
-                {allowedParentLevels(selectedLevel as number)
-                  .map((l) => LEVEL_MAP[l]?.label)
-                  .join(" or ")}
-              </p>
-            </div>
-          ) : (
-            <select
-              value={formData.parentAssociationId}
-              onChange={(e) =>
-                handleChange("parentAssociationId", e.target.value)
-              }
-              className="w-full px-5 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl font-bold focus:border-yellow-400 outline-none"
-            >
-              <option value="">None</option>
-              {validParents.map((a) => (
-                <option key={a.associationId} value={a.associationId}>
-                  {a.code} – {a.name} (
-                  {LEVEL_MAP[a.level]?.label || `L${a.level}`})
-                </option>
-              ))}
-            </select>
-          )}
-          <p className="text-xs text-slate-400 font-bold mt-1 ml-1">
-            Allowed parent levels:{" "}
-            {allowedParentLevels(selectedLevel as number)
-              .map((l) => LEVEL_MAP[l]?.label)
-              .join(", ")}
-          </p>
-        </div>
-      )}
+      <div>
+        <label className="block text-xs font-black uppercase text-slate-400 mb-2 ml-1">
+          Parent Association
+        </label>
+        <select
+          value={formData.parentAssociationId}
+          onChange={(e) => handleChange("parentAssociationId", e.target.value)}
+          className="w-full px-5 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl font-bold focus:border-yellow-400 outline-none"
+        >
+          <option value="">None (root / National)</option>
+          {validParents.map((a) => (
+            <option key={a.associationId} value={a.associationId}>
+              {a.code} – {a.name} ({LEVEL_MAP[a.level]?.short ?? `L${a.level}`} ·{" "}
+              {LEVEL_MAP[a.level]?.label ?? `Level ${a.level}`})
+            </option>
+          ))}
+        </select>
+        <p className="text-xs text-slate-400 font-bold mt-1 ml-1">
+          Changing the parent will automatically change the derived level and tenant visibility rules.
+        </p>
+      </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div>

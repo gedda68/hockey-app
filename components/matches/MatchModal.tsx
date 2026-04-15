@@ -2,6 +2,7 @@
 
 import React, { useMemo } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import type {
   Match,
   MatchStats,
@@ -90,6 +91,15 @@ export default function MatchModal({
             >
               ✕
             </button>
+          </div>
+
+          <div className="mt-2">
+            <Link
+              href={`/competitions/matches/${encodeURIComponent(match.matchId)}`}
+              className="inline-flex rounded-full bg-white/10 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-white hover:bg-white/15"
+            >
+              Open match centre →
+            </Link>
           </div>
 
           {/* Location and Umpires in header */}

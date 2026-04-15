@@ -12,6 +12,8 @@ import type {
   ViewType,
 } from "@/types";
 import clientPromise from "@/lib/mongodb";
+import type { PublicTenantPayload } from "@/lib/tenant/portalHost";
+import { seasonCompetitionVisibleForPortalTenant } from "@/lib/tenant/seasonCompetitionTenantGate";
 
 // Types
 interface Match {
@@ -302,6 +304,274 @@ export async function getMatchById(
 ): Promise<Match | undefined> {
   const matches = await getMatches();
   return matches.find((m) => m.matchId === matchId);
+}
+
+/**
+ * Match centre: fetch one published fixture by fixtureId with tenant gating.
+ */
+export async function getPublicMatchById(
+  fixtureId: string,
+  tenant: PublicTenantPayload | null,
+): Promise<PublicMatch | null> {
+  const id = fixtureId.trim();
+  if (!id) return null;
+
+  const client = await clientPromise;
+  const db = client.db(process.env.DB_NAME || "hockey-app");
+
+  const fx = await db.collection("league_fixtures").findOne({
+    fixtureId: id,
+    published: true,
+  });
+  if (!fx) return null;
+
+  const scId = String(fx.seasonCompetitionId ?? "");
+  if (!scId) return null;
+  const sc = await db.collection("season_competitions").findOne({
+    seasonCompetitionId: scId,
+  });
+  if (!sc) return null;
+
+  const owner = String(sc.owningAssociationId ?? "");
+  const visible = await seasonCompetitionVisibleForPortalTenant(db, owner, tenant);
+  if (!visible) return null;
+
+  const status = sc.status as string | undefined;
+  if (!status || !PUBLIC_SC_STATUSES.has(status)) return null;
+
+  const teamIds = [fx.homeTeamId, fx.awayTeamId]
+    .filter(Boolean)
+    .map((x) => String(x));
+
+  const teams =
+    teamIds.length > 0
+      ? await db
+          .collection("teams")
+          .find({ teamId: { $in: teamIds } })
+          .project({ teamId: 1, name: 1, clubId: 1 })
+          .toArray()
+      : [];
+
+  const teamNameById = new Map<string, string>();
+  const teamClubIdById = new Map<string, string>();
+  for (const t of teams) {
+    if (t.teamId && t.name) teamNameById.set(String(t.teamId), String(t.name));
+    if (t.teamId && t.clubId) teamClubIdById.set(String(t.teamId), String(t.clubId));
+  }
+
+  const clubIds = Array.from(new Set([...teamClubIdById.values()].filter(Boolean)));
+  const clubs =
+    clubIds.length > 0
+      ? await db
+          .collection("clubs")
+          .find({ id: { $in: clubIds } })
+          .project({ id: 1, logo: 1, iconSrc: 1, icon: 1 })
+          .toArray()
+      : [];
+
+  const clubLogoById = new Map<string, string>();
+  for (const c of clubs) {
+    const iconUrl =
+      (typeof c.logo === "string" && c.logo) ||
+      (typeof c.iconSrc === "string" && c.iconSrc) ||
+      (typeof c.icon === "string" && c.icon) ||
+      "";
+    if (c.id && iconUrl) clubLogoById.set(String(c.id), iconUrl);
+  }
+
+  const homeTeamId = String(fx.homeTeamId ?? "");
+  const awayTeamId = String(fx.awayTeamId ?? "");
+
+  const requiresApproval = Boolean(sc.resultApprovalRequired);
+  const rs = String(fx.resultStatus ?? "");
+  const canShowResult = requiresApproval
+    ? rs === "approved"
+    : String(fx.status) === "completed";
+  const result = (fx.result ?? null) as any;
+  const homeScore = canShowResult ? (typeof result?.homeScore === "number" ? result.homeScore : null) : null;
+  const awayScore = canShowResult ? (typeof result?.awayScore === "number" ? result.awayScore : null) : null;
+  const sh = canShowResult ? (typeof result?.shootoutHomeScore === "number" ? result.shootoutHomeScore : null) : null;
+  const sa = canShowResult ? (typeof result?.shootoutAwayScore === "number" ? result.shootoutAwayScore : null) : null;
+  const hasShootout = sh != null && sa != null;
+
+  const rawUmpires = fx.umpires as FixtureUmpireSlot[] | null | undefined;
+  const fixtureUmpires = Array.isArray(rawUmpires) && rawUmpires.length > 0 ? rawUmpires : undefined;
+
+  const rawEvents = fx.matchEvents as FixtureMatchEventPublic[] | null | undefined;
+  const matchEvents =
+    canShowResult && Array.isArray(rawEvents) && rawEvents.length > 0 ? rawEvents : undefined;
+
+  const venue =
+    String(fx.venueName ?? "") ||
+    String(fx.addressLine ?? "") ||
+    "";
+  const dateTime = asIsoDate(fx.scheduledStart) ?? new Date().toISOString();
+
+  const m: Match = {
+    matchId: String(fx.fixtureId ?? id),
+    seasonCompetitionId: scId,
+    season: parseSeasonNumber(sc.season),
+    round: Number(fx.round ?? 0),
+    division: String(sc.competitionId ?? ""),
+    dateTime,
+    venue,
+    legacyMatchId: fx.legacyMatchId ? String(fx.legacyMatchId) : null,
+    fixtureUmpires: fixtureUmpires ?? null,
+    homeTeam: {
+      name: teamNameById.get(homeTeamId) ?? "Home",
+      icon: clubLogoById.get(teamClubIdById.get(homeTeamId) ?? "") || undefined,
+    },
+    awayTeam: {
+      name: teamNameById.get(awayTeamId) ?? "Away",
+      icon: clubLogoById.get(teamClubIdById.get(awayTeamId) ?? "") || undefined,
+    },
+    score: homeScore != null && awayScore != null ? { home: homeScore, away: awayScore } : undefined,
+    shootoutScore: hasShootout ? { home: sh!, away: sa! } : undefined,
+    status: normalizeMatchStatus(fx.status, hasShootout),
+    matchEvents,
+  };
+
+  return mapStoredMatchToPublic(m);
+}
+
+export type PublicMatchCentre = {
+  match: PublicMatch;
+  teamNameById: Record<string, string>;
+  venue: { name: string | null; addressLine: string | null };
+  umpires: FixtureUmpireSlot[] | null;
+};
+
+export async function getPublicMatchCentreById(
+  fixtureId: string,
+  tenant: PublicTenantPayload | null,
+): Promise<PublicMatchCentre | null> {
+  const id = fixtureId.trim();
+  if (!id) return null;
+
+  const client = await clientPromise;
+  const db = client.db(process.env.DB_NAME || "hockey-app");
+
+  const fx = await db.collection("league_fixtures").findOne({
+    fixtureId: id,
+    published: true,
+  });
+  if (!fx) return null;
+
+  const scId = String(fx.seasonCompetitionId ?? "");
+  if (!scId) return null;
+  const sc = await db.collection("season_competitions").findOne({
+    seasonCompetitionId: scId,
+  });
+  if (!sc) return null;
+
+  const owner = String(sc.owningAssociationId ?? "");
+  const visible = await seasonCompetitionVisibleForPortalTenant(db, owner, tenant);
+  if (!visible) return null;
+
+  const status = sc.status as string | undefined;
+  if (!status || !PUBLIC_SC_STATUSES.has(status)) return null;
+
+  const teamIds = [fx.homeTeamId, fx.awayTeamId]
+    .filter(Boolean)
+    .map((x) => String(x));
+
+  const teams =
+    teamIds.length > 0
+      ? await db
+          .collection("teams")
+          .find({ teamId: { $in: teamIds } })
+          .project({ teamId: 1, name: 1, clubId: 1 })
+          .toArray()
+      : [];
+
+  const teamNameById = new Map<string, string>();
+  const teamClubIdById = new Map<string, string>();
+  for (const t of teams) {
+    if (t.teamId && t.name) teamNameById.set(String(t.teamId), String(t.name));
+    if (t.teamId && t.clubId) teamClubIdById.set(String(t.teamId), String(t.clubId));
+  }
+
+  const clubIds = Array.from(new Set([...teamClubIdById.values()].filter(Boolean)));
+  const clubs =
+    clubIds.length > 0
+      ? await db
+          .collection("clubs")
+          .find({ id: { $in: clubIds } })
+          .project({ id: 1, logo: 1, iconSrc: 1, icon: 1 })
+          .toArray()
+      : [];
+
+  const clubLogoById = new Map<string, string>();
+  for (const c of clubs) {
+    const iconUrl =
+      (typeof c.logo === "string" && c.logo) ||
+      (typeof c.iconSrc === "string" && c.iconSrc) ||
+      (typeof c.icon === "string" && c.icon) ||
+      "";
+    if (c.id && iconUrl) clubLogoById.set(String(c.id), iconUrl);
+  }
+
+  const homeTeamId = String(fx.homeTeamId ?? "");
+  const awayTeamId = String(fx.awayTeamId ?? "");
+
+  const requiresApproval = Boolean(sc.resultApprovalRequired);
+  const rs = String(fx.resultStatus ?? "");
+  const canShowResult = requiresApproval
+    ? rs === "approved"
+    : String(fx.status) === "completed";
+  const result = (fx.result ?? null) as any;
+  const homeScore = canShowResult ? (typeof result?.homeScore === "number" ? result.homeScore : null) : null;
+  const awayScore = canShowResult ? (typeof result?.awayScore === "number" ? result.awayScore : null) : null;
+  const sh = canShowResult ? (typeof result?.shootoutHomeScore === "number" ? result.shootoutHomeScore : null) : null;
+  const sa = canShowResult ? (typeof result?.shootoutAwayScore === "number" ? result.shootoutAwayScore : null) : null;
+  const hasShootout = sh != null && sa != null;
+
+  const rawUmpires = fx.umpires as FixtureUmpireSlot[] | null | undefined;
+  const fixtureUmpires =
+    Array.isArray(rawUmpires) && rawUmpires.length > 0 ? rawUmpires : null;
+
+  const rawEvents = fx.matchEvents as FixtureMatchEventPublic[] | null | undefined;
+  const matchEvents =
+    canShowResult && Array.isArray(rawEvents) && rawEvents.length > 0 ? rawEvents : undefined;
+
+  const venueName = fx.venueName ? String(fx.venueName) : null;
+  const addressLine = fx.addressLine ? String(fx.addressLine) : null;
+  const venue =
+    venueName || addressLine ? String(venueName ?? addressLine) : "";
+  const dateTime = asIsoDate(fx.scheduledStart) ?? new Date().toISOString();
+
+  const m: Match = {
+    matchId: String(fx.fixtureId ?? id),
+    seasonCompetitionId: scId,
+    season: parseSeasonNumber(sc.season),
+    round: Number(fx.round ?? 0),
+    division: String(sc.competitionId ?? ""),
+    dateTime,
+    venue,
+    legacyMatchId: fx.legacyMatchId ? String(fx.legacyMatchId) : null,
+    fixtureUmpires: fixtureUmpires ?? null,
+    homeTeam: {
+      name: teamNameById.get(homeTeamId) ?? "Home",
+      icon: clubLogoById.get(teamClubIdById.get(homeTeamId) ?? "") || undefined,
+    },
+    awayTeam: {
+      name: teamNameById.get(awayTeamId) ?? "Away",
+      icon: clubLogoById.get(teamClubIdById.get(awayTeamId) ?? "") || undefined,
+    },
+    score: homeScore != null && awayScore != null ? { home: homeScore, away: awayScore } : undefined,
+    shootoutScore: hasShootout ? { home: sh!, away: sa! } : undefined,
+    status: normalizeMatchStatus(fx.status, hasShootout),
+    matchEvents,
+  };
+
+  const match = mapStoredMatchToPublic(m);
+
+  return {
+    match,
+    teamNameById: Object.fromEntries(teamNameById.entries()),
+    venue: { name: venueName, addressLine },
+    umpires: fixtureUmpires,
+  };
 }
 
 /**

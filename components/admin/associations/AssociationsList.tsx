@@ -20,7 +20,9 @@ import Link from "next/link";
 import { ToastContainer, useToast } from "@/components/ui/Toast";
 import EntityColorBar, { EntityColorDot } from "@/components/ui/EntityColorBar";
 
-// 5-level system
+// Association "level" is the depth in the association tree:
+//   root (no parent) = 0, child = parent + 1.
+// Labels below reflect our current business convention for AU hockey.
 export const LEVEL_MAP: Record<
   number,
   { label: string; color: string; short: string }
@@ -31,22 +33,22 @@ export const LEVEL_MAP: Record<
     color: "bg-purple-100 text-purple-700 border-purple-300",
   },
   1: {
-    label: "Sub-national",
+    label: "State body",
     short: "L1",
     color: "bg-indigo-100 text-indigo-700 border-indigo-300",
   },
   2: {
-    label: "State",
+    label: "Regional / metro association",
     short: "L2",
     color: "bg-blue-100   text-blue-700   border-blue-300",
   },
   3: {
-    label: "Regional",
+    label: "District / sub-association",
     short: "L3",
     color: "bg-teal-100   text-teal-700   border-teal-300",
   },
   4: {
-    label: "City",
+    label: "Local (legacy depth)",
     short: "L4",
     color: "bg-green-100  text-green-700  border-green-300",
   },

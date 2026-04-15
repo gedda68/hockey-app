@@ -10,6 +10,7 @@ import {
   requirePermission,
   requireResourceAccess,
 } from "@/lib/auth/middleware";
+import { deriveAssociationLevelAndHierarchy } from "@/lib/domain/associationHierarchy";
 
 // Schema for creating/updating associations
 const AssociationSchema = z.object({
@@ -94,27 +95,9 @@ const AssociationSchema = z.object({
 async function calculateHierarchy(
   db: Db,
   parentAssociationId?: string,
+  opts?: { childAssociationId?: string },
 ): Promise<{ level: number; hierarchy: string[] }> {
-  if (!parentAssociationId) {
-    // Root level (National)
-    return { level: 0, hierarchy: [] };
-  }
-
-  // Get parent
-  const parent = await db
-    .collection("associations")
-    .findOne({ associationId: parentAssociationId });
-
-  if (!parent) {
-    throw new Error("Parent association not found");
-  }
-
-  // Level = parent's level + 1
-  // Hierarchy = parent's hierarchy + parent's ID
-  return {
-    level: parent.level + 1,
-    hierarchy: [...(parent.hierarchy || []), parent.associationId],
-  };
+  return deriveAssociationLevelAndHierarchy(db, parentAssociationId, opts);
 }
 
 // Helper: Map numeric level to string level for backwards compatibility
@@ -335,11 +318,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // ✅ AUTO-CALCULATE level and hierarchy
-    const { level, hierarchy } = await calculateHierarchy(
-      db,
-      validated.parentAssociationId,
-    );
+    if (validated.parentAssociationId?.trim() === validated.associationId) {
+      return NextResponse.json(
+        { error: "Invalid parentAssociationId (cannot be self)" },
+        { status: 400 },
+      );
+    }
+
+    // ✅ AUTO-CALCULATE level and hierarchy (cycle-safe)
+    const { level, hierarchy } = await calculateHierarchy(db, validated.parentAssociationId, {
+      childAssociationId: validated.associationId,
+    });
 
     // Create association document
     const association = {

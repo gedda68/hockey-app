@@ -14,6 +14,9 @@ export interface CommitteeMember {
   position: string;
   email: string;
   phone: string;
+  /** Public site opt-in flags (default false) */
+  showEmailOnPublicSite?: boolean;
+  showPhoneOnPublicSite?: boolean;
 }
 
 export interface ClubFormData {

@@ -1,12 +1,17 @@
-// Club dashboard
+import ClubHubView from "@/components/website/clubs/ClubHubView";
+import { getPublicTenantForServerPage } from "@/lib/tenant/serverTenant";
 
-import ClubSiteDashboard from "@/components/clubs/ClubSiteDashboard";
+export const dynamic = "force-dynamic";
 
-export default async function ClubDashboardPage({
+export default async function ClubHubPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ clubId: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const { clubId } = await params;
-  return <ClubSiteDashboard clubId={clubId} />;
+  const sp = await searchParams;
+  const tenant = await getPublicTenantForServerPage(sp);
+  return <ClubHubView clubId={clubId} tenant={tenant} />;
 }

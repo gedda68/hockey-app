@@ -5,16 +5,14 @@ import FormField from "../shared/FormField";
 import { IdentitySectionProps } from "../types/association.types";
 import { LEVEL_MAP } from "../AssociationsList";
 
-// Allowed parent levels for each level
-function allowedParentLevels(selectedLevel: number): number[] {
-  const map: Record<number, number[]> = {
-    0: [], // National: no parent
-    1: [0], // Sub-national: parent must be National (0)
-    2: [0, 1], // State: parent can be National (0) or Sub-national (1)
-    3: [1, 2], // Regional: parent can be Sub-national (1) or State (2)
-    4: [2, 3], // City: parent can be State (2) or Regional (3)
-  };
-  return map[selectedLevel] ?? [];
+function levelFromParent(
+  parentAssociationId: string,
+  parentAssociations: { associationId: string; level: number }[],
+): number {
+  const pid = parentAssociationId?.trim();
+  if (!pid) return 0;
+  const parent = parentAssociations.find((p) => p.associationId === pid);
+  return typeof parent?.level === "number" ? parent.level + 1 : 0;
 }
 
 export default function IdentitySection({
@@ -26,11 +24,9 @@ export default function IdentitySection({
   parentAssociations,
   isEdit,
 }: IdentitySectionProps) {
-  const validParents = selectedLevel
-    ? parentAssociations.filter((p) =>
-        allowedParentLevels(selectedLevel as number).includes(p.level),
-      )
-    : parentAssociations;
+  const validParents = parentAssociations.filter(
+    (p) => p.associationId !== formData.associationId,
+  );
 
   return (
     <div className="space-y-6">
@@ -95,76 +91,41 @@ export default function IdentitySection({
       {/* Level Dropdown */}
       <div>
         <label className="block text-xs font-black uppercase text-slate-400 mb-2 ml-1">
-          Level <span className="text-red-500">*</span>
+          Level (derived)
+        </label>
+        <div className="w-full px-5 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl font-bold">
+          {LEVEL_MAP[Number(selectedLevel)]?.short ?? `L${Number(selectedLevel)}`} —{" "}
+          {LEVEL_MAP[Number(selectedLevel)]?.label ??
+            `Level ${Number(selectedLevel)}`}
+        </div>
+        <p className="text-xs text-slate-400 font-bold mt-1 ml-1">
+          Derived from parent (root = L0, child = parent + 1). To change the level, change the
+          parent association.
+        </p>
+      </div>
+
+      <div>
+        <label className="block text-xs font-black uppercase text-slate-400 mb-2 ml-1">
+          Parent Association
         </label>
         <select
-          value={selectedLevel}
+          value={formData.parentAssociationId}
           onChange={(e) => {
-            const val = e.target.value === "" ? "" : parseInt(e.target.value);
-            console.log("📊 LEVEL CHANGED:", {
-              from: selectedLevel,
-              to: val,
-              type: typeof val,
-            });
-            onLevelChange(val as number | "");
-            // Reset parent when level changes
-            onChange("parentAssociationId", "");
+            const pid = e.target.value;
+            onChange("parentAssociationId", pid);
+            onLevelChange(levelFromParent(pid, parentAssociations) as number | "");
           }}
           className="w-full px-5 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl font-bold focus:border-yellow-400 outline-none"
         >
-          <option value="">Select level…</option>
-          <option value="0">Level 0 – National</option>
-          <option value="1">Level 1 – Sub-national</option>
-          <option value="2">Level 2 – State</option>
-          <option value="3">Level 3 – Regional</option>
-          <option value="4">Level 4 – City</option>
+          <option value="">None (root / National)</option>
+          {validParents.map((a) => (
+            <option key={a.associationId} value={a.associationId}>
+              {a.code} – {a.name} ({LEVEL_MAP[a.level]?.short ?? `L${a.level}`} ·{" "}
+              {LEVEL_MAP[a.level]?.label ?? `Level ${a.level}`})
+            </option>
+          ))}
         </select>
-        {selectedLevel !== "" && (
-          <p className="text-xs text-slate-500 font-bold mt-1 ml-1">
-            {LEVEL_MAP[selectedLevel as number]?.label}
-          </p>
-        )}
       </div>
-
-      {/* Parent Association Dropdown - only for levels > 0 */}
-      {selectedLevel !== "" && (selectedLevel as number) > 0 && (
-        <div>
-          <label className="block text-xs font-black uppercase text-slate-400 mb-2 ml-1">
-            Parent Association
-          </label>
-          {validParents.length === 0 ? (
-            <div className="p-4 bg-yellow-50 border-2 border-yellow-200 rounded-2xl">
-              <p className="text-sm font-bold text-yellow-700">
-                No valid parent associations found for Level {selectedLevel}.
-                Valid parents are:{" "}
-                {allowedParentLevels(selectedLevel as number)
-                  .map((l) => LEVEL_MAP[l]?.label)
-                  .join(" or ")}
-              </p>
-            </div>
-          ) : (
-            <select
-              value={formData.parentAssociationId}
-              onChange={(e) => onChange("parentAssociationId", e.target.value)}
-              className="w-full px-5 py-4 bg-slate-50 border-2 border-slate-100 rounded-2xl font-bold focus:border-yellow-400 outline-none"
-            >
-              <option value="">None</option>
-              {validParents.map((a) => (
-                <option key={a.associationId} value={a.associationId}>
-                  {a.code} – {a.name} (
-                  {LEVEL_MAP[a.level]?.label || `L${a.level}`})
-                </option>
-              ))}
-            </select>
-          )}
-          <p className="text-xs text-slate-400 font-bold mt-1 ml-1">
-            Allowed parent levels:{" "}
-            {allowedParentLevels(selectedLevel as number)
-              .map((l) => LEVEL_MAP[l]?.label)
-              .join(", ")}
-          </p>
-        </div>
-      )}
 
       {/* Status */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

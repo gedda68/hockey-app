@@ -3,6 +3,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { getPublicAssociationById } from "@/lib/public/publicAssociation";
+import { resolvePublicTenantFromRequest } from "@/lib/tenant/publicTenantRequest";
 
 export async function GET(
   request: NextRequest,
@@ -12,6 +13,15 @@ export async function GET(
     const { associationId } = await params;
     if (!associationId?.trim()) {
       return NextResponse.json({ error: "associationId required" }, { status: 400 });
+    }
+
+    const tenant = await resolvePublicTenantFromRequest(request);
+    if (tenant?.kind === "association" && tenant.id !== associationId.trim()) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+    if (tenant?.kind === "club") {
+      // Club portals should not fetch arbitrary association profiles.
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 
     const profile = await getPublicAssociationById(associationId.trim());

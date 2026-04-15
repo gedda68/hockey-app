@@ -9,6 +9,8 @@ type CommitteeMember = {
   position?: string;
   email?: string;
   phone?: string;
+  showEmailOnPublicSite?: boolean;
+  showPhoneOnPublicSite?: boolean;
 };
 
 // Generate slug from club name
@@ -327,7 +329,7 @@ export default async function ClubContactPage({
                           </p>
                         </td>
                         <td className="py-4 px-4">
-                          {member.email ? (
+                          {member.email && member.showEmailOnPublicSite === true ? (
                             <a
                               href={`mailto:${member.email}`}
                               className="text-sm text-indigo-600 hover:text-indigo-800 hover:underline break-all"
@@ -339,7 +341,7 @@ export default async function ClubContactPage({
                           )}
                         </td>
                         <td className="py-4 px-4">
-                          {member.phone ? (
+                          {member.phone && member.showPhoneOnPublicSite === true ? (
                             <a
                               href={`tel:${member.phone}`}
                               className="text-sm text-indigo-600 hover:text-indigo-800 hover:underline"

@@ -1,8 +1,8 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { cva } from "class-variance-authority";
-import { cn } from "../../lib/utils";
 import Card from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import Text from "@/components/ui/Text";
@@ -13,7 +13,7 @@ const matchMetaVariants = cva(
 );
 
 const scoreVariants = cva(
-  "text-3xl md:text-5xl font-black italic tracking-tighter flex items-center gap-2",
+  "text-2xl md:text-4xl font-black italic tracking-tighter flex items-center gap-2",
   {
     variants: {
       result: {
@@ -33,17 +33,26 @@ interface MatchCardProps {
   match: Match;
   isUpcoming: boolean;
   umpires?: UmpireDetails[] | null;
-  onClick: () => void;
+  href: string;
+  onQuickView?: () => void;
 }
 
 export default function MatchCard({
   match,
   isUpcoming,
   umpires,
-  onClick,
+  href,
+  onQuickView,
 }: MatchCardProps) {
   return (
-    <Card variant="default" interactive className="p-6 group" onClick={onClick}>
+    <Card variant="default" className="p-0 group">
+      <div className="p-6">
+        <div className="flex items-start justify-between gap-4">
+          <Link
+            href={href}
+            className="flex-1 rounded-2xl outline-none focus:ring-4 ring-yellow-400/20"
+            aria-label={`Open match centre: ${match.homeTeam} vs ${match.awayTeam}`}
+          >
       <div className="flex flex-col md:flex-row items-center justify-between gap-6">
         {/* MATCH META (Left) */}
         <div className={matchMetaVariants()}>
@@ -71,7 +80,7 @@ export default function MatchCard({
           <div className="flex flex-1 items-center justify-end gap-4">
             <Text
               variant="h4"
-              className="text-sm md:text-lg text-right leading-tight"
+              className="text-sm md:text-base text-right leading-tight"
             >
               {match.homeTeam}
             </Text>
@@ -94,10 +103,10 @@ export default function MatchCard({
           </div>
 
           {/* Score Area */}
-          <div className="flex flex-col items-center justify-center min-w-[100px]">
+          <div className="flex flex-col items-center justify-center min-w-[84px]">
             <div className={scoreVariants()}>
               <span>{match.homeScore ?? "-"}</span>
-              <span className="text-slate-200 text-2xl md:text-3xl">:</span>
+              <span className="text-slate-200 text-xl md:text-2xl">:</span>
               <span>{match.awayScore ?? "-"}</span>
             </div>
 
@@ -144,23 +153,35 @@ export default function MatchCard({
                 aria-hidden
               />
             )}
-            <Text variant="h4" className="text-sm md:text-lg leading-tight">
+            <Text variant="h4" className="text-sm md:text-base leading-tight">
               {match.awayTeam}
             </Text>
           </div>
         </div>
 
-        {/* STATUS / ACTION (Right) */}
-        <div className="hidden md:flex flex-col items-end min-w-[100px]">
-          <Badge
-            variant="default"
-            size="md"
-            className="border border-slate-200 bg-transparent group-hover:border-[#06054e] transition-colors"
-          >
-            Details →
-          </Badge>
-        </div>
+        {/* Right-side action placeholder (buttons rendered outside Link) */}
+        <div className="hidden md:block min-w-[140px]" />
       </div>
+          </Link>
+
+          <div className="shrink-0 flex flex-col items-end gap-2">
+            <Link
+              href={href}
+              className="rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-sky-900 hover:bg-sky-100"
+            >
+              Match centre →
+            </Link>
+            {onQuickView ? (
+              <button
+                type="button"
+                onClick={onQuickView}
+                className="rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-sky-900 hover:bg-sky-100"
+              >
+                Quick view
+              </button>
+            ) : null}
+          </div>
+        </div>
 
       {/* Umpires section for fixtures */}
       {isUpcoming && umpires && umpires.length > 0 && (
@@ -182,6 +203,7 @@ export default function MatchCard({
           </div>
         </div>
       )}
+      </div>
     </Card>
   );
 }

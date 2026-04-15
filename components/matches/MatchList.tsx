@@ -71,7 +71,8 @@ export default function MatchList({
             match={match}
             isUpcoming={isUpcoming}
             umpires={umpires}
-            onClick={() => setSelectedMatch(match)}
+            href={`/competitions/matches/${encodeURIComponent(match.matchId)}`}
+            onQuickView={() => setSelectedMatch(match)}
           />
         );
       })}

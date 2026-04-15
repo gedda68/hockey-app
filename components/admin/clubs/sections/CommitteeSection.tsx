@@ -17,6 +17,8 @@ export default function CommitteeSection({
       position: "",
       email: "",
       phone: "",
+      showEmailOnPublicSite: false,
+      showPhoneOnPublicSite: false,
     };
     onChange("committee", [...committee, newMember]);
   };
@@ -28,10 +30,10 @@ export default function CommitteeSection({
     );
   };
 
-  const updateMember = (
+  const updateMember = <K extends keyof CommitteeMember>(
     id: string,
-    field: keyof CommitteeMember,
-    value: string,
+    field: K,
+    value: CommitteeMember[K],
   ) => {
     onChange(
       "committee",
@@ -140,6 +142,21 @@ export default function CommitteeSection({
                     placeholder="email@example.com"
                     className="w-full px-4 py-3 bg-white border-2 border-slate-200 rounded-xl font-bold focus:border-yellow-400 outline-none"
                   />
+                  <label className="mt-2 flex items-center gap-2 text-xs font-bold text-slate-600">
+                    <input
+                      type="checkbox"
+                      checked={member.showEmailOnPublicSite === true}
+                      onChange={(e) =>
+                        updateMember(
+                          member.id,
+                          "showEmailOnPublicSite",
+                          e.target.checked,
+                        )
+                      }
+                      className="h-4 w-4 accent-[#06054e]"
+                    />
+                    Show email on public site (opt-in)
+                  </label>
                 </div>
 
                 <div>
@@ -155,6 +172,21 @@ export default function CommitteeSection({
                     placeholder="+61 400 000 000"
                     className="w-full px-4 py-3 bg-white border-2 border-slate-200 rounded-xl font-bold focus:border-yellow-400 outline-none"
                   />
+                  <label className="mt-2 flex items-center gap-2 text-xs font-bold text-slate-600">
+                    <input
+                      type="checkbox"
+                      checked={member.showPhoneOnPublicSite === true}
+                      onChange={(e) =>
+                        updateMember(
+                          member.id,
+                          "showPhoneOnPublicSite",
+                          e.target.checked,
+                        )
+                      }
+                      className="h-4 w-4 accent-[#06054e]"
+                    />
+                    Show phone on public site (opt-in)
+                  </label>
                 </div>
               </div>
             </div>

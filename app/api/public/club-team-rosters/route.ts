@@ -8,6 +8,7 @@ import {
   mapTeamsStaffForPublic,
   type MemberContactForPublic,
 } from "@/lib/coaching/publicStaffContact";
+import { resolvePublicTenantFromRequest } from "@/lib/tenant/publicTenantRequest";
 
 function isProbablyObjectId(s: string): boolean {
   return /^[a-f0-9]{24}$/i.test(s);
@@ -101,6 +102,8 @@ export async function GET(request: NextRequest) {
     const client = await clientPromise;
     const db = client.db("hockey-app");
 
+    const tenant = await resolvePublicTenantFromRequest(request);
+
     const club = await db.collection("clubs").findOne({
       $or: [{ id: clubParam }, { slug: clubParam }],
     });
@@ -108,6 +111,16 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Club not found" }, { status: 404 });
     }
     const canonicalClubId = club.id;
+
+    if (tenant?.kind === "club" && tenant.id !== canonicalClubId) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
+    if (tenant?.kind === "association") {
+      const clubAssoc = String(club.associationId ?? club.parentAssociationId ?? "");
+      if (!clubAssoc || clubAssoc !== tenant.id) {
+        return NextResponse.json({ error: "Not found" }, { status: 404 });
+      }
+    }
 
     const q: Record<string, unknown> = { clubId: canonicalClubId };
     if (season) q.season = season;
