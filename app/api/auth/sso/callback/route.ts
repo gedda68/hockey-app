@@ -5,6 +5,7 @@ import {
   createMemberSession,
   createStaffUserSession,
 } from "@/lib/auth/createAppSession";
+import { attachSessionCookie } from "@/lib/auth/session";
 import {
   isOidcConfigured,
   getOidcRedirectUri,
@@ -132,10 +133,14 @@ export async function GET(request: NextRequest) {
       const cp = new URL("/change-password", request.url);
       cp.searchParams.set("next", next);
       cp.searchParams.set("force", "1");
-      return NextResponse.redirect(cp);
+      const res = NextResponse.redirect(cp);
+      await attachSessionCookie(res, r.sessionData);
+      return res;
     }
     const dest = statePayload.callbackUrl || "/";
-    return NextResponse.redirect(new URL(dest, request.url));
+    const res = NextResponse.redirect(new URL(dest, request.url));
+    await attachSessionCookie(res, r.sessionData);
+    return res;
   }
 
   const member = await db.collection("members").findOne({
@@ -151,10 +156,14 @@ export async function GET(request: NextRequest) {
       const cp = new URL("/change-password", request.url);
       cp.searchParams.set("next", next);
       cp.searchParams.set("force", "1");
-      return NextResponse.redirect(cp);
+      const res = NextResponse.redirect(cp);
+      await attachSessionCookie(res, r.sessionData);
+      return res;
     }
     const dest = statePayload.callbackUrl || "/";
-    return NextResponse.redirect(new URL(dest, request.url));
+    const res = NextResponse.redirect(new URL(dest, request.url));
+    await attachSessionCookie(res, r.sessionData);
+    return res;
   }
 
   const u = new URL("/login", request.url);

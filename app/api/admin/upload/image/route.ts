@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { writeFile, mkdir, readdir } from "fs/promises";
 import path from "path";
-import { requirePermission, requireRole } from "@/lib/auth/middleware";
+import {
+  requirePermission,
+  requireResourceAccess,
+  requireRole,
+} from "@/lib/auth/middleware";
 import { MEDIA_CONTENT_ADMIN_ROLES } from "@/lib/auth/mediaContentRoles";
 import { adminHomeGallerySegment } from "@/lib/tenant/homeGalleryScope";
 
@@ -39,6 +43,26 @@ export async function POST(request: NextRequest) {
           { status: 403 },
         );
       }
+    } else if (category.startsWith("associations/")) {
+      const parts = category.split("/").filter(Boolean);
+      const assocId = parts[1]?.trim();
+      if (!assocId || parts[0] !== "associations") {
+        return NextResponse.json(
+          { error: "Invalid category — use associations/{associationId}" },
+          { status: 400 },
+        );
+      }
+      const { response: permRes } = await requirePermission(
+        request,
+        "association.edit",
+      );
+      if (permRes) return permRes;
+      const { response: scopeRes } = await requireResourceAccess(
+        request,
+        "association",
+        assocId,
+      );
+      if (scopeRes) return scopeRes;
     } else {
       const { response } = await requirePermission(request, "club.settings");
       if (response) return response;

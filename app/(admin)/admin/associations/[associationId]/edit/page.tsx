@@ -6,6 +6,28 @@ import clientPromise from "@/lib/mongodb";
 import Link from "next/link";
 import { ArrowLeft, AlertCircle } from "lucide-react";
 
+/** Mongo may return Date, ISO string, epoch ms, or extended JSON `{ $date }`. */
+function toIsoString(value: unknown): string | undefined {
+  if (value == null) return undefined;
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    return value.toISOString();
+  }
+  if (typeof value === "string" && value.trim()) {
+    const d = new Date(value);
+    return Number.isNaN(d.getTime()) ? value.trim() : d.toISOString();
+  }
+  if (typeof value === "number" && Number.isFinite(value)) {
+    const d = new Date(value);
+    return Number.isNaN(d.getTime()) ? undefined : d.toISOString();
+  }
+  if (typeof value === "object" && value !== null && "$date" in value) {
+    const inner = (value as { $date: string | number }).$date;
+    const d = new Date(inner);
+    return Number.isNaN(d.getTime()) ? undefined : d.toISOString();
+  }
+  return undefined;
+}
+
 export default async function EditAssociationPage({
   params,
 }: {
@@ -170,25 +192,36 @@ export default async function EditAssociationPage({
             requiresEmergencyContact: true,
           },
 
-      // Branding - ✅ FIXED: Added accentColor
+      // Branding (colours + public portal logo / banner)
       branding: association.branding
         ? {
             primaryColor: association.branding.primaryColor || "#06054e",
             secondaryColor: association.branding.secondaryColor || "#FFD700",
-            accentColor: association.branding.accentColor || "#ffd700", // ✅ ADDED
+            accentColor: association.branding.accentColor || "#ffd700",
+            logoUrl: String(
+              (association.branding as { logoUrl?: string }).logoUrl ||
+                (association.branding as { logo?: string }).logo ||
+                "",
+            ).trim(),
+            bannerUrl: String(
+              (association.branding as { bannerUrl?: string }).bannerUrl ||
+                "",
+            ).trim(),
           }
         : {
             primaryColor: "#06054e",
             secondaryColor: "#FFD700",
-            accentColor: "#ffd700", // ✅ ADDED
+            accentColor: "#ffd700",
+            logoUrl: "",
+            bannerUrl: "",
           },
 
       // Status
       status: association.status || "active",
 
       // Timestamps (convert to ISO strings)
-      createdAt: association.createdAt?.toISOString(),
-      updatedAt: association.updatedAt?.toISOString(),
+      createdAt: toIsoString(association.createdAt),
+      updatedAt: toIsoString(association.updatedAt),
     };
 
     // Serialize parent associations (only needed fields)

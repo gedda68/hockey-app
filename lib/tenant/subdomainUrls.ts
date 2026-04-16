@@ -6,7 +6,10 @@
  *   NEXT_PUBLIC_PORTAL_PROTOCOL — optional; default https in production, http in development
  */
 
-import { getPortalRootDomain } from "@/lib/tenant/portalHost";
+import {
+  extractPortalSlugFromHost,
+  getPortalRootDomain,
+} from "@/lib/tenant/portalHost";
 import {
   associationPortalSubdomain,
   clubPortalSubdomain,
@@ -26,6 +29,15 @@ export function buildApexSiteOrigin(): string {
   const host = m?.[1] ?? root;
   const port = m?.[2];
   return port ? `${proto}://${host}:${port}` : `${proto}://${host}`;
+}
+
+/** e.g. `http://hq.localhost:3000` → `hq` (uses same rules as request Host parsing). */
+export function extractPortalSlugFromTenantOrigin(origin: string): string | null {
+  try {
+    return extractPortalSlugFromHost(new URL(origin).host);
+  } catch {
+    return null;
+  }
 }
 
 /**

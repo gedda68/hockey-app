@@ -1,11 +1,14 @@
 // Build / validate persona switches for multi-role users (JWT session refresh).
 
 import type { Db } from "mongodb";
+import { ObjectId } from "mongodb";
 import type { SessionData, ScopedRole } from "@/lib/auth/session";
 import { numericLevelToString } from "@/lib/types/roles";
 import type { AssociationLevel } from "@/lib/types/roles";
 import { generateSlug } from "@/lib/utils/slug";
 import { applyPortalSubdomainToSession } from "@/lib/tenant/applySessionPortalSubdomain";
+import { toScopedRoles } from "@/lib/auth/toScopedRoles";
+import type { RoleAssignment } from "@/lib/types/roles";
 
 export type PersonaOption = {
   /** Stable key sent to POST /api/auth/switch-persona */
@@ -168,7 +171,39 @@ export async function buildPersonaOptions(
     add(session.role, "global", "");
   }
 
-  for (const sr of session.scopedRoles ?? []) {
+  // Load additional personas from DB to keep the JWT small (avoid cookie size limits).
+  let dbScoped: ScopedRole[] = [];
+  try {
+    if (session.memberId) {
+      const mid = new ObjectId(String(session.memberId));
+      const m = await db
+        .collection("members")
+        .findOne({ _id: mid }, { projection: { roles: 1 } });
+      const roles = Array.isArray((m as any)?.roles)
+        ? ((m as any).roles as RoleAssignment[])
+        : [];
+      dbScoped = toScopedRoles(roles);
+    } else if (session.userId) {
+      const uid = String(session.userId);
+      const u = await db.collection("users").findOne(
+        {
+          $or: [
+            { userId: uid },
+            ...(ObjectId.isValid(uid) ? [{ _id: new ObjectId(uid) }] : []),
+          ],
+        },
+        { projection: { roles: 1 } },
+      );
+      const roles = Array.isArray((u as any)?.roles)
+        ? ((u as any).roles as RoleAssignment[])
+        : [];
+      dbScoped = toScopedRoles(roles);
+    }
+  } catch {
+    dbScoped = [];
+  }
+
+  for (const sr of [...(session.scopedRoles ?? []), ...dbScoped]) {
     add(sr.role, sr.scopeType, sr.scopeId);
   }
 
@@ -181,7 +216,7 @@ export async function sessionWithPersona(
   personaKey: string,
 ): Promise<SessionData | null> {
   const parsed = parsePersonaKey(personaKey);
-  if (!parsed || !personaIsAllowed(session, parsed)) return null;
+  if (!parsed) return null;
 
   const base: SessionData = {
     ...session,

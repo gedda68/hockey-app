@@ -85,5 +85,8 @@ export function pickTenantOriginForLogin(
   if (PORTAL_CLUB_ROLES.has(role) && clubPortalOrigin) {
     return clubPortalOrigin;
   }
+  // Match resolvePortalSubdomainLabel: any other staff/member tied to an association
+  // should land on that portal host when logging in from the apex site.
+  if (associationPortalOrigin) return associationPortalOrigin;
   return null;
 }

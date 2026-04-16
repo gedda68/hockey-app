@@ -37,7 +37,7 @@ The platform hosts **many independent portals** (per association subdomain and p
 
 - **`news` collection** — No `associationId` / `clubId` / `portalScope` on types or public query (`lib/data/publicNews.ts`, `app/api/news/route.ts`, admin `app/api/admin/news/route.ts`). **All portals risk showing the same news.**
 - **Home gallery** — Platform-level hero imagery (`lib/data/homeGallery.ts`, admin home-gallery API) is not clearly keyed per tenant; **risk of one gallery for every subdomain.**
-- **Association `level`** — **Partially fixed:** `app/api/admin/associations/route.ts` string filter now matches `numericLevelToString` (`State` → `1`, etc.). Canonical table lives in `docs/domain/CANONICAL_GRAPH.md`. **Remaining:** audit any seed/data that assumed the old map; admin create/edit UI labels vs stored integers.
+- **Association `level`** — **Fixed:** admin list level filter + badges + association form copy align stored integers with `numericLevelToString` / `associationLevelDisplay.ts`; `GET ?simple=true` returns numeric `level`. Canonical table: `docs/domain/CANONICAL_GRAPH.md`. Run `pnpm run reconcile:association-levels` if DB `level`/`hierarchy` drifted from the parent chain.
 - **Competition ownership** — Epic C enforces owning association for season leagues; **confirm** UI defaults create season comps only for **Level 4–equivalent** associations (policy + optional API guard).
 
 ---
@@ -59,7 +59,7 @@ Federation-grade sites optimise for **repeat visits**, **mobile**, and **clear m
 
 ## Epic L — Levels, tenancy, and data isolation
 
-- [ ] **L1** **Single source of truth for `association.level`** — Docs + admin filter + schema comments (**done**). **Data pass:** `pnpm run reconcile:association-levels` (dry-run) / `--apply` — recomputes `level` + `hierarchy[]` from the parent chain (`scripts/reconcile-association-levels.ts`). **Remaining:** association create/edit UI consistency if labels still confuse operators.
+- [x] **L1** **Single source of truth for `association.level`** — Canonical table in `docs/domain/CANONICAL_GRAPH.md`; admin list filter + create/edit badges use `lib/domain/associationLevelDisplay.ts` (aligned with `numericLevelToString`). **Data pass:** `pnpm run reconcile:association-levels` (dry-run) / `pnpm run reconcile:association-levels -- --apply` — recomputes `level` + `hierarchy[]` from `parentAssociationId` (`scripts/reconcile-association-levels.ts`). `GET ?simple=true` returns numeric `level` plus `levelSummary`.
 - [x] **L2** **Tenant-scoped news** — Shipped: `scopeType` + `scopeId` on `news`; `lib/portal/newsScope.ts`; `getPublicNewsItems(limit, tenant)`; `GET /api/news` + website pages use host tenant; admin list/create/PUT/PATCH/DELETE scoped (`app/api/admin/news/**`). Backfill: `pnpm run backfill:news-scope` / `--apply`. *Not done:* optional **syndicate up** (club → parent association).
 - [x] **L3** **Tenant-scoped media gallery** — Shipped: files under `public/icons/home-gallery/<scope>/` (`platform`, `association-*`, `club-*`); `lib/data/homeGallery.ts` + `lib/tenant/homeGalleryScope.ts`; admin API + upload path `home-gallery/<scope>`; migrate loose files: `pnpm run migrate:home-gallery-platform` / `--apply`.
 - [x] **L4** **Portal RBAC for media** — Shipped: admin news + gallery enforce scope; super-admin may pick gallery scope / news scope on create; org admins locked to their folder/list; `POST /api/admin/upload/image` validates `home-gallery/...` paths against session scope.

@@ -9,10 +9,24 @@ import { evaluateAdminRouteAccess } from "@/lib/auth/adminRouteAccess";
 import { ssoAutoRedirectFromMiddleware } from "@/lib/auth/oidc/config";
 import { tenantHostRedirectUrl } from "@/lib/tenant/middlewareTenantRedirect";
 import { tryApexToTenantPublicRedirect } from "@/lib/tenant/publicApexTenantRedirect";
+import {
+  RESOLVED_PORTAL_SLUG_HEADER,
+  resolvePortalSlugForRequest,
+} from "@/lib/tenant/portalHost";
 
 const SECRET_KEY = process.env.JWT_SECRET;
 if (!SECRET_KEY) throw new Error("JWT_SECRET environment variable is not set");
 const key = new TextEncoder().encode(SECRET_KEY);
+
+function nextWithResolvedPortalSlug(request: NextRequest): NextResponse {
+  const headers = new Headers(request.headers);
+  const host = headers.get("x-forwarded-host") ?? headers.get("host");
+  const queryPortal = request.nextUrl.searchParams.get("portal");
+  const slug = resolvePortalSlugForRequest(host, queryPortal);
+  if (slug) headers.set(RESOLVED_PORTAL_SLUG_HEADER, slug);
+  else headers.delete(RESOLVED_PORTAL_SLUG_HEADER);
+  return NextResponse.next({ request: { headers } });
+}
 
 interface ScopedRole {
   role: string;
@@ -64,6 +78,7 @@ function isPublicPath(path: string): boolean {
     "/officials",
     "/news",
     "/api/auth/login",
+    "/api/auth/consume-session",
     "/api/auth/logout",
     "/api/auth/session",
     "/api/auth/me",
@@ -118,7 +133,7 @@ export async function middleware(request: NextRequest) {
     path === "/admin/login" ||
     path.startsWith("/admin/login/")
   ) {
-    return NextResponse.next();
+    return nextWithResolvedPortalSlug(request);
   }
 
   // 0.5 Apex → tenant for public org URLs (/clubs/…, /associations/…, optional fallback prefixes)
@@ -126,7 +141,7 @@ export async function middleware(request: NextRequest) {
   if (apexTenantRedirect) return apexTenantRedirect;
 
   // 1. Skip fully public paths
-  if (isPublicPath(path)) return NextResponse.next();
+  if (isPublicPath(path)) return nextWithResolvedPortalSlug(request);
 
   // 2. Get session
   const session = await getSession(request);
@@ -156,7 +171,7 @@ export async function middleware(request: NextRequest) {
 
   // 5. Auth-required (any logged-in user)
   if (AUTH_REQUIRED_PATHS.some((p) => path.startsWith(p)))
-    return NextResponse.next();
+    return nextWithResolvedPortalSlug(request);
 
   // 5b. Keep /admin and /portal on the session’s tenant host ({slug}.{root})
   const tenantRedirect = tenantHostRedirectUrl({
@@ -186,7 +201,7 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL("/unauthorized", request.url));
   }
 
-  return NextResponse.next();
+  return nextWithResolvedPortalSlug(request);
 }
 
 export const config = {

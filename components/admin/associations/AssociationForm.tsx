@@ -18,6 +18,7 @@ import {
   CheckCircle2,
   Save,
   X,
+  Image as ImageIcon,
   Facebook,
   Instagram,
   Twitter,
@@ -27,7 +28,10 @@ import {
   Trash2,
 } from "lucide-react";
 import { ToastContainer, useToast } from "@/components/ui/Toast";
-import { LEVEL_MAP } from "@/components/admin/associations/AssociationsList";
+import {
+  LEVEL_MAP,
+  associationLevelDisplay,
+} from "@/lib/domain/associationLevelDisplay";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -71,7 +75,13 @@ interface AssociationInitialData {
   contact?: { primaryEmail?: string; secondaryEmail?: string; phone?: string; mobile?: string; website?: string };
   address?: { street?: string; suburb?: string; city?: string; state?: string; postcode?: string; country?: string };
   socialMedia?: { facebook?: string; instagram?: string; twitter?: string };
-  branding?: { primaryColor?: string; secondaryColor?: string; accentColor?: string };
+  branding?: {
+    primaryColor?: string;
+    secondaryColor?: string;
+    accentColor?: string;
+    logoUrl?: string;
+    bannerUrl?: string;
+  };
   fees?: AssociationFee[];
   positions?: AssociationPosition[];
   settings?: {
@@ -113,7 +123,7 @@ const SECTIONS = [
     id: "branding",
     label: "Branding",
     icon: Palette,
-    desc: "Colours and style",
+    desc: "Colours, portal logo, banner",
   },
   {
     id: "fees",
@@ -186,6 +196,8 @@ const defaultFormData = {
   primaryColor: "#06054e",
   secondaryColor: "#FFD700",
   accentColor: "#ffd700",
+  brandingLogoUrl: "",
+  brandingBannerUrl: "",
 
   // Fees & Positions
   fees: [] as AssociationFee[],
@@ -270,6 +282,9 @@ export default function AssociationForm({
     Record<string, Record<string, string>>
   >({});
   const [isSaving, setIsSaving] = useState(false);
+  const [brandingUpload, setBrandingUpload] = useState<null | "logo" | "banner">(
+    null,
+  );
   const [selectedLevel, setSelectedLevel] = useState<number>(0);
 
   const [formData, setFormData] = useState(defaultFormData);
@@ -307,6 +322,8 @@ export default function AssociationForm({
         primaryColor: initialData.branding?.primaryColor || "#06054e",
         secondaryColor: initialData.branding?.secondaryColor || "#FFD700",
         accentColor: initialData.branding?.accentColor || "#ffd700",
+        brandingLogoUrl: initialData.branding?.logoUrl?.trim() || "",
+        brandingBannerUrl: initialData.branding?.bannerUrl?.trim() || "",
         fees: Array.isArray(initialData.fees) ? initialData.fees : [],
         positions: Array.isArray(initialData.positions)
           ? initialData.positions
@@ -489,6 +506,12 @@ export default function AssociationForm({
           primaryColor: formData.primaryColor,
           secondaryColor: formData.secondaryColor,
           accentColor: formData.accentColor,
+          ...(formData.brandingLogoUrl.trim()
+            ? { logoUrl: formData.brandingLogoUrl.trim() }
+            : {}),
+          ...(formData.brandingBannerUrl.trim()
+            ? { bannerUrl: formData.brandingBannerUrl.trim() }
+            : {}),
         },
         status: formData.status,
       };
@@ -644,13 +667,17 @@ export default function AssociationForm({
           {LEVEL_MAP[Number(selectedLevel)]?.label ??
             `Level ${Number(selectedLevel)}`}
         </div>
-        <p className="text-xs text-slate-400 font-bold mt-1 ml-1">
-          Derived from the selected parent association (root = L0, child = parent + 1). If the tree
-          changes, re-run{" "}
+        <p className="text-xs text-slate-500 font-bold mt-1 ml-1">
+          Saved as <span className="font-mono">associations.level = {Number(selectedLevel)}</span>
+          {" "}
+          (RBAC tier{" "}
           <span className="font-mono">
-            pnpm run reconcile:association-levels -- --apply
+            {associationLevelDisplay(Number(selectedLevel)).canonicalKey}
           </span>
-          .
+          ). Matches parent depth (root = 0, child = parent + 1); the API recomputes on save. If
+          legacy rows disagree with the tree, dry-run then apply:{" "}
+          <span className="font-mono">pnpm run reconcile:association-levels</span> /{" "}
+          <span className="font-mono">pnpm run reconcile:association-levels -- --apply</span>.
         </p>
       </div>
 
@@ -800,11 +827,175 @@ export default function AssociationForm({
     </div>
   );
 
+  const uploadBrandingAsset = async (file: File, kind: "logo" | "banner") => {
+    if (!associationId) {
+      toastError(
+        "Create the association first",
+        "Save the new association once, then edit it to upload images.",
+      );
+      return;
+    }
+    setBrandingUpload(kind);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("category", `associations/${associationId}`);
+      const res = await fetch("/api/admin/upload/image", {
+        method: "POST",
+        body: fd,
+        credentials: "include",
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(
+          typeof data.error === "string" ? data.error : "Upload failed",
+        );
+      }
+      const url = typeof data.url === "string" ? data.url : "";
+      if (!url) throw new Error("No file URL returned");
+      handleChange(
+        kind === "logo" ? "brandingLogoUrl" : "brandingBannerUrl",
+        url,
+      );
+      success(
+        "Image uploaded",
+        kind === "logo"
+          ? "Portal logo URL filled in — click Save to persist."
+          : "Banner URL filled in — click Save to persist.",
+      );
+    } catch (e) {
+      toastError(
+        "Upload failed",
+        e instanceof Error ? e.message : "Unknown error",
+      );
+    } finally {
+      setBrandingUpload(null);
+    }
+  };
+
   const renderBranding = () => (
     <div className="space-y-8">
       <p className="text-sm font-bold text-slate-500">
-        Choose colours that represent the association. These will appear
-        throughout the system.
+        Colours apply across admin and the public portal. The{" "}
+        <strong>portal logo</strong> appears in the site header and home hero
+        for this association&apos;s subdomain.
+      </p>
+
+      <div className="rounded-2xl border-2 border-slate-100 bg-slate-50/50 p-6 space-y-6">
+        <div>
+          <label className="block text-xs font-black uppercase text-slate-400 mb-2 ml-1">
+            Portal logo (header &amp; home)
+          </label>
+          <p className="text-xs text-slate-500 font-semibold mb-3">
+            PNG or SVG recommended. Paste a URL, or upload (saved under{" "}
+            <code className="text-[11px] bg-white px-1 rounded">
+              /icons/associations/{associationId || "…"}/
+            </code>
+            ).
+          </p>
+          <div className="flex flex-col sm:flex-row gap-3">
+            <input
+              type="text"
+              value={formData.brandingLogoUrl}
+              onChange={(e) => handleChange("brandingLogoUrl", e.target.value)}
+              className="flex-1 px-4 py-3 bg-white border-2 border-slate-200 rounded-xl font-bold text-sm focus:border-yellow-400 outline-none"
+              placeholder="https://… or /icons/associations/…/file.png"
+            />
+            <label
+              className={`inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl px-4 py-3 font-black text-xs uppercase transition-colors ${
+                associationId
+                  ? "bg-[#06054e] text-white hover:bg-yellow-400 hover:text-[#06054e]"
+                  : "bg-slate-200 text-slate-400 cursor-not-allowed"
+              }`}
+            >
+              <ImageIcon size={18} />
+              {brandingUpload === "logo" ? "Uploading…" : "Upload file"}
+              <input
+                type="file"
+                accept="image/jpeg,image/png,image/gif,image/webp,image/svg+xml"
+                className="hidden"
+                disabled={!associationId || brandingUpload !== null}
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  e.target.value = "";
+                  if (f) void uploadBrandingAsset(f, "logo");
+                }}
+              />
+            </label>
+          </div>
+          {formData.brandingLogoUrl.trim() ? (
+            <div className="mt-4 flex items-center gap-4">
+              {/* eslint-disable-next-line @next/next/no-img-element -- admin preview any URL */}
+              <img
+                src={formData.brandingLogoUrl}
+                alt="Logo preview"
+                className="max-h-20 max-w-[200px] object-contain rounded-lg border border-slate-200 bg-white p-2"
+              />
+              <button
+                type="button"
+                onClick={() => handleChange("brandingLogoUrl", "")}
+                className="text-xs font-black uppercase text-red-600 hover:underline"
+              >
+                Clear logo
+              </button>
+            </div>
+          ) : null}
+        </div>
+
+        <div>
+          <label className="block text-xs font-black uppercase text-slate-400 mb-2 ml-1">
+            Banner image (optional)
+          </label>
+          <p className="text-xs text-slate-500 font-semibold mb-3">
+            Optional wide image URL for future marketing blocks.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-3">
+            <input
+              type="text"
+              value={formData.brandingBannerUrl}
+              onChange={(e) =>
+                handleChange("brandingBannerUrl", e.target.value)
+              }
+              className="flex-1 px-4 py-3 bg-white border-2 border-slate-200 rounded-xl font-bold text-sm focus:border-yellow-400 outline-none"
+              placeholder="https://… or /icons/associations/…/banner.png"
+            />
+            <label
+              className={`inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl px-4 py-3 font-black text-xs uppercase transition-colors ${
+                associationId
+                  ? "bg-slate-700 text-white hover:bg-yellow-400 hover:text-[#06054e]"
+                  : "bg-slate-200 text-slate-400 cursor-not-allowed"
+              }`}
+            >
+              <ImageIcon size={18} />
+              {brandingUpload === "banner" ? "Uploading…" : "Upload"}
+              <input
+                type="file"
+                accept="image/jpeg,image/png,image/gif,image/webp,image/svg+xml"
+                className="hidden"
+                disabled={!associationId || brandingUpload !== null}
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  e.target.value = "";
+                  if (f) void uploadBrandingAsset(f, "banner");
+                }}
+              />
+            </label>
+          </div>
+          {formData.brandingBannerUrl.trim() ? (
+            <div className="mt-4">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={formData.brandingBannerUrl}
+                alt="Banner preview"
+                className="max-h-24 w-full max-w-lg object-cover rounded-lg border border-slate-200"
+              />
+            </div>
+          ) : null}
+        </div>
+      </div>
+
+      <p className="text-xs font-black uppercase text-slate-400 tracking-wide">
+        Brand colours
       </p>
       {[
         { label: "Primary Colour", key: "primaryColor" },

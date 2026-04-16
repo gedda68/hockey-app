@@ -2,7 +2,7 @@
 // Branding: colors with optional accent color
 
 import { BaseSectionProps } from "../types/association.types";
-import { LEVEL_MAP } from "../AssociationsList";
+import { LEVEL_MAP } from "@/lib/domain/associationLevelDisplay";
 
 interface BrandingSectionProps extends BaseSectionProps {
   selectedLevel: number | "";

@@ -107,6 +107,9 @@ const AssociationSchema = z.object({
       primaryColor: z.string().default("#06054e"),
       secondaryColor: z.string().default("#FFD700"),
       accentColor: z.string().default("#ffd700"),
+      /** Public header / home hero — full URL or site-relative path (e.g. /icons/associations/…/file.png) */
+      logoUrl: z.string().max(2048).optional(),
+      bannerUrl: z.string().max(2048).optional(),
     })
     .optional(),
 

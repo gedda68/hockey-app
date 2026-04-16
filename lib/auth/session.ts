@@ -2,7 +2,9 @@
 // JWT session using jose — Edge-compatible
 
 import { cookies } from "next/headers";
+import type { NextResponse } from "next/server";
 import { SignJWT, jwtVerify } from "jose";
+import { getPortalRootDomain } from "@/lib/tenant/portalHost";
 
 const SECRET_KEY = process.env.JWT_SECRET;
 if (!SECRET_KEY) throw new Error("JWT_SECRET environment variable is not set");
@@ -79,9 +81,26 @@ async function decrypt(token: string): Promise<SessionData | null> {
   }
 }
 
-function sessionCookieBase() {
-  /** e.g. `.localhost` in dev so the same session works on `localhost` and `{slug}.localhost`. */
-  const domain = process.env.SESSION_COOKIE_DOMAIN?.trim();
+/**
+ * `Domain=.localhost` is only applied for tenant-bound sessions in dev. Using it for
+ * every login can break host-only cookies on bare `http://localhost` in some browsers
+ * (session never stored → `/api/auth/me` 401). Super-admin stays host-only.
+ */
+function resolvedSessionCookieDomain(
+  portalSubdomain: string | null | undefined,
+): string | undefined {
+  const explicit = process.env.SESSION_COOKIE_DOMAIN?.trim();
+  if (explicit) return explicit;
+  if (process.env.NODE_ENV !== "development") return undefined;
+  const rootHost = getPortalRootDomain().split(":")[0].toLowerCase();
+  if (rootHost !== "localhost") return undefined;
+  const sub = portalSubdomain?.trim().toLowerCase();
+  if (sub) return ".localhost";
+  return undefined;
+}
+
+function sessionCookieBase(portalSubdomain: string | null | undefined) {
+  const domain = resolvedSessionCookieDomain(portalSubdomain);
   return {
     httpOnly: true as const,
     secure: process.env.NODE_ENV === "production",
@@ -91,16 +110,67 @@ function sessionCookieBase() {
   };
 }
 
-// Create session (sets HttpOnly cookie)
-export async function createSession(data: SessionData): Promise<void> {
+/** JWT string + `Set-Cookie` options (single encrypt for login + optional body echo). */
+export async function createSessionCookieParts(data: SessionData): Promise<{
+  value: string;
+  options: {
+    httpOnly: boolean;
+    secure: boolean;
+    sameSite: "lax";
+    path: string;
+    expires: Date;
+    domain?: string;
+  };
+}> {
   const expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-  const token = await encrypt(data);
+  const value = await encrypt(data);
+  return {
+    value,
+    options: {
+      ...sessionCookieBase(data.portalSubdomain),
+      expires,
+    },
+  };
+}
 
+function withoutDomain<T extends { domain?: string }>(opts: T): Omit<T, "domain"> {
+  const { domain: _domain, ...rest } = opts;
+  return rest;
+}
+
+/** Verify a session JWT (e.g. one-off cross-host sync from apex login). */
+export async function decodeSessionToken(
+  token: string,
+): Promise<SessionData | null> {
+  return decrypt(token);
+}
+
+/**
+ * Prefer this in Route Handlers that return `NextResponse.*`: in Next.js 15+,
+ * `cookies().set()` alone may not attach to `NextResponse.json()` / redirects.
+ */
+export async function attachSessionCookie(
+  res: NextResponse,
+  data: SessionData,
+): Promise<void> {
+  const { value, options } = await createSessionCookieParts(data);
+  res.cookies.set("session", value, options);
+}
+
+/** Host-only cookie (no Domain=...), for localhost/subdomain quirks. */
+export async function attachSessionCookieHostOnly(
+  res: NextResponse,
+  data: SessionData,
+): Promise<void> {
+  const { value, options } = await createSessionCookieParts(data);
+  res.cookies.set("session", value, withoutDomain(options));
+}
+
+// Create session (sets HttpOnly cookie) — Server Components / non-Response flows
+export async function createSession(data: SessionData): Promise<void> {
+  const { value, options } = await createSessionCookieParts(data);
   const cookieStore = await cookies();
-  cookieStore.set("session", token, {
-    ...sessionCookieBase(),
-    expires,
-  });
+  cookieStore.set("session", value, options);
 }
 
 // Read current session (Server Components / API Routes)
@@ -114,8 +184,13 @@ export async function getSession(): Promise<SessionData | null> {
 // Delete session cookie
 export async function deleteSession(): Promise<void> {
   const cookieStore = await cookies();
+  const existing = cookieStore.get("session")?.value;
+  let portalSubdomain: string | null | undefined;
+  if (existing) {
+    portalSubdomain = (await decrypt(existing))?.portalSubdomain;
+  }
   cookieStore.set("session", "", {
-    ...sessionCookieBase(),
+    ...sessionCookieBase(portalSubdomain),
     expires: new Date(0),
   });
 }

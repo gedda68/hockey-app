@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDatabase } from "@/lib/mongodb";
-import { getSession, createSession } from "@/lib/auth/session";
+import { getSession, attachSessionCookie } from "@/lib/auth/session";
 import {
   parsePersonaKey,
-  personaIsAllowed,
+  buildPersonaOptions,
   sessionWithPersona,
 } from "@/lib/auth/sessionPersona";
 
@@ -24,12 +24,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const db = await getDatabase();
     const parsed = parsePersonaKey(personaKey);
-    if (!parsed || !personaIsAllowed(session, parsed)) {
+    if (!parsed) {
       return NextResponse.json({ error: "Invalid persona" }, { status: 403 });
     }
-
-    const db = await getDatabase();
+    const options = await buildPersonaOptions(db, session);
+    if (!options.some((o) => o.key === personaKey)) {
+      return NextResponse.json({ error: "Invalid persona" }, { status: 403 });
+    }
     const nextSession = await sessionWithPersona(db, session, personaKey);
     if (!nextSession) {
       return NextResponse.json(
@@ -38,11 +41,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    await createSession(nextSession);
-    return NextResponse.json({
+    const res = NextResponse.json({
       success: true,
       portalSubdomain: nextSession.portalSubdomain ?? null,
     });
+    await attachSessionCookie(res, nextSession);
+    return res;
   } catch (e) {
     console.error("switch-persona:", e);
     return NextResponse.json({ error: "Server error" }, { status: 500 });

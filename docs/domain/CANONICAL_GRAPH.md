@@ -25,7 +25,9 @@ The database field `associations.level` is a **small integer** used for RBAC and
 
 > **Legacy data:** If any rows were filtered or created using an old string map that treated `State` as `2`, reconcile those documents so `level` matches the table above.
 
-**Operational script:** `pnpm run reconcile:association-levels` (dry-run) or `pnpm run reconcile:association-levels --apply` — recomputes each row’s `level` and `hierarchy` from `parentAssociationId` (see `scripts/reconcile-association-levels.ts`).
+**Operational script:** `pnpm run reconcile:association-levels` (dry-run) or `pnpm run reconcile:association-levels -- --apply` — recomputes each row’s `level` and `hierarchy` from `parentAssociationId` (see `scripts/reconcile-association-levels.ts`).
+
+**Admin UI labels** (badges, filters, form copy) should follow `lib/domain/associationLevelDisplay.ts`, which stays aligned with this table and `numericLevelToString` in `lib/types/roles.ts`.
 
 - **Club**
   - Represents a single club organization.

@@ -44,24 +44,46 @@ function LoginFormInner() {
     clubPortalOrigin?: string | null,
     associationPortalOrigin?: string | null,
   ): string {
-    if (
-      !pathOrUrl ||
-      pathOrUrl.startsWith("http://") ||
-      pathOrUrl.startsWith("https://")
-    ) {
-      return pathOrUrl;
-    }
-    const tenant = pickTenantOriginForLogin(
+    if (!pathOrUrl || typeof window === "undefined") return pathOrUrl;
+
+    const tenantOrigin = pickTenantOriginForLogin(
       role,
       clubPortalOrigin,
       associationPortalOrigin,
     );
-    if (!tenant || typeof window === "undefined") return pathOrUrl;
-    const apex = buildApexSiteOrigin().replace(/\/$/, "");
+    if (!tenantOrigin) return pathOrUrl;
+
+    const tenantBase = tenantOrigin.replace(/\/$/, "");
     const here = window.location.origin.replace(/\/$/, "");
-    if (here !== apex) return pathOrUrl;
-    const path = pathOrUrl.startsWith("/") ? pathOrUrl : `/${pathOrUrl}`;
-    return `${tenant}${path}`;
+
+    let apexOrigin: string;
+    try {
+      apexOrigin = new URL(buildApexSiteOrigin()).origin;
+    } catch {
+      return pathOrUrl;
+    }
+
+    let internalPath: string;
+    try {
+      if (pathOrUrl.startsWith("http://") || pathOrUrl.startsWith("https://")) {
+        const u = new URL(pathOrUrl);
+        if (u.origin !== apexOrigin) {
+          return pathOrUrl;
+        }
+        internalPath = `${u.pathname}${u.search}${u.hash}` || "/";
+      } else {
+        internalPath = pathOrUrl.startsWith("/")
+          ? pathOrUrl
+          : `/${pathOrUrl}`;
+      }
+    } catch {
+      return pathOrUrl;
+    }
+
+    if (here === tenantBase) {
+      return internalPath;
+    }
+    return `${tenantBase}${internalPath}`;
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -72,6 +94,7 @@ function LoginFormInner() {
     try {
       const response = await fetch("/api/auth/login", {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData),
       });
@@ -104,11 +127,6 @@ function LoginFormInner() {
         return;
       }
 
-      await refreshUser();
-
-      const roleDisplayName = getRoleDisplayName(data.user.role);
-      toast.success(`Welcome back, ${data.user.firstName || data.user.username}! Logged in as ${roleDisplayName}`);
-
       // Redirect priority: callbackUrl → next param → role dashboard
       const destination =
         callbackUrl ||
@@ -120,16 +138,64 @@ function LoginFormInner() {
         data.clubPortalOrigin,
         data.associationPortalOrigin,
       );
+
+      let crossTenantNavigation = false;
+      let finalDestOrigin: string | null = null;
+      try {
+        if (
+          finalDest.startsWith("http://") ||
+          finalDest.startsWith("https://")
+        ) {
+          finalDestOrigin = new URL(finalDest).origin;
+          crossTenantNavigation =
+            finalDestOrigin !== window.location.origin;
+        }
+      } catch {
+        /* keep false */
+      }
+
+      // Browsers often do not share cookies between `localhost` and `hq.localhost`.
+      // If the API returns a `sessionJwt` and we’re navigating to another host,
+      // redirect through that host’s `/api/auth/consume-session` so the cookie is
+      // set on the correct tenant host before landing on the destination page.
+      if (
+        typeof data.sessionJwt === "string" &&
+        data.sessionJwt.length > 0 &&
+        finalDestOrigin &&
+        finalDestOrigin !== window.location.origin
+      ) {
+        let nextPath = "/";
+        try {
+          const u = new URL(finalDest);
+          nextPath = `${u.pathname}${u.search}${u.hash}` || "/";
+        } catch {
+          // ignore — keep "/"
+        }
+        const consume = `${finalDestOrigin}/api/auth/consume-session?token=${encodeURIComponent(
+          data.sessionJwt,
+        )}&next=${encodeURIComponent(nextPath)}`;
+        window.location.assign(consume);
+        return;
+      }
+
+      if (!crossTenantNavigation) {
+        await refreshUser();
+      }
+
+      const roleDisplayName = getRoleDisplayName(data.user.role);
+      toast.success(`Welcome back, ${data.user.firstName || data.user.username}! Logged in as ${roleDisplayName}`);
+
       if (
         finalDest.startsWith("http://") ||
         finalDest.startsWith("https://")
       ) {
-        window.location.href = finalDest;
+        window.location.assign(finalDest);
       } else {
         router.push(finalDest);
       }
     } catch {
       setError("An error occurred during login. Please try again.");
+    } finally {
       setIsLoading(false);
     }
   };

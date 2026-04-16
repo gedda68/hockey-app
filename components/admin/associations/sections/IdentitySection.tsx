@@ -3,7 +3,7 @@
 
 import FormField from "../shared/FormField";
 import { IdentitySectionProps } from "../types/association.types";
-import { LEVEL_MAP } from "../AssociationsList";
+import { LEVEL_MAP } from "@/lib/domain/associationLevelDisplay";
 
 function levelFromParent(
   parentAssociationId: string,

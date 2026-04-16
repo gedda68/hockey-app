@@ -19,40 +19,7 @@ import {
 import Link from "next/link";
 import { ToastContainer, useToast } from "@/components/ui/Toast";
 import EntityColorBar, { EntityColorDot } from "@/components/ui/EntityColorBar";
-
-// Association "level" is the depth in the association tree:
-//   root (no parent) = 0, child = parent + 1.
-// Labels below reflect our current business convention for AU hockey.
-export const LEVEL_MAP: Record<
-  number,
-  { label: string; color: string; short: string }
-> = {
-  0: {
-    label: "National",
-    short: "L0",
-    color: "bg-purple-100 text-purple-700 border-purple-300",
-  },
-  1: {
-    label: "State body",
-    short: "L1",
-    color: "bg-indigo-100 text-indigo-700 border-indigo-300",
-  },
-  2: {
-    label: "Regional / metro association",
-    short: "L2",
-    color: "bg-blue-100   text-blue-700   border-blue-300",
-  },
-  3: {
-    label: "District / sub-association",
-    short: "L3",
-    color: "bg-teal-100   text-teal-700   border-teal-300",
-  },
-  4: {
-    label: "Local (legacy depth)",
-    short: "L4",
-    color: "bg-green-100  text-green-700  border-green-300",
-  },
-};
+import { LEVEL_MAP } from "@/lib/domain/associationLevelDisplay";
 
 interface Association {
   associationId: string;
@@ -357,12 +324,15 @@ export default function AssociationsList() {
               }
               className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-200 rounded-xl outline-none font-bold focus:ring-2 ring-yellow-400"
             >
-              <option value="">All Levels</option>
-              <option value="0">Level 1 – National</option>
-              <option value="1">Level 2 – Sub-national</option>
-              <option value="2">Level 3 – State</option>
-              <option value="3">Level 4 – Regional</option>
-              <option value="4">Level 5 – City</option>
+              <option value="">All levels</option>
+              {[0, 1, 2, 3, 4].map((lvl) => {
+                const info = LEVEL_MAP[lvl];
+                return (
+                  <option key={lvl} value={lvl}>
+                    {info.short} — {info.label} (stored {lvl})
+                  </option>
+                );
+              })}
             </select>
 
             {/* Status Filter */}

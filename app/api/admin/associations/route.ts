@@ -11,6 +11,7 @@ import {
   requireResourceAccess,
 } from "@/lib/auth/middleware";
 import { deriveAssociationLevelAndHierarchy } from "@/lib/domain/associationHierarchy";
+import { associationLevelSummary } from "@/lib/domain/associationLevelDisplay";
 
 // Schema for creating/updating associations
 const AssociationSchema = z.object({
@@ -85,6 +86,8 @@ const AssociationSchema = z.object({
       primaryColor: z.string().default("#06054e"),
       secondaryColor: z.string().default("#FFD700"),
       accentColor: z.string().default("#ffd700"),
+      logoUrl: z.string().max(2048).optional(),
+      bannerUrl: z.string().max(2048).optional(),
     })
     .optional(),
 
@@ -98,17 +101,6 @@ async function calculateHierarchy(
   opts?: { childAssociationId?: string },
 ): Promise<{ level: number; hierarchy: string[] }> {
   return deriveAssociationLevelAndHierarchy(db, parentAssociationId, opts);
-}
-
-// Helper: Map numeric level to string level for backwards compatibility
-function getLevelString(numericLevel: number): string {
-  const levelMap: Record<number, string> = {
-    0: "National",
-    1: "State",
-    2: "City",
-    3: "Region",
-  };
-  return levelMap[numericLevel] || "Other";
 }
 
 // GET /api/admin/associations - List associations with hierarchical filtering
@@ -193,12 +185,17 @@ export async function GET(request: NextRequest) {
 
     // For simple list (used by wizard), return minimal data
     if (searchParams.get("simple") === "true") {
-      const simple = associations.map((a) => ({
-        id: a.associationId,
-        name: a.name,
-        level: getLevelString(a.level),
-        parentId: a.parentAssociationId,
-      }));
+      const simple = associations.map((a) => {
+        const lvl = typeof a.level === "number" ? a.level : 0;
+        return {
+          id: a.associationId,
+          name: a.name,
+          /** Stored tree depth (`associations.level`), same as list filters and RBAC. */
+          level: lvl,
+          levelSummary: associationLevelSummary(lvl),
+          parentId: a.parentAssociationId,
+        };
+      });
 
       return NextResponse.json({
         associations: simple,
@@ -237,7 +234,7 @@ export async function GET(request: NextRequest) {
 
         return {
           ...assoc,
-          levelString: getLevelString(assoc.level),
+          levelString: associationLevelSummary(assoc.level),
           parent: parent ? { name: parent.name, code: parent.code } : null,
           childrenCount,
           clubsCount,
@@ -376,7 +373,7 @@ export async function POST(request: NextRequest) {
           code: association.code,
           name: association.name,
           level: association.level,
-          levelString: getLevelString(association.level),
+          levelString: associationLevelSummary(association.level),
         },
       },
       { status: 201 },

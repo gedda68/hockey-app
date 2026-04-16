@@ -3,11 +3,14 @@
  */
 
 import type { Db, Document } from "mongodb";
-import { createSession } from "@/lib/auth/session";
+import type { SessionData } from "@/lib/auth/session";
 import { generateSlug } from "@/lib/utils/slug";
 import { getPrimaryRole, numericLevelToString } from "@/lib/types/roles";
 import type { RoleAssignment, AssociationLevel } from "@/lib/types/roles";
-import { buildTenantOrigin } from "@/lib/tenant/subdomainUrls";
+import {
+  buildTenantOrigin,
+  extractPortalSlugFromTenantOrigin,
+} from "@/lib/tenant/subdomainUrls";
 import {
   associationPortalSubdomain,
   clubPortalSubdomain,
@@ -15,9 +18,28 @@ import {
 import { toScopedRoles } from "@/lib/auth/toScopedRoles";
 import { resolvePortalSubdomainLabel } from "@/lib/auth/postLoginTenant";
 
+function activeScopedRolesForSession(opts: {
+  role: string;
+  associationId: string | null;
+  clubId: string | null;
+}): SessionData["scopedRoles"] {
+  // Keep the cookie small: store only the active scope. Full persona options are loaded from DB.
+  if (opts.clubId) {
+    return [{ role: opts.role, scopeType: "club", scopeId: opts.clubId }];
+  }
+  if (opts.associationId) {
+    return [
+      { role: opts.role, scopeType: "association", scopeId: opts.associationId },
+    ];
+  }
+  return undefined;
+}
+
 export type StaffSessionOk = {
   ok: true;
   accountType: "user";
+  /** Set on the HTTP response with `attachSessionCookie` (Route Handlers). */
+  sessionData: SessionData;
   forcePasswordChange: boolean;
   clubPortalOrigin?: string;
   associationPortalOrigin?: string;
@@ -39,6 +61,7 @@ export type StaffSessionOk = {
 export type MemberSessionOk = {
   ok: true;
   accountType: "member";
+  sessionData: SessionData;
   forcePasswordChange: boolean;
   clubPortalOrigin?: string;
   associationPortalOrigin?: string;
@@ -83,7 +106,9 @@ export async function createStaffUserSession(
     : [];
   const role: string =
     dbRoles.length > 0 ? getPrimaryRole(dbRoles) : (user.role || "member");
-  const scopedRoles = toScopedRoles(dbRoles);
+  // IMPORTANT: do not store full scoped roles in the JWT; it can exceed cookie size limits.
+  // Persona options are derived from DB on demand.
+  const _scopedRoles = toScopedRoles(dbRoles);
 
   let clubName: string | undefined;
   let clubSlug: string | undefined;
@@ -145,7 +170,7 @@ export async function createStaffUserSession(
       )
     : undefined;
 
-  const portalSubdomain = resolvePortalSubdomainLabel({
+  let portalSubdomain = resolvePortalSubdomainLabel({
     role,
     clubId: user.clubId ? String(user.clubId) : null,
     club: clubDoc
@@ -161,15 +186,25 @@ export async function createStaffUserSession(
       ? { code: assocDoc.code, portalSlug: assocDoc.portalSlug }
       : null,
   });
+  if (!portalSubdomain && associationPortalOrigin) {
+    portalSubdomain = extractPortalSlugFromTenantOrigin(associationPortalOrigin);
+  }
+  if (!portalSubdomain && clubPortalOrigin) {
+    portalSubdomain = extractPortalSlugFromTenantOrigin(clubPortalOrigin);
+  }
 
-  await createSession({
+  const sessionData: SessionData = {
     userId: user.userId || user._id.toString(),
     email: user.email || `${user.username}@local`,
     name: fullName,
     firstName,
     lastName,
     role,
-    scopedRoles: scopedRoles.length > 0 ? scopedRoles : undefined,
+    scopedRoles: activeScopedRolesForSession({
+      role,
+      associationId: user.associationId || null,
+      clubId: user.clubId || null,
+    }),
     associationId: user.associationId || null,
     associationLevel,
     clubId: user.clubId || null,
@@ -178,7 +213,7 @@ export async function createStaffUserSession(
     username: user.username,
     forcePasswordChange,
     portalSubdomain,
-  });
+  };
 
   await db.collection("users").updateOne(
     { _id: user._id },
@@ -188,6 +223,7 @@ export async function createStaffUserSession(
   return {
     ok: true,
     accountType: "user",
+    sessionData,
     forcePasswordChange,
     clubPortalOrigin,
     associationPortalOrigin,
@@ -251,7 +287,7 @@ export async function createMemberSession(
     memberDbRoles.length > 0
       ? getPrimaryRole(memberDbRoles)
       : member.auth?.role || "player";
-  const memberScopedRoles = toScopedRoles(memberDbRoles);
+  const _memberScopedRoles = toScopedRoles(memberDbRoles);
 
   let clubName: string | undefined;
   let memberClubSlug: string | undefined;
@@ -311,7 +347,7 @@ export async function createMemberSession(
       )
     : undefined;
 
-  const memberPortalSubdomain = resolvePortalSubdomainLabel({
+  let memberPortalSubdomain = resolvePortalSubdomainLabel({
     role,
     clubId: memberClubId ? String(memberClubId) : null,
     club: memberClubDoc
@@ -327,16 +363,29 @@ export async function createMemberSession(
       ? { code: memberAssocDoc.code, portalSlug: memberAssocDoc.portalSlug }
       : null,
   });
+  if (!memberPortalSubdomain && memberAssociationPortalOrigin) {
+    memberPortalSubdomain = extractPortalSlugFromTenantOrigin(
+      memberAssociationPortalOrigin,
+    );
+  }
+  if (!memberPortalSubdomain && memberClubPortalOrigin) {
+    memberPortalSubdomain = extractPortalSlugFromTenantOrigin(
+      memberClubPortalOrigin,
+    );
+  }
 
-  await createSession({
+  const sessionData: SessionData = {
     userId: member._id.toString(),
     email: memberEmail,
     name: fullName,
     firstName,
     lastName,
     role,
-    scopedRoles:
-      memberScopedRoles.length > 0 ? memberScopedRoles : undefined,
+    scopedRoles: activeScopedRolesForSession({
+      role,
+      associationId: memberAssocId,
+      clubId: memberClubId,
+    }),
     associationId: memberAssocId,
     associationLevel: memberAssocLevel,
     clubId: memberClubId,
@@ -346,7 +395,7 @@ export async function createMemberSession(
     username: member.auth?.username,
     forcePasswordChange,
     portalSubdomain: memberPortalSubdomain,
-  });
+  };
 
   await db.collection("members").updateOne(
     { _id: member._id },
@@ -356,6 +405,7 @@ export async function createMemberSession(
   return {
     ok: true,
     accountType: "member",
+    sessionData,
     forcePasswordChange,
     clubPortalOrigin: memberClubPortalOrigin,
     associationPortalOrigin: memberAssociationPortalOrigin,

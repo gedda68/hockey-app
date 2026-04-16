@@ -11,13 +11,55 @@ import ConditionalPublicHeader from "@/components/layout/ConditionalPublicHeader
 import ConditionalBodyPadding from "@/components/layout/ConditionalBodyPadding";
 import TopNavbarWrapper from "@/components/layout/TopNavbarWrapper";
 import { loadPublicTenantFromIncomingHost } from "@/lib/tenant/serverTenant";
+import {
+  faviconMimeFromUrl,
+  resolveTenantFaviconUrl,
+} from "@/lib/tenant/resolveTenantFavicon";
+import { requestMetadataBase } from "@/lib/tenant/requestMetadataBase";
 
 const inter = Inter({ subsets: ["latin"] });
 
-export const metadata: Metadata = {
-  title: "Brisbane Hockey Association",
-  description: "Brisbane Hockey Association Management System",
-};
+function absolutizeMetadataIcon(href: string | null, base: URL): string | null {
+  if (!href) return null;
+  if (href.startsWith("http://") || href.startsWith("https://")) return href;
+  try {
+    const pathPart = href.startsWith("/") ? href : `/${href}`;
+    return new URL(pathPart, base).href;
+  } catch {
+    return null;
+  }
+}
+
+export async function generateMetadata(): Promise<Metadata> {
+  const metadataBase = await requestMetadataBase();
+  const tenant = await loadPublicTenantFromIncomingHost();
+
+  if (tenant) {
+    const iconUrl = resolveTenantFaviconUrl(tenant);
+    const absoluteIcon = absolutizeMetadataIcon(iconUrl, metadataBase);
+    const mime = absoluteIcon ? faviconMimeFromUrl(absoluteIcon) : undefined;
+    return {
+      metadataBase,
+      title: {
+        default: tenant.displayName,
+        template: `%s | ${tenant.displayName}`,
+      },
+      description: `${tenant.displayName} — fixtures, results, and club information.`,
+      icons: absoluteIcon
+        ? { icon: [{ url: absoluteIcon, ...(mime ? { type: mime } : {}) }] }
+        : undefined,
+    };
+  }
+
+  return {
+    metadataBase,
+    title: {
+      default: "Brisbane Hockey Association",
+      template: `%s | Brisbane Hockey Association`,
+    },
+    description: "Brisbane Hockey Association Management System",
+  };
+}
 
 export default async function RootLayout({
   children,

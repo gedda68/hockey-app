@@ -39,6 +39,12 @@ export type PublicTenantPayload = {
   accentColor: string;
 };
 
+/**
+ * Middleware sets this on the forwarded request so RSC / `generateMetadata` can resolve
+ * the same portal slug as the browser URL (including `?portal=` on plain localhost).
+ */
+export const RESOLVED_PORTAL_SLUG_HEADER = "x-resolved-portal-slug";
+
 const DEFAULT_PRIMARY = "#06054e";
 const DEFAULT_SECONDARY = "#1a1870";
 const DEFAULT_TERTIARY = "#2d2a8c";
@@ -97,7 +103,8 @@ export function isLocalDevHostname(hostHeader: string | null): boolean {
   );
 }
 
-function sanitizeDevPortalToken(raw: string | null | undefined): string | null {
+/** Normalizes/validates portal slug tokens from query params or trusted middleware headers. */
+export function sanitizeDevPortalToken(raw: string | null | undefined): string | null {
   if (!raw) return null;
   const t = raw.trim().toLowerCase();
   if (!t || !/^[a-z0-9-]+$/.test(t)) return null;
