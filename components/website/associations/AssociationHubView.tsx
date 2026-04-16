@@ -7,7 +7,14 @@ import { listPublicClubsByAssociation } from "@/lib/public/publicClubs";
 import { buildApexSiteOrigin } from "@/lib/tenant/subdomainUrls";
 import { getPublicNewsItems } from "@/lib/data/publicNews";
 import type { PublicTenantPayload } from "@/lib/tenant/portalHost";
+import type { PublicTournamentRow } from "@/lib/public/publicTournaments";
 import MyFixturesStrip from "@/components/matches/MyFixturesStrip";
+import {
+  associationHubChampionshipsIntro,
+  associationHubLocalLeagueIntro,
+  associationHubNewsIntro,
+  associationHubRepPathwaysIntro,
+} from "@/lib/website/associationHubCopy";
 
 function hexToRgba(hex: string, alpha: number): string | null {
   const h = hex.trim().replace(/^#/, "");
@@ -19,13 +26,43 @@ function hexToRgba(hex: string, alpha: number): string | null {
   return `rgba(${r}, ${g}, ${b}, ${a})`;
 }
 
+function hubNavLink(href: string, label: string) {
+  return (
+    <a
+      key={href}
+      href={href}
+      className="rounded-full border border-white/15 bg-white/5 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-white/80 hover:border-yellow-300/40 hover:text-white"
+    >
+      {label}
+    </a>
+  );
+}
+
+function tournamentCard(t: PublicTournamentRow) {
+  return (
+    <Link
+      href={`/tournaments/${t.tournamentId}`}
+      className="block rounded-xl border border-white/10 bg-white/5 px-4 py-3 hover:border-sky-400/30"
+    >
+      <span className="font-bold text-white">{t.title}</span>
+      <p className="text-xs text-white/55">
+        {t.season} · {t.ageGroup} · {t.location}
+      </p>
+      {t.championTeamName ? (
+        <p className="mt-1 text-xs font-bold text-amber-200/90">
+          Champion: {t.championTeamName}
+        </p>
+      ) : null}
+    </Link>
+  );
+}
+
 export default async function AssociationHubView({
   associationId,
   backToClubsHref,
   tenant,
 }: {
   associationId: string;
-  /** Override when linking back from a tenant subdomain */
   backToClubsHref?: string;
   tenant?: PublicTenantPayload | null;
 }) {
@@ -46,11 +83,28 @@ export default async function AssociationHubView({
   ]);
   const clubs = await listPublicClubsByAssociation(associationId, { limit: 24 });
 
-  const clubsBack =
-    backToClubsHref ?? `${buildApexSiteOrigin()}/clubs`;
+  const clubsBack = backToClubsHref ?? `${buildApexSiteOrigin()}/clubs`;
+  const level = assoc.level;
+
+  const uncrowned = associationTournaments.filter((t) => !t.championTeamName);
+  const pathwaySpotlights = uncrowned.slice(0, 5);
+
+  const championshipsSorted = [...associationTournaments].sort((a, b) => {
+    const ac = a.championTeamName ? 1 : 0;
+    const bc = b.championTeamName ? 1 : 0;
+    if (ac !== bc) return bc - ac;
+    return b.season.localeCompare(a.season);
+  });
 
   const primary = assoc.branding?.primaryColor?.trim() || "#06054e";
   const primary75 = hexToRgba(primary, 0.75) ?? primary;
+
+  const thisRoundHref =
+    leagues[0]?.seasonCompetitionId != null
+      ? `/competitions/this-round?seasonCompetitionId=${encodeURIComponent(
+          leagues[0].seasonCompetitionId,
+        )}`
+      : "/competitions/this-round";
 
   return (
     <div
@@ -73,7 +127,7 @@ export default async function AssociationHubView({
         <p className="mt-2 text-sm text-white/70">
           {assoc.fullName} · {assoc.region}, {assoc.state}
         </p>
-        {assoc.website && (
+        {assoc.website ? (
           <a
             href={assoc.website}
             target="_blank"
@@ -82,28 +136,135 @@ export default async function AssociationHubView({
           >
             Official website ↗
           </a>
-        )}
+        ) : null}
 
-        <MyFixturesStrip scope={{ associationId }} title="My fixtures" />
+        <nav
+          className="mt-8 flex flex-wrap gap-2 border-y border-white/10 py-4"
+          aria-label="On this page"
+        >
+          {hubNavLink("#rep-pathways", "Rep & pathways")}
+          {hubNavLink("#championships", "Championships")}
+          {hubNavLink("#local-league", "Local league")}
+          {hubNavLink("#news", "News")}
+          {hubNavLink("#contacts", "Contacts")}
+        </nav>
 
-        <section className="mt-10">
-          <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-yellow-200">
-            Match day
+        {/* —— Rep & pathways —— */}
+        <section id="rep-pathways" className="mt-12 scroll-mt-24">
+          <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-violet-200">
+            Rep & pathways
           </h2>
-          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          <p className="mt-3 text-sm leading-relaxed text-white/75">
+            {associationHubRepPathwaysIntro(level)}
+          </p>
+          <div className="mt-5 grid gap-3 sm:grid-cols-3">
             <Link
-              href={
-                leagues[0]?.seasonCompetitionId
-                  ? `/competitions/this-round?seasonCompetitionId=${encodeURIComponent(
-                      leagues[0].seasonCompetitionId,
-                    )}`
-                  : "/competitions/this-round"
-              }
+              href="/tournaments"
+              className="block rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-center text-xs font-black uppercase tracking-wide text-white hover:border-violet-300/40"
+            >
+              Tournaments
+              <span className="mt-1 block text-[10px] font-semibold normal-case tracking-normal text-white/55">
+                Rep & carnival hub
+              </span>
+            </Link>
+            <a
+              href="#local-league"
+              className="block rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-center text-xs font-black uppercase tracking-wide text-white hover:border-violet-300/40"
+            >
+              Local league
+              <span className="mt-1 block text-[10px] font-semibold normal-case tracking-normal text-white/55">
+                Match day & clubs
+              </span>
+            </a>
+            <Link
+              href={`${buildApexSiteOrigin()}/clubs`}
+              className="block rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-center text-xs font-black uppercase tracking-wide text-white hover:border-violet-300/40"
+            >
+              Find a club
+              <span className="mt-1 block text-[10px] font-semibold normal-case tracking-normal text-white/55">
+                Member clubs
+              </span>
+            </Link>
+          </div>
+          {pathwaySpotlights.length > 0 ? (
+            <div className="mt-8">
+              <h3 className="text-[10px] font-black uppercase tracking-widest text-white/50">
+                In progress & upcoming
+              </h3>
+              <ul className="mt-3 space-y-2">
+                {pathwaySpotlights.map((t) => (
+                  <li key={t.tournamentId}>{tournamentCard(t)}</li>
+                ))}
+              </ul>
+              {associationTournaments.length > pathwaySpotlights.length ? (
+                <a
+                  href="#championships"
+                  className="mt-3 inline-block text-xs font-bold text-violet-200 hover:underline"
+                >
+                  All tournaments & titles →
+                </a>
+              ) : null}
+            </div>
+          ) : (
+            <p className="mt-6 text-sm text-white/55">
+              No rep tournaments linked here yet. Open the{" "}
+              <Link href="/tournaments" className="text-violet-200 underline">
+                tournaments directory
+              </Link>{" "}
+              for the full public list.
+            </p>
+          )}
+        </section>
+
+        {/* —— Championships & rep events —— */}
+        <section id="championships" className="mt-14 scroll-mt-24">
+          <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-sky-200">
+            Championships & rep events
+          </h2>
+          <p className="mt-3 text-sm text-white/70">
+            {associationHubChampionshipsIntro(level)}
+          </p>
+          <ul className="mt-5 space-y-2">
+            {championshipsSorted.length === 0 ? (
+              <li className="text-sm text-white/50">
+                No tournaments linked to this association. See{" "}
+                <Link href="/tournaments" className="text-sky-300 underline">
+                  all tournaments
+                </Link>
+                .
+              </li>
+            ) : (
+              championshipsSorted.map((t) => (
+                <li key={t.tournamentId}>{tournamentCard(t)}</li>
+              ))
+            )}
+          </ul>
+        </section>
+
+        {/* —— Local league (match day, my fixtures, clubs, season comps) —— */}
+        <section id="local-league" className="mt-14 scroll-mt-24">
+          <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-yellow-200">
+            Local league
+          </h2>
+          <p className="mt-3 text-sm text-white/70">
+            {associationHubLocalLeagueIntro(level)}
+          </p>
+
+          <div className="mt-6">
+            <MyFixturesStrip scope={{ associationId }} title="My fixtures" />
+          </div>
+
+          <h3 className="mt-10 text-[10px] font-black uppercase tracking-widest text-white/50">
+            Match day
+          </h3>
+          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+            <Link
+              href={thisRoundHref}
               className="block rounded-2xl border border-white/10 bg-white/5 px-5 py-4 font-black text-white hover:border-yellow-400/30"
             >
               This round →
               <p className="mt-1 text-xs font-semibold text-white/60">
-                Filters + ladder + match centre links
+                Filters, ladder, and match centre links
               </p>
             </Link>
             <Link
@@ -116,13 +277,11 @@ export default async function AssociationHubView({
               </p>
             </Link>
           </div>
-        </section>
 
-        <section className="mt-12">
-          <div className="flex items-end justify-between gap-4">
-            <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-emerald-200">
+          <div className="mt-10 flex items-end justify-between gap-4">
+            <h3 className="text-[10px] font-black uppercase tracking-widest text-white/50">
               Member clubs
-            </h2>
+            </h3>
             <Link
               href={`${buildApexSiteOrigin()}/clubs`}
               className="text-[10px] font-black uppercase tracking-widest text-white/60 hover:text-white"
@@ -148,74 +307,21 @@ export default async function AssociationHubView({
                         <span className="text-white/55"> · {c.shortName}</span>
                       ) : null}
                     </div>
-                    <div className="mt-1 text-xs text-white/55">
-                      Open club hub →
-                    </div>
+                    <div className="mt-1 text-xs text-white/55">Open club hub →</div>
                   </Link>
                 </li>
               ))}
             </ul>
           )}
-        </section>
 
-        <section className="mt-12">
-          <div className="flex items-end justify-between gap-4">
-            <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-sky-200">
-              Committee & contacts
-            </h2>
-          </div>
-          {!assoc.positions || assoc.positions.length === 0 ? (
-            <p className="mt-3 text-sm text-white/60">
-              No public committee contacts available yet.
-            </p>
-          ) : (
-            <ul className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
-              {assoc.positions
-                .slice()
-                .sort((a, b) => a.title.localeCompare(b.title))
-                .map((p) => (
-                  <li
-                    key={p.positionId}
-                    className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white"
-                  >
-                    <div className="font-black">
-                      {p.displayName ?? p.title}
-                    </div>
-                    {p.description ? (
-                      <p className="mt-1 text-sm text-white/70 line-clamp-3 whitespace-pre-wrap">
-                        {p.description}
-                      </p>
-                    ) : null}
-                    <div className="mt-2 space-y-1 text-sm text-white/80">
-                      {p.email ? (
-                        <a className="hover:underline" href={`mailto:${p.email}`}>
-                          {p.email}
-                        </a>
-                      ) : null}
-                      {p.phone ? (
-                        <a className="hover:underline" href={`tel:${p.phone}`}>
-                          {p.phone}
-                        </a>
-                      ) : null}
-                      {!p.email && !p.phone ? (
-                        <span className="text-white/50 text-xs">
-                          Contact details not published.
-                        </span>
-                      ) : null}
-                    </div>
-                  </li>
-                ))}
-            </ul>
-          )}
-        </section>
-
-        <section className="mt-12">
-          <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-yellow-200">
-            League competitions
-          </h2>
-          <ul className="mt-4 space-y-2">
+          <h3 className="mt-10 text-[10px] font-black uppercase tracking-widest text-white/50">
+            Season competitions
+          </h3>
+          <ul className="mt-3 space-y-2">
             {leagues.length === 0 ? (
-              <li className="text-sm text-white/50">No published leagues for this association yet.</li>
+              <li className="text-sm text-white/50">
+                No published season leagues for this association yet.
+              </li>
             ) : (
               leagues.map((l) => (
                 <li key={l.seasonCompetitionId}>
@@ -234,10 +340,11 @@ export default async function AssociationHubView({
           </ul>
         </section>
 
-        <section className="mt-12">
+        {/* —— News (tenant-scoped) —— */}
+        <section id="news" className="mt-14 scroll-mt-24">
           <div className="flex items-end justify-between gap-4">
             <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-emerald-200">
-              Latest news
+              News
             </h2>
             <Link
               href="/news"
@@ -246,6 +353,7 @@ export default async function AssociationHubView({
               View all →
             </Link>
           </div>
+          <p className="mt-2 text-xs text-white/55">{associationHubNewsIntro()}</p>
           <ul className="mt-4 space-y-2">
             {news.length === 0 ? (
               <li className="text-sm text-white/50">
@@ -279,35 +387,57 @@ export default async function AssociationHubView({
           </ul>
         </section>
 
-        <section className="mt-12">
-          <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-sky-200">
-            Representative tournaments
-          </h2>
-          <ul className="mt-4 space-y-2">
-            {associationTournaments.length === 0 ? (
-              <li className="text-sm text-white/50">
-                No tournaments linked to this association in the sample set. See{" "}
-                <Link href="/tournaments" className="text-sky-300 underline">
-                  all tournaments
-                </Link>
-                .
-              </li>
-            ) : (
-              associationTournaments.map((t) => (
-                <li key={t.tournamentId}>
-                  <Link
-                    href={`/tournaments/${t.tournamentId}`}
-                    className="block rounded-xl border border-white/10 bg-white/5 px-4 py-3 hover:border-sky-400/30"
+        {/* —— Contacts —— */}
+        <section id="contacts" className="mt-14 scroll-mt-24">
+          <div className="flex items-end justify-between gap-4">
+            <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-sky-200">
+              Contacts
+            </h2>
+          </div>
+          <p className="mt-2 text-xs text-white/55">
+            Committee and public contacts published by this association.
+          </p>
+          {!assoc.positions || assoc.positions.length === 0 ? (
+            <p className="mt-3 text-sm text-white/60">
+              No public committee contacts available yet.
+            </p>
+          ) : (
+            <ul className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
+              {assoc.positions
+                .slice()
+                .sort((a, b) => a.title.localeCompare(b.title))
+                .map((p) => (
+                  <li
+                    key={p.positionId}
+                    className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white"
                   >
-                    <span className="font-bold text-white">{t.title}</span>
-                    <p className="text-xs text-white/55">
-                      {t.season} · {t.ageGroup} · {t.location}
-                    </p>
-                  </Link>
-                </li>
-              ))
-            )}
-          </ul>
+                    <div className="font-black">{p.displayName ?? p.title}</div>
+                    {p.description ? (
+                      <p className="mt-1 text-sm text-white/70 line-clamp-3 whitespace-pre-wrap">
+                        {p.description}
+                      </p>
+                    ) : null}
+                    <div className="mt-2 space-y-1 text-sm text-white/80">
+                      {p.email ? (
+                        <a className="hover:underline" href={`mailto:${p.email}`}>
+                          {p.email}
+                        </a>
+                      ) : null}
+                      {p.phone ? (
+                        <a className="hover:underline" href={`tel:${p.phone}`}>
+                          {p.phone}
+                        </a>
+                      ) : null}
+                      {!p.email && !p.phone ? (
+                        <span className="text-white/50 text-xs">
+                          Contact details not published.
+                        </span>
+                      ) : null}
+                    </div>
+                  </li>
+                ))}
+            </ul>
+          )}
         </section>
       </div>
     </div>
