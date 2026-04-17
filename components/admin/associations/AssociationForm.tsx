@@ -28,6 +28,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { ToastContainer, useToast } from "@/components/ui/Toast";
+import { useAdminEditingScope } from "@/components/admin/AdminEditingScopeProvider";
 import {
   LEVEL_MAP,
   associationLevelDisplay,
@@ -274,6 +275,7 @@ export default function AssociationForm({
 }: AssociationFormProps) {
   const router = useRouter();
   const isEdit = Boolean(associationId);
+  const editingScope = useAdminEditingScope();
   const { toasts, dismiss, success, error: toastError } = useToast();
 
   const [currentSection, setCurrentSection] = useState<SectionId>("identity");
@@ -447,6 +449,27 @@ export default function AssociationForm({
       const firstErrorSection = requiredSections.find((s) => allErrors[s]);
       if (firstErrorSection) setCurrentSection(firstErrorSection);
       toastError("Incomplete form", "Please fill in all required fields.");
+      return;
+    }
+
+    if (editingScope.savesBlocked) {
+      toastError(
+        "Cannot save",
+        editingScope.blockReason ??
+          "You are not permitted to edit this organisation with your current login.",
+      );
+      return;
+    }
+
+    if (
+      isEdit &&
+      associationId &&
+      formData.associationId.trim() !== associationId.trim()
+    ) {
+      toastError(
+        "Cannot save",
+        "This form no longer matches the association in the address bar. Refresh the page.",
+      );
       return;
     }
 
@@ -1788,7 +1811,11 @@ export default function AssociationForm({
             <button
               type="button"
               onClick={handleSave}
-              disabled={isSaving || (!isEdit && !allSectionsComplete())}
+              disabled={
+                isSaving ||
+                editingScope.savesBlocked ||
+                (!isEdit && !allSectionsComplete())
+              }
               className="flex items-center gap-2 px-8 py-3 bg-yellow-400 text-[#06054e] rounded-xl font-black hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isSaving ? (

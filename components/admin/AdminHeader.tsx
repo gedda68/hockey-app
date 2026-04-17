@@ -5,6 +5,7 @@
 
 import { useAuth } from "@/lib/auth/AuthContext";
 import { useBrand, contrastText } from "@/lib/contexts/BrandContext";
+import { useAdminEditingScope } from "@/components/admin/AdminEditingScopeProvider";
 import { useRouter } from "next/navigation";
 import { LogOut, User, ChevronDown, Shield } from "lucide-react";
 import { ROLE_DEFINITIONS, type UserRole } from "@/lib/types/roles";
@@ -14,6 +15,7 @@ import { toast } from "sonner";
 export default function AdminHeader() {
   const { user, logout } = useAuth();
   const { brand } = useBrand();
+  const editingScope = useAdminEditingScope();
   const router = useRouter();
   const [showDropdown, setShowDropdown] = useState(false);
 
@@ -77,7 +79,15 @@ export default function AdminHeader() {
               <h1 className={`text-lg font-black uppercase tracking-wide leading-tight ${textColor}`}>
                 {brand?.name ?? (isSuperAdmin ? "Hockey Admin" : "Admin Portal")}
               </h1>
-              <p className={`text-xs font-semibold ${mutedColor}`}>
+              {editingScope.editingLabel && (
+                <p
+                  className={`text-[11px] font-black uppercase tracking-wider mt-0.5 ${editingScope.savesBlocked ? "text-amber-200" : textColor === "text-white" ? "text-yellow-200" : "text-amber-900"}`}
+                >
+                  Editing: {editingScope.editingLabel}
+                  {editingScope.savesBlocked ? " · saves blocked" : ""}
+                </p>
+              )}
+              <p className={`text-xs font-semibold ${mutedColor} mt-0.5`}>
                 {brand?.shortName
                   ? `${roleDefinition?.icon ?? ""} ${roleDefinition?.label ?? user.role}`
                   : "Management System"}

@@ -90,7 +90,7 @@ Federation-grade sites optimise for **repeat visits**, **mobile**, and **clear m
 ## Epic M — Migration & content ops
 
 - [x] **M1** **Data migration script** — News: `pnpm run backfill:news-scope --apply`. Gallery: `pnpm run migrate:home-gallery-platform --apply`. Association levels: `pnpm run reconcile:association-levels --apply`.
-- [ ] **M2** **Admin UX** — Tenant indicator in admin shell (“Editing: BHA” / club name); block save if resource ID does not match session scope.
+- [x] **M2** **Admin UX** — Tenant indicator in admin shell (“Editing: BHA” / club name); block save if resource ID does not match session scope. **Shipped:** `parseAdminPathResource` (`lib/admin/parseAdminPathResource.ts`); **`GET /api/auth/admin-editing-scope`** (uses `userCanAccessClubResource` / `userCanAccessAssociationResource` + DB display name); **`AdminEditingScopeProvider`** + **`AdminScopeMismatchBanner`** + **`useAdminEditingScope`** (`components/admin/AdminEditingScopeProvider.tsx`) wired in **`app/(admin)/layout.tsx`**; **`AdminHeader`** shows **Editing: …** (and “saves blocked” when out of scope); **`AssociationForm`** / **`ClubForm`** — disable save when scope blocks, toast on blocked save, and **reject** save if **form associationId / club id** no longer matches the **URL-loaded** record (tamper guard). Server APIs unchanged as source of truth.
 
 ---
 
