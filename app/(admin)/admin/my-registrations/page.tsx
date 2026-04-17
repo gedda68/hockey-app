@@ -7,7 +7,8 @@
  * Accessible to any authenticated user regardless of role.
  */
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { toast } from "sonner";
 import { Plus, RefreshCw, ChevronDown } from "lucide-react";
@@ -159,40 +160,58 @@ function SubmitModal({ memberId, accountType, onClose, onSuccess, initialRole, i
 
   const selectedRoleDef = REQUESTABLE_ROLES.find(r => r.value === role);
 
-  // When role changes, reset scope
+  // When role changes, reset scope (unless this open was prefilled from a pathways deep link / renewal)
   useEffect(() => {
     if (!selectedRoleDef) return;
     const defaultScope = selectedRoleDef.scopeTypes[0] as "club" | "association";
+    if (initialRole && role === initialRole && initialScopeId) {
+      setScopeType((initialScopeType ?? defaultScope) as "club" | "association");
+      setScopeId(initialScopeId);
+      return;
+    }
     setScopeType(defaultScope);
     setScopeId("");
-  }, [role]);
+  }, [role, selectedRoleDef, initialRole, initialScopeId, initialScopeType]);
 
   // Load clubs or associations when scopeType changes
   useEffect(() => {
     if (!role) return;
     setLoadingScope(true);
-    setScopeId("");
 
     const url = scopeType === "club" ? "/api/admin/clubs" : "/api/admin/associations";
     fetch(url)
       .then(r => r.json())
       .then(data => {
         if (scopeType === "club") {
-          setClubs((data.clubs ?? []).map((c: { id?: string; slug?: string; _id?: string; name: string; shortName?: string }) => ({
+          const mapped = (data.clubs ?? []).map((c: { id?: string; slug?: string; _id?: string; name: string; shortName?: string }) => ({
             id: c.id ?? c.slug ?? c._id,
             name: c.name,
             shortName: c.shortName,
-          })));
+          }));
+          setClubs(mapped);
+          if (initialScopeId && initialRole === role) {
+            const ok = mapped.some((c: ClubOption) => c.id === initialScopeId);
+            setScopeId(ok ? initialScopeId : "");
+          } else {
+            setScopeId("");
+          }
         } else {
-          setAssocs((data.associations ?? []).map((a: { associationId?: string; _id?: string; name?: string; fullName?: string }) => ({
+          const mapped = (data.associations ?? []).map((a: { associationId?: string; _id?: string; name?: string; fullName?: string }) => ({
             id: a.associationId ?? a._id,
             name: a.fullName ?? a.name,
-          })));
+          }));
+          setAssocs(mapped);
+          if (initialScopeId && initialRole === role) {
+            const ok = mapped.some((a: AssocOption) => a.id === initialScopeId);
+            setScopeId(ok ? initialScopeId : "");
+          } else {
+            setScopeId("");
+          }
         }
       })
       .catch(() => {})
       .finally(() => setLoadingScope(false));
-  }, [scopeType, role]);
+  }, [scopeType, role, initialRole, initialScopeId]);
 
   const handleSubmit = async () => {
     if (!role || !scopeId) {
@@ -374,6 +393,8 @@ interface RenewalPreFill {
 
 export default function MyRegistrationsPage() {
   const { user } = useAuth();
+  const router = useRouter();
+  const pathwayOnce = useRef(false);
   const [requests, setRequests] = useState<RoleRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [showSubmit, setShowSubmit] = useState(false);
@@ -384,6 +405,30 @@ export default function MyRegistrationsPage() {
 
   const memberId = user?.memberId ?? user?.userId ?? "";
   const accountType: "user" | "member" = user?.memberId ? "member" : "user";
+
+  useEffect(() => {
+    if (pathwayOnce.current || !memberId || typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const role = params.get("role");
+    if (!role || !REQUESTABLE_ROLES.some((r) => r.value === role)) return;
+    const clubId = params.get("clubId")?.trim() || undefined;
+    const associationId = params.get("associationId")?.trim() || undefined;
+    const def = REQUESTABLE_ROLES.find((r) => r.value === role);
+    if (!def) return;
+    let scopeType: "club" | "association" = def.scopeTypes[0] as "club" | "association";
+    let scopeId: string | undefined;
+    if (clubId && def.scopeTypes.includes("club")) {
+      scopeType = "club";
+      scopeId = clubId;
+    } else if (associationId && def.scopeTypes.includes("association")) {
+      scopeType = "association";
+      scopeId = associationId;
+    }
+    pathwayOnce.current = true;
+    setRenewalPreFill({ role, scopeType, scopeId });
+    setShowSubmit(true);
+    router.replace("/admin/my-registrations", { scroll: false });
+  }, [memberId, router]);
 
   const load = useCallback(async () => {
     if (!memberId) return;

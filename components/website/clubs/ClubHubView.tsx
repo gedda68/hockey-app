@@ -15,6 +15,8 @@ import {
   clubPortalPageUrl,
 } from "@/lib/tenant/subdomainUrls";
 import { getPortalRootDomain } from "@/lib/tenant/portalHost";
+import { buildPathwaysCards } from "@/lib/website/pathwaysCards";
+import PathwaysGrid from "@/components/website/pathways/PathwaysGrid";
 
 type PublicClub = {
   id: string;
@@ -225,10 +227,28 @@ export default async function ClubHubView({
           className="mt-6 flex flex-wrap gap-2 border-y border-white/10 py-4"
           aria-label="On this page"
         >
+          {hubNavLink("#pathways", "Get involved")}
           {hubNavLink("#match-day", "Fixtures")}
           {hubNavLink("#news", "News")}
           {hubNavLink("#contact", "Contact")}
         </nav>
+
+        <section id="pathways" className="mt-8 scroll-mt-24">
+          <PathwaysGrid
+            cards={buildPathwaysCards(
+              {
+                kind: "club",
+                clubId: club.id,
+                clubSlug: club.slug,
+                clubName: club.name,
+              },
+              null,
+            )}
+            variant="dark"
+            heading="Play · coach · umpire · volunteer"
+            intro="Start at this club: season registration plus coach, umpire, and volunteer requests (sign in for role requests)."
+          />
+        </section>
 
         {/* Primary actions — P2 */}
         <section className="mt-8" aria-labelledby="club-hub-actions">

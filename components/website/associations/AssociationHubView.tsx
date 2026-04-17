@@ -23,6 +23,8 @@ import {
   associationHubNewsIntro,
   associationHubRepPathwaysIntro,
 } from "@/lib/website/associationHubCopy";
+import { buildPathwaysCards } from "@/lib/website/pathwaysCards";
+import PathwaysGrid from "@/components/website/pathways/PathwaysGrid";
 
 function hexToRgba(hex: string, alpha: number): string | null {
   const h = hex.trim().replace(/^#/, "");
@@ -200,12 +202,29 @@ export default async function AssociationHubView({
           className="mt-8 flex flex-wrap gap-2 border-y border-white/10 py-4"
           aria-label="On this page"
         >
+          {hubNavLink("#pathways", "Get involved")}
           {hubNavLink("#rep-pathways", "Rep & pathways")}
           {hubNavLink("#championships", "Championships")}
           {hubNavLink("#local-league", "Local league")}
           {hubNavLink("#news", "News")}
           {hubNavLink("#contacts", "Contacts")}
         </nav>
+
+        <section id="pathways" className="mt-10 scroll-mt-24">
+          <PathwaysGrid
+            cards={buildPathwaysCards(
+              {
+                kind: "association",
+                associationId,
+                associationName: assoc.name,
+              },
+              null,
+            )}
+            variant="dark"
+            heading="Play · coach · umpire · volunteer"
+            intro="Tenant-scoped entry points: club registration, representative nominations, and portal role requests after you sign in."
+          />
+        </section>
 
         {/* —— Rep & pathways —— */}
         <section id="rep-pathways" className="mt-12 scroll-mt-24">

@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import {
   Trophy,
   Users,
+  UserPlus,
   Calendar,
   MapPin,
   BarChart3,
@@ -28,6 +29,8 @@ import HomeNewsAside from "@/components/website/home/HomeNewsAside";
 import HomeHeroGallery from "@/components/website/home/HomeHeroGallery";
 import { getRandomHomeGallerySlides } from "@/lib/data/homeGallery";
 import { listPublicClubsByAssociation } from "@/lib/public/publicClubs";
+import { buildPathwaysCards } from "@/lib/website/pathwaysCards";
+import PathwaysGrid from "@/components/website/pathways/PathwaysGrid";
 
 export const dynamic = "force-dynamic";
 
@@ -85,6 +88,12 @@ const QUICK_LINKS = [
     label: "Portal login",
     icon: Shield,
     desc: "Admin & members",
+  },
+  {
+    href: "/play",
+    label: "Get involved",
+    icon: UserPlus,
+    desc: "Play · coach · umpire",
   },
 ] as const;
 
@@ -448,6 +457,27 @@ export default async function HomePage({
                 )}
               </section>
             )}
+
+            {associationPortal ? (
+              <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm md:p-8">
+                <PathwaysGrid
+                  cards={buildPathwaysCards(
+                    {
+                      kind: "association",
+                      associationId: associationPortal.id,
+                      associationName:
+                        associationPortal.displayName ?? "This association",
+                    },
+                    queryPortalParam && isLocalDevHostname(host)
+                      ? queryPortalParam
+                      : null,
+                  )}
+                  variant="light"
+                  heading="Get involved"
+                  intro="Pathways for this portal: registration, nominations, and role requests use the same tenant context as the rest of the site."
+                />
+              </section>
+            ) : null}
 
             <section className="rounded-3xl bg-white border border-slate-200 shadow-sm p-6 md:p-8">
               <HomeDivisionExplorer

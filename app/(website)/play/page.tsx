@@ -1,126 +1,111 @@
-"use client";
+import Link from "next/link";
+import { headers } from "next/headers";
+import clientPromise from "@/lib/mongodb";
+import { isLocalDevHostname, resolvePortalSlugForRequest } from "@/lib/tenant/portalHost";
+import { getPublicTenantForServerPage } from "@/lib/tenant/serverTenant";
+import {
+  buildPathwaysCards,
+  type PathwaysTenantContext,
+} from "@/lib/website/pathwaysCards";
+import PathwaysGrid from "@/components/website/pathways/PathwaysGrid";
 
-import React from "react";
+export const dynamic = "force-dynamic";
 
-export default function PricingPage() {
-  // Not interactive currently; use constant to avoid unused setter warning.
-  const isYearly = false;
+export default async function PlayPathwaysPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const sp = await searchParams;
+  const tenant = await getPublicTenantForServerPage(sp);
+  const headersList = await headers();
+  const host = headersList.get("x-forwarded-host") ?? headersList.get("host") ?? "";
+  const queryPortal = typeof sp.portal === "string" ? sp.portal : null;
+  const portalParam =
+    queryPortal?.trim() && isLocalDevHostname(host) ? queryPortal.trim() : null;
 
-  const plans = [
-    {
-      name: "Starter",
-      monthlyPrice: 0,
-      yearlyPrice: 0,
-      description: "Perfect for hobbyists and side projects.",
-      features: ["3 Projects", "Basic Analytics", "Community Support"],
-      buttonText: "Join for Free",
-      isPopular: false,
-    },
-    {
-      name: "Pro",
-      monthlyPrice: 29,
-      yearlyPrice: 24, // Price per month when billed yearly
-      description: "Advanced features for growing startups.",
-      features: [
-        "Unlimited Projects",
-        "Advanced Analytics",
-        "Priority Support",
-        "Custom Domains",
-      ],
-      buttonText: "Get Started",
-      isPopular: true,
-    },
-    {
-      name: "Enterprise",
-      monthlyPrice: 99,
-      yearlyPrice: 89,
-      description: "Full power for large scale organizations.",
-      features: [
-        "Custom Contracts",
-        "SLA Guarantee",
-        "Dedicated Manager",
-        "White-labeling",
-      ],
-      buttonText: "Contact Sales",
-      isPopular: false,
-    },
-  ];
+  let ctx: PathwaysTenantContext = { kind: "platform" };
+
+  if (tenant?.kind === "association") {
+    ctx = {
+      kind: "association",
+      associationId: tenant.id,
+      associationName: tenant.displayName,
+    };
+  } else if (tenant?.kind === "club") {
+    const client = await clientPromise;
+    const db = client.db(process.env.DB_NAME || "hockey-app");
+    const seg = String(tenant.pathSlug ?? tenant.portalSlug ?? "").trim();
+    const club =
+      (await db.collection("clubs").findOne(
+        { slug: seg },
+        { projection: { id: 1, slug: 1, name: 1, title: 1 } },
+      )) ??
+      (await db.collection("clubs").findOne(
+        { id: tenant.id },
+        { projection: { id: 1, slug: 1, name: 1, title: 1 } },
+      ));
+    if (club) {
+      const id = String((club as { id?: string }).id ?? tenant.id).trim();
+      const slug = String((club as { slug?: string }).slug ?? seg).trim();
+      const name = String(
+        (club as { name?: string; title?: string }).name ??
+          (club as { title?: string }).title ??
+          tenant.displayName,
+      ).trim();
+      if (id && slug) {
+        ctx = { kind: "club", clubId: id, clubSlug: slug, clubName: name || tenant.displayName };
+      }
+    }
+  }
+
+  const cards = buildPathwaysCards(ctx, portalParam);
+  const slugForLinks = resolvePortalSlugForRequest(host, queryPortal);
+  const tenantLabel =
+    ctx.kind === "club"
+      ? ctx.clubName
+      : ctx.kind === "association"
+        ? ctx.associationName
+        : "Brisbane Hockey";
 
   return (
-    <section className="py-2 px-4">
-      <div className="text-center mb-5 bg-[#66667e] p-2 rounded-lg mx-4">
-        <h1 className="text-4xl font-extrabold sm:text-3xl text-yellow-200">
-          Play Field Hockey
+    <div className="min-h-screen bg-gradient-to-b from-[#06054e] via-[#12106e] to-[#0b1220] px-4 py-10 text-white md:px-8">
+      <div className="mx-auto max-w-4xl">
+        <p className="text-[10px] font-black uppercase tracking-[0.3em] text-yellow-200/90">
+          Pathways
+        </p>
+        <h1 className="mt-2 text-3xl font-black uppercase italic tracking-tight sm:text-4xl">
+          Play, coach, umpire, volunteer
         </h1>
-      </div>
-      <div className="max-w-5xl mx-auto py-6">
-        {/* Pricing Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          {plans.map((plan) => (
-            <div
-              key={plan.name}
-              className={`card bg-base-100 border border-base-300 shadow-sm relative ${
-                plan.isPopular ? "border-primary shadow-xl scale-105 z-10" : ""
-              }`}
-            >
-              {plan.isPopular && (
-                <div className="badge badge-primary absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2">
-                  MOST POPULAR
-                </div>
-              )}
+        <p className="mt-4 max-w-2xl text-sm leading-relaxed text-white/75">
+          {ctx.kind === "platform"
+            ? "Start here on the public site: register with a club, or sign in to request a role. Links below adapt when you open this page on an association or club portal."
+            : `You are browsing as ${tenantLabel}. Shortcuts below point at this organisation’s registration and role-request flows.`}
+        </p>
+        {slugForLinks ? (
+          <p className="mt-3 text-xs text-white/50">
+            Portal: <span className="font-mono text-white/70">{slugForLinks}</span>
+          </p>
+        ) : null}
 
-              <div className="card-body">
-                <h2 className="card-title text-xl">{plan.name}</h2>
-                <p className="text-sm text-base-content/60">
-                  {plan.description}
-                </p>
-
-                <div className="my-6">
-                  <span className="text-4xl font-bold">
-                    ${isYearly ? plan.yearlyPrice : plan.monthlyPrice}
-                  </span>
-                  <span className="text-base-content/50">/mo</span>
-                </div>
-
-                <ul className="space-y-3 mb-8">
-                  {plan.features.map((feature) => (
-                    <li
-                      key={feature}
-                      className="flex items-center gap-2 text-sm"
-                    >
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        className="h-4 w-4 text-success"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth="3"
-                          d="M5 13l4 4L19 7"
-                        />
-                      </svg>
-                      {feature}
-                    </li>
-                  ))}
-                </ul>
-
-                <div className="card-actions">
-                  <button
-                    className={`btn btn-block ${
-                      plan.isPopular ? "btn-primary" : "btn-outline"
-                    }`}
-                  >
-                    {plan.buttonText}
-                  </button>
-                </div>
-              </div>
-            </div>
-          ))}
+        <div className="mt-10">
+          <PathwaysGrid
+            cards={cards}
+            variant="dark"
+            intro="Registration opens your club’s season forms. Coach, umpire, and volunteer paths use My registrations (same workflow as fees and renewals)."
+          />
         </div>
+
+        <p className="mt-10 text-center text-xs text-white/50">
+          <Link href="/" className="text-sky-300 hover:underline">
+            ← Home
+          </Link>
+          {" · "}
+          <Link href="/competitions" className="text-sky-300 hover:underline">
+            Match day
+          </Link>
+        </p>
       </div>
-    </section>
+    </div>
   );
 }
