@@ -75,3 +75,9 @@ body,
 .home-marquee-track:hover {
   animation-play-state: paused;
 }
+
+@media (prefers-reduced-motion: reduce) {
+  .home-marquee-track {
+    animation: none !important;
+  }
+}

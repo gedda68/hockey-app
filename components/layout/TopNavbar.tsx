@@ -1,7 +1,7 @@
 // components/layout/TopNavbar.tsx
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useId } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
@@ -24,6 +24,7 @@ import { usePublicTenant } from "@/lib/contexts/PublicTenantContext";
 import { toast } from "sonner";
 import { LinkButton } from "@/components/ui/LinkButton";
 import ClubsDrawer from "@/components/ui/ClubsDrawer";
+import { useFocusTrap } from "@/lib/a11y/useFocusTrap";
 import HomeResultsTicker, {
   type TickerLine,
 } from "@/components/website/home/HomeResultsTicker";
@@ -85,11 +86,19 @@ export default function TopNavbar({ clubs, tickerLines = [] }: TopNavbarProps) {
       return (user.scopedRoles ?? []).some((sr) => sr.role === r);
     });
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const mobileDrawerRef = useRef<HTMLElement>(null);
+  const mobileNavTitleId = useId();
 
-  // Lock vertical scroll only when mobile menu is open
+  useFocusTrap(mobileDrawerRef, isOpen, () => setIsOpen(false));
+
+  // Lock vertical scroll when mobile menu or clubs drawer is open
   useEffect(() => {
-    document.body.style.overflowY = isOpen ? "hidden" : "auto";
-  }, [isOpen]);
+    document.body.style.overflowY =
+      isOpen || clubsDrawerOpen ? "hidden" : "auto";
+    return () => {
+      document.body.style.overflowY = "auto";
+    };
+  }, [isOpen, clubsDrawerOpen]);
 
   // Close all menus on route change
   useEffect(() => {
@@ -181,9 +190,12 @@ export default function TopNavbar({ clubs, tickerLines = [] }: TopNavbarProps) {
             >
               {/* Mobile Hamburger */}
               <button
+                type="button"
                 onClick={() => setIsOpen((v) => !v)}
-                className="p-2 rounded-lg hover:bg-white/20 md:hidden"
-                aria-label="Toggle menu"
+                className="p-2 rounded-lg hover:bg-white/20 md:hidden focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
+                aria-expanded={isOpen}
+                aria-controls="public-mobile-nav"
+                aria-label={isOpen ? "Close menu" : "Open menu"}
               >
                 {isOpen ? (
                   <X className="h-7 w-7 text-white" />
@@ -325,6 +337,7 @@ export default function TopNavbar({ clubs, tickerLines = [] }: TopNavbarProps) {
       {/* MOBILE BACKDROP */}
       <div
         onClick={() => setIsOpen(false)}
+        aria-hidden={!isOpen}
         className={`fixed inset-0 bg-black/40 backdrop-blur-sm z-[9000] transition-opacity duration-300 ${
           isOpen ? "opacity-100" : "opacity-0 pointer-events-none"
         }`}
@@ -332,10 +345,19 @@ export default function TopNavbar({ clubs, tickerLines = [] }: TopNavbarProps) {
 
       {/* MOBILE DRAWER */}
       <aside
+        id="public-mobile-nav"
+        ref={mobileDrawerRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={mobileNavTitleId}
+        inert={!isOpen}
         className={`fixed inset-y-0 right-0 left-auto w-[280px] bg-[#06054e] z-[10000] shadow-2xl rounded-bl-3xl border-l border-b border-white/10 transform transition-transform duration-300 ease-out ${
           isOpen ? "translate-x-0" : "translate-x-full"
-        } md:hidden`}
+        } md:hidden outline-none`}
       >
+        <h2 id={mobileNavTitleId} className="sr-only">
+          Site navigation
+        </h2>
         <div className="flex flex-col py-6 px-2 pt-20">
           {navItems.map((item) => {
             const isSubOpen = openSubMenu === item.name;
@@ -344,8 +366,9 @@ export default function TopNavbar({ clubs, tickerLines = [] }: TopNavbarProps) {
               return (
                 <div key={item.name}>
                   <button
+                    type="button"
                     onClick={() => setOpenSubMenu(isSubOpen ? null : item.name)}
-                    className="flex w-full items-center justify-between px-6 py-4 rounded-2xl text-slate-300 hover:text-white hover:bg-white/10"
+                    className="flex w-full items-center justify-between px-6 py-4 rounded-2xl text-slate-200 hover:text-white hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
                   >
                     <div className="flex items-center gap-4">
                       <item.icon className="h-5 w-5 text-white" />
@@ -370,7 +393,7 @@ export default function TopNavbar({ clubs, tickerLines = [] }: TopNavbarProps) {
                           key={child.name}
                           href={child.href}
                           onClick={() => setIsOpen(false)}
-                          className="block px-6 py-3 text-[10px] uppercase font-bold tracking-wider text-slate-400 hover:text-white"
+                          className="block px-6 py-3 text-[10px] uppercase font-bold tracking-wider text-slate-200 hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80 rounded-md"
                         >
                           {child.name}
                         </Link>
@@ -386,7 +409,7 @@ export default function TopNavbar({ clubs, tickerLines = [] }: TopNavbarProps) {
                 key={item.name}
                 href={item.href!}
                 onClick={() => setIsOpen(false)}
-                className="flex items-center gap-4 px-6 py-4 rounded-2xl text-slate-300 hover:text-white hover:bg-white/10"
+                className="flex items-center gap-4 px-6 py-4 rounded-2xl text-slate-200 hover:text-white hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
               >
                 <item.icon className="h-5 w-5 text-white" />
                 <span className="uppercase text-[11px] font-bold tracking-widest">
@@ -398,11 +421,12 @@ export default function TopNavbar({ clubs, tickerLines = [] }: TopNavbarProps) {
 
           {/* Mobile Clubs */}
           <button
+            type="button"
             onClick={() => {
               setIsOpen(false);
               setClubsDrawerOpen(true);
             }}
-            className="flex items-center gap-4 px-6 py-4 rounded-2xl text-slate-300 hover:text-white hover:bg-white/10"
+            className="flex items-center gap-4 px-6 py-4 rounded-2xl text-slate-200 hover:text-white hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
           >
             <Shield className="h-5 w-5 text-white" />
             <span className="uppercase text-[11px] font-bold tracking-widest">
@@ -418,10 +442,10 @@ export default function TopNavbar({ clubs, tickerLines = [] }: TopNavbarProps) {
                   <Link
                     href="/my-umpiring"
                     onClick={() => setIsOpen(false)}
-                    className={`flex w-full items-center gap-4 px-6 py-4 rounded-2xl ${
+                    className={`flex w-full items-center gap-4 px-6 py-4 rounded-2xl focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80 ${
                       pathname === "/my-umpiring"
                         ? "bg-white/20 text-white"
-                        : "text-slate-300 hover:text-white hover:bg-white/10"
+                        : "text-slate-200 hover:text-white hover:bg-white/10"
                     }`}
                   >
                     <ClipboardCheck className="h-5 w-5 shrink-0 text-white" />
@@ -431,11 +455,12 @@ export default function TopNavbar({ clubs, tickerLines = [] }: TopNavbarProps) {
                   </Link>
                 )}
                 <button
+                  type="button"
                   onClick={() => {
                     setIsOpen(false);
                     handleLogout();
                   }}
-                  className="flex w-full items-center gap-4 px-6 py-4 rounded-2xl bg-yellow-400 text-[#06054e] hover:bg-yellow-300"
+                  className="flex w-full items-center gap-4 px-6 py-4 rounded-2xl bg-yellow-400 text-[#06054e] hover:bg-yellow-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#06054e]"
                 >
                   <LogOut className="h-5 w-5 shrink-0" />
                   <span className="uppercase text-[11px] font-bold tracking-widest truncate">
@@ -447,7 +472,7 @@ export default function TopNavbar({ clubs, tickerLines = [] }: TopNavbarProps) {
               <Link
                 href="/login"
                 onClick={() => setIsOpen(false)}
-                className="flex items-center gap-4 px-6 py-4 rounded-2xl bg-yellow-400 text-[#06054e] hover:bg-yellow-300"
+                className="flex items-center gap-4 px-6 py-4 rounded-2xl bg-yellow-400 text-[#06054e] hover:bg-yellow-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#06054e]"
               >
                 <LogIn className="h-5 w-5" />
                 <span className="uppercase text-[11px] font-bold tracking-widest">
