@@ -42,6 +42,7 @@ const navItems = [
       { name: "Umpire allocations", href: "/competitions/officials" },
       { name: "Statistics", href: "/competitions/statistics" },
       { name: "News", href: "/news" },
+      { name: "Search", href: "/search" },
     ],
   },
   { name: "Play Hockey", href: "/play", icon: Play },
