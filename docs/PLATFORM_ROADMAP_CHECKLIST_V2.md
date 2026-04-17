@@ -83,7 +83,7 @@ Federation-grade sites optimise for **repeat visits**, **mobile**, and **clear m
 - [x] **T1** **`app/api/auth/login/route.ts` build typing** — Avoid untyped `_id` in `updateOne` (use stable filter on `clubId`/`id`). *Shipped in V2 pass.*
 - [x] **T2** **Next.js middleware → proxy migration** — Migrated `middleware.ts` → `proxy.ts` per Next 16+ (`middleware-to-proxy`), preserving existing Edge auth + tenant redirect behavior and removing the deprecation warning.
 - [x] **T3** **Consistent Mongo client usage** — Admin news routes migrated to `clientPromise`; residual `MongoClient` instances elsewhere tracked opportunistically.
-- [ ] **T4** **Observability** — Structured logging for tenant resolution failures; metrics on public API 404/403 by host.
+- [x] **T4** **Observability** — Structured logging for tenant resolution failures and access denials (JSON line logs): `lib/observability/publicTelemetry.ts` wired into `proxy.ts` (`access.deny`, `tenant.redirect`) and tenant resolution (`getPublicTenantFromRequest`, `getPublicTenantForServerPage`).
 
 ---
 

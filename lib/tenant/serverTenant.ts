@@ -1,6 +1,7 @@
 import { cache } from "react";
 import { headers } from "next/headers";
 import clientPromise from "@/lib/mongodb";
+import { logPublicTelemetry } from "@/lib/observability/publicTelemetry";
 import {
   RESOLVED_PORTAL_SLUG_HEADER,
   resolvePortalSlugForRequest,
@@ -21,10 +22,27 @@ export async function getPublicTenantForServerPage(
   const queryPortal =
     typeof searchParams.portal === "string" ? searchParams.portal : null;
   const slug = resolvePortalSlugForRequest(host, queryPortal);
-  if (!slug) return null;
+  if (!slug) {
+    if (queryPortal && queryPortal.trim()) {
+      logPublicTelemetry("tenant.resolve.no_slug", {
+        host: String(host ?? "").slice(0, 200),
+        path: "rsc",
+        hadPortalQuery: true,
+      });
+    }
+    return null;
+  }
   const client = await clientPromise;
   const db = client.db(process.env.DB_NAME || "hockey-app");
-  return resolveTenantByPortalSlug(db, slug);
+  const tenant = await resolveTenantByPortalSlug(db, slug);
+  if (!tenant) {
+    logPublicTelemetry("tenant.resolve.not_found", {
+      host: String(host ?? "").slice(0, 200),
+      path: "rsc",
+      slug,
+    });
+  }
+  return tenant;
 }
 
 /**

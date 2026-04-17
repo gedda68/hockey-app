@@ -10,6 +10,10 @@ import { ssoAutoRedirectFromMiddleware } from "@/lib/auth/oidc/config";
 import { tenantHostRedirectUrl } from "@/lib/tenant/middlewareTenantRedirect";
 import { tryApexToTenantPublicRedirect } from "@/lib/tenant/publicApexTenantRedirect";
 import {
+  logPublicTelemetry,
+  telemetryFromRequestLike,
+} from "@/lib/observability/publicTelemetry";
+import {
   RESOLVED_PORTAL_SLUG_HEADER,
   resolvePortalSlugForRequest,
 } from "@/lib/tenant/portalHost";
@@ -126,6 +130,7 @@ function isPublicPath(path: string): boolean {
 
 export async function proxy(request: NextRequest) {
   const path = request.nextUrl.pathname;
+  const hostHeader = request.headers.get("x-forwarded-host") ?? request.headers.get("host");
 
   // 0. Login / auth UI — always allow (belt-and-suspenders; avoids any redirect loop if
   //    path matching or list drift ever misses `/login` or `/admin/login`).
@@ -140,7 +145,13 @@ export async function proxy(request: NextRequest) {
 
   // 0.5 Apex → tenant for public org URLs (/clubs/…, /associations/…, optional fallback prefixes)
   const apexTenantRedirect = await tryApexToTenantPublicRedirect(request);
-  if (apexTenantRedirect) return apexTenantRedirect;
+  if (apexTenantRedirect) {
+    logPublicTelemetry("tenant.redirect", {
+      ...telemetryFromRequestLike({ hostHeader, pathname: path }),
+      kind: "apex_to_tenant",
+    });
+    return apexTenantRedirect;
+  }
 
   // 1. Skip fully public paths
   if (isPublicPath(path)) return nextWithResolvedPortalSlug(request);
@@ -180,11 +191,15 @@ export async function proxy(request: NextRequest) {
   const tenantRedirect = tenantHostRedirectUrl({
     pathname: path,
     search: request.nextUrl.search,
-    hostHeader: request.headers.get("host"),
+    hostHeader,
     portalSubdomain: session.portalSubdomain,
     role: session.role || "public",
   });
   if (tenantRedirect) {
+    logPublicTelemetry("tenant.redirect", {
+      ...telemetryFromRequestLike({ hostHeader, pathname: path }),
+      kind: "admin_host_enforce",
+    });
     return NextResponse.redirect(tenantRedirect);
   }
 
@@ -199,8 +214,18 @@ export async function proxy(request: NextRequest) {
 
   if (decision === "deny") {
     if (path.startsWith("/api/")) {
+      logPublicTelemetry("access.deny", {
+        ...telemetryFromRequestLike({ hostHeader, pathname: path }),
+        isApi: true,
+        role: session.role || "public",
+      });
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
+    logPublicTelemetry("access.deny", {
+      ...telemetryFromRequestLike({ hostHeader, pathname: path }),
+      isApi: false,
+      role: session.role || "public",
+    });
     return NextResponse.redirect(new URL("/unauthorized", request.url));
   }
 
