@@ -5,10 +5,16 @@ import {
   getPublicNewsFlowdownForClub,
   serializeNewsFlowdown,
 } from "@/lib/data/newsFlowdown";
+import { listPublicLeagues } from "@/lib/public/publicLeagues";
 import NewsFlowdownModal from "@/components/website/news/NewsFlowdownModal";
 import type { PublicTenantPayload } from "@/lib/tenant/portalHost";
 import { sanitizeCommitteeForPublic } from "@/lib/portal/publicContacts";
 import MyFixturesStrip from "@/components/matches/MyFixturesStrip";
+import {
+  buildApexSiteOrigin,
+  clubPortalPageUrl,
+} from "@/lib/tenant/subdomainUrls";
+import { getPortalRootDomain } from "@/lib/tenant/portalHost";
 
 type PublicClub = {
   id: string;
@@ -112,6 +118,18 @@ function clubSecondary(club: PublicClub): string {
   );
 }
 
+function hubNavLink(href: string, label: string) {
+  return (
+    <a
+      key={href}
+      href={href}
+      className="rounded-full border border-white/15 bg-white/5 px-3 py-1.5 text-[10px] font-black uppercase tracking-widest text-white/80 hover:border-yellow-300/40 hover:text-white"
+    >
+      {label}
+    </a>
+  );
+}
+
 export default async function ClubHubView({
   clubId,
   tenant,
@@ -122,12 +140,27 @@ export default async function ClubHubView({
   const club = await getClubForHub(clubId);
   if (!club) notFound();
 
-  // Tenant isolation: club portal must match club; association portal must own the club.
   if (tenant?.kind === "club" && tenant.id !== club.id) notFound();
   if (tenant?.kind === "association") {
     const owner = club.associationId ?? club.parentAssociationId ?? "";
     if (!owner || owner !== tenant.id) notFound();
   }
+
+  const owningAssoc = club.associationId ?? club.parentAssociationId ?? "";
+  const leagues = owningAssoc
+    ? await listPublicLeagues({ owningAssociationId: owningAssoc })
+    : [];
+  const firstLeague = leagues[0];
+  const clubThisRoundHref =
+    firstLeague?.seasonCompetitionId != null
+      ? `/competitions/this-round?seasonCompetitionId=${encodeURIComponent(
+          firstLeague.seasonCompetitionId,
+        )}&clubId=${encodeURIComponent(club.id)}`
+      : `/competitions/this-round?clubId=${encodeURIComponent(club.id)}`;
+  const leagueHubHref = firstLeague?.seasonCompetitionId
+    ? `/competitions/leagues/${encodeURIComponent(firstLeague.seasonCompetitionId)}`
+    : "/competitions/leagues";
+  const myTeamsHref = `/competitions/my-fixtures?clubId=${encodeURIComponent(club.id)}`;
 
   const newsFlow = serializeNewsFlowdown(
     await getPublicNewsFlowdownForClub(club.id, { perSectionLimit: 10 }),
@@ -135,6 +168,10 @@ export default async function ClubHubView({
   const committee = sanitizeCommitteeForPublic(club.committee);
   const primary = clubPrimary(club);
   const secondary = clubSecondary(club);
+
+  const onClubPortal = tenant?.kind === "club" && tenant.id === club.id;
+  const portalRoot = getPortalRootDomain();
+  const clubPortalHubUrl = clubPortalPageUrl(club, "/");
 
   return (
     <div
@@ -144,6 +181,13 @@ export default async function ClubHubView({
       }}
     >
       <div className="mx-auto max-w-4xl">
+        <Link
+          href={`${buildApexSiteOrigin()}/clubs`}
+          className="mb-6 inline-flex text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-white"
+        >
+          ← All clubs
+        </Link>
+
         <h1 className="text-3xl font-black uppercase italic tracking-tight text-white sm:text-4xl">
           {club.name}
         </h1>
@@ -151,36 +195,118 @@ export default async function ClubHubView({
           <p className="mt-2 text-sm text-white/70">{club.shortName}</p>
         ) : null}
 
-        <div className="mt-8 grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <Link
-            href={`/clubs/${encodeURIComponent(club.slug)}/teams`}
-            className="rounded-2xl border border-white/10 bg-white/5 px-5 py-4 font-black text-white hover:border-yellow-400/30"
-          >
-            Teams →
-          </Link>
-          <Link
-            href={`/clubs/${encodeURIComponent(club.slug)}/register`}
-            className="rounded-2xl border border-yellow-400/30 bg-yellow-400/10 px-5 py-4 font-black text-yellow-100 hover:bg-yellow-400/15"
-          >
-            Join / Register →
-          </Link>
-          <Link
-            href={`/clubs/${encodeURIComponent(club.slug)}/contact`}
-            className="rounded-2xl border border-white/10 bg-white/5 px-5 py-4 font-black text-white hover:border-sky-400/30"
-          >
-            Contact →
-          </Link>
-          <Link
-            href="/news"
-            className="rounded-2xl border border-white/10 bg-white/5 px-5 py-4 font-black text-white hover:border-emerald-400/30"
-          >
-            News →
-          </Link>
+        <div className="mt-5 rounded-2xl border border-white/15 bg-black/25 px-4 py-3 text-xs leading-relaxed text-white/75">
+          <p className="font-black uppercase tracking-widest text-[10px] text-white/50">
+            Portal scope
+          </p>
+          {onClubPortal ? (
+            <p className="mt-2">
+              You are on this club&apos;s portal (
+              <span className="font-mono text-white/90">
+                {tenant.portalSlug}.{portalRoot}
+              </span>
+              ). Fixtures and news below use this club and its parent association chain only.
+            </p>
+          ) : (
+            <p className="mt-2">
+              Open{" "}
+              <a
+                href={clubPortalHubUrl}
+                className="font-bold text-sky-300 underline decoration-sky-400/40 hover:decoration-sky-300"
+              >
+                this hub on the club subdomain
+              </a>{" "}
+              for the full branded portal. Fixture links still filter to this club on any host.
+            </p>
+          )}
         </div>
 
-        <MyFixturesStrip scope={{ clubId: club.id }} title="My fixtures" />
+        <nav
+          className="mt-6 flex flex-wrap gap-2 border-y border-white/10 py-4"
+          aria-label="On this page"
+        >
+          {hubNavLink("#match-day", "Fixtures")}
+          {hubNavLink("#news", "News")}
+          {hubNavLink("#contact", "Contact")}
+        </nav>
 
-        <section className="mt-12">
+        {/* Primary actions — P2 */}
+        <section className="mt-8" aria-labelledby="club-hub-actions">
+          <h2 id="club-hub-actions" className="sr-only">
+            Club quick links
+          </h2>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <Link
+              href={`/clubs/${encodeURIComponent(club.slug)}/teams`}
+              className="rounded-2xl border-2 border-yellow-400/35 bg-white/10 px-6 py-5 font-black text-white shadow-lg hover:border-yellow-300/60"
+            >
+              <span className="text-lg">Teams</span>
+              <p className="mt-1 text-xs font-semibold text-white/65">
+                Rosters, divisions, and team pages
+              </p>
+            </Link>
+            <Link
+              href={`/clubs/${encodeURIComponent(club.slug)}/register`}
+              className="rounded-2xl border-2 border-yellow-400/50 bg-yellow-400/15 px-6 py-5 font-black text-yellow-50 shadow-lg hover:bg-yellow-400/25"
+            >
+              <span className="text-lg">Join / Register</span>
+              <p className="mt-1 text-xs font-semibold text-yellow-100/80">
+                Season registration and renewals
+              </p>
+            </Link>
+            <Link
+              href={clubThisRoundHref}
+              className="rounded-2xl border border-white/15 bg-white/5 px-6 py-5 font-black text-white hover:border-sky-400/35"
+            >
+              <span className="text-lg">This round</span>
+              <p className="mt-1 text-xs font-semibold text-white/60">
+                Draw & ladder filtered to this club when data exists
+              </p>
+            </Link>
+            <Link
+              href={myTeamsHref}
+              className="rounded-2xl border border-white/15 bg-white/5 px-6 py-5 font-black text-white hover:border-emerald-400/35"
+            >
+              <span className="text-lg">My teams</span>
+              <p className="mt-1 text-xs font-semibold text-white/60">
+                Signed-in members: fixtures for your assigned teams
+              </p>
+            </Link>
+          </div>
+        </section>
+
+        <section id="match-day" className="mt-12 scroll-mt-24">
+          <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-yellow-200">
+            Match day & fixtures
+          </h2>
+          <p className="mt-2 text-sm text-white/70">
+            Tenant-safe links: this club&apos;s id is applied to Match day where the competition
+            exposes it. Use My teams when you are logged in.
+          </p>
+          <div className="mt-4 flex flex-wrap gap-3">
+            <Link
+              href={clubThisRoundHref}
+              className="inline-flex rounded-xl border border-white/15 bg-white/5 px-4 py-2 text-sm font-bold text-white hover:border-yellow-400/30"
+            >
+              Open this round →
+            </Link>
+            <Link
+              href={leagueHubHref}
+              className="inline-flex rounded-xl border border-white/15 bg-white/5 px-4 py-2 text-sm font-bold text-white hover:border-sky-400/30"
+            >
+              League hub →
+            </Link>
+            <Link
+              href={myTeamsHref}
+              className="inline-flex rounded-xl border border-white/15 bg-white/5 px-4 py-2 text-sm font-bold text-white hover:border-emerald-400/30"
+            >
+              My teams view →
+            </Link>
+          </div>
+          <MyFixturesStrip scope={{ clubId: club.id }} title="My fixtures" />
+        </section>
+
+        <section id="news" className="mt-14 scroll-mt-24">
           <div className="flex items-end justify-between gap-4">
             <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-emerald-200">
               News
@@ -193,8 +319,7 @@ export default async function ClubHubView({
             </Link>
           </div>
           <p className="mt-2 text-xs text-white/55">
-            This club first, then news from your parent association and further ancestors (up to
-            the root) that flow down the tree — not sibling clubs or bodies. Tap a headline for
+            This club first, then items from parent associations up the tree. Tap a headline for
             the full story.
           </p>
           <div className="mt-4">
@@ -202,7 +327,7 @@ export default async function ClubHubView({
           </div>
         </section>
 
-        <section className="mt-12">
+        <section id="contact" className="mt-14 scroll-mt-24">
           <div className="flex items-end justify-between gap-4">
             <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-sky-200">
               Committee & contacts
@@ -255,4 +380,3 @@ export default async function ClubHubView({
     </div>
   );
 }
-

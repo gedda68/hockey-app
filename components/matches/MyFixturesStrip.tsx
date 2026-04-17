@@ -26,6 +26,13 @@ export default async function MyFixturesStrip({
   const matches = await getMyUpcomingFixtures({ teamIds, limit });
   if (matches.length === 0) return null;
 
+  const matchDayQs = new URLSearchParams();
+  if (scope?.clubId) matchDayQs.set("clubId", scope.clubId);
+  const matchDayHref =
+    matchDayQs.toString().length > 0
+      ? `/competitions/this-round?${matchDayQs.toString()}`
+      : "/competitions/this-round";
+
   return (
     <section className="mt-10 rounded-3xl border border-white/10 bg-white/5 p-5">
       <div className="flex items-end justify-between gap-4">
@@ -33,7 +40,7 @@ export default async function MyFixturesStrip({
           {title}
         </h2>
         <Link
-          href="/competitions/this-round"
+          href={matchDayHref}
           className="text-[10px] font-black uppercase tracking-widest text-white/60 hover:text-white"
         >
           Match day →
