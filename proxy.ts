@@ -1,4 +1,4 @@
-// middleware.ts
+// proxy.ts
 // Server-side route protection — runs on Edge before every request.
 // Uses the same JWT secret as lib/auth/session.ts
 
@@ -77,6 +77,7 @@ function isPublicPath(path: string): boolean {
     "/clubs",
     "/officials",
     "/news",
+    "/search",
     "/api/auth/login",
     "/api/auth/consume-session",
     "/api/auth/logout",
@@ -93,6 +94,7 @@ function isPublicPath(path: string): boolean {
     "/api/clubs",
     "/api/events",
     "/api/news",
+    "/api/search",
     "/api/competitions",
     "/api/fixtures",
     "/api/calendar",
@@ -122,7 +124,7 @@ function isPublicPath(path: string): boolean {
   );
 }
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const path = request.nextUrl.pathname;
 
   // 0. Login / auth UI — always allow (belt-and-suspenders; avoids any redirect loop if
@@ -170,8 +172,9 @@ export async function middleware(request: NextRequest) {
   }
 
   // 5. Auth-required (any logged-in user)
-  if (AUTH_REQUIRED_PATHS.some((p) => path.startsWith(p)))
+  if (AUTH_REQUIRED_PATHS.some((p) => path.startsWith(p))) {
     return nextWithResolvedPortalSlug(request);
+  }
 
   // 5b. Keep /admin and /portal on the session’s tenant host ({slug}.{root})
   const tenantRedirect = tenantHostRedirectUrl({
@@ -205,7 +208,6 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|icons|images|public).*)",
-  ],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|icons|images|public).*)"],
 };
+

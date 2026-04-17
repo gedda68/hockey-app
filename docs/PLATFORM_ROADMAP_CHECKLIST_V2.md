@@ -81,7 +81,7 @@ Federation-grade sites optimise for **repeat visits**, **mobile**, and **clear m
 ## Epic T — Technical debt & platform hygiene
 
 - [x] **T1** **`app/api/auth/login/route.ts` build typing** — Avoid untyped `_id` in `updateOne` (use stable filter on `clubId`/`id`). *Shipped in V2 pass.*
-- [ ] **T2** **Next.js middleware → proxy migration** — When ready, migrate from deprecated middleware (`middleware.ts` deprecation warning) to the supported replacement per Next 16+ guidance.
+- [x] **T2** **Next.js middleware → proxy migration** — Migrated `middleware.ts` → `proxy.ts` per Next 16+ (`middleware-to-proxy`), preserving existing Edge auth + tenant redirect behavior and removing the deprecation warning.
 - [x] **T3** **Consistent Mongo client usage** — Admin news routes migrated to `clientPromise`; residual `MongoClient` instances elsewhere tracked opportunistically.
 - [ ] **T4** **Observability** — Structured logging for tenant resolution failures; metrics on public API 404/403 by host.
 

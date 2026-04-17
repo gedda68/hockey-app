@@ -84,6 +84,13 @@ export default async function AssociationHubView({
     notFound();
   }
 
+  const onAssociationPortal = tenant?.kind === "association" && tenant.id === associationId;
+  const portalRoot = getPortalRootDomain();
+  const associationPortalHubUrl = associationPortalPageUrl(
+    { code: assoc.code, portalSlug: assoc.portalSlug },
+    `/associations/${encodeURIComponent(associationId)}`,
+  );
+
   const tournamentTenant =
     tenant?.kind === "association" && tenant.id === associationId
       ? tenant

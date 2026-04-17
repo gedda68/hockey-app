@@ -366,9 +366,9 @@ export default async function ClubContactPage({
           >
             <h2 className="text-2xl font-black uppercase text-white">
               Committee Members
-              {club.committee.length > 0 && (
+              {committee.length > 0 && (
                 <span className="ml-3 text-base opacity-90">
-                  ({club.committee.length})
+                  ({committee.length})
                 </span>
               )}
             </h2>
