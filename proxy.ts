@@ -111,6 +111,7 @@ function isPublicPath(path: string): boolean {
     "/api/rep-tournament-fixtures",
     "/api/associations",
     "/api/public",
+    "/api/cron",
     "/api/rosters",
     "/_next",
     "/favicon",

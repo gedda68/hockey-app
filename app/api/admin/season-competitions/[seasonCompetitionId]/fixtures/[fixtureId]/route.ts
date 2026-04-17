@@ -19,10 +19,13 @@ import {
   applyUmpireAssignmentEmailNotifications,
   type UmpireSlotInput,
 } from "@/lib/officiating/umpireAssignmentNotify";
+import { APP_URL } from "@/lib/email/client";
 import {
   scheduleOrVenueChanged,
   sendFixtureScheduleChangeEmails,
 } from "@/lib/notifications/fixtureScheduleChangeNotify";
+import { collectFanFixtureChangeEmails } from "@/lib/notifications/fanFixtureFollowers";
+import { sendFanFixturePushForFollowedTeams } from "@/lib/notifications/fanFixturePushNotify";
 
 type Params = {
   params: Promise<{ seasonCompetitionId: string; fixtureId: string }>;
@@ -212,11 +215,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       },
     });
 
-    if (
-      body.notifyScheduleChange &&
-      body.scheduleChangeNotifyEmails?.length &&
-      updated?.published
-    ) {
+    if (body.notifyScheduleChange && updated?.published) {
       const beforeLoc = {
         scheduledStart: existing.scheduledStart as string | null | undefined,
         venueName: existing.venueName as string | null | undefined,
@@ -246,8 +245,20 @@ export async function PATCH(request: NextRequest, { params }: Params) {
             (sc as { competitionId?: string }).competitionId ??
             seasonCompetitionId,
         );
+        const fanTo = await collectFanFixtureChangeEmails(db, {
+          homeTeamId,
+          awayTeamId,
+        });
+        const adminTo = Array.isArray(body.scheduleChangeNotifyEmails)
+          ? body.scheduleChangeNotifyEmails
+          : [];
+        const toSet = new Set<string>();
+        for (const e of [...adminTo, ...fanTo]) {
+          const x = String(e ?? "").trim();
+          if (x) toSet.add(x);
+        }
         await sendFixtureScheduleChangeEmails({
-          to: body.scheduleChangeNotifyEmails,
+          to: [...toSet],
           competitionLabel: label,
           round: Number(updated.round ?? 0),
           homeName,
@@ -256,6 +267,28 @@ export async function PATCH(request: NextRequest, { params }: Params) {
           seasonCompetitionId,
           before: beforeLoc,
           after: afterLoc,
+        });
+
+        const fmtShort = (iso: string | null | undefined) =>
+          iso
+            ? new Date(iso).toLocaleString("en-AU", {
+                dateStyle: "medium",
+                timeStyle: "short",
+              })
+            : "TBC";
+        const place = (v: typeof afterLoc) => {
+          const venue = v.venueName?.trim() || "TBC";
+          const addr = v.addressLine?.trim();
+          return addr ? `${venue} (${addr})` : venue;
+        };
+        void sendFanFixturePushForFollowedTeams(db, {
+          homeTeamId,
+          awayTeamId,
+          payload: {
+            title: `Fixture update — ${label}`,
+            body: `${homeName} vs ${awayName} · R${Number(updated.round ?? 0)} · ${fmtShort(afterLoc.scheduledStart)} · ${place(afterLoc)}`,
+            url: `${APP_URL}/competitions/matches`,
+          },
         });
       }
     }

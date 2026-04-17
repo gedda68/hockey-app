@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getSession } from "@/lib/auth/session";
 import MatchList from "@/components/matches/MatchList";
+import FanPreferencesPanel from "@/components/member/FanPreferencesPanel";
 import {
   getMyRecentFixtures,
   getMyTeamIdsForSession,
@@ -74,6 +75,8 @@ export default async function MyFixturesPage({
         <p className="mt-2 text-sm text-white/70">
           Upcoming fixtures and recent results for your teams. Each card links to the match centre.
         </p>
+
+        {session.memberId ? <FanPreferencesPanel /> : null}
 
         <section className="mt-10">
           <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-yellow-200">

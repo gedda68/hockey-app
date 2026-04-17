@@ -186,8 +186,9 @@ export const PatchLeagueFixtureBodySchema = z
      */
     notifyAssignedUmpires: z.boolean().optional(),
     /**
-     * J1 — When true, send schedule/venue change emails to `scheduleChangeNotifyEmails`.
-     * Only runs if the fixture is published after this patch and time/venue/address changed.
+     * J1 — When true, notify on schedule/venue change (published fixture, diff detected).
+     * Admin emails: `scheduleChangeNotifyEmails` (optional; can be empty when fans-only).
+     * Fan emails/push: merged server-side from followed teams (B3).
      */
     notifyScheduleChange: z.boolean().optional(),
     scheduleChangeNotifyEmails: z.array(z.string().email()).max(10).optional(),
@@ -201,17 +202,6 @@ export const PatchLeagueFixtureBodySchema = z
     {
       message: "notifyAssignedUmpires requires umpires in the same request",
       path: ["notifyAssignedUmpires"],
-    },
-  )
-  .refine(
-    (data) =>
-      !data.notifyScheduleChange ||
-      (Array.isArray(data.scheduleChangeNotifyEmails) &&
-        data.scheduleChangeNotifyEmails.length > 0),
-    {
-      message:
-        "notifyScheduleChange requires scheduleChangeNotifyEmails (1–10 addresses)",
-      path: ["scheduleChangeNotifyEmails"],
     },
   );
 

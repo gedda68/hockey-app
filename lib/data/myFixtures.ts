@@ -58,6 +58,16 @@ export async function getMyTeamIdsForSession(opts: {
       if (!tid) continue;
       teamIds.add(tid);
     }
+
+    const mem = await db
+      .collection("members")
+      .findOne({ memberId }, { projection: { fanPreferences: 1 } });
+    const fp = (mem as { fanPreferences?: { followedTeamIds?: string[] } } | null)?.fanPreferences;
+    const followed = Array.isArray(fp?.followedTeamIds) ? fp!.followedTeamIds! : [];
+    for (const tid of followed) {
+      const id = String(tid ?? "").trim();
+      if (id) teamIds.add(id);
+    }
   }
 
   const ids = [...teamIds];
