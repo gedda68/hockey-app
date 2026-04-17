@@ -234,6 +234,8 @@ export default async function HomePage({
     publishDate: n.publishDate?.toISOString(),
     image: n.image,
     imageUrl: n.imageUrl,
+    videoUrl: n.videoUrl,
+    attachments: n.attachments,
     author: n.author,
   }));
 

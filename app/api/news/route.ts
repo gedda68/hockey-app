@@ -33,6 +33,8 @@ export async function GET(request: NextRequest) {
       content: item.content,
       image: item.image,
       imageUrl: item.imageUrl,
+      videoUrl: item.videoUrl ?? null,
+      attachments: item.attachments ?? null,
       publishDate: item.publishDate,
       expiryDate: item.expiryDate,
       author: item.author,

@@ -6,6 +6,7 @@ import {
   publicNewsMongoFilter,
   publicNewsMongoFilterForAssociationHub,
 } from "@/lib/portal/newsScope";
+import type { NewsAttachment } from "@/types/news";
 
 export type PublicNewsItem = {
   id: string;
@@ -13,17 +14,24 @@ export type PublicNewsItem = {
   content?: string;
   image?: string;
   imageUrl?: string;
+  videoUrl?: string;
+  attachments?: NewsAttachment[];
   publishDate?: Date;
   author?: string;
 };
 
 function mapNewsRow(item: Record<string, unknown>): PublicNewsItem {
+  const attachments = Array.isArray(item.attachments)
+    ? (item.attachments as NewsAttachment[])
+    : undefined;
   return {
     id: String(item.id ?? item._id),
     title: String(item.title ?? ""),
     content: item.content ? String(item.content) : undefined,
     image: item.image ? String(item.image) : undefined,
     imageUrl: item.imageUrl ? String(item.imageUrl) : undefined,
+    videoUrl: item.videoUrl ? String(item.videoUrl) : undefined,
+    attachments,
     publishDate: item.publishDate instanceof Date ? item.publishDate : undefined,
     author: item.author ? String(item.author) : undefined,
   };
@@ -50,6 +58,8 @@ export async function queryActiveNews(
       content: 1,
       image: 1,
       imageUrl: 1,
+      videoUrl: 1,
+      attachments: 1,
       publishDate: 1,
       author: 1,
       id: 1,

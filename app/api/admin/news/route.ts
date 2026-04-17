@@ -12,6 +12,14 @@ import {
 } from "@/lib/portal/newsScope";
 import { writeFile, mkdir } from "fs/promises";
 import path from "path";
+import type { NewsAttachment } from "@/types/news";
+import {
+  legacyVideoUrlFromAttachments,
+  normalizeAttachmentsFromDoc,
+  primaryImageFromAttachments,
+} from "@/lib/news/newsAttachments";
+import { parseVideoEmbed } from "@/lib/website/videoEmbeds";
+import { buildNewsAttachmentsFromFormData } from "@/lib/news/buildNewsAttachmentsFromForm";
 
 // GET — list news visible to this admin (portal-scoped)
 export async function GET(request: NextRequest) {
@@ -36,6 +44,8 @@ export async function GET(request: NextRequest) {
       content: item.content,
       image: item.image,
       imageUrl: item.imageUrl,
+      videoUrl: item.videoUrl ?? null,
+      attachments: normalizeAttachmentsFromDoc(item as unknown as Record<string, unknown>),
       publishDate: item.publishDate,
       expiryDate: item.expiryDate,
       author: item.author,
@@ -87,6 +97,7 @@ export async function POST(request: NextRequest) {
     const author = formData.get("author") as string;
     const active = formData.get("active") === "true";
     const imageFile = formData.get("image") as File | null;
+    const videoUrl = (formData.get("videoUrl") as string | null) ?? "";
     const scopeTypeField = formData.get("scopeType") as string | null;
     const scopeIdField = formData.get("scopeId") as string | null;
 
@@ -156,6 +167,24 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    const built = await buildNewsAttachmentsFromFormData(formData);
+    if (!built.ok) {
+      return NextResponse.json({ error: built.error }, { status: built.status });
+    }
+    const attachments: NewsAttachment[] = built.attachments;
+
+    const primaryFromGallery = primaryImageFromAttachments(attachments);
+    const legacyVideo = legacyVideoUrlFromAttachments(attachments);
+    const trimmedVideo = videoUrl?.trim() ? videoUrl.trim() : "";
+    if (trimmedVideo && !parseVideoEmbed(trimmedVideo)) {
+      return NextResponse.json(
+        { error: "Unsupported video URL (YouTube/Vimeo only)" },
+        { status: 400 },
+      );
+    }
+    const finalImageUrl = primaryFromGallery || imageUrl;
+    const finalVideoUrl = legacyVideo || (trimmedVideo ? trimmedVideo : null);
+
     const client = await clientPromise;
     const database = client.db(process.env.DB_NAME || "hockey-app");
     const newsCollection = database.collection("news");
@@ -164,8 +193,10 @@ export async function POST(request: NextRequest) {
       id: new ObjectId().toString(),
       title,
       content,
-      image: imageUrl,
-      imageUrl: imageUrl,
+      image: finalImageUrl,
+      imageUrl: finalImageUrl,
+      videoUrl: finalVideoUrl,
+      attachments: attachments.length ? attachments : undefined,
       publishDate: new Date(publishDate),
       expiryDate: new Date(expiryDate),
       author: author || null,

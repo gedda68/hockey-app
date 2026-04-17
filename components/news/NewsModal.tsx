@@ -7,6 +7,7 @@ import { NewsItem } from "@/types/news";
 import Image from "next/image";
 import { useEffect } from "react";
 import { sanitizeHtml } from "@/lib/utils/sanitize";
+import { NewsAttachmentsBlocks } from "@/components/news/NewsAttachmentsBlocks";
 
 interface NewsModalProps {
   newsItem: NewsItem | null;
@@ -112,9 +113,8 @@ export default function NewsModal({
                 {/* Content */}
 
                 <div className="p-6 max-h-[60vh] overflow-y-auto">
-                  {/* Image */}
                   {(newsItem.image || newsItem.imageUrl) && (
-                    <div className="mb-6 rounded-xl overflow-hidden">
+                    <div className="mb-6 rounded-xl overflow-hidden border border-slate-200">
                       <Image
                         src={newsItem.imageUrl || newsItem.image || ""}
                         alt={newsItem.title}
@@ -124,6 +124,10 @@ export default function NewsModal({
                       />
                     </div>
                   )}
+
+                  <div className="mb-6">
+                    <NewsAttachmentsBlocks newsItem={newsItem} />
+                  </div>
 
                   {/* Content */}
                   <div

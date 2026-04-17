@@ -1,6 +1,19 @@
 // types/news.ts
 // News item types
 
+export type NewsAttachmentKind = "image" | "video" | "document" | "file" | "video_link";
+
+export interface NewsAttachment {
+  id: string;
+  kind: NewsAttachmentKind;
+  url: string;
+  title?: string;
+  mime?: string;
+  filename?: string;
+  /** Optional ordering hint (lower first). */
+  sortOrder?: number;
+}
+
 export interface NewsItem {
   _id: string;
   id: string;
@@ -8,6 +21,10 @@ export interface NewsItem {
   content: string;
   image?: string;
   imageUrl?: string;
+  /** Optional rich media URL (allowlisted embeds only). */
+  videoUrl?: string;
+  /** Rich media gallery (preferred over legacy single image/video fields). */
+  attachments?: NewsAttachment[];
   publishDate: Date | string;
   expiryDate: Date | string;
   author?: string;
@@ -23,6 +40,7 @@ export interface NewsItemCreate {
   title: string;
   content: string;
   image?: string;
+  videoUrl?: string;
   publishDate: Date | string;
   expiryDate: Date | string;
   author?: string;

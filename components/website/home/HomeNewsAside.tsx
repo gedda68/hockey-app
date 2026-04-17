@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import NewsModal from "@/components/news/NewsModal";
-import type { NewsItem } from "@/types/news";
+import type { NewsAttachment, NewsItem } from "@/types/news";
 
 export type HomeNewsLite = {
   id: string;
@@ -13,6 +13,8 @@ export type HomeNewsLite = {
   publishDate?: string;
   image?: string;
   imageUrl?: string;
+  videoUrl?: string;
+  attachments?: NewsAttachment[];
   author?: string;
 };
 
@@ -37,6 +39,8 @@ function toNewsItem(n: HomeNewsLite): NewsItem {
     updatedAt: pub,
     image: n.image,
     imageUrl: n.imageUrl,
+    videoUrl: n.videoUrl,
+    attachments: n.attachments,
     author: n.author,
   };
 }

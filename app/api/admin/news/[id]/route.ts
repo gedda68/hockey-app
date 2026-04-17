@@ -11,6 +11,40 @@ import {
 } from "@/lib/portal/newsScope";
 import { writeFile, mkdir, unlink } from "fs/promises";
 import path from "path";
+import type { NewsAttachment } from "@/types/news";
+import {
+  legacyVideoUrlFromAttachments,
+  normalizeAttachmentsFromDoc,
+  primaryImageFromAttachments,
+} from "@/lib/news/newsAttachments";
+import { parseVideoEmbed } from "@/lib/website/videoEmbeds";
+import { buildNewsAttachmentsFromFormData } from "@/lib/news/buildNewsAttachmentsFromForm";
+
+function newsUploadDiskPath(publicPath: string): string {
+  const rel = String(publicPath ?? "").replace(/^\/+/, "");
+  return path.join(process.cwd(), "public", rel);
+}
+
+async function safeUnlinkPublicUpload(publicPath: string | null | undefined) {
+  const p = publicPath ? String(publicPath).trim() : "";
+  if (!p.startsWith("/uploads/news/")) return;
+  try {
+    await unlink(newsUploadDiskPath(p));
+  } catch {
+    /* ignore */
+  }
+}
+
+function collectNewsUploadPaths(doc: Record<string, unknown>): Set<string> {
+  const out = new Set<string>();
+  const img = (doc.imageUrl ?? doc.image) as unknown;
+  if (typeof img === "string" && img.startsWith("/uploads/news/")) out.add(img);
+  const atts = normalizeAttachmentsFromDoc(doc);
+  for (const a of atts) {
+    if (typeof a.url === "string" && a.url.startsWith("/uploads/news/")) out.add(a.url);
+  }
+  return out;
+}
 
 // PUT - Update news item with image upload
 export async function PUT(
@@ -32,6 +66,8 @@ export async function PUT(
     const active = formData.get("active") === "true";
     const imageFile = formData.get("image") as File | null;
     const existingImage = formData.get("existingImage") as string | null;
+    const videoUrl = (formData.get("videoUrl") as string | null) ?? "";
+    const attachmentsJson = (formData.get("attachmentsJson") as string | null) ?? "";
 
     const client = await clientPromise;
     const database = client.db(process.env.DB_NAME || "hockey-app");
@@ -52,19 +88,13 @@ export async function PUT(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
+    const beforeDoc = existingNews as unknown as Record<string, unknown>;
+    const beforeUploads = collectNewsUploadPaths(beforeDoc);
+
     let imageUrl = existingNews.image || existingNews.imageUrl;
 
     if (imageFile && imageFile.size > 0) {
       try {
-        if (imageUrl && String(imageUrl).startsWith("/uploads/")) {
-          const oldImagePath = path.join(process.cwd(), "public", String(imageUrl));
-          try {
-            await unlink(oldImagePath);
-          } catch {
-            /* ignore */
-          }
-        }
-
         const uploadsDir = path.join(
           process.cwd(),
           "public",
@@ -96,17 +126,46 @@ export async function PUT(
       imageUrl = existingImage;
     }
 
+    let attachments: NewsAttachment[] | undefined;
+    if (attachmentsJson.trim()) {
+      const built = await buildNewsAttachmentsFromFormData(formData);
+      if (!built.ok) {
+        return NextResponse.json({ error: built.error }, { status: built.status });
+      }
+      attachments = built.attachments.length ? built.attachments : undefined;
+    }
+
+    const trimmedVideo = videoUrl?.trim() ? videoUrl.trim() : "";
+    if (trimmedVideo && !parseVideoEmbed(trimmedVideo)) {
+      return NextResponse.json(
+        { error: "Unsupported video URL (YouTube/Vimeo only)" },
+        { status: 400 },
+      );
+    }
+
+    const primaryFromGallery = attachments
+      ? primaryImageFromAttachments(attachments)
+      : null;
+    const legacyVideo = attachments ? legacyVideoUrlFromAttachments(attachments) : null;
+
+    const finalImageUrl = primaryFromGallery || imageUrl;
+    const finalVideoUrl = legacyVideo || (trimmedVideo ? trimmedVideo : null);
+
     const updateData: Record<string, unknown> = {
       title,
       content,
-      image: imageUrl,
-      imageUrl: imageUrl,
+      image: finalImageUrl,
+      imageUrl: finalImageUrl,
+      videoUrl: finalVideoUrl,
       publishDate: new Date(publishDate),
       expiryDate: new Date(expiryDate),
       author: author || null,
       active,
       updatedAt: new Date(),
     };
+    if (attachmentsJson.trim()) {
+      updateData.attachments = attachments;
+    }
 
     await newsCollection.updateOne({ id }, { $set: updateData });
     const updated = await newsCollection.findOne({ id });
@@ -118,9 +177,16 @@ export async function PUT(
       );
     }
 
+    const afterDoc = updated as unknown as Record<string, unknown>;
+    const afterUploads = collectNewsUploadPaths(afterDoc);
+    for (const p of beforeUploads) {
+      if (!afterUploads.has(p)) await safeUnlinkPublicUpload(p);
+    }
+
     return NextResponse.json({
       ...updated,
       _id: updated._id.toString(),
+      attachments: normalizeAttachmentsFromDoc(afterDoc),
     });
   } catch (error) {
     console.error("Error updating news:", error);
@@ -219,15 +285,8 @@ export async function DELETE(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const imageUrl = newsItem.image || newsItem.imageUrl;
-    if (imageUrl && String(imageUrl).startsWith("/uploads/")) {
-      const imagePath = path.join(process.cwd(), "public", String(imageUrl));
-      try {
-        await unlink(imagePath);
-      } catch {
-        console.log("Image file not found or already deleted");
-      }
-    }
+    const paths = collectNewsUploadPaths(newsItem as unknown as Record<string, unknown>);
+    for (const p of paths) await safeUnlinkPublicUpload(p);
 
     const result = await newsCollection.deleteOne({ id });
 

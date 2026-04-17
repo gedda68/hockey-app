@@ -6,6 +6,7 @@ import type {
   PublicNewsFlowSectionDTO,
   PublicNewsLineDTO,
 } from "@/lib/data/newsFlowdown";
+import { NewsAttachmentsBlocks } from "@/components/news/NewsAttachmentsBlocks";
 
 function formatAuDate(iso?: string): string {
   if (!iso) return "";
@@ -50,6 +51,7 @@ export default function NewsFlowdownModal({
     ? "border-white/10 bg-white/5 text-white hover:border-yellow-400/25"
     : "border-slate-200 bg-slate-50 text-slate-900 hover:border-[#06054e]/30";
   const muted = isDark ? "text-white/55" : "text-slate-500";
+  const attachTone = isDark ? "flowdownDark" : "flowdownLight";
 
   const total = sections.reduce((n, s) => n + s.items.length, 0);
 
@@ -149,6 +151,18 @@ export default function NewsFlowdownModal({
                 className="mt-4 max-h-56 w-full rounded-xl object-cover"
               />
             ) : null}
+            <div className="mt-4">
+              <NewsAttachmentsBlocks
+                tone={attachTone}
+                newsItem={{
+                  attachments: open.attachments,
+                  videoUrl: open.videoUrl,
+                  image: open.image,
+                  imageUrl: open.imageUrl,
+                }}
+                heroImageUrl={open.imageUrl || open.image}
+              />
+            </div>
             {open.content ? (
               <div
                 className={`mt-4 whitespace-pre-wrap text-sm leading-relaxed ${
