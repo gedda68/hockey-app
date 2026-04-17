@@ -1,109 +1,178 @@
-import { MongoClient } from "mongodb";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
+import clientPromise from "@/lib/mongodb";
+import { getPublicTenantForServerPage } from "@/lib/tenant/serverTenant";
+import type { PublicTenantPayload } from "@/lib/tenant/portalHost";
+import { sanitizeCommitteeForPublic } from "@/lib/portal/publicContacts";
 
-type CommitteeMember = {
+type PublicClubContact = {
   id: string;
+  slug: string;
   name: string;
-  position?: string;
-  email?: string;
-  phone?: string;
-  showEmailOnPublicSite?: boolean;
-  showPhoneOnPublicSite?: boolean;
+  shortName?: string;
+  logo?: string;
+  portalSlug?: string;
+  associationId?: string;
+  parentAssociationId?: string;
+  colors: { primary: string; secondary: string };
+  contact: { email?: string; phone?: string; website?: string };
+  address: {
+    street?: string;
+    suburb?: string;
+    state?: string;
+    postcode?: string;
+    country?: string;
+  };
+  homeGround?: string;
+  committee: unknown;
 };
 
-// Generate slug from club name
-function generateSlug(name: string): string {
-  return name
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/(^-|-$)/g, "");
-}
+async function getPublicClubContactBySlugOrId(
+  clubIdOrSlug: string,
+): Promise<PublicClubContact | null> {
+  const key = String(clubIdOrSlug ?? "").trim();
+  if (!key) return null;
 
-async function getClubBySlug(slug: string) {
-  const client = new MongoClient(process.env.MONGODB_URI!);
+  const client = await clientPromise;
+  const db = client.db(process.env.DB_NAME || "hockey-app");
 
-  try {
-    await client.connect();
-    const database = client.db(process.env.DB_NAME || "hockey-app");
-    const clubsCollection = database.collection("clubs");
-
-    // Get all active clubs and find by slug
-    const clubs = await clubsCollection.find({ active: true }).toArray();
-
-    const club = clubs.find((c) => {
-      const clubSlug = c.slug || generateSlug(c.name || c.title);
-      return clubSlug === slug;
-    });
-
-    if (!club) return null;
-
-    return {
-      id: club.id,
-      name: club.name || club.title,
-      shortName: club.shortName || club.abbreviation,
-      slug: club.slug || generateSlug(club.name || club.title),
-      logo: club.logo || club.iconSrc,
-      colors: club.colors || {
-        primary: club.color || "#06054e",
-        secondary: club.bgColor || "#090836",
+  const club =
+    (await db.collection("clubs").findOne(
+      { slug: key },
+      {
+        projection: {
+          id: 1,
+          slug: 1,
+          name: 1,
+          title: 1,
+          shortName: 1,
+          abbreviation: 1,
+          logo: 1,
+          iconSrc: 1,
+          portalSlug: 1,
+          associationId: 1,
+          parentAssociationId: 1,
+          colors: 1,
+          color: 1,
+          bgColor: 1,
+          contact: 1,
+          href: 1,
+          address: 1,
+          homeGround: 1,
+          committee: 1,
+          contacts: 1,
+          active: 1,
+        },
       },
-      contact: club.contact || {
-        email: "",
-        phone: "",
-        website: club.href || "",
+    )) ??
+    (await db.collection("clubs").findOne(
+      { id: key },
+      {
+        projection: {
+          id: 1,
+          slug: 1,
+          name: 1,
+          title: 1,
+          shortName: 1,
+          abbreviation: 1,
+          logo: 1,
+          iconSrc: 1,
+          portalSlug: 1,
+          associationId: 1,
+          parentAssociationId: 1,
+          colors: 1,
+          color: 1,
+          bgColor: 1,
+          contact: 1,
+          href: 1,
+          address: 1,
+          homeGround: 1,
+          committee: 1,
+          contacts: 1,
+          active: 1,
+        },
       },
-      address: club.address || {
-        street: "",
-        suburb: "",
-        state: "QLD",
-        postcode: "",
-        country: "Australia",
-      },
-      socialMedia: club.socialMedia || {
-        facebook: club.facebookUrl || "",
-        instagram: club.instagramUrl || "",
-        twitter: club.twitterUrl || "",
-      },
-      committee: club.committee || club.contacts || [],
-      homeGround: club.homeGround || "",
-      established: club.established || "",
-    };
-  } finally {
-    await client.close();
-  }
-}
+    ));
 
-export async function generateStaticParams() {
-  const client = new MongoClient(process.env.MONGODB_URI!);
+  if (!club) return null;
+  if (club.active === false) return null;
 
-  try {
-    await client.connect();
-    const database = client.db(process.env.DB_NAME || "hockey-app");
-    const clubsCollection = database.collection("clubs");
+  const id = String(club.id ?? "");
+  const slug = String(club.slug ?? id).trim();
+  const name = String(club.name ?? club.title ?? "").trim();
+  if (!id || !slug || !name) return null;
 
-    const clubs = await clubsCollection.find({ active: true }).toArray();
+  const colors = (club.colors ?? null) as any;
+  const primary =
+    String(colors?.primaryColor ?? colors?.primary ?? club.color ?? "#06054e") ||
+    "#06054e";
+  const secondary =
+    String(colors?.secondaryColor ?? colors?.secondary ?? club.bgColor ?? "#0b0a3a") ||
+    "#0b0a3a";
 
-    return clubs.map((club) => ({
-      slug: club.slug || generateSlug(club.name || club.title),
-    }));
-  } finally {
-    await client.close();
-  }
+  const c = (club.contact ?? null) as any;
+  const website =
+    (typeof c?.website === "string" && c.website.trim()) ||
+    (typeof club.href === "string" && club.href.trim()) ||
+    "";
+
+  return {
+    id,
+    slug,
+    name,
+    shortName: club.shortName ? String(club.shortName) : club.abbreviation ? String(club.abbreviation) : undefined,
+    logo:
+      (typeof club.logo === "string" && club.logo) ||
+      (typeof club.iconSrc === "string" && club.iconSrc) ||
+      undefined,
+    portalSlug: club.portalSlug ? String(club.portalSlug) : undefined,
+    associationId: club.associationId ? String(club.associationId) : undefined,
+    parentAssociationId: club.parentAssociationId
+      ? String(club.parentAssociationId)
+      : undefined,
+    colors: { primary, secondary },
+    contact: {
+      email: typeof c?.email === "string" && c.email.trim() ? c.email.trim() : undefined,
+      phone: typeof c?.phone === "string" && c.phone.trim() ? c.phone.trim() : undefined,
+      website: website ? website : undefined,
+    },
+    address: {
+      street: typeof club.address?.street === "string" ? club.address.street : undefined,
+      suburb: typeof club.address?.suburb === "string" ? club.address.suburb : undefined,
+      state: typeof club.address?.state === "string" ? club.address.state : undefined,
+      postcode: typeof club.address?.postcode === "string" ? club.address.postcode : undefined,
+      country: typeof club.address?.country === "string" ? club.address.country : undefined,
+    },
+    homeGround: club.homeGround ? String(club.homeGround) : undefined,
+    committee: club.committee ?? club.contacts ?? null,
+  };
 }
 
 export default async function ClubContactPage({
   params,
+  searchParams,
 }: {
-  params: Promise<{ slug: string }>;
+  params: Promise<{ clubId: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const { slug } = await params;
-  const club = await getClubBySlug(slug);
+  const { clubId } = await params;
+  const sp = await searchParams;
+  const tenant: PublicTenantPayload | null = await getPublicTenantForServerPage(sp);
+
+  const club = await getPublicClubContactBySlugOrId(clubId);
 
   if (!club) {
     notFound();
   }
+
+  if (tenant?.kind === "club" && tenant.id !== club.id) notFound();
+  if (tenant?.kind === "association") {
+    const owner = club.associationId ?? club.parentAssociationId ?? "";
+    if (!owner || owner !== tenant.id) notFound();
+  }
+
+  const committee = sanitizeCommitteeForPublic(club.committee);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
@@ -147,7 +216,7 @@ export default async function ClubContactPage({
 
           {/* Back Button */}
           <Link
-            href={`/clubs/${slug}`}
+            href={`/clubs/${encodeURIComponent(club.slug)}`}
             className="px-6 py-3 bg-white/20 backdrop-blur-sm hover:bg-white/30 rounded-full text-white font-black text-sm transition-all"
           >
             ← Back to Club
@@ -201,6 +270,25 @@ export default async function ClubContactPage({
                   </div>
                 </div>
               )}
+
+              {club.contact.website ? (
+                <div className="flex items-start gap-3">
+                  <span className="text-2xl">🌐</span>
+                  <div className="flex-1">
+                    <p className="text-xs font-bold text-slate-500 uppercase mb-1">
+                      Website
+                    </p>
+                    <a
+                      href={club.contact.website}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-sm text-indigo-600 hover:text-indigo-800 font-semibold break-all"
+                    >
+                      {club.contact.website}
+                    </a>
+                  </div>
+                </div>
+              ) : null}
             </div>
           </div>
 
@@ -288,7 +376,7 @@ export default async function ClubContactPage({
 
           {/* Table Content */}
           <div className="p-6">
-            {club.committee.length > 0 ? (
+            {committee.length > 0 ? (
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
@@ -308,7 +396,7 @@ export default async function ClubContactPage({
                     </tr>
                   </thead>
                   <tbody>
-                    {club.committee.map((member: CommitteeMember, index: number) => (
+                    {committee.map((member, index: number) => (
                       <tr
                         key={member.id}
                         className={`border-b border-slate-100 hover:bg-slate-50 transition-colors ${
@@ -329,7 +417,7 @@ export default async function ClubContactPage({
                           </p>
                         </td>
                         <td className="py-4 px-4">
-                          {member.email && member.showEmailOnPublicSite === true ? (
+                          {member.email ? (
                             <a
                               href={`mailto:${member.email}`}
                               className="text-sm text-indigo-600 hover:text-indigo-800 hover:underline break-all"
@@ -341,7 +429,7 @@ export default async function ClubContactPage({
                           )}
                         </td>
                         <td className="py-4 px-4">
-                          {member.phone && member.showPhoneOnPublicSite === true ? (
+                          {member.phone ? (
                             <a
                               href={`tel:${member.phone}`}
                               className="text-sm text-indigo-600 hover:text-indigo-800 hover:underline"
@@ -359,7 +447,7 @@ export default async function ClubContactPage({
               </div>
             ) : (
               <p className="text-slate-500 text-center py-8">
-                No committee information available
+                No public committee contacts available yet
               </p>
             )}
           </div>
@@ -368,7 +456,7 @@ export default async function ClubContactPage({
         {/* Back Button */}
         <div className="mt-12 text-center">
           <Link
-            href={`/clubs/${slug}`}
+            href={`/clubs/${encodeURIComponent(club.slug)}`}
             className="inline-flex items-center gap-2 px-8 py-4 rounded-full text-white font-black transition-all hover:shadow-lg"
             style={{
               background: `linear-gradient(135deg, ${club.colors.primary}, ${club.colors.secondary})`,

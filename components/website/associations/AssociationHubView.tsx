@@ -416,6 +416,12 @@ export default async function AssociationHubView({
             <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-sky-200">
               Contacts
             </h2>
+            <Link
+              href={`/associations/${encodeURIComponent(associationId)}/contacts`}
+              className="text-[10px] font-black uppercase tracking-widest text-white/60 hover:text-white"
+            >
+              Contact page →
+            </Link>
           </div>
           <p className="mt-2 text-xs text-white/55">
             Committee and public contacts published by this association.
