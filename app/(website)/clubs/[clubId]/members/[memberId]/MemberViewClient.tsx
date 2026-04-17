@@ -14,6 +14,7 @@ import AddressSection from "@/components/member-sections/AddressSection";
 import HealthcareSection from "@/components/member-sections/HealthcareSection";
 import MembershipSection from "@/components/member-sections/MembershipSection";
 import { User, MapPin, Heart, Award } from "lucide-react";
+import CelebrationAlerts from "@/components/celebrations/CelebrationAlerts";
 
 interface MemberViewClientProps {
   clubId: string;
@@ -231,6 +232,8 @@ export default function MemberViewClient({
             delete: true,
           }}
         />
+
+        <CelebrationAlerts memberId={memberId} clubId={clubId} />
 
         {/* Section Navigation */}
         <div className="bg-white rounded-2xl shadow-xl border border-slate-100 p-6 mb-6">
