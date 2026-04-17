@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { headers } from "next/headers";
@@ -31,8 +32,55 @@ import { getRandomHomeGallerySlides } from "@/lib/data/homeGallery";
 import { listPublicClubsByAssociation } from "@/lib/public/publicClubs";
 import { buildPathwaysCards } from "@/lib/website/pathwaysCards";
 import PathwaysGrid from "@/components/website/pathways/PathwaysGrid";
+import {
+  absolutizeOpenGraphUrl,
+  canonicalFromPath,
+} from "@/lib/seo/absolutizeMediaUrl";
+import { resolveTenantFaviconUrl } from "@/lib/tenant/resolveTenantFavicon";
+import { getPublicTenantForServerPage } from "@/lib/tenant/serverTenant";
+import { requestMetadataBase } from "@/lib/tenant/requestMetadataBase";
 
 export const dynamic = "force-dynamic";
+
+export async function generateMetadata({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}): Promise<Metadata> {
+  const sp = await searchParams;
+  const tenant = await getPublicTenantForServerPage(sp);
+  const metadataBase = await requestMetadataBase();
+  const canonical = canonicalFromPath("/", metadataBase);
+  const siteLabel =
+    tenant?.displayName ?? "Brisbane Hockey Association";
+  const description = `${siteLabel} — fixtures, results, and club information.`;
+
+  let ogImage: string | undefined;
+  if (tenant) {
+    const fav = resolveTenantFaviconUrl(tenant);
+    ogImage = absolutizeOpenGraphUrl(fav, metadataBase);
+  }
+  if (!ogImage) {
+    ogImage = new URL("/icons/BHA-bg.png", metadataBase).href;
+  }
+
+  return {
+    alternates: { canonical },
+    openGraph: {
+      type: "website",
+      url: canonical,
+      title: siteLabel,
+      description,
+      images: [{ url: ogImage, alt: siteLabel }],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: siteLabel,
+      description,
+      images: [ogImage],
+    },
+  };
+}
 
 function hexToRgba(hex: string, alpha: number): string | null {
   const h = hex.trim().replace(/^#/, "");
@@ -244,7 +292,6 @@ export default async function HomePage({
     image: n.image,
     imageUrl: n.imageUrl,
     videoUrl: n.videoUrl,
-    attachments: n.attachments,
     author: n.author,
   }));
 

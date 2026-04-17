@@ -1,23 +1,64 @@
 // Shared layout for all club pages - with padding for fixed main header
 
+import type { Metadata } from "next";
+import type { ComponentProps } from "react";
 import Link from "next/link";
 import ClubSiteShell from "@/components/clubs/ClubSiteShell";
+import { loadClubPublicDocumentByUrlKey } from "@/lib/public/loadClubPublicDocument";
+import {
+  absolutizeOpenGraphUrl,
+  canonicalFromPath,
+} from "@/lib/seo/absolutizeMediaUrl";
+import { requestMetadataBase } from "@/lib/tenant/requestMetadataBase";
 
-async function getClub(clubId: string) {
-  const res = await fetch(
-    `${
-      process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000"
-    }/api/clubs/${clubId}`,
-    {
-      cache: "no-store",
-    },
-  );
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ clubId: string }>;
+}): Promise<Metadata> {
+  const { clubId } = await params;
+  const club = await loadClubPublicDocumentByUrlKey(clubId);
+  const metadataBase = await requestMetadataBase();
 
-  if (!res.ok) {
-    return null;
+  if (!club) {
+    return { title: "Club" };
   }
 
-  return res.json();
+  const name = String(
+    (club.name as string | undefined) ??
+      (club.title as string | undefined) ??
+      "Club",
+  );
+  const slug = String((club.slug as string | undefined) || clubId).trim();
+  const path = `/clubs/${slug}`;
+  const canonical = canonicalFromPath(path, metadataBase);
+
+  const logoRaw =
+    (club.logo as string | undefined) ||
+    (club.iconSrc as string | undefined) ||
+    (typeof club.icon === "string" ? club.icon : undefined);
+  const ogImage = absolutizeOpenGraphUrl(logoRaw, metadataBase);
+
+  const description = `${name} — teams, registration, and club information.`;
+
+  return {
+    title: name,
+    description,
+    alternates: { canonical },
+    openGraph: {
+      type: "website",
+      title: name,
+      description,
+      url: canonical,
+      images: ogImage ? [{ url: ogImage, alt: name }] : undefined,
+    },
+    twitter: {
+      card: ogImage ? "summary_large_image" : "summary",
+      title: name,
+      description,
+      images: ogImage ? [ogImage] : undefined,
+    },
+  };
 }
 
 export default async function ClubLayout({
@@ -28,7 +69,7 @@ export default async function ClubLayout({
   params: Promise<{ clubId: string }>;
 }) {
   const { clubId } = await params;
-  const club = await getClub(clubId);
+  const club = await loadClubPublicDocumentByUrlKey(clubId);
 
   if (!club) {
     return (
@@ -49,10 +90,14 @@ export default async function ClubLayout({
     );
   }
 
-  const routeSlug = club.slug || clubId;
+  const routeSlug =
+    String((club.slug as string | undefined) || "").trim() || clubId;
 
   return (
-    <ClubSiteShell club={club} routeSlug={routeSlug}>
+    <ClubSiteShell
+      club={club as ComponentProps<typeof ClubSiteShell>["club"]}
+      routeSlug={routeSlug}
+    >
       {children}
     </ClubSiteShell>
   );

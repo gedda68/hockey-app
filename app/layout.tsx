@@ -38,6 +38,7 @@ export async function generateMetadata(): Promise<Metadata> {
     const iconUrl = resolveTenantFaviconUrl(tenant);
     const absoluteIcon = absolutizeMetadataIcon(iconUrl, metadataBase);
     const mime = absoluteIcon ? faviconMimeFromUrl(absoluteIcon) : undefined;
+    const ogIcon = absoluteIcon ?? undefined;
     return {
       metadataBase,
       title: {
@@ -48,9 +49,22 @@ export async function generateMetadata(): Promise<Metadata> {
       icons: absoluteIcon
         ? { icon: [{ url: absoluteIcon, ...(mime ? { type: mime } : {}) }] }
         : undefined,
+      openGraph: {
+        type: "website",
+        siteName: tenant.displayName,
+        locale: "en_AU",
+        ...(ogIcon ? { images: [{ url: ogIcon, alt: tenant.displayName }] } : {}),
+      },
+      twitter: {
+        card: ogIcon ? "summary_large_image" : "summary",
+        title: tenant.displayName,
+        description: `${tenant.displayName} — fixtures, results, and club information.`,
+        ...(ogIcon ? { images: [ogIcon] } : {}),
+      },
     };
   }
 
+  const defaultOg = new URL("/icons/BHA-bg.png", metadataBase).href;
   return {
     metadataBase,
     title: {
@@ -58,6 +72,18 @@ export async function generateMetadata(): Promise<Metadata> {
       template: `%s | Brisbane Hockey Association`,
     },
     description: "Brisbane Hockey Association Management System",
+    openGraph: {
+      type: "website",
+      siteName: "Brisbane Hockey Association",
+      locale: "en_AU",
+      images: [{ url: defaultOg, alt: "Brisbane Hockey Association" }],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: "Brisbane Hockey Association",
+      description: "Brisbane Hockey Association — fixtures, results, and club information.",
+      images: [defaultOg],
+    },
   };
 }
 
