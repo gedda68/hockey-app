@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   publicNewsMongoFilter,
+  publicNewsMongoFilterForAssociationHub,
+  publicNewsMongoFilterForClubHub,
   parseNewsScope,
 } from "@/lib/portal/newsScope";
 import type { PublicTenantPayload } from "@/lib/tenant/portalHost";
@@ -27,6 +29,20 @@ describe("publicNewsMongoFilter", () => {
     expect(publicNewsMongoFilter(t)).toEqual({
       scopeType: "association",
       scopeId: "bha",
+    });
+  });
+
+  it("association hub filter matches association tenant filter", () => {
+    expect(publicNewsMongoFilterForAssociationHub("bha")).toEqual({
+      scopeType: "association",
+      scopeId: "bha",
+    });
+  });
+
+  it("club hub filter scopes to club id", () => {
+    expect(publicNewsMongoFilterForClubHub("club-1")).toEqual({
+      scopeType: "club",
+      scopeId: "club-1",
     });
   });
 });

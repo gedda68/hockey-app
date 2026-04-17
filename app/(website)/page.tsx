@@ -13,7 +13,7 @@ import { getUpcomingMatches } from "@/lib/data/matches";
 import { getCurrentSeasonStandings } from "@/lib/data/standings";
 import { getClubs } from "@/lib/data/clubs";
 import { getPublicNewsItems } from "@/lib/data/publicNews";
-import clientPromise from "@/lib/mongodb";
+import clientPromise, { isMongoConnectionError } from "@/lib/mongodb";
 import {
   isLocalDevHostname,
   resolvePortalSlugForRequest,
@@ -103,27 +103,38 @@ export default async function HomePage({
   let associationPortal: PublicTenantPayload | null = null;
 
   if (portal) {
-    const client = await clientPromise;
-    const db = client.db(process.env.DB_NAME || "hockey-app");
-    const tenant = await resolveTenantByPortalSlug(db, portal);
-    if (tenant?.kind === "association") {
-      associationPortal = tenant;
-    }
+    try {
+      const client = await clientPromise;
+      const db = client.db(process.env.DB_NAME || "hockey-app");
+      const tenant = await resolveTenantByPortalSlug(db, portal);
+      if (tenant?.kind === "association") {
+        associationPortal = tenant;
+      }
 
-    if (tenant?.kind === "club" && tenant.pathSlug) {
-      const base = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
-      const res = await fetch(
-        `${base}/api/clubs/${encodeURIComponent(tenant.pathSlug)}`,
-        { cache: "no-store" },
-      );
-      const club = res.ok ? await res.json() : null;
-      if (club) {
-        const routeSlug = (club.slug as string) || tenant.pathSlug;
-        return (
-          <ClubSiteShell club={club} routeSlug={routeSlug}>
-            <ClubSiteDashboard clubId={routeSlug} />
-          </ClubSiteShell>
+      if (tenant?.kind === "club" && tenant.pathSlug) {
+        const base = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
+        const res = await fetch(
+          `${base}/api/clubs/${encodeURIComponent(tenant.pathSlug)}`,
+          { cache: "no-store" },
         );
+        const club = res.ok ? await res.json() : null;
+        if (club) {
+          const routeSlug = (club.slug as string) || tenant.pathSlug;
+          return (
+            <ClubSiteShell club={club} routeSlug={routeSlug}>
+              <ClubSiteDashboard clubId={routeSlug} />
+            </ClubSiteShell>
+          );
+        }
+      }
+    } catch (e) {
+      if (isMongoConnectionError(e)) {
+        console.error(
+          "[HomePage] MongoDB unavailable while resolving portal; continuing as apex.",
+          e instanceof Error ? e.message : e,
+        );
+      } else {
+        throw e;
       }
     }
   }
@@ -134,18 +145,31 @@ export default async function HomePage({
     ? await listPublicClubsByAssociation(associationId, { limit: 24 })
     : [];
 
-  const [upcomingMatches, divisions, jsonClubs, newsItems, gallerySlides] =
-    await Promise.all([
+  const jsonClubs = await getClubs();
+  const gallerySlides = await getRandomHomeGallerySlides(7, associationPortal);
+
+  let upcomingMatches: Awaited<ReturnType<typeof getUpcomingMatches>> = [];
+  let divisions: Awaited<ReturnType<typeof getCurrentSeasonStandings>> = [];
+  let newsItems: Awaited<ReturnType<typeof getPublicNewsItems>> = [];
+
+  try {
+    [upcomingMatches, divisions, newsItems] = await Promise.all([
       getUpcomingMatches(
-        associationId
-          ? { owningAssociationId: associationId }
-          : undefined,
+        associationId ? { owningAssociationId: associationId } : undefined,
       ),
       getCurrentSeasonStandings(),
-      getClubs(),
       getPublicNewsItems(8, associationPortal),
-      getRandomHomeGallerySlides(7, associationPortal),
     ]);
+  } catch (e) {
+    if (isMongoConnectionError(e)) {
+      console.error(
+        "[HomePage] MongoDB unavailable (fixtures, standings, and news sections are empty).",
+        e instanceof Error ? e.message : e,
+      );
+    } else {
+      throw e;
+    }
+  }
 
   const clubsForSidebar =
     tenantClubRows.length > 0

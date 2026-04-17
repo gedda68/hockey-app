@@ -1,7 +1,11 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import clientPromise from "@/lib/mongodb";
-import { getPublicNewsItems } from "@/lib/data/publicNews";
+import {
+  getPublicNewsFlowdownForClub,
+  serializeNewsFlowdown,
+} from "@/lib/data/newsFlowdown";
+import NewsFlowdownModal from "@/components/website/news/NewsFlowdownModal";
 import type { PublicTenantPayload } from "@/lib/tenant/portalHost";
 import { sanitizeCommitteeForPublic } from "@/lib/portal/publicContacts";
 import MyFixturesStrip from "@/components/matches/MyFixturesStrip";
@@ -125,7 +129,9 @@ export default async function ClubHubView({
     if (!owner || owner !== tenant.id) notFound();
   }
 
-  const news = await getPublicNewsItems(6, tenant);
+  const newsFlow = serializeNewsFlowdown(
+    await getPublicNewsFlowdownForClub(club.id, { perSectionLimit: 10 }),
+  );
   const committee = sanitizeCommitteeForPublic(club.committee);
   const primary = clubPrimary(club);
   const secondary = clubSecondary(club);
@@ -177,46 +183,23 @@ export default async function ClubHubView({
         <section className="mt-12">
           <div className="flex items-end justify-between gap-4">
             <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-emerald-200">
-              Latest news
+              News
             </h2>
             <Link
               href="/news"
               className="text-[10px] font-black uppercase tracking-widest text-white/60 hover:text-white"
             >
-              View all →
+              News index →
             </Link>
           </div>
-          <ul className="mt-4 space-y-2">
-            {news.length === 0 ? (
-              <li className="text-sm text-white/50">
-                No published news on this portal yet.
-              </li>
-            ) : (
-              news.map((n) => (
-                <li
-                  key={n.id}
-                  className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white"
-                >
-                  <div className="text-xs text-white/55">
-                    {n.publishDate
-                      ? n.publishDate.toLocaleDateString("en-AU", {
-                          day: "numeric",
-                          month: "short",
-                          year: "numeric",
-                        })
-                      : null}
-                    {n.author ? ` · ${n.author}` : ""}
-                  </div>
-                  <div className="mt-1 font-bold">{n.title}</div>
-                  {n.content ? (
-                    <p className="mt-2 text-sm text-white/70 line-clamp-3 whitespace-pre-wrap">
-                      {n.content}
-                    </p>
-                  ) : null}
-                </li>
-              ))
-            )}
-          </ul>
+          <p className="mt-2 text-xs text-white/55">
+            This club first, then news from your parent association and further ancestors (up to
+            the root) that flow down the tree — not sibling clubs or bodies. Tap a headline for
+            the full story.
+          </p>
+          <div className="mt-4">
+            <NewsFlowdownModal sections={newsFlow.sections} variant="dark" />
+          </div>
         </section>
 
         <section className="mt-12">

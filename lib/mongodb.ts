@@ -1,6 +1,46 @@
-import { MongoClient, Db } from "mongodb";
+import dns from "node:dns";
+import { MongoClient, Db, type MongoClientOptions } from "mongodb";
 
-const options = {};
+// Prefer IPv4 for mongodb+srv on Windows — dual-stack / IPv6 paths sometimes fail TLS to Atlas.
+// Set MONGODB_DNS_IPV4FIRST=false to skip (e.g. if you must prefer IPv6).
+if (
+  typeof dns.setDefaultResultOrder === "function" &&
+  process.env.MONGODB_DNS_IPV4FIRST !== "false" &&
+  (process.platform === "win32" || process.env.MONGODB_DNS_IPV4FIRST === "true")
+) {
+  try {
+    dns.setDefaultResultOrder("ipv4first");
+  } catch {
+    /* ignore */
+  }
+}
+
+/**
+ * Builds driver options. TLS failures (e.g. `MongoServerSelectionError` / OpenSSL
+ * `tlsv1 alert internal error`) are usually environment-specific: Atlas IP access list,
+ * VPN/proxy MITM, or Node/OpenSSL vs cluster TLS settings — not application query code.
+ *
+ * If you hit TLS handshake errors **only in local dev**, you may set (temporary workaround):
+ *   MONGODB_TLS_ALLOW_INVALID_CERTS=true
+ * in `.env.local` (honoured **only** when `NODE_ENV === "development"`). Prefer fixing Atlas
+ * network access, VPN/proxy, or using an LTS Node build. Never enable cert skipping in production.
+ */
+function buildMongoClientOptions(): MongoClientOptions {
+  const opts: MongoClientOptions = {
+    serverSelectionTimeoutMS: 30_000,
+    connectTimeoutMS: 30_000,
+    socketTimeoutMS: 120_000,
+  };
+
+  if (
+    process.env.NODE_ENV === "development" &&
+    process.env.MONGODB_TLS_ALLOW_INVALID_CERTS === "true"
+  ) {
+    Object.assign(opts, { tlsAllowInvalidCertificates: true });
+  }
+
+  return opts;
+}
 
 function getUri(): string {
   const uri = process.env.MONGODB_URI;
@@ -12,8 +52,31 @@ function getUri(): string {
   return uri;
 }
 
+function connectMongo(uri: string, options: MongoClientOptions): Promise<MongoClient> {
+  return new MongoClient(uri, options).connect().catch((err: unknown) => {
+    if (process.env.NODE_ENV === "development") {
+      const globalWithMongo = global as typeof globalThis & {
+        _mongoClientPromise?: Promise<MongoClient>;
+      };
+      globalWithMongo._mongoClientPromise = undefined;
+    }
+    if (cachedPromise) {
+      cachedPromise = undefined;
+    }
+    const msg = err instanceof Error ? err.message : String(err);
+    if (/tls|ssl|TLS|SSL|MongoServerSelectionError/i.test(msg)) {
+      console.error(
+        "[mongodb] Connection failed (TLS/network). Check Atlas Network Access, VPN, and MONGODB_URI. " +
+          "For a local-only workaround see MONGODB_TLS_ALLOW_INVALID_CERTS in lib/mongodb.ts.",
+      );
+    }
+    throw err;
+  });
+}
+
 function createClientPromise(): Promise<MongoClient> {
   const uri = getUri();
+  const options = buildMongoClientOptions();
 
   if (process.env.NODE_ENV === "development") {
     const globalWithMongo = global as typeof globalThis & {
@@ -21,14 +84,12 @@ function createClientPromise(): Promise<MongoClient> {
     };
 
     if (!globalWithMongo._mongoClientPromise) {
-      const client = new MongoClient(uri, options);
-      globalWithMongo._mongoClientPromise = client.connect();
+      globalWithMongo._mongoClientPromise = connectMongo(uri, options);
     }
     return globalWithMongo._mongoClientPromise;
   }
 
-  const client = new MongoClient(uri, options);
-  return client.connect();
+  return connectMongo(uri, options);
 }
 
 let cachedPromise: Promise<MongoClient> | undefined;
@@ -78,4 +139,21 @@ export function getDatabaseName(): string {
 export async function getDatabase(): Promise<Db> {
   const client = await clientPromise;
   return client.db(getDatabaseName());
+}
+
+/** True when the DB is unreachable (TLS, network, Atlas selection) — safe to degrade UI. */
+export function isMongoConnectionError(e: unknown): boolean {
+  const name =
+    e && typeof e === "object" && "name" in e
+      ? String((e as { name?: unknown }).name)
+      : "";
+  const msg = e instanceof Error ? e.message : String(e);
+  return (
+    name === "MongoServerSelectionError" ||
+    name === "MongoNetworkError" ||
+    name === "MongoTimeoutError" ||
+    /MongoServerSelectionError|MongoNetworkError|tlsv1 alert|SSL alert|ECONNREFUSED|ETIMEDOUT|ENOTFOUND/i.test(
+      msg,
+    )
+  );
 }

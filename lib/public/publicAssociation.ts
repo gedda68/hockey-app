@@ -3,6 +3,8 @@ import clientPromise from "@/lib/mongodb";
 export type PublicAssociationProfile = {
   associationId: string;
   code: string;
+  /** Host label for `{portalSlug}.{PORTAL_ROOT_DOMAIN}` when set */
+  portalSlug?: string;
   name: string;
   fullName: string;
   region: string;
@@ -37,6 +39,7 @@ export async function getPublicAssociationById(
       projection: {
         associationId: 1,
         code: 1,
+        portalSlug: 1,
         name: 1,
         fullName: 1,
         region: 1,
@@ -57,6 +60,10 @@ export async function getPublicAssociationById(
   return {
     associationId: String(a.associationId),
     code: String(a.code ?? ""),
+    portalSlug:
+      typeof a.portalSlug === "string" && a.portalSlug.trim()
+        ? a.portalSlug.trim()
+        : undefined,
     name: String(a.name ?? ""),
     fullName: String(a.fullName ?? a.name ?? ""),
     region: String(a.region ?? ""),

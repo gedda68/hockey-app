@@ -39,6 +39,31 @@ export function parseNewsScope(
   return { scopeType: st, scopeId };
 }
 
+/**
+ * Public association hub: news for this association regardless of apex vs `{slug}.host`
+ * (incoming `tenant` may be null on apex, or another portal in edge layouts).
+ */
+export function publicNewsMongoFilterForAssociationHub(
+  associationId: string,
+): Filter<Record<string, unknown>> {
+  const id = String(associationId ?? "").trim();
+  if (!id) {
+    return publicNewsMongoFilter(null);
+  }
+  return { scopeType: "association", scopeId: id };
+}
+
+/** Public club hub: news scoped to this club (`scopeType=club`, `scopeId`). */
+export function publicNewsMongoFilterForClubHub(
+  clubId: string,
+): Filter<Record<string, unknown>> {
+  const id = String(clubId ?? "").trim();
+  if (!id) {
+    return publicNewsMongoFilter(null);
+  }
+  return { scopeType: "club", scopeId: id };
+}
+
 /** Public site: strict tenant filter (legacy docs without scopeType count as platform-only). */
 export function publicNewsMongoFilter(
   tenant: PublicTenantPayload | null,

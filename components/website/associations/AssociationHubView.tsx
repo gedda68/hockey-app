@@ -4,8 +4,16 @@ import { getPublicAssociationById } from "@/lib/public/publicAssociation";
 import { listPublicLeagues } from "@/lib/public/publicLeagues";
 import { listPublicTournaments } from "@/lib/public/publicTournaments";
 import { listPublicClubsByAssociation } from "@/lib/public/publicClubs";
-import { buildApexSiteOrigin } from "@/lib/tenant/subdomainUrls";
-import { getPublicNewsItems } from "@/lib/data/publicNews";
+import {
+  associationPortalPageUrl,
+  buildApexSiteOrigin,
+} from "@/lib/tenant/subdomainUrls";
+import {
+  getPublicNewsFlowdownForAssociation,
+  serializeNewsFlowdown,
+} from "@/lib/data/newsFlowdown";
+import NewsFlowdownModal from "@/components/website/news/NewsFlowdownModal";
+import { getPortalRootDomain } from "@/lib/tenant/portalHost";
 import type { PublicTenantPayload } from "@/lib/tenant/portalHost";
 import type { PublicTournamentRow } from "@/lib/public/publicTournaments";
 import MyFixturesStrip from "@/components/matches/MyFixturesStrip";
@@ -76,11 +84,21 @@ export default async function AssociationHubView({
     notFound();
   }
 
-  const [leagues, associationTournaments, news] = await Promise.all([
+  const tournamentTenant =
+    tenant?.kind === "association" && tenant.id === associationId
+      ? tenant
+      : null;
+
+  const [leagues, associationTournaments, newsFlowRaw] = await Promise.all([
     listPublicLeagues({ owningAssociationId: associationId }),
-    listPublicTournaments({ limit: 80, associationId }),
-    getPublicNewsItems(6, tenant ?? null),
+    listPublicTournaments({
+      limit: 80,
+      associationId,
+      tenant: tournamentTenant,
+    }),
+    getPublicNewsFlowdownForAssociation(associationId, { perSectionLimit: 10 }),
   ]);
+  const newsFlow = serializeNewsFlowdown(newsFlowRaw);
   const clubs = await listPublicClubsByAssociation(associationId, { limit: 24 });
 
   const clubsBack = backToClubsHref ?? `${buildApexSiteOrigin()}/clubs`;
@@ -137,6 +155,39 @@ export default async function AssociationHubView({
             Official website ↗
           </a>
         ) : null}
+
+        <div className="mt-5 rounded-2xl border border-white/15 bg-black/25 px-4 py-3 text-xs leading-relaxed text-white/75">
+          <p className="font-black uppercase tracking-widest text-[10px] text-white/50">
+            Portal scope
+          </p>
+          {onAssociationPortal ? (
+            <p className="mt-2">
+              You are on this association&apos;s portal host (
+              <span className="font-mono text-white/90">
+                {tenant.portalSlug}.{portalRoot}
+              </span>
+              ). The News block lists this body&apos;s articles first, then parent-association items
+              that flow down the tree (each row is{" "}
+              <span className="font-mono text-emerald-200/90">scopeType=association</span> for one
+              org in your chain).
+            </p>
+          ) : (
+            <p className="mt-2">
+              Hub content is for{" "}
+              <span className="font-semibold text-white">{assoc.name}</span> (
+              <span className="font-mono text-white/90">{associationId}</span>). News uses the same
+              flow-down rules on any host (this body first, then parents). For the branded
+              subdomain experience, open{" "}
+              <a
+                href={associationPortalHubUrl}
+                className="font-bold text-sky-300 underline decoration-sky-400/40 hover:decoration-sky-300"
+              >
+                this hub on the association portal
+              </a>
+              .
+            </p>
+          )}
+        </div>
 
         <nav
           className="mt-8 flex flex-wrap gap-2 border-y border-white/10 py-4"
@@ -354,37 +405,9 @@ export default async function AssociationHubView({
             </Link>
           </div>
           <p className="mt-2 text-xs text-white/55">{associationHubNewsIntro()}</p>
-          <ul className="mt-4 space-y-2">
-            {news.length === 0 ? (
-              <li className="text-sm text-white/50">
-                No published news on this portal yet.
-              </li>
-            ) : (
-              news.map((n) => (
-                <li
-                  key={n.id}
-                  className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white"
-                >
-                  <div className="text-xs text-white/55">
-                    {n.publishDate
-                      ? n.publishDate.toLocaleDateString("en-AU", {
-                          day: "numeric",
-                          month: "short",
-                          year: "numeric",
-                        })
-                      : null}
-                    {n.author ? ` · ${n.author}` : ""}
-                  </div>
-                  <div className="mt-1 font-bold">{n.title}</div>
-                  {n.content ? (
-                    <p className="mt-2 text-sm text-white/70 line-clamp-3 whitespace-pre-wrap">
-                      {n.content}
-                    </p>
-                  ) : null}
-                </li>
-              ))
-            )}
-          </ul>
+          <div className="mt-4">
+            <NewsFlowdownModal sections={newsFlow.sections} variant="dark" />
+          </div>
         </section>
 
         {/* —— Contacts —— */}
