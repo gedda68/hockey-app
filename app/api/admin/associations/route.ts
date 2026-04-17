@@ -6,6 +6,7 @@ import type { Db } from "mongodb";
 import clientPromise from "@/lib/mongodb";
 import { z, ZodError } from "zod";
 import { escapeRegex } from "@/lib/utils/regex";
+import { PublicPartnerRowsSchema } from "@/lib/tenant/partnerRowsZod";
 import {
   requirePermission,
   requireResourceAccess,
@@ -88,6 +89,7 @@ const AssociationSchema = z.object({
       accentColor: z.string().default("#ffd700"),
       logoUrl: z.string().max(2048).optional(),
       bannerUrl: z.string().max(2048).optional(),
+      partners: PublicPartnerRowsSchema.optional(),
     })
     .optional(),
 
@@ -356,6 +358,18 @@ export async function POST(request: NextRequest) {
       branding: {
         primaryColor: validated.branding?.primaryColor || "#06054e",
         secondaryColor: validated.branding?.secondaryColor || "#FFD700",
+        ...(validated.branding?.accentColor != null
+          ? { accentColor: validated.branding.accentColor }
+          : {}),
+        ...(validated.branding?.logoUrl?.trim()
+          ? { logoUrl: validated.branding.logoUrl.trim() }
+          : {}),
+        ...(validated.branding?.bannerUrl?.trim()
+          ? { bannerUrl: validated.branding.bannerUrl.trim() }
+          : {}),
+        ...(validated.branding?.partners?.length
+          ? { partners: validated.branding.partners }
+          : {}),
       },
       createdAt: new Date(),
       updatedAt: new Date(),

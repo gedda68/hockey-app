@@ -21,6 +21,10 @@
 import type { Db } from "mongodb";
 import { escapeRegex } from "@/lib/utils/regex";
 import { normalizePortalLabel } from "@/lib/tenant/portalLabels";
+import {
+  normalizePublicPartners,
+  type PublicSitePartner,
+} from "@/lib/tenant/tenantPartners";
 
 export type PublicTenantPayload = {
   kind: "association" | "club";
@@ -37,6 +41,8 @@ export type PublicTenantPayload = {
   secondaryColor: string;
   tertiaryColor: string;
   accentColor: string;
+  /** Footer + home “partners” strip (B5) */
+  partners?: PublicSitePartner[];
 };
 
 /**
@@ -201,6 +207,7 @@ export async function resolveTenantByPortalSlug(
       (typeof b.logoUrl === "string" && b.logoUrl.trim()) ||
       (typeof ar.logo === "string" && ar.logo.trim()) ||
       "";
+    const partners = normalizePublicPartners(b.partners ?? b.sponsors);
     return {
       kind: "association",
       id,
@@ -216,6 +223,7 @@ export async function resolveTenantByPortalSlug(
       secondaryColor: String(b.secondaryColor ?? DEFAULT_SECONDARY),
       tertiaryColor: String(b.tertiaryColor ?? b.secondaryColor ?? DEFAULT_TERTIARY),
       accentColor: String(b.accentColor ?? DEFAULT_ACCENT),
+      ...(partners.length ? { partners } : {}),
     };
   }
 
@@ -266,6 +274,10 @@ export async function resolveTenantByPortalSlug(
     const primary = c.primaryColor ?? c.primary ?? DEFAULT_PRIMARY;
     const secondary = c.secondaryColor ?? c.secondary ?? DEFAULT_SECONDARY;
     const accent = c.accentColor ?? c.accent ?? DEFAULT_ACCENT;
+    const cr = club as Record<string, unknown>;
+    const partners = normalizePublicPartners(
+      cr.publicPartners ?? (cr.branding as Record<string, unknown> | undefined)?.partners,
+    );
     return {
       kind: "club",
       id,
@@ -280,6 +292,7 @@ export async function resolveTenantByPortalSlug(
         c.tertiaryColor ?? c.tertiary ?? secondary ?? DEFAULT_TERTIARY,
       ),
       accentColor: String(accent),
+      ...(partners.length ? { partners } : {}),
     };
   }
 

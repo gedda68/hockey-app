@@ -63,6 +63,29 @@ export async function POST(request: NextRequest) {
         assocId,
       );
       if (scopeRes) return scopeRes;
+    } else if (category.startsWith("clubs/")) {
+      const parts = category.split("/").filter(Boolean);
+      const clubDocId = parts[1]?.trim();
+      if (!clubDocId || parts[0] !== "clubs") {
+        return NextResponse.json(
+          {
+            error:
+              "Invalid category — use clubs/{clubId}/… (e.g. clubs/{id}/partners)",
+          },
+          { status: 400 },
+        );
+      }
+      const { response: permRes } = await requirePermission(
+        request,
+        "club.settings",
+      );
+      if (permRes) return permRes;
+      const { response: scopeRes } = await requireResourceAccess(
+        request,
+        "club",
+        clubDocId,
+      );
+      if (scopeRes) return scopeRes;
     } else {
       const { response } = await requirePermission(request, "club.settings");
       if (response) return response;

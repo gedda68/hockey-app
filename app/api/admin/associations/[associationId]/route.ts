@@ -10,6 +10,7 @@ import {
   requireResourceAccess,
 } from "@/lib/auth/middleware";
 import { deriveAssociationLevelAndHierarchy } from "@/lib/domain/associationHierarchy";
+import { PublicPartnerRowsSchema } from "@/lib/tenant/partnerRowsZod";
 
 // Flexible schema for updates
 const AssociationSchema = z.object({
@@ -110,6 +111,8 @@ const AssociationSchema = z.object({
       /** Public header / home hero — full URL or site-relative path (e.g. /icons/associations/…/file.png) */
       logoUrl: z.string().max(2048).optional(),
       bannerUrl: z.string().max(2048).optional(),
+      /** Public footer + home partners strip (B5) */
+      partners: PublicPartnerRowsSchema.optional(),
     })
     .optional(),
 

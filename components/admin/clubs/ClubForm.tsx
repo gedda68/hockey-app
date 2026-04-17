@@ -35,6 +35,7 @@ import ContactSection from "./sections/ContactSection";
 import AddressSection from "./sections/AddressSection";
 import ColorsSection from "./sections/ColorsSection";
 import CommitteeSection from "./sections/CommitteeSection";
+import ClubPartnersEditor from "./ClubPartnersEditor";
 
 interface ClubFormProps {
   clubId?: string;
@@ -167,6 +168,18 @@ export default function ClubForm({
         committeePositions: Array.isArray(initialData.committeePositions)
           ? initialData.committeePositions
           : DEFAULT_CLUB_DATA.committeePositions,
+        publicPartners: Array.isArray(
+          (initialData as { publicPartners?: unknown }).publicPartners,
+        )
+          ? (
+              (initialData as { publicPartners: { name?: string; url?: string; logoUrl?: string }[] })
+                .publicPartners || []
+            ).map((p) => ({
+              name: String(p.name ?? "").trim(),
+              url: typeof p.url === "string" ? p.url.trim() : "",
+              logoUrl: typeof p.logoUrl === "string" ? p.logoUrl.trim() : "",
+            }))
+          : [],
         active: initialData.active ?? true,
       });
 
@@ -303,6 +316,14 @@ export default function ClubForm({
         committee: formData.committee,
         committeePositions: formData.committeePositions,
         active: formData.active,
+        publicPartners: (formData.publicPartners || [])
+          .filter((p) => p.name.trim())
+          .slice(0, 20)
+          .map((p) => ({
+            name: p.name.trim(),
+            ...(p.url.trim() ? { url: p.url.trim() } : {}),
+            ...(p.logoUrl.trim() ? { logoUrl: p.logoUrl.trim() } : {}),
+          })),
       };
 
       console.log("💾 SAVING CLUB:", payload);
@@ -364,7 +385,17 @@ export default function ClubForm({
       case "address":
         return <AddressSection {...props} />;
       case "colors":
-        return <ColorsSection {...props} />;
+        return (
+          <>
+            <ColorsSection {...props} />
+            <ClubPartnersEditor
+              partners={formData.publicPartners || []}
+              onChangePartners={(rows) => handleChange("publicPartners", rows)}
+              clubId={clubId}
+              isEdit={isEdit}
+            />
+          </>
+        );
       case "committee":
         return <CommitteeSection {...props} />;
       default:

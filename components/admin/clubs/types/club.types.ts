@@ -64,6 +64,9 @@ export interface ClubFormData {
   committee: CommitteeMember[];
   committeePositions: string[];
 
+  /** Public footer / portal partners (B5) — same shape as association `branding.partners` */
+  publicPartners: { name: string; url: string; logoUrl: string }[];
+
   // Status
   active: boolean;
 }
@@ -136,6 +139,7 @@ export const DEFAULT_CLUB_DATA: ClubFormData = {
 
   // Committee
   committee: [],
+  publicPartners: [],
   committeePositions: [
     "President",
     "Vice President",

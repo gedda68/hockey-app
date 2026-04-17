@@ -317,16 +317,61 @@ export default async function HomePage({
 
             <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
               <h2 className="text-lg font-black uppercase text-[#06054e] mb-4">
-                Sponsors
+                Partners &amp; sponsors
               </h2>
-              <div className="rounded-xl border-2 border-dashed border-slate-200 bg-slate-50 p-6 text-center">
-                <p className="text-sm font-bold text-slate-500">
-                  Partner logos and sponsor messaging will be added here.
-                </p>
-                <p className="text-xs text-slate-400 mt-2">
-                  Contact the association to support local hockey.
-                </p>
-              </div>
+              {associationPortal?.partners && associationPortal.partners.length > 0 ? (
+                <ul className="space-y-5">
+                  {associationPortal.partners.map((p) => (
+                    <li key={p.name} className="text-center">
+                      {p.url ? (
+                        <a
+                          href={p.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-block rounded-xl border border-slate-100 p-3 transition hover:border-[#06054e]/25 hover:shadow-sm"
+                        >
+                          {p.logoUrl ? (
+                            // eslint-disable-next-line @next/next/no-img-element -- external partner assets
+                            <img
+                              src={p.logoUrl}
+                              alt=""
+                              className="mx-auto max-h-12 w-auto max-w-[160px] object-contain"
+                            />
+                          ) : null}
+                          <div className="mt-2 text-[10px] font-black uppercase text-slate-800">
+                            {p.name}
+                          </div>
+                        </a>
+                      ) : (
+                        <div className="rounded-xl border border-slate-100 p-3">
+                          {p.logoUrl ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={p.logoUrl}
+                              alt=""
+                              className="mx-auto max-h-12 w-auto max-w-[160px] object-contain"
+                            />
+                          ) : null}
+                          <div className="mt-2 text-[10px] font-black uppercase text-slate-800">
+                            {p.name}
+                          </div>
+                        </div>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <div className="rounded-xl border-2 border-dashed border-slate-200 bg-slate-50 p-6 text-center">
+                  <p className="text-sm font-bold text-slate-500">
+                    {associationPortal
+                      ? "No partners listed yet for this portal. Add them under Admin → Association → Branding."
+                      : "Partner logos appear here on association portals when configured in branding."}
+                  </p>
+                  <p className="mt-2 text-xs text-slate-400">
+                    The site footer also shows the same partner strip on every page.
+                  </p>
+                </div>
+              )}
             </div>
 
             <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
