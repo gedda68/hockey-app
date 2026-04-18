@@ -111,6 +111,10 @@ const AssociationSchema = z.object({
       /** Public header / home hero — full URL or site-relative path (e.g. /icons/associations/…/file.png) */
       logoUrl: z.string().max(2048).optional(),
       bannerUrl: z.string().max(2048).optional(),
+      /** Admin shell top bar — replaces colour gradient when set; null clears */
+      adminHeaderBannerUrl: z
+        .union([z.string().max(2048), z.null()])
+        .optional(),
       /** Public footer + home partners strip (B5) */
       partners: PublicPartnerRowsSchema.optional(),
     })

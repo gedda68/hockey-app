@@ -131,6 +131,7 @@ export default function ClubForm({
     Record<string, Record<string, string>>
   >({});
   const [isSaving, setIsSaving] = useState(false);
+  const [adminHeaderUploading, setAdminHeaderUploading] = useState(false);
   const [formData, setFormData] = useState<ClubFormData>(DEFAULT_CLUB_DATA);
 
   // Hydrate on edit
@@ -151,6 +152,12 @@ export default function ClubForm({
         primaryColor: initialData.colors?.primary || "#06054e",
         secondaryColor: initialData.colors?.secondary || "#FFD700",
         accentColor: initialData.colors?.accent || "#ffffff",
+        adminHeaderBannerUrl:
+          (
+            initialData as {
+              branding?: { adminHeaderBannerUrl?: string };
+            }
+          ).branding?.adminHeaderBannerUrl?.trim() || "",
         street: initialData.address?.street || "",
         suburb: initialData.address?.suburb || "",
         city: initialData.address?.city || "",
@@ -254,6 +261,47 @@ export default function ClubForm({
   const allSectionsComplete = () =>
     ["identity", "address"].every((s) => completedSections.has(s as SectionId));
 
+  const uploadAdminHeaderBanner = async (file: File) => {
+    if (!isEdit || !formData.id.trim()) {
+      toastError(
+        "Save the club first",
+        "Create the club and open edit mode to upload an admin header image.",
+      );
+      return;
+    }
+    setAdminHeaderUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("category", `clubs/${encodeURIComponent(formData.id)}/branding`);
+      const res = await fetch("/api/admin/upload/image", {
+        method: "POST",
+        body: fd,
+        credentials: "include",
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(
+          typeof data.error === "string" ? data.error : "Upload failed",
+        );
+      }
+      const url = typeof data.url === "string" ? data.url : "";
+      if (!url) throw new Error("No file URL returned");
+      handleChange("adminHeaderBannerUrl", url);
+      success(
+        "Image uploaded",
+        "Admin header URL filled in — click Save Changes to persist.",
+      );
+    } catch (e) {
+      toastError(
+        "Upload failed",
+        e instanceof Error ? e.message : "Unknown error",
+      );
+    } finally {
+      setAdminHeaderUploading(false);
+    }
+  };
+
   const handleSave = async () => {
     // Validate required sections
     const requiredSections: SectionId[] = ["identity", "address"];
@@ -347,6 +395,17 @@ export default function ClubForm({
             ...(p.url.trim() ? { url: p.url.trim() } : {}),
             ...(p.logoUrl.trim() ? { logoUrl: p.logoUrl.trim() } : {}),
           })),
+        branding: {
+          ...(initialData &&
+          typeof (initialData as { branding?: unknown }).branding === "object" &&
+          (initialData as { branding: Record<string, unknown> }).branding
+            ? {
+                ...(initialData as { branding: Record<string, unknown> })
+                  .branding,
+              }
+            : {}),
+          adminHeaderBannerUrl: formData.adminHeaderBannerUrl.trim() || null,
+        },
       };
 
       console.log("💾 SAVING CLUB:", payload);
@@ -410,7 +469,13 @@ export default function ClubForm({
       case "colors":
         return (
           <>
-            <ColorsSection {...props} />
+            <ColorsSection
+              {...props}
+              clubIdForUpload={isEdit ? formData.id : undefined}
+              isEditMode={isEdit}
+              adminHeaderUploading={adminHeaderUploading}
+              onAdminHeaderBannerFile={(f) => void uploadAdminHeaderBanner(f)}
+            />
             <ClubPartnersEditor
               partners={formData.publicPartners || []}
               onChangePartners={(rows) => handleChange("publicPartners", rows)}

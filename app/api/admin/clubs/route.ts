@@ -386,6 +386,21 @@ export async function PUT(request: NextRequest) {
     // Cleanup internal MongoDB _id if present in body
     delete (newData as any)._id;
 
+    // Deep-merge branding so partial updates (e.g. admin header banner only) do not wipe other keys
+    const bodyBranding = (body as { branding?: Record<string, unknown> }).branding;
+    if (bodyBranding && typeof bodyBranding === "object") {
+      const oldDoc = oldData as unknown as Record<string, unknown>;
+      const prevBrand = oldDoc.branding;
+      const oldBranding =
+        prevBrand && typeof prevBrand === "object" && !Array.isArray(prevBrand)
+          ? { ...(prevBrand as Record<string, unknown>) }
+          : {};
+      (newData as Record<string, unknown>).branding = {
+        ...oldBranding,
+        ...bodyBranding,
+      };
+    }
+
     await db.collection("clubs").updateOne({ id }, { $set: newData });
 
     await logClubChange(

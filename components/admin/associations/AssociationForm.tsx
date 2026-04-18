@@ -82,6 +82,7 @@ interface AssociationInitialData {
     accentColor?: string;
     logoUrl?: string;
     bannerUrl?: string;
+    adminHeaderBannerUrl?: string;
   };
   fees?: AssociationFee[];
   positions?: AssociationPosition[];
@@ -199,6 +200,8 @@ const defaultFormData = {
   accentColor: "#ffd700",
   brandingLogoUrl: "",
   brandingBannerUrl: "",
+  /** Admin shell top bar — full-width image instead of gradient when set */
+  brandingAdminHeaderBannerUrl: "",
   /** Public footer + portal home (B5) */
   brandingPartners: [] as { name: string; url: string; logoUrl: string }[],
 
@@ -286,7 +289,9 @@ export default function AssociationForm({
     Record<string, Record<string, string>>
   >({});
   const [isSaving, setIsSaving] = useState(false);
-  const [brandingUpload, setBrandingUpload] = useState<null | "logo" | "banner">(
+  const [brandingUpload, setBrandingUpload] = useState<
+    null | "logo" | "banner" | "adminHeaderBanner"
+  >(
     null,
   );
   const [partnerUploadIndex, setPartnerUploadIndex] = useState<number | null>(null);
@@ -329,6 +334,9 @@ export default function AssociationForm({
         accentColor: initialData.branding?.accentColor || "#ffd700",
         brandingLogoUrl: initialData.branding?.logoUrl?.trim() || "",
         brandingBannerUrl: initialData.branding?.bannerUrl?.trim() || "",
+        brandingAdminHeaderBannerUrl:
+          (initialData.branding as { adminHeaderBannerUrl?: string } | undefined)
+            ?.adminHeaderBannerUrl?.trim() || "",
         brandingPartners: Array.isArray(
           (initialData.branding as { partners?: unknown } | undefined)?.partners,
         )
@@ -550,6 +558,8 @@ export default function AssociationForm({
           ...(formData.brandingBannerUrl.trim()
             ? { bannerUrl: formData.brandingBannerUrl.trim() }
             : {}),
+          adminHeaderBannerUrl:
+            formData.brandingAdminHeaderBannerUrl.trim() || null,
           partners: (formData.brandingPartners || [])
             .filter((p) => p.name.trim())
             .slice(0, 20)
@@ -873,7 +883,10 @@ export default function AssociationForm({
     </div>
   );
 
-  const uploadBrandingAsset = async (file: File, kind: "logo" | "banner") => {
+  const uploadBrandingAsset = async (
+    file: File,
+    kind: "logo" | "banner" | "adminHeaderBanner",
+  ) => {
     if (!associationId) {
       toastError(
         "Create the association first",
@@ -899,15 +912,20 @@ export default function AssociationForm({
       }
       const url = typeof data.url === "string" ? data.url : "";
       if (!url) throw new Error("No file URL returned");
-      handleChange(
-        kind === "logo" ? "brandingLogoUrl" : "brandingBannerUrl",
-        url,
-      );
+      const field =
+        kind === "logo"
+          ? "brandingLogoUrl"
+          : kind === "banner"
+            ? "brandingBannerUrl"
+            : "brandingAdminHeaderBannerUrl";
+      handleChange(field, url);
       success(
         "Image uploaded",
         kind === "logo"
           ? "Portal logo URL filled in — click Save to persist."
-          : "Banner URL filled in — click Save to persist.",
+          : kind === "banner"
+            ? "Banner URL filled in — click Save to persist."
+            : "Admin header image URL filled in — click Save to persist.",
       );
     } catch (e) {
       toastError(
@@ -1083,6 +1101,65 @@ export default function AssociationForm({
                 alt="Banner preview"
                 className="max-h-24 w-full max-w-lg object-cover rounded-lg border border-slate-200"
               />
+            </div>
+          ) : null}
+        </div>
+
+        <div>
+          <label className="block text-xs font-black uppercase text-slate-400 mb-2 ml-1">
+            Admin top bar background (optional)
+          </label>
+          <p className="text-xs text-slate-500 font-semibold mb-3">
+            Wide horizontal image replaces the coloured gradient behind the admin header
+            for this association. Leave empty to use brand colours only.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-3">
+            <input
+              type="text"
+              value={formData.brandingAdminHeaderBannerUrl}
+              onChange={(e) =>
+                handleChange("brandingAdminHeaderBannerUrl", e.target.value)
+              }
+              className="flex-1 px-4 py-3 bg-white border-2 border-slate-200 rounded-xl font-bold text-sm focus:border-yellow-400 outline-none"
+              placeholder="https://… or /uploads/…"
+            />
+            <label
+              className={`inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl px-4 py-3 font-black text-xs uppercase transition-colors ${
+                associationId
+                  ? "bg-slate-700 text-white hover:bg-yellow-400 hover:text-[#06054e]"
+                  : "bg-slate-200 text-slate-400 cursor-not-allowed"
+              }`}
+            >
+              <ImageIcon size={18} />
+              {brandingUpload === "adminHeaderBanner" ? "Uploading…" : "Upload"}
+              <input
+                type="file"
+                accept="image/jpeg,image/png,image/gif,image/webp"
+                className="hidden"
+                disabled={!associationId || brandingUpload !== null}
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  e.target.value = "";
+                  if (f) void uploadBrandingAsset(f, "adminHeaderBanner");
+                }}
+              />
+            </label>
+          </div>
+          {formData.brandingAdminHeaderBannerUrl.trim() ? (
+            <div className="mt-4 space-y-2">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={formData.brandingAdminHeaderBannerUrl}
+                alt="Admin header preview"
+                className="max-h-20 w-full max-w-2xl object-cover rounded-lg border border-slate-200"
+              />
+              <button
+                type="button"
+                onClick={() => handleChange("brandingAdminHeaderBannerUrl", "")}
+                className="text-xs font-black uppercase text-red-600 hover:underline"
+              >
+                Clear admin header image
+              </button>
             </div>
           ) : null}
         </div>

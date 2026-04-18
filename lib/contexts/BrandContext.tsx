@@ -26,6 +26,8 @@ export interface BrandColors {
   tertiaryColor: string;
   accentColor: string;
   logo?: string;
+  /** When set, admin top bar uses this image instead of the colour gradient */
+  adminHeaderBannerUrl?: string;
   name: string;
   shortName?: string;
 }
@@ -140,6 +142,12 @@ export function BrandProvider({ children }: { children: ReactNode }) {
             const p = c.primaryColor ?? c.primary ?? DEFAULT_BRAND.primaryColor;
             const s = c.secondaryColor ?? c.secondary ?? DEFAULT_BRAND.secondaryColor;
             const a = c.accentColor ?? c.accent ?? DEFAULT_BRAND.accentColor;
+            const br = club.branding as { adminHeaderBannerUrl?: string } | undefined;
+            const rawAdmin = br?.adminHeaderBannerUrl;
+            const adminHeaderBannerUrl =
+              typeof rawAdmin === "string" && rawAdmin.trim()
+                ? rawAdmin.trim()
+                : undefined;
             setBrand({
               primaryColor: p,
               secondaryColor: s,
@@ -147,6 +155,7 @@ export function BrandProvider({ children }: { children: ReactNode }) {
                 c.tertiaryColor ?? c.tertiary ?? s ?? DEFAULT_BRAND.tertiaryColor,
               accentColor: a,
               logo: club.logo ?? undefined,
+              adminHeaderBannerUrl,
               name: club.name,
               shortName: club.shortName ?? undefined,
             });
@@ -165,14 +174,28 @@ export function BrandProvider({ children }: { children: ReactNode }) {
         .then((data) => {
           const assoc = data.association || data;
           if (assoc?.name || assoc?.fullName) {
-            const b = assoc.branding ?? {};
+            const b = assoc.branding as {
+              primaryColor?: string;
+              secondaryColor?: string;
+              tertiaryColor?: string;
+              accentColor?: string;
+              logo?: string;
+              logoUrl?: string;
+              adminHeaderBannerUrl?: string;
+            } | null;
+            const bb = b ?? {};
             setBrand({
-              primaryColor: b.primaryColor ?? DEFAULT_BRAND.primaryColor,
-              secondaryColor: b.secondaryColor ?? DEFAULT_BRAND.secondaryColor,
+              primaryColor: bb.primaryColor ?? DEFAULT_BRAND.primaryColor,
+              secondaryColor: bb.secondaryColor ?? DEFAULT_BRAND.secondaryColor,
               tertiaryColor:
-                b.tertiaryColor ?? b.secondaryColor ?? DEFAULT_BRAND.tertiaryColor,
-              accentColor: b.accentColor ?? DEFAULT_BRAND.accentColor,
-              logo: b.logo ?? undefined,
+                bb.tertiaryColor ?? bb.secondaryColor ?? DEFAULT_BRAND.tertiaryColor,
+              accentColor: bb.accentColor ?? DEFAULT_BRAND.accentColor,
+              logo: bb.logoUrl ?? bb.logo ?? undefined,
+              adminHeaderBannerUrl:
+                typeof bb.adminHeaderBannerUrl === "string" &&
+                bb.adminHeaderBannerUrl.trim()
+                  ? bb.adminHeaderBannerUrl.trim()
+                  : undefined,
               name: assoc.name || assoc.fullName,
               shortName: assoc.acronym
                 ? String(assoc.acronym)

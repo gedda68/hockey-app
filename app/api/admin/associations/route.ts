@@ -89,6 +89,9 @@ const AssociationSchema = z.object({
       accentColor: z.string().default("#ffd700"),
       logoUrl: z.string().max(2048).optional(),
       bannerUrl: z.string().max(2048).optional(),
+      adminHeaderBannerUrl: z
+        .union([z.string().max(2048), z.null()])
+        .optional(),
       partners: PublicPartnerRowsSchema.optional(),
     })
     .optional(),
@@ -366,6 +369,14 @@ export async function POST(request: NextRequest) {
           : {}),
         ...(validated.branding?.bannerUrl?.trim()
           ? { bannerUrl: validated.branding.bannerUrl.trim() }
+          : {}),
+        ...(validated.branding?.adminHeaderBannerUrl != null &&
+        String(validated.branding.adminHeaderBannerUrl).trim()
+          ? {
+              adminHeaderBannerUrl: String(
+                validated.branding.adminHeaderBannerUrl,
+              ).trim(),
+            }
           : {}),
         ...(validated.branding?.partners?.length
           ? { partners: validated.branding.partners }
