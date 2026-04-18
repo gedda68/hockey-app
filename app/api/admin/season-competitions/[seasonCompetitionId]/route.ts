@@ -8,7 +8,12 @@ import {
   requirePermission,
   requireResourceAccess,
 } from "@/lib/auth/middleware";
-import { SeasonCompetitionSchema } from "@/lib/db/schemas/competition.schema";
+import {
+  ClubNominatedVenueSchema,
+  FinalsSeriesConfigSchema,
+  SeasonBlockoutPeriodSchema,
+  SeasonCompetitionSchema,
+} from "@/lib/db/schemas/competition.schema";
 import { z, ZodError } from "zod";
 import { logPlatformAudit } from "@/lib/audit/platformAuditLog";
 import { invalidateStandingsBundleCache } from "@/lib/competitions/standingsReadCache";
@@ -21,6 +26,13 @@ const UpdateSeasonCompetitionSchema = z.object({
   resultApprovalRequired:
     SeasonCompetitionSchema.shape.resultApprovalRequired.optional(),
   ladderRules: SeasonCompetitionSchema.shape.ladderRules.optional(),
+  logoUrl: z.union([z.string().max(2048), z.null()]).optional(),
+  displayName: z.union([z.string().max(160), z.null()]).optional(),
+  homeAndAway: z.boolean().optional(),
+  blockoutPeriods: z.array(SeasonBlockoutPeriodSchema).max(40).optional(),
+  specialMatchPeriods: z.array(SeasonBlockoutPeriodSchema).max(20).optional(),
+  finalsSeries: FinalsSeriesConfigSchema.optional(),
+  clubNominatedVenues: z.array(ClubNominatedVenueSchema).max(120).optional(),
 });
 
 const VALID_TRANSITIONS: Record<string, string[]> = {
@@ -111,6 +123,26 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     if (validated.resultApprovalRequired !== undefined)
       update.resultApprovalRequired = validated.resultApprovalRequired;
     if (validated.ladderRules !== undefined) update.ladderRules = validated.ladderRules;
+    if (validated.logoUrl !== undefined) {
+      update.logoUrl =
+        validated.logoUrl === null || validated.logoUrl === ""
+          ? null
+          : validated.logoUrl.trim();
+    }
+    if (validated.displayName !== undefined) {
+      update.displayName =
+        validated.displayName === null || validated.displayName === ""
+          ? null
+          : validated.displayName.trim();
+    }
+    if (validated.homeAndAway !== undefined) update.homeAndAway = validated.homeAndAway;
+    if (validated.blockoutPeriods !== undefined)
+      update.blockoutPeriods = validated.blockoutPeriods;
+    if (validated.specialMatchPeriods !== undefined)
+      update.specialMatchPeriods = validated.specialMatchPeriods;
+    if (validated.finalsSeries !== undefined) update.finalsSeries = validated.finalsSeries;
+    if (validated.clubNominatedVenues !== undefined)
+      update.clubNominatedVenues = validated.clubNominatedVenues;
 
     if (validated.status !== undefined) {
       const from = existing.status ?? "draft";
@@ -149,12 +181,29 @@ export async function PATCH(request: NextRequest, { params }: Params) {
         divisions: existing.divisions,
         resultApprovalRequired: existing.resultApprovalRequired,
         ladderRules: existing.ladderRules,
+        logoUrl: (existing as { logoUrl?: unknown }).logoUrl,
+        displayName: (existing as { displayName?: unknown }).displayName,
+        homeAndAway: (existing as { homeAndAway?: unknown }).homeAndAway,
+        blockoutPeriods: (existing as { blockoutPeriods?: unknown }).blockoutPeriods,
+        specialMatchPeriods: (existing as { specialMatchPeriods?: unknown }).specialMatchPeriods,
+        finalsSeries: (existing as { finalsSeries?: unknown }).finalsSeries,
+        clubNominatedVenues: (existing as { clubNominatedVenues?: unknown })
+          .clubNominatedVenues,
       },
       after: {
         status: updated?.status,
         divisions: updated?.divisions,
         resultApprovalRequired: updated?.resultApprovalRequired,
         ladderRules: updated?.ladderRules,
+        logoUrl: (updated as { logoUrl?: unknown } | null)?.logoUrl,
+        displayName: (updated as { displayName?: unknown } | null)?.displayName,
+        homeAndAway: (updated as { homeAndAway?: unknown } | null)?.homeAndAway,
+        blockoutPeriods: (updated as { blockoutPeriods?: unknown } | null)?.blockoutPeriods,
+        specialMatchPeriods: (updated as { specialMatchPeriods?: unknown } | null)
+          ?.specialMatchPeriods,
+        finalsSeries: (updated as { finalsSeries?: unknown } | null)?.finalsSeries,
+        clubNominatedVenues: (updated as { clubNominatedVenues?: unknown } | null)
+          ?.clubNominatedVenues,
       },
       metadata: { owningAssociationId: existing.owningAssociationId },
     });

@@ -50,4 +50,51 @@ describe("accumulateStandingsRowsFromFixtures", () => {
     expect(map.get("t1")?.d).toBe(1);
     expect(map.get("t2")?.d).toBe(1);
   });
+
+  it("uses ladder forfeit goal defaults for GF/GA when both forfeitWinnerGoals and forfeitLoserGoals are set", () => {
+    const fixtures = [
+      {
+        homeTeamId: "t1",
+        awayTeamId: "t2",
+        status: "completed",
+        result: {
+          resultType: "forfeit",
+          homeScore: 0,
+          awayScore: 0,
+          forfeitingTeamId: "t2",
+        },
+      },
+    ];
+    const map = accumulateStandingsRowsFromFixtures(
+      fixtures,
+      { forfeitWinnerGoals: 5, forfeitLoserGoals: 0 },
+      false,
+    );
+    expect(map.get("t1")).toMatchObject({ w: 1, gf: 5, ga: 0, pts: 3 });
+    expect(map.get("t2")).toMatchObject({ l: 1, gf: 0, ga: 5, pts: 0 });
+  });
+
+  it("uses pointsOvertimeWin/Loss for shootout-decided draws when set", () => {
+    const fixtures = [
+      {
+        homeTeamId: "t1",
+        awayTeamId: "t2",
+        status: "completed",
+        result: {
+          resultType: "normal",
+          homeScore: 1,
+          awayScore: 1,
+          shootoutHomeScore: 4,
+          shootoutAwayScore: 3,
+        },
+      },
+    ];
+    const map = accumulateStandingsRowsFromFixtures(
+      fixtures,
+      { pointsOvertimeWin: 4, pointsOvertimeLoss: 2 },
+      false,
+    );
+    expect(map.get("t1")).toMatchObject({ w: 1, pts: 4 });
+    expect(map.get("t2")).toMatchObject({ l: 1, pts: 2 });
+  });
 });

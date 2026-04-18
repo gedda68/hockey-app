@@ -8,6 +8,7 @@ import {
   CreateCompetitionRequestSchema,
   CreateSeasonCompetitionRequestSchema,
   CompetitionSchema,
+  FinalsSeriesConfigSchema,
   SeasonCompetitionSchema,
   type Competition,
   type SeasonCompetition,
@@ -255,6 +256,20 @@ export async function POST(request: NextRequest) {
         owningAssociationId: req.owningAssociationId,
         season: req.season,
         divisions: req.divisions ?? [],
+        homeAndAway: req.homeAndAway ?? false,
+        blockoutPeriods: req.blockoutPeriods ?? [],
+        specialMatchPeriods: req.specialMatchPeriods ?? [],
+        finalsSeries:
+          req.finalsSeries !== undefined
+            ? FinalsSeriesConfigSchema.parse(req.finalsSeries)
+            : FinalsSeriesConfigSchema.parse({}),
+        clubNominatedVenues: req.clubNominatedVenues ?? [],
+        ...(req.resultApprovalRequired !== undefined
+          ? { resultApprovalRequired: req.resultApprovalRequired }
+          : {}),
+        ...(req.ladderRules !== undefined ? { ladderRules: req.ladderRules } : {}),
+        ...(req.logoUrl?.trim() ? { logoUrl: req.logoUrl.trim() } : {}),
+        ...(req.displayName?.trim() ? { displayName: req.displayName.trim() } : {}),
         status: "draft",
         createdAt: now,
         updatedAt: now,

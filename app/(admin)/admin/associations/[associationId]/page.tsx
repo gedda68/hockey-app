@@ -25,6 +25,7 @@ import {
   CheckCircle,
   XCircle,
   BarChart3,
+  Trophy,
 } from "lucide-react";
 
 export default async function AssociationDetailPage({
@@ -158,6 +159,13 @@ export default async function AssociationDetailPage({
                 >
                   <BarChart3 size={18} />
                   Officiating report
+                </Link>
+                <Link
+                  href={`/admin/associations/${associationId}/competitions`}
+                  className="inline-flex items-center gap-2 px-4 py-2 border-2 border-emerald-700 text-emerald-900 rounded-xl font-black hover:bg-emerald-50 transition-all text-sm"
+                >
+                  <Trophy size={18} />
+                  League setup
                 </Link>
                 <Link
                   href={`/admin/associations/${associationId}/match-events`}

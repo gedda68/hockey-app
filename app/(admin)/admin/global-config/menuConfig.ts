@@ -157,6 +157,23 @@ export const menuConfig: MenuItem[] = [
     section: "competition",
     allowedRoles: SELECTION_POLICY_ROLES,
   },
+  {
+    label: "League setup",
+    href: "/admin/associations",
+    icon: "🛠️",
+    description:
+      "Create club leagues: competition, season, ladder rules, round-robin draw, and fixtures",
+    color: "from-emerald-500 to-teal-600",
+    section: "competition",
+    allowedRoles: [
+      "super-admin",
+      "association-admin",
+      "assoc-committee",
+      "assoc-registrar",
+      "assoc-competition",
+      "media-marketing",
+    ],
+  },
 
   // ── Representative (association-level only) ──────────────────────────────────
   {

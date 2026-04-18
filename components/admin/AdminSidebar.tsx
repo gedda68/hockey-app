@@ -151,6 +151,26 @@ function resolvedSelectionPolicyHref(user: User): string {
   return "/admin/associations/selection-policy";
 }
 
+/** League wizard — association-scoped roles go straight to their org; super-admin to directory. */
+const LEAGUE_SETUP_ROLES = [
+  "association-admin",
+  "assoc-committee",
+  "assoc-registrar",
+  "assoc-competition",
+  "media-marketing",
+];
+
+function resolvedLeagueSetupHref(user: User): string {
+  const roles = getUserRoles(user);
+  if (roles.includes("super-admin")) {
+    return "/admin/associations";
+  }
+  if (roles.some((r) => LEAGUE_SETUP_ROLES.includes(r)) && user.associationId) {
+    return `/admin/associations/${user.associationId}/competitions`;
+  }
+  return "/admin/associations";
+}
+
 /**
  * Builds the full visible menu for a user:
  *   1. Start from menuConfig (role-filtered).
@@ -171,10 +191,14 @@ function buildMenuForUser(user: User | null): MenuItem[] {
   // ── 2. Replace generic Fees / selection policy hrefs with scope-specific ones
   const fees = resolvedFeesItem(role, clubRef, assocId);
   const selectionPolicyHref = resolvedSelectionPolicyHref(user);
+  const leagueSetupHref = resolvedLeagueSetupHref(user);
   items = items.map((item) => {
     if (item.label === "Fees") return { ...item, href: fees.href };
     if (item.label === "Team selection policy") {
       return { ...item, href: selectionPolicyHref };
+    }
+    if (item.label === "League setup") {
+      return { ...item, href: leagueSetupHref };
     }
     // Also fix "Rep Fees" sub-item inside "Representative" for assoc roles
     if (item.label === "Representative" && item.subItems) {

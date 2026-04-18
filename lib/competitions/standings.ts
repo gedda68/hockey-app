@@ -25,6 +25,12 @@ export type LadderRules = {
   pointsForfeitLoss?: number;
   pointsShootoutWin?: number;
   pointsShootoutLoss?: number;
+  /** Post-regulation (e.g. extra time / shootout) — defaults to shootout points when unset. */
+  pointsOvertimeWin?: number;
+  pointsOvertimeLoss?: number;
+  /** When both set, forfeit rows contribute these goals to GF/GA instead of stored scores. */
+  forfeitWinnerGoals?: number;
+  forfeitLoserGoals?: number;
   tieBreakers?: Array<"points" | "gd" | "gf" | "h2h">;
   includeAbandonedInPlayed?: boolean;
 };
@@ -75,6 +81,14 @@ export function accumulateStandingsRowsFromFixtures(
   const pointsForfeitLoss = Number(rules.pointsForfeitLoss ?? pointsLoss);
   const pointsShootoutWin = Number(rules.pointsShootoutWin ?? 2);
   const pointsShootoutLoss = Number(rules.pointsShootoutLoss ?? 1);
+  const pointsOvertimeWin = Number(
+    rules.pointsOvertimeWin ?? rules.pointsShootoutWin ?? 2,
+  );
+  const pointsOvertimeLoss = Number(
+    rules.pointsOvertimeLoss ?? rules.pointsShootoutLoss ?? 1,
+  );
+  const forfeitWinnerGoals = rules.forfeitWinnerGoals;
+  const forfeitLoserGoals = rules.forfeitLoserGoals;
   const includeAbandonedInPlayed = Boolean(rules.includeAbandonedInPlayed);
 
   const rows = new Map<string, TeamStandingsAccumulator>();
@@ -123,15 +137,37 @@ export function accumulateStandingsRowsFromFixtures(
 
     const homeScore = safeInt(result.homeScore) ?? 0;
     const awayScore = safeInt(result.awayScore) ?? 0;
-    hRow.gf += homeScore;
-    hRow.ga += awayScore;
-    aRow.gf += awayScore;
-    aRow.ga += homeScore;
 
     if (resultType === "forfeit") {
       const forfeitingTeamId = (result.forfeitingTeamId as string | null) ?? null;
       if (!forfeitingTeamId) continue;
       const winnerId = forfeitingTeamId === homeTeamId ? awayTeamId : homeTeamId;
+
+      const useSyntheticGoals =
+        typeof forfeitWinnerGoals === "number" &&
+        typeof forfeitLoserGoals === "number" &&
+        Number.isFinite(forfeitWinnerGoals) &&
+        Number.isFinite(forfeitLoserGoals);
+      if (useSyntheticGoals) {
+        const wg = forfeitWinnerGoals as number;
+        const lg = forfeitLoserGoals as number;
+        if (winnerId === homeTeamId) {
+          hRow.gf += wg;
+          hRow.ga += lg;
+          aRow.gf += lg;
+          aRow.ga += wg;
+        } else {
+          aRow.gf += wg;
+          aRow.ga += lg;
+          hRow.gf += lg;
+          hRow.ga += wg;
+        }
+      } else {
+        hRow.gf += homeScore;
+        hRow.ga += awayScore;
+        aRow.gf += awayScore;
+        aRow.ga += homeScore;
+      }
 
       if (winnerId === homeTeamId) {
         hRow.w += 1;
@@ -145,8 +181,17 @@ export function accumulateStandingsRowsFromFixtures(
         hRow.pts += pointsForfeitLoss;
       }
     } else if (resultType === "abandoned") {
+      hRow.gf += homeScore;
+      hRow.ga += awayScore;
+      aRow.gf += awayScore;
+      aRow.ga += homeScore;
       // played but no W/D/L, no points
     } else {
+      hRow.gf += homeScore;
+      hRow.ga += awayScore;
+      aRow.gf += awayScore;
+      aRow.ga += homeScore;
+
       if (homeScore > awayScore) {
         hRow.w += 1;
         aRow.l += 1;
@@ -164,13 +209,13 @@ export function accumulateStandingsRowsFromFixtures(
           if (sh > sa) {
             hRow.w += 1;
             aRow.l += 1;
-            hRow.pts += pointsShootoutWin;
-            aRow.pts += pointsShootoutLoss;
+            hRow.pts += pointsOvertimeWin;
+            aRow.pts += pointsOvertimeLoss;
           } else {
             aRow.w += 1;
             hRow.l += 1;
-            aRow.pts += pointsShootoutWin;
-            hRow.pts += pointsShootoutLoss;
+            aRow.pts += pointsOvertimeWin;
+            hRow.pts += pointsOvertimeLoss;
           }
         } else {
           hRow.d += 1;

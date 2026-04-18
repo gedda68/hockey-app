@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   generateRoundRobin,
   ROUND_ROBIN_BYE,
+  roundRobinRoundCounts,
 } from "@/lib/competitions/roundRobin";
 
 describe("generateRoundRobin", () => {
@@ -23,5 +24,17 @@ describe("generateRoundRobin", () => {
     const single = generateRoundRobin(["a", "b", "c", "d"], {});
     const dbl = generateRoundRobin(["a", "b", "c", "d"], { doubleRound: true });
     expect(dbl.length).toBe(single.length * 2);
+  });
+});
+
+describe("roundRobinRoundCounts", () => {
+  it("matches generateRoundRobin lengths for four teams", () => {
+    const c = roundRobinRoundCounts(4);
+    expect(c.fixturesSingle).toBe(
+      generateRoundRobin(["a", "b", "c", "d"], { doubleRound: false }).length,
+    );
+    expect(c.fixturesHomeAndAway).toBe(
+      generateRoundRobin(["a", "b", "c", "d"], { doubleRound: true }).length,
+    );
   });
 });

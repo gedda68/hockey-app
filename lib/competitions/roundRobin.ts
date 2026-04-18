@@ -3,6 +3,34 @@
 
 export const ROUND_ROBIN_BYE = "__BYE__";
 
+/** Rounds and fixture counts from the same generator used for persistence. */
+export function roundRobinRoundCounts(teamCount: number): {
+  roundsSingle: number;
+  roundsHomeAndAway: number;
+  fixturesSingle: number;
+  fixturesHomeAndAway: number;
+} {
+  if (teamCount < 2) {
+    return {
+      roundsSingle: 0,
+      roundsHomeAndAway: 0,
+      fixturesSingle: 0,
+      fixturesHomeAndAway: 0,
+    };
+  }
+  const ids = Array.from({ length: teamCount }, (_, i) => `t${i}`);
+  const single = generateRoundRobin(ids, { doubleRound: false });
+  const dbl = generateRoundRobin(ids, { doubleRound: true });
+  const maxRoundSingle = single.reduce((m, f) => Math.max(m, f.round), 0);
+  const maxRoundDouble = dbl.reduce((m, f) => Math.max(m, f.round), 0);
+  return {
+    roundsSingle: maxRoundSingle,
+    roundsHomeAndAway: maxRoundDouble,
+    fixturesSingle: single.length,
+    fixturesHomeAndAway: dbl.length,
+  };
+}
+
 export interface RoundRobinFixture {
   round: number;
   homeTeamId: string;
