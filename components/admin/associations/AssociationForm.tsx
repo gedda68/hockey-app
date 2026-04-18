@@ -83,6 +83,7 @@ interface AssociationInitialData {
     logoUrl?: string;
     bannerUrl?: string;
     adminHeaderBannerUrl?: string;
+    publicHeaderBannerUrl?: string;
   };
   fees?: AssociationFee[];
   positions?: AssociationPosition[];
@@ -202,6 +203,8 @@ const defaultFormData = {
   brandingBannerUrl: "",
   /** Admin shell top bar — full-width image instead of gradient when set */
   brandingAdminHeaderBannerUrl: "",
+  /** Public site top bar — full-width image instead of tenant gradient when set */
+  brandingPublicHeaderBannerUrl: "",
   /** Public footer + portal home (B5) */
   brandingPartners: [] as { name: string; url: string; logoUrl: string }[],
 
@@ -290,7 +293,7 @@ export default function AssociationForm({
   >({});
   const [isSaving, setIsSaving] = useState(false);
   const [brandingUpload, setBrandingUpload] = useState<
-    null | "logo" | "banner" | "adminHeaderBanner"
+    null | "logo" | "banner" | "adminHeaderBanner" | "publicHeaderBanner"
   >(
     null,
   );
@@ -337,6 +340,9 @@ export default function AssociationForm({
         brandingAdminHeaderBannerUrl:
           (initialData.branding as { adminHeaderBannerUrl?: string } | undefined)
             ?.adminHeaderBannerUrl?.trim() || "",
+        brandingPublicHeaderBannerUrl:
+          (initialData.branding as { publicHeaderBannerUrl?: string } | undefined)
+            ?.publicHeaderBannerUrl?.trim() || "",
         brandingPartners: Array.isArray(
           (initialData.branding as { partners?: unknown } | undefined)?.partners,
         )
@@ -560,6 +566,8 @@ export default function AssociationForm({
             : {}),
           adminHeaderBannerUrl:
             formData.brandingAdminHeaderBannerUrl.trim() || null,
+          publicHeaderBannerUrl:
+            formData.brandingPublicHeaderBannerUrl.trim() || null,
           partners: (formData.brandingPartners || [])
             .filter((p) => p.name.trim())
             .slice(0, 20)
@@ -885,7 +893,7 @@ export default function AssociationForm({
 
   const uploadBrandingAsset = async (
     file: File,
-    kind: "logo" | "banner" | "adminHeaderBanner",
+    kind: "logo" | "banner" | "adminHeaderBanner" | "publicHeaderBanner",
   ) => {
     if (!associationId) {
       toastError(
@@ -917,7 +925,9 @@ export default function AssociationForm({
           ? "brandingLogoUrl"
           : kind === "banner"
             ? "brandingBannerUrl"
-            : "brandingAdminHeaderBannerUrl";
+            : kind === "adminHeaderBanner"
+              ? "brandingAdminHeaderBannerUrl"
+              : "brandingPublicHeaderBannerUrl";
       handleChange(field, url);
       success(
         "Image uploaded",
@@ -925,7 +935,9 @@ export default function AssociationForm({
           ? "Portal logo URL filled in — click Save to persist."
           : kind === "banner"
             ? "Banner URL filled in — click Save to persist."
-            : "Admin header image URL filled in — click Save to persist.",
+            : kind === "adminHeaderBanner"
+              ? "Admin header image URL filled in — click Save to persist."
+              : "Public site header image URL filled in — click Save to persist.",
       );
     } catch (e) {
       toastError(
@@ -1159,6 +1171,66 @@ export default function AssociationForm({
                 className="text-xs font-black uppercase text-red-600 hover:underline"
               >
                 Clear admin header image
+              </button>
+            </div>
+          ) : null}
+        </div>
+
+        <div>
+          <label className="block text-xs font-black uppercase text-slate-400 mb-2 ml-1">
+            Public site top bar background (optional)
+          </label>
+          <p className="text-xs text-slate-500 font-semibold mb-3">
+            Wide horizontal image replaces the coloured gradient behind the public navigation
+            bar for this association&apos;s portal. Leave empty to use brand colours only.
+            Independent from the admin header image.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-3">
+            <input
+              type="text"
+              value={formData.brandingPublicHeaderBannerUrl}
+              onChange={(e) =>
+                handleChange("brandingPublicHeaderBannerUrl", e.target.value)
+              }
+              className="flex-1 px-4 py-3 bg-white border-2 border-slate-200 rounded-xl font-bold text-sm focus:border-yellow-400 outline-none"
+              placeholder="https://… or /uploads/…"
+            />
+            <label
+              className={`inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl px-4 py-3 font-black text-xs uppercase transition-colors ${
+                associationId
+                  ? "bg-slate-700 text-white hover:bg-yellow-400 hover:text-[#06054e]"
+                  : "bg-slate-200 text-slate-400 cursor-not-allowed"
+              }`}
+            >
+              <ImageIcon size={18} />
+              {brandingUpload === "publicHeaderBanner" ? "Uploading…" : "Upload"}
+              <input
+                type="file"
+                accept="image/jpeg,image/png,image/gif,image/webp"
+                className="hidden"
+                disabled={!associationId || brandingUpload !== null}
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  e.target.value = "";
+                  if (f) void uploadBrandingAsset(f, "publicHeaderBanner");
+                }}
+              />
+            </label>
+          </div>
+          {formData.brandingPublicHeaderBannerUrl.trim() ? (
+            <div className="mt-4 space-y-2">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={formData.brandingPublicHeaderBannerUrl}
+                alt="Public header preview"
+                className="max-h-20 w-full max-w-2xl object-cover rounded-lg border border-slate-200"
+              />
+              <button
+                type="button"
+                onClick={() => handleChange("brandingPublicHeaderBannerUrl", "")}
+                className="text-xs font-black uppercase text-red-600 hover:underline"
+              >
+                Clear public site header image
               </button>
             </div>
           ) : null}

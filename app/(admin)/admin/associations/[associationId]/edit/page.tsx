@@ -211,6 +211,10 @@ export default async function EditAssociationPage({
               (association.branding as { adminHeaderBannerUrl?: string })
                 .adminHeaderBannerUrl || "",
             ).trim(),
+            publicHeaderBannerUrl: String(
+              (association.branding as { publicHeaderBannerUrl?: string })
+                .publicHeaderBannerUrl || "",
+            ).trim(),
           }
         : {
             primaryColor: "#06054e",
@@ -219,6 +223,7 @@ export default async function EditAssociationPage({
             logoUrl: "",
             bannerUrl: "",
             adminHeaderBannerUrl: "",
+            publicHeaderBannerUrl: "",
           },
 
       // Status

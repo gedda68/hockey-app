@@ -115,6 +115,9 @@ const AssociationSchema = z.object({
       adminHeaderBannerUrl: z
         .union([z.string().max(2048), z.null()])
         .optional(),
+      publicHeaderBannerUrl: z
+        .union([z.string().max(2048), z.null()])
+        .optional(),
       /** Public footer + home partners strip (B5) */
       partners: PublicPartnerRowsSchema.optional(),
     })

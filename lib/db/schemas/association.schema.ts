@@ -160,6 +160,7 @@ export const AssociationSchema = z.object({
       secondaryColor: z.string().optional(),
       bannerUrl: z.string().url().optional(),
       adminHeaderBannerUrl: z.string().max(2048).optional(),
+      publicHeaderBannerUrl: z.string().max(2048).optional(),
     })
     .optional(),
 

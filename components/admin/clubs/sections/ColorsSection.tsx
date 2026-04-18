@@ -1,5 +1,5 @@
 // sections/ColorsSection.tsx
-// Club colors + optional admin header banner image
+// Club colors + optional admin / public header banner images
 
 import { Image as ImageIcon } from "lucide-react";
 import type {
@@ -16,6 +16,8 @@ export default function ColorsSection({
   isEditMode,
   adminHeaderUploading,
   onAdminHeaderBannerFile,
+  publicHeaderUploading,
+  onPublicHeaderBannerFile,
 }: Props) {
   const ColorPicker = ({
     label,
@@ -121,6 +123,71 @@ export default function ColorsSection({
                 className="text-xs font-black uppercase text-red-600 hover:underline"
               >
                 Clear admin header image
+              </button>
+            </div>
+          ) : null}
+        </div>
+
+        <div>
+          <label className="block text-xs font-black uppercase text-slate-400 mb-2 ml-1">
+            Public site top bar background (optional)
+          </label>
+          <p className="text-xs text-slate-500 font-semibold mb-3">
+            Wide horizontal image replaces the coloured gradient behind the public navigation
+            bar for this club&apos;s portal. Leave empty to use club colours only. Independent from
+            the admin header image.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-3">
+            <input
+              type="text"
+              value={formData.publicHeaderBannerUrl}
+              onChange={(e) =>
+                onChange("publicHeaderBannerUrl", e.target.value)
+              }
+              className="flex-1 px-4 py-3 bg-white border-2 border-slate-200 rounded-xl font-bold text-sm focus:border-yellow-400 outline-none"
+              placeholder="https://… or /icons/clubs/…/image.png"
+            />
+            <label
+              className={`inline-flex cursor-pointer items-center justify-center gap-2 rounded-xl px-4 py-3 font-black text-xs uppercase transition-colors ${
+                clubIdForUpload && isEditMode
+                  ? "bg-slate-700 text-white hover:bg-yellow-400 hover:text-[#06054e]"
+                  : "bg-slate-200 text-slate-400 cursor-not-allowed"
+              }`}
+            >
+              <ImageIcon size={18} />
+              {publicHeaderUploading ? "Uploading…" : "Upload"}
+              <input
+                type="file"
+                accept="image/jpeg,image/png,image/gif,image/webp"
+                className="hidden"
+                disabled={
+                  !clubIdForUpload ||
+                  !isEditMode ||
+                  publicHeaderUploading ||
+                  !onPublicHeaderBannerFile
+                }
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  e.target.value = "";
+                  if (f && onPublicHeaderBannerFile) onPublicHeaderBannerFile(f);
+                }}
+              />
+            </label>
+          </div>
+          {formData.publicHeaderBannerUrl.trim() ? (
+            <div className="mt-4 space-y-2">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={formData.publicHeaderBannerUrl}
+                alt="Public header preview"
+                className="max-h-20 w-full max-w-2xl object-cover rounded-lg border border-slate-200"
+              />
+              <button
+                type="button"
+                onClick={() => onChange("publicHeaderBannerUrl", "")}
+                className="text-xs font-black uppercase text-red-600 hover:underline"
+              >
+                Clear public site header image
               </button>
             </div>
           ) : null}

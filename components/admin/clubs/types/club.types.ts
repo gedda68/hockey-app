@@ -42,6 +42,8 @@ export interface ClubFormData {
   accentColor: string;
   /** Admin shell top bar — image replaces gradient when set */
   adminHeaderBannerUrl: string;
+  /** Public portal top bar — image replaces tenant gradient when set */
+  publicHeaderBannerUrl: string;
 
   // Address
   street: string;
@@ -94,12 +96,14 @@ export interface BaseSectionProps {
   errors: Record<string, string>;
 }
 
-/** Optional props for `ColorsSection` (admin header banner). */
+/** Optional props for `ColorsSection` (admin + public header banners). */
 export type ColorsSectionBrandingProps = {
   clubIdForUpload?: string;
   isEditMode?: boolean;
   adminHeaderUploading?: boolean;
   onAdminHeaderBannerFile?: (file: File) => void;
+  publicHeaderUploading?: boolean;
+  onPublicHeaderBannerFile?: (file: File) => void;
 };
 
 export interface IdentitySectionProps extends BaseSectionProps {
@@ -128,6 +132,7 @@ export const DEFAULT_CLUB_DATA: ClubFormData = {
   secondaryColor: "#FFD700",
   accentColor: "#ffffff",
   adminHeaderBannerUrl: "",
+  publicHeaderBannerUrl: "",
 
   // Address
   street: "",

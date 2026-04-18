@@ -77,6 +77,8 @@ export default function TopNavbar({ clubs, tickerLines = [] }: TopNavbarProps) {
   const router = useRouter();
   const { user, logout } = useAuth();
   const { tenant: portalTenant } = usePublicTenant();
+  const publicHeaderBannerUrl = portalTenant?.publicHeaderBannerUrl?.trim();
+  const usePublicHeaderBanner = Boolean(portalTenant && publicHeaderBannerUrl);
   const isAuthenticated = !!user;
   const umpiringRoles = ["umpire", "technical-official"];
   const showMyUmpiring =
@@ -142,19 +144,35 @@ export default function TopNavbar({ clubs, tickerLines = [] }: TopNavbarProps) {
       <div className="w-full shadow-md">
         <nav
           className={
-            portalTenant
-              ? "w-full h-[var(--public-header-height)] flex flex-col transition-all duration-300 ease-out"
-              : "w-full h-[var(--public-header-height)] flex flex-col bg-gradient-to-r from-green-500 via-yellow-400 to-[#06054e] transition-all duration-300 ease-out"
+            portalTenant && usePublicHeaderBanner
+              ? "relative w-full h-[var(--public-header-height)] flex flex-col overflow-hidden transition-all duration-300 ease-out"
+              : portalTenant
+                ? "w-full h-[var(--public-header-height)] flex flex-col transition-all duration-300 ease-out"
+                : "w-full h-[var(--public-header-height)] flex flex-col bg-gradient-to-r from-green-500 via-yellow-400 to-[#06054e] transition-all duration-300 ease-out"
           }
           style={
-            portalTenant
+            portalTenant && !usePublicHeaderBanner
               ? {
                   background: `linear-gradient(90deg, ${portalTenant.primaryColor} 0%, ${portalTenant.accentColor} 42%, ${portalTenant.secondaryColor} 100%)`,
                 }
               : undefined
           }
         >
-          <div className="flex-1 min-h-0 w-full max-w-[1600px] mx-auto pl-1.5 pr-3 sm:pl-2 sm:pr-4 flex items-center justify-between gap-2 sm:gap-3 min-h-[52px]">
+          {usePublicHeaderBanner ? (
+            <>
+              {/* eslint-disable-next-line @next/next/no-img-element -- tenant branding URL */}
+              <img
+                src={publicHeaderBannerUrl}
+                alt=""
+                className="pointer-events-none absolute inset-0 h-full w-full object-cover"
+              />
+              <div
+                className="pointer-events-none absolute inset-0 bg-gradient-to-r from-black/50 via-black/35 to-black/50"
+                aria-hidden
+              />
+            </>
+          ) : null}
+          <div className="relative flex-1 min-h-0 w-full max-w-[1600px] mx-auto pl-1.5 pr-3 sm:pl-2 sm:pr-4 flex items-center justify-between gap-2 sm:gap-3 min-h-[52px]">
             <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1 md:flex-initial">
               <Link
                 href="/"
@@ -321,7 +339,7 @@ export default function TopNavbar({ clubs, tickerLines = [] }: TopNavbarProps) {
             </div>
           </div>
 
-          <div className="shrink-0 px-3 sm:px-4 pb-2">
+          <div className="relative shrink-0 px-3 sm:px-4 pb-2">
             <HomeResultsTicker lines={tickerLines} />
           </div>
         </nav>

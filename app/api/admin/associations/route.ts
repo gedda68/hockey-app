@@ -92,6 +92,9 @@ const AssociationSchema = z.object({
       adminHeaderBannerUrl: z
         .union([z.string().max(2048), z.null()])
         .optional(),
+      publicHeaderBannerUrl: z
+        .union([z.string().max(2048), z.null()])
+        .optional(),
       partners: PublicPartnerRowsSchema.optional(),
     })
     .optional(),
@@ -375,6 +378,14 @@ export async function POST(request: NextRequest) {
           ? {
               adminHeaderBannerUrl: String(
                 validated.branding.adminHeaderBannerUrl,
+              ).trim(),
+            }
+          : {}),
+        ...(validated.branding?.publicHeaderBannerUrl != null &&
+        String(validated.branding.publicHeaderBannerUrl).trim()
+          ? {
+              publicHeaderBannerUrl: String(
+                validated.branding.publicHeaderBannerUrl,
               ).trim(),
             }
           : {}),
