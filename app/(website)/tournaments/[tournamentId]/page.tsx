@@ -181,6 +181,14 @@ export default function PublicTournamentPage() {
                     Champion: {data.championTeamName}
                   </div>
                 ) : null}
+                <div className="mt-3">
+                  <Link
+                    href={`/competitions/awards?tournamentId=${encodeURIComponent(data.tournamentId)}`}
+                    className="text-sm font-black text-emerald-700 underline underline-offset-4 hover:text-emerald-900"
+                  >
+                    Awards →
+                  </Link>
+                </div>
               </div>
               <div className="flex rounded-2xl border-2 border-slate-200 bg-white p-1 shadow-sm">
                 <button

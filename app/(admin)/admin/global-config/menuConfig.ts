@@ -229,6 +229,22 @@ export const menuConfig: MenuItem[] = [
         allowedRoles: ["super-admin", "association-admin", "assoc-committee", "assoc-registrar"],
       },
       {
+        label: "Competition awards",
+        href: "/admin/competition-awards",
+        icon: "🎖️",
+        description:
+          "Player of the match, season and tournament honours, labels, and history",
+        allowedRoles: [
+          "super-admin",
+          "association-admin",
+          "assoc-committee",
+          "assoc-registrar",
+          "assoc-competition",
+          "assoc-selector",
+          "assoc-coach",
+        ],
+      },
+      {
         label: "Rep Fees",
         href: "/admin/fees",
         icon: "💵",

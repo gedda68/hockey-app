@@ -14,6 +14,7 @@ import {
   SeasonBlockoutPeriodSchema,
   SeasonCompetitionSchema,
 } from "@/lib/db/schemas/competition.schema";
+import { AwardsLabelsSchema } from "@/lib/db/schemas/competitionAwards.schema";
 import { z, ZodError } from "zod";
 import { logPlatformAudit } from "@/lib/audit/platformAuditLog";
 import { invalidateStandingsBundleCache } from "@/lib/competitions/standingsReadCache";
@@ -33,6 +34,8 @@ const UpdateSeasonCompetitionSchema = z.object({
   specialMatchPeriods: z.array(SeasonBlockoutPeriodSchema).max(20).optional(),
   finalsSeries: FinalsSeriesConfigSchema.optional(),
   clubNominatedVenues: z.array(ClubNominatedVenueSchema).max(120).optional(),
+  /** Custom display names for standard competition awards (public + admin). */
+  awardsLabels: AwardsLabelsSchema.nullable().optional(),
 });
 
 const VALID_TRANSITIONS: Record<string, string[]> = {
@@ -143,6 +146,16 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     if (validated.finalsSeries !== undefined) update.finalsSeries = validated.finalsSeries;
     if (validated.clubNominatedVenues !== undefined)
       update.clubNominatedVenues = validated.clubNominatedVenues;
+
+    if (validated.awardsLabels !== undefined) {
+      if (validated.awardsLabels === null) {
+        update.awardsLabels = null;
+      } else {
+        const prev =
+          (existing as { awardsLabels?: Record<string, string> }).awardsLabels ?? {};
+        update.awardsLabels = { ...prev, ...validated.awardsLabels };
+      }
+    }
 
     if (validated.status !== undefined) {
       const from = existing.status ?? "draft";

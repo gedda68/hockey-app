@@ -36,6 +36,7 @@ const navItems = [
     children: [
       { name: "Competitions", href: "/competitions" },
       { name: "Leagues", href: "/competitions/leagues" },
+      { name: "Awards", href: "/competitions/awards" },
       { name: "Tournaments", href: "/tournaments" },
       { name: "Fixtures", href: "/competitions/matches" },
       { name: "Ladder", href: "/competitions/standings" },

@@ -1449,12 +1449,22 @@ export default function LeagueCompetitionWizard({
                 </tbody>
               </table>
             </div>
-            <Link
-              href={`/admin/associations/${associationId}/match-events`}
-              className="inline-flex text-sm font-black text-[#06054e] underline"
-            >
-              Open match events editor for results &amp; stats →
-            </Link>
+            <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-4">
+              <Link
+                href={`/admin/associations/${associationId}/match-events`}
+                className="inline-flex text-sm font-black text-[#06054e] underline"
+              >
+                Open match events editor for results &amp; stats →
+              </Link>
+              {seasonCompetitionId ? (
+                <Link
+                  href={`/admin/competition-awards?seasonCompetitionId=${encodeURIComponent(seasonCompetitionId)}`}
+                  className="inline-flex text-sm font-black text-emerald-800 underline"
+                >
+                  Competition awards (player of match, season awards) →
+                </Link>
+              ) : null}
+            </div>
           </div>
         )}
 

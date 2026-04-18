@@ -1,0 +1,164 @@
+{
+  "harvestedAt": "2026-04-18T20:42:43.249Z",
+  "sourceUrl": "https://hockeybrisbane.altius.live/competitions/43",
+  "competitionTitle": "BHA 2025 BHL 1",
+  "metaLine": "22 Mar - 16 Aug 2025",
+  "seasonYearHint": 2025,
+  "teams": [
+    {
+      "altiusTeamId": "311",
+      "displayName": "Eastern Suburbs BHL 1",
+      "squadCode": "EST BHL 1"
+    },
+    {
+      "altiusTeamId": "313",
+      "displayName": "Labrador BHL 1",
+      "squadCode": "LAB BHL 1"
+    },
+    {
+      "altiusTeamId": "309",
+      "displayName": "Bulimba BHL 1",
+      "squadCode": "BUL BHL 1"
+    },
+    {
+      "altiusTeamId": "315",
+      "displayName": "St Andrews BHL 1",
+      "squadCode": "STA BHL 1"
+    },
+    {
+      "altiusTeamId": "314",
+      "displayName": "Northern Suburbs BHL 1",
+      "squadCode": "NTH BHL 1"
+    },
+    {
+      "altiusTeamId": "317",
+      "displayName": "University of QLD BHL 1",
+      "squadCode": "UQH BHL 1"
+    },
+    {
+      "altiusTeamId": "316",
+      "displayName": "Redcliffe BHL 1",
+      "squadCode": "RHC BHL 1"
+    },
+    {
+      "altiusTeamId": "310",
+      "displayName": "Commercial BHL 1",
+      "squadCode": "CHC BHL 1"
+    },
+    {
+      "altiusTeamId": "318",
+      "displayName": "Valley BHL 1",
+      "squadCode": "VAL BHL 1"
+    },
+    {
+      "altiusTeamId": "312",
+      "displayName": "Kedron Wavell BHL 1",
+      "squadCode": "KWC BHL 1"
+    }
+  ],
+  "matches": [
+    {
+      "altiusMatchId": "4657",
+      "homeCode": "EST BHL 1",
+      "awayCode": "LAB BHL 1",
+      "homeScore": 4,
+      "awayScore": 2,
+      "scheduledAtIso": null,
+      "phaseLabel": "Grand Final",
+      "venuePitch": "SHC - SHC1",
+      "status": "Official"
+    }
+  ],
+  "players": [
+    {
+      "altiusPlayerId": "2911",
+      "displayName": "HAMMOND Ryan",
+      "squadCode": "EST BHL 1",
+      "fg": 17,
+      "pc": 12,
+      "ps": 1,
+      "goals": 30
+    },
+    {
+      "altiusPlayerId": "2933",
+      "displayName": "GADDES Tyler",
+      "squadCode": "LAB BHL 1",
+      "fg": 15,
+      "pc": 12,
+      "ps": 0,
+      "goals": 27
+    },
+    {
+      "altiusPlayerId": "2936",
+      "displayName": "CHAPPELL Diarmid",
+      "squadCode": "NTH BHL 1",
+      "fg": 10,
+      "pc": 13,
+      "ps": 0,
+      "goals": 23
+    },
+    {
+      "altiusPlayerId": "2913",
+      "displayName": "HAWTHORNE Matthew",
+      "squadCode": "EST BHL 1",
+      "fg": 8,
+      "pc": 12,
+      "ps": 0,
+      "goals": 20
+    },
+    {
+      "altiusPlayerId": "3429",
+      "displayName": "SANDOR Joe",
+      "squadCode": "LAB BHL 1",
+      "fg": 7,
+      "pc": 11,
+      "ps": 1,
+      "goals": 19
+    },
+    {
+      "altiusPlayerId": "2894",
+      "displayName": "CRAMER Cale",
+      "squadCode": "BUL BHL 1",
+      "fg": 11,
+      "pc": 5,
+      "ps": 2,
+      "goals": 18
+    },
+    {
+      "altiusPlayerId": "3479",
+      "displayName": "CABOT Cooper",
+      "squadCode": "BUL BHL 1",
+      "fg": 11,
+      "pc": 6,
+      "ps": 0,
+      "goals": 17
+    },
+    {
+      "altiusPlayerId": "2967",
+      "displayName": "PROFKE Zac",
+      "squadCode": "STA BHL 1",
+      "fg": 0,
+      "pc": 13,
+      "ps": 2,
+      "goals": 15
+    },
+    {
+      "altiusPlayerId": "3420",
+      "displayName": "DAVIES Lachlan",
+      "squadCode": "NTH BHL 1",
+      "fg": 13,
+      "pc": 1,
+      "ps": 0,
+      "goals": 14
+    },
+    {
+      "altiusPlayerId": "2918",
+      "displayName": "PREST Will",
+      "squadCode": "EST BHL 1",
+      "fg": 12,
+      "pc": 2,
+      "ps": 0,
+      "goals": 14
+    }
+  ]
+}

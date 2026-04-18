@@ -216,6 +216,12 @@ export async function PUT(
         championEntryId: body.championEntryId,
         championTeamName: championTeamName ?? null,
       }),
+      ...(body.awardsLabels !== undefined && {
+        awardsLabels: {
+          ...((existing as { awardsLabels?: Record<string, string> }).awardsLabels ?? {}),
+          ...body.awardsLabels,
+        },
+      }),
       ...(hostNorm && {
         hostType: hostNorm.hostType,
         hostId: hostNorm.hostId,

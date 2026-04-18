@@ -1,5 +1,6 @@
 import clientPromise from "@/lib/mongodb";
 import type { PublicTenantPayload } from "@/lib/tenant/portalHost";
+import type { Db } from "mongodb";
 
 export type PublicTournamentRow = {
   tournamentId: string;
@@ -23,6 +24,74 @@ function associationTournamentScope(associationId: string) {
       { hostId: associationId },
     ],
   };
+}
+
+function mapTournamentDoc(t: Record<string, unknown>): PublicTournamentRow {
+  return {
+    tournamentId: String(t.tournamentId),
+    season: String(t.season ?? ""),
+    ageGroup: String(t.ageGroup ?? ""),
+    gender: String(t.gender ?? "mixed"),
+    title: String(t.title ?? ""),
+    startDate: String(t.startDate ?? ""),
+    endDate: String(t.endDate ?? ""),
+    location: String(t.location ?? ""),
+    championTeamName: t.championTeamName != null ? String(t.championTeamName) : null,
+    hostType: t.hostType != null ? String(t.hostType) : null,
+    hostId: t.hostId != null ? String(t.hostId) : null,
+    brandingAssociationId:
+      t.brandingAssociationId != null ? String(t.brandingAssociationId) : null,
+  };
+}
+
+/**
+ * Returns a tournament row if it exists and would be listed for the given tenant
+ * (same visibility rules as {@link listPublicTournaments}).
+ */
+export async function getPublicTournamentRowById(
+  tournamentId: string,
+  opts?: { tenant?: PublicTenantPayload | null },
+): Promise<PublicTournamentRow | null> {
+  const client = await clientPromise;
+  const db = client.db(process.env.DB_NAME || "hockey-app") as Db;
+  const doc = (await db
+    .collection("rep_tournaments")
+    .findOne({ tournamentId })) as Record<string, unknown> | null;
+  if (!doc) return null;
+
+  const tenant = opts?.tenant ?? null;
+  if (!tenant) {
+    return mapTournamentDoc(doc);
+  }
+
+  if (tenant.kind === "association") {
+    const id = tenant.id;
+    const branding = String(doc.brandingAssociationId ?? "");
+    const host = String(doc.hostId ?? "");
+    if (branding === id || host === id) return mapTournamentDoc(doc);
+    return null;
+  }
+
+  if (tenant.kind === "club") {
+    const club = await db.collection("clubs").findOne(
+      { id: tenant.id },
+      { projection: { associationId: 1, parentAssociationId: 1 } },
+    );
+    const parent = String(
+      club?.associationId != null
+        ? club.associationId
+        : club?.parentAssociationId != null
+          ? club.parentAssociationId
+          : "",
+    ).trim();
+    const hostId = String(doc.hostId ?? "");
+    const branding = String(doc.brandingAssociationId ?? "");
+    if (hostId === tenant.id) return mapTournamentDoc(doc);
+    if (parent && branding === parent) return mapTournamentDoc(doc);
+    return null;
+  }
+
+  return mapTournamentDoc(doc);
 }
 
 export async function listPublicTournaments(opts?: {
@@ -102,19 +171,5 @@ export async function listPublicTournaments(opts?: {
     .limit(opts?.limit ?? 200)
     .toArray();
 
-  return rows.map((t) => ({
-    tournamentId: String(t.tournamentId),
-    season: String(t.season ?? ""),
-    ageGroup: String(t.ageGroup ?? ""),
-    gender: String(t.gender ?? "mixed"),
-    title: String(t.title ?? ""),
-    startDate: String(t.startDate ?? ""),
-    endDate: String(t.endDate ?? ""),
-    location: String(t.location ?? ""),
-    championTeamName: t.championTeamName != null ? String(t.championTeamName) : null,
-    hostType: t.hostType != null ? String(t.hostType) : null,
-    hostId: t.hostId != null ? String(t.hostId) : null,
-    brandingAssociationId:
-      t.brandingAssociationId != null ? String(t.brandingAssociationId) : null,
-  }));
+  return rows.map((t) => mapTournamentDoc(t as Record<string, unknown>));
 }

@@ -1,6 +1,7 @@
 // D1 — Representative tournament host: association vs club + branding association for RBAC.
 
 import { z } from "zod";
+import { AwardsLabelsSchema } from "@/lib/db/schemas/competitionAwards.schema";
 
 export const TournamentHostTypeSchema = z.enum(["association", "club"]);
 
@@ -65,6 +66,8 @@ export const CreateRepTournamentBodySchema = z
     championEntryId: z.union([z.string().min(1), z.null()]).optional(),
     /** Denormalised for public display; set when `championEntryId` is saved. */
     championTeamName: z.union([z.string().min(1).max(200), z.null()]).optional(),
+    /** Custom display names for standard competition awards (public + admin). */
+    awardsLabels: AwardsLabelsSchema.optional(),
   })
   .strict();
 

@@ -24,6 +24,7 @@ import {
   RefreshCw,
   ListOrdered,
   ExternalLink,
+  Award,
 } from "lucide-react";
 import RichTextEditor from "@/app/(admin)/admin/components/RichTextEditor";
 import type {
@@ -1401,13 +1402,22 @@ function TournamentModal({
                   After pools exist on the draw, open the fixtures screen to generate pool
                   round-robins, publish matches, and enter scores.
                 </p>
-                <Link
-                  href={`/admin/tournaments/${encodeURIComponent(tournamentApiId)}/fixtures`}
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black uppercase bg-white border-2 border-emerald-300 text-emerald-900 hover:bg-emerald-50"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  Open fixtures
-                </Link>
+                <div className="flex flex-wrap gap-2">
+                  <Link
+                    href={`/admin/tournaments/${encodeURIComponent(tournamentApiId)}/fixtures`}
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black uppercase bg-white border-2 border-emerald-300 text-emerald-900 hover:bg-emerald-50"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    Open fixtures
+                  </Link>
+                  <Link
+                    href={`/admin/competition-awards?tournamentId=${encodeURIComponent(tournamentApiId)}`}
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black uppercase bg-white border-2 border-amber-300 text-amber-900 hover:bg-amber-50"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    Awards
+                  </Link>
+                </div>
               </div>
             </div>
           )}
@@ -1615,6 +1625,14 @@ function TournamentCard({
               onClick={(e) => e.stopPropagation()}
             >
               <ListOrdered size={15} />
+            </Link>
+            <Link
+              href={`/admin/competition-awards?tournamentId=${encodeURIComponent(tournament.tournamentId)}`}
+              className="p-2 rounded-xl hover:bg-amber-50 text-slate-400 hover:text-amber-700 transition-colors"
+              title="Competition awards"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <Award size={15} />
             </Link>
             <button
               onClick={onEdit}

@@ -57,6 +57,17 @@ export interface Tournament {
   championEntryId?: string | null;
   /** Denormalised team label for public display. */
   championTeamName?: string | null;
+  /**
+   * Optional display overrides for standard awards (player of match, MVP, etc.).
+   * Keys match the admin API; see `AwardsLabels` in `lib/db/schemas/competitionAwards.schema`.
+   */
+  awardsLabels?: Partial<{
+    playerOfMatch: string;
+    playerOfCompetition: string;
+    topGoalScorer: string;
+    rookie: string;
+    goalkeeper: string;
+  }>;
   createdAt: string;
   updatedAt: string;
 }

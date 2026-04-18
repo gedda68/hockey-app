@@ -91,6 +91,12 @@ export default function EventDashboard() {
             League hubs (2025 / 2026)
           </Link>
           <Link
+            href="/competitions/awards"
+            className="rounded-full border border-white/20 bg-white/5 px-4 py-2 text-[10px] font-black uppercase tracking-widest text-amber-200 hover:bg-white/10 transition-colors"
+          >
+            Awards
+          </Link>
+          <Link
             href="/tournaments"
             className="rounded-full border border-white/20 bg-white/5 px-4 py-2 text-[10px] font-black uppercase tracking-widest text-sky-200 hover:bg-white/10 transition-colors"
           >

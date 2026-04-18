@@ -82,6 +82,11 @@ export default async function LeagueHubPage({ params }: Props) {
             title="Statistics"
             subtitle="Leaders & team totals"
           />
+          <HubCard
+            href={`/competitions/awards?${q}`}
+            title="Awards"
+            subtitle="Player of the match & season honours"
+          />
           <HubCard href="/competitions" title="Match Day Central" subtitle="All competition tools" />
         </div>
 

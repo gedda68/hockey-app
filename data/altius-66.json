@@ -1,0 +1,263 @@
+{
+  "harvestedAt": "2026-04-18T20:41:57.313Z",
+  "sourceUrl": "https://hockeybrisbane.altius.live/competitions/66",
+  "competitionTitle": "BHA 2026 BHL 1",
+  "metaLine": "14 Mar - 19 Aug 2026",
+  "seasonYearHint": 2026,
+  "teams": [
+    {
+      "altiusTeamId": "504",
+      "displayName": "Eastern Suburbs BHL 1",
+      "squadCode": "EST BHL 1"
+    },
+    {
+      "altiusTeamId": "507",
+      "displayName": "Labrador BHL 1",
+      "squadCode": "LAB BHL 1"
+    },
+    {
+      "altiusTeamId": "510",
+      "displayName": "University of Qld BHL 1",
+      "squadCode": "UQH BHL 1"
+    },
+    {
+      "altiusTeamId": "509",
+      "displayName": "St Andrews BHL 1",
+      "squadCode": "STA BHL 1"
+    },
+    {
+      "altiusTeamId": "502",
+      "displayName": "Bulimba BHL 1",
+      "squadCode": "BUL BHL 1"
+    },
+    {
+      "altiusTeamId": "503",
+      "displayName": "Commercial BHL 1",
+      "squadCode": "CHC BHL 1"
+    },
+    {
+      "altiusTeamId": "511",
+      "displayName": "Valley BHL 1",
+      "squadCode": "VAL BHL 1"
+    },
+    {
+      "altiusTeamId": "506",
+      "displayName": "Northern Suburbs BHL 1",
+      "squadCode": "NTH BHL 1"
+    },
+    {
+      "altiusTeamId": "508",
+      "displayName": "Redcliffe BHL 1",
+      "squadCode": "RHC BHL 1"
+    },
+    {
+      "altiusTeamId": "505",
+      "displayName": "Kedron Wavell BHL 1",
+      "squadCode": "KWC BHL 1"
+    }
+  ],
+  "matches": [
+    {
+      "altiusMatchId": "5061",
+      "homeCode": "RHC BHL 1",
+      "awayCode": "EST BHL 1",
+      "homeScore": 0,
+      "awayScore": 7,
+      "scheduledAtIso": null,
+      "phaseLabel": "BHL 1",
+      "venuePitch": "RED1",
+      "status": "Official"
+    },
+    {
+      "altiusMatchId": "5060",
+      "homeCode": "BUL BHL 1",
+      "awayCode": "UQH BHL 1",
+      "homeScore": 2,
+      "awayScore": 3,
+      "scheduledAtIso": null,
+      "phaseLabel": "BHL 1",
+      "venuePitch": "EHTT1",
+      "status": "Official"
+    },
+    {
+      "altiusMatchId": "5063",
+      "homeCode": "NTH BHL 1",
+      "awayCode": "LAB BHL 1",
+      "homeScore": 3,
+      "awayScore": 6,
+      "scheduledAtIso": null,
+      "phaseLabel": "BHL 1",
+      "venuePitch": "SHC2",
+      "status": "Official"
+    },
+    {
+      "altiusMatchId": "5062",
+      "homeCode": "CHC BHL 1",
+      "awayCode": "STA BHL 1",
+      "homeScore": 2,
+      "awayScore": 5,
+      "scheduledAtIso": null,
+      "phaseLabel": "BHL 1",
+      "venuePitch": "SHC1",
+      "status": "Official"
+    },
+    {
+      "altiusMatchId": "5064",
+      "homeCode": "KWC BHL 1",
+      "awayCode": "VAL BHL 1",
+      "homeScore": 2,
+      "awayScore": 1,
+      "scheduledAtIso": null,
+      "phaseLabel": "BHL 1",
+      "venuePitch": "UQ4",
+      "status": "Official"
+    },
+    {
+      "altiusMatchId": "5085",
+      "homeCode": "KWC BHL 1",
+      "awayCode": "STA BHL 1",
+      "homeScore": null,
+      "awayScore": null,
+      "scheduledAtIso": null,
+      "phaseLabel": "BHL 1",
+      "venuePitch": "BP1",
+      "status": "Upcoming"
+    },
+    {
+      "altiusMatchId": "5088",
+      "homeCode": "BUL BHL 1",
+      "awayCode": "CHC BHL 1",
+      "homeScore": null,
+      "awayScore": null,
+      "scheduledAtIso": null,
+      "phaseLabel": "BHL 1",
+      "venuePitch": "SHC2",
+      "status": "Upcoming"
+    },
+    {
+      "altiusMatchId": "5086",
+      "homeCode": "LAB BHL 1",
+      "awayCode": "VAL BHL 1",
+      "homeScore": null,
+      "awayScore": null,
+      "scheduledAtIso": null,
+      "phaseLabel": "BHL 1",
+      "venuePitch": "Pitch 1",
+      "status": "Upcoming"
+    },
+    {
+      "altiusMatchId": "5087",
+      "homeCode": "RHC BHL 1",
+      "awayCode": "NTH BHL 1",
+      "homeScore": null,
+      "awayScore": null,
+      "scheduledAtIso": null,
+      "phaseLabel": "BHL 1",
+      "venuePitch": "RED1",
+      "status": "Upcoming"
+    },
+    {
+      "altiusMatchId": "5089",
+      "homeCode": "UQH BHL 1",
+      "awayCode": "EST BHL 1",
+      "homeScore": null,
+      "awayScore": null,
+      "scheduledAtIso": null,
+      "phaseLabel": "BHL 1",
+      "venuePitch": "UQ4",
+      "status": "Upcoming"
+    }
+  ],
+  "players": [
+    {
+      "altiusPlayerId": "12813",
+      "displayName": "PROFKE Zac",
+      "squadCode": "STA BHL 1",
+      "fg": 0,
+      "pc": 9,
+      "ps": 2,
+      "goals": 11
+    },
+    {
+      "altiusPlayerId": "12261",
+      "displayName": "WOODALL Harley",
+      "squadCode": "RHC BHL 1",
+      "fg": 1,
+      "pc": 8,
+      "ps": 0,
+      "goals": 9
+    },
+    {
+      "altiusPlayerId": "12918",
+      "displayName": "HAMMOND Ryan",
+      "squadCode": "EST BHL 1",
+      "fg": 5,
+      "pc": 2,
+      "ps": 1,
+      "goals": 8
+    },
+    {
+      "altiusPlayerId": "10674",
+      "displayName": "DALE Elliot",
+      "squadCode": "UQH BHL 1",
+      "fg": 1,
+      "pc": 6,
+      "ps": 0,
+      "goals": 7
+    },
+    {
+      "altiusPlayerId": "12307",
+      "displayName": "EVANS Daniel",
+      "squadCode": "LAB BHL 1",
+      "fg": 4,
+      "pc": 3,
+      "ps": 0,
+      "goals": 7
+    },
+    {
+      "altiusPlayerId": "12917",
+      "displayName": "HAWTHORNE Matthew",
+      "squadCode": "EST BHL 1",
+      "fg": 3,
+      "pc": 4,
+      "ps": 0,
+      "goals": 7
+    },
+    {
+      "altiusPlayerId": "12208",
+      "displayName": "DONALD Jordan",
+      "squadCode": "VAL BHL 1",
+      "fg": 0,
+      "pc": 5,
+      "ps": 1,
+      "goals": 6
+    },
+    {
+      "altiusPlayerId": "10731",
+      "displayName": "CARTER Josh",
+      "squadCode": "NTH BHL 1",
+      "fg": 0,
+      "pc": 5,
+      "ps": 0,
+      "goals": 5
+    },
+    {
+      "altiusPlayerId": "10866",
+      "displayName": "JELACIC Trey",
+      "squadCode": "CHC BHL 1",
+      "fg": 0,
+      "pc": 3,
+      "ps": 1,
+      "goals": 4
+    },
+    {
+      "altiusPlayerId": "12300",
+      "displayName": "ROBINSON Finnigan",
+      "squadCode": "LAB BHL 1",
+      "fg": 1,
+      "pc": 3,
+      "ps": 0,
+      "goals": 4
+    }
+  ]
+}
