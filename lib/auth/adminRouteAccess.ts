@@ -42,6 +42,20 @@ const ASSOC_STAFF_ROLES = [
 
 const CLUB_AND_ABOVE = ["super-admin", "association-admin", "club-admin"];
 
+/** Roles that may use /admin/bulk-import (API still enforces per-entity permissions). */
+const BULK_IMPORT_PAGE_ROLES = [
+  ...CLUB_AND_ABOVE,
+  "assoc-committee",
+  "assoc-coach",
+  "assoc-selector",
+  "assoc-registrar",
+  "assoc-competition",
+  "media-marketing",
+  "club-committee",
+  "registrar",
+  "team-selector",
+];
+
 const CLUB_MANAGEMENT = [
   "super-admin",
   "association-admin",
@@ -244,7 +258,7 @@ const ROUTE_RULES: RouteRule[] = [
     scopeCheck: true,
   },
 
-  { pattern: /^\/admin\/bulk-import(\/|$)/, allowedRoles: CLUB_AND_ABOVE },
+  { pattern: /^\/admin\/bulk-import(\/|$)/, allowedRoles: BULK_IMPORT_PAGE_ROLES },
 
   { pattern: /^\/admin(\/|$)/, allowedRoles: ANY_ADMIN },
 

@@ -18,6 +18,7 @@
     "reconcile:association-levels": "tsx scripts/reconcile-association-levels.ts",
     "backfill:news-scope": "tsx scripts/backfill-news-portal-scope.ts",
     "migrate:home-gallery-platform": "tsx scripts/migrate-home-gallery-to-platform-subfolder.ts",
+    "bulk-import": "tsx scripts/bulk-import-cli.ts",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",

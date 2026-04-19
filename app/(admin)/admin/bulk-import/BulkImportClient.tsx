@@ -185,6 +185,7 @@ const ENTITIES: EntityDef[] = [
       { key: "clubId",          label: "Club ID",          required: false, example: "abc123" },
       { key: "associationName", label: "Association Name", required: false, example: "Brisbane Hockey Association" },
       { key: "associationId",   label: "Association ID",   required: false, example: "bha" },
+      { key: "initialPassword", label: "Initial password", required: false, example: "", note: "Super-admin only; min 8 chars uses this instead of a random temp password" },
     ],
   },
   {
@@ -196,6 +197,7 @@ const ENTITIES: EntityDef[] = [
     fields: [
       { key: "name",           label: "Club Name",       required: true,  example: "Commercial Hockey Club" },
       { key: "shortName",      label: "Short Name",      required: true,  example: "CHC" },
+      { key: "parentAssociationId", label: "Association ID", required: false, example: "ASSOC-001", note: "Owning association (alias associationId)" },
       { key: "email",          label: "Email",           required: false, example: "info@chc.com.au" },
       { key: "phone",          label: "Phone",           required: false, example: "07 3456 7890" },
       { key: "website",        label: "Website",         required: false, example: "https://chc.com.au" },
@@ -260,6 +262,177 @@ const ENTITIES: EntityDef[] = [
       { key: "coach",         label: "Coach",            required: false, example: "Kim Lee" },
       { key: "manager",       label: "Manager",          required: false, example: "Pat Green" },
       { key: "associationId", label: "Association ID",   required: false, example: "bha" },
+    ],
+  },
+  {
+    key: "association-registrations",
+    label: "Assoc. registrations",
+    icon: "📇",
+    color: "from-sky-500 to-sky-600",
+    description: "Association membership registrations (collection association-registrations + member summary).",
+    fields: [
+      { key: "associationId", label: "Association ID", required: true, example: "ASSOC-001" },
+      { key: "memberId", label: "Member ID", required: true, example: "MBR-001" },
+      { key: "seasonYear", label: "Season year", required: true, example: "2026" },
+      { key: "status", label: "Status", required: false, example: "active" },
+      { key: "roleIds", label: "Roles", required: false, example: "role-player", note: "Comma-separated" },
+      { key: "ageCategory", label: "Age category", required: false, example: "senior" },
+    ],
+  },
+  {
+    key: "club-registrations",
+    label: "Club registrations",
+    icon: "📋",
+    color: "from-lime-500 to-lime-600",
+    description: "Club membership registrations for a season.",
+    fields: [
+      { key: "clubId", label: "Club ID", required: true, example: "club-demo-1" },
+      { key: "memberId", label: "Member ID", required: true, example: "MBR-001" },
+      { key: "seasonYear", label: "Season year", required: true, example: "2026" },
+      { key: "registrationType", label: "Type", required: false, example: "primary", note: "primary or secondary" },
+      { key: "status", label: "Status", required: false, example: "pending" },
+    ],
+  },
+  {
+    key: "league-venues",
+    label: "League venues",
+    icon: "🏟️",
+    color: "from-orange-500 to-orange-600",
+    description: "Club-nominated venues on a season competition (replaces matching club+venue row).",
+    fields: [
+      { key: "seasonCompetitionId", label: "Season competition ID", required: true, example: "sc-demo-2026" },
+      { key: "clubId", label: "Club ID", required: true, example: "club-demo-1" },
+      { key: "venueName", label: "Venue name", required: true, example: "Main Field" },
+      { key: "addressLine", label: "Address", required: false, example: "1 Hockey Way" },
+    ],
+  },
+  {
+    key: "tournaments",
+    label: "Tournaments",
+    icon: "🎖️",
+    color: "from-rose-500 to-rose-600",
+    description: "Representative tournaments (rep_tournaments).",
+    fields: [
+      { key: "tournamentId", label: "Tournament ID", required: false, example: "tmt-demo-2026" },
+      { key: "season", label: "Season", required: true, example: "2026" },
+      { key: "ageGroup", label: "Age group", required: true, example: "U16" },
+      { key: "title", label: "Title", required: true, example: "Demo Cup" },
+      { key: "startDate", label: "Start", required: true, example: "2026-06-01" },
+      { key: "endDate", label: "End", required: true, example: "2026-06-03" },
+      { key: "location", label: "Location", required: true, example: "Brisbane" },
+      { key: "hostType", label: "Host type", required: false, example: "association", note: "association or club" },
+      { key: "hostId", label: "Host ID", required: true, example: "ASSOC-001" },
+    ],
+  },
+  {
+    key: "tournament-fixtures",
+    label: "Tournament fixtures",
+    icon: "📅",
+    color: "from-fuchsia-500 to-fuchsia-600",
+    description: "Fixture rows for rep_tournament_fixtures.",
+    fields: [
+      { key: "tournamentId", label: "Tournament ID", required: true, example: "tmt-demo-2026" },
+      { key: "fixtureId", label: "Fixture ID", required: true, example: "fx-001" },
+      { key: "phase", label: "Phase", required: false, example: "pool" },
+      { key: "homeTeamName", label: "Home", required: false, example: "Team A" },
+      { key: "awayTeamName", label: "Away", required: false, example: "Team B" },
+      { key: "published", label: "Published", required: false, example: "true" },
+    ],
+  },
+  {
+    key: "tournament-results",
+    label: "Tournament results",
+    icon: "🏑",
+    color: "from-red-500 to-red-600",
+    description: "Patch scores on existing tournament fixtures.",
+    fields: [
+      { key: "tournamentId", label: "Tournament ID", required: true, example: "tmt-demo-2026" },
+      { key: "fixtureId", label: "Fixture ID", required: true, example: "fx-001" },
+      { key: "homeScore", label: "Home score", required: false, example: "2" },
+      { key: "awayScore", label: "Away score", required: false, example: "1" },
+    ],
+  },
+  {
+    key: "league-fixture-results",
+    label: "League results",
+    icon: "📊",
+    color: "from-amber-500 to-amber-600",
+    description: "Patch scores on league_fixtures.",
+    fields: [
+      { key: "seasonCompetitionId", label: "Season competition ID", required: true, example: "sc-demo-2026" },
+      { key: "fixtureId", label: "Fixture ID", required: true, example: "lf-001" },
+      { key: "homeScore", label: "Home score", required: false, example: "3" },
+      { key: "awayScore", label: "Away score", required: false, example: "2" },
+    ],
+  },
+  {
+    key: "competition-awards",
+    label: "Competition awards",
+    icon: "🌟",
+    color: "from-violet-500 to-violet-600",
+    description: "League or tournament awards (validated like admin API).",
+    fields: [
+      { key: "context", label: "Context", required: true, example: "league", note: "league or tournament" },
+      { key: "seasonCompetitionId", label: "Season competition ID", required: false, example: "sc-demo-2026" },
+      { key: "tournamentId", label: "Tournament ID", required: false, example: "tmt-demo-2026" },
+      { key: "awardType", label: "Award type", required: true, example: "player_of_match" },
+      { key: "fixtureId", label: "Fixture ID", required: false, example: "lf-001" },
+      { key: "memberId", label: "Member ID", required: true, example: "MBR-001" },
+      { key: "teamId", label: "Team ID", required: false, example: "" },
+    ],
+  },
+  {
+    key: "nominations",
+    label: "Nominations",
+    icon: "🗳️",
+    color: "from-stone-500 to-stone-600",
+    description: "Rep nomination rows (window must exist).",
+    fields: [
+      { key: "windowId", label: "Window ID", required: true, example: "nw-demo-001" },
+      { key: "nomineeId", label: "Nominee ID", required: true, example: "MBR-001" },
+      { key: "nomineeName", label: "Nominee name", required: false, example: "Alex Player" },
+      { key: "nomineeType", label: "Nominee type", required: false, example: "member" },
+      { key: "status", label: "Status", required: false, example: "pending" },
+    ],
+  },
+  {
+    key: "fees",
+    label: "Fees JSON",
+    icon: "💳",
+    color: "from-emerald-600 to-emerald-700",
+    description: "Replace fees object on an association or club document.",
+    fields: [
+      { key: "ownerType", label: "Owner type", required: true, example: "club", note: "association or club" },
+      { key: "ownerId", label: "Owner ID", required: true, example: "club-demo-1" },
+      { key: "feesJson", label: "Fees JSON", required: true, example: '{"tiers":[]}', note: "Valid JSON object" },
+    ],
+  },
+  {
+    key: "tournament-fees",
+    label: "Tournament fees",
+    icon: "🧾",
+    color: "from-cyan-600 to-cyan-700",
+    description: "Append a fee line to team_tournament_entries.feeItems.",
+    fields: [
+      { key: "entryId", label: "Entry ID", required: true, example: "tte-demo-001" },
+      { key: "name", label: "Item name", required: false, example: "Bus" },
+      { key: "category", label: "Category", required: false, example: "transfers" },
+      { key: "totalAmountCents", label: "Amount (cents)", required: false, example: "15000" },
+    ],
+  },
+  {
+    key: "news",
+    label: "News",
+    icon: "📰",
+    color: "from-slate-500 to-slate-600",
+    description: "Tenant-scoped news posts (platform / association / club).",
+    fields: [
+      { key: "title", label: "Title", required: true, example: "Season launch" },
+      { key: "content", label: "Content", required: true, example: "<p>Welcome</p>" },
+      { key: "publishDate", label: "Publish", required: true, example: "2026-04-01" },
+      { key: "expiryDate", label: "Expiry", required: true, example: "2027-04-01" },
+      { key: "scopeType", label: "Scope", required: false, example: "club", note: "platform | association | club" },
+      { key: "scopeId", label: "Scope ID", required: false, example: "club-demo-1" },
     ],
   },
 ];
@@ -666,13 +839,13 @@ export default function BulkImportClient() {
           <div className="text-sm text-amber-800">
             <strong>Before you start:</strong> Download the template for the entity you want to import.
             Fill it in, then upload it here. Existing records are matched and updated — duplicates are not created.
-            <strong> This feature is only visible to super-admins.</strong>
+            <strong> Permissions follow your role:</strong> super-admin can import across the system; association and club admins are scoped to their organisation (CSV IDs should still match your tenant).
           </div>
         </div>
       </div>
 
       {/* Entity tabs */}
-      <div className="flex flex-wrap gap-2 mb-6">
+      <div className="flex flex-wrap gap-2 mb-6 overflow-x-auto pb-1">
         {ENTITIES.map((e) => (
           <button
             key={e.key}

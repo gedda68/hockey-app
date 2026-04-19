@@ -1,0 +1,2 @@
+tournamentId,fixtureId,phase,poolRound,sequence,homeTeamName,awayTeamName,status,published
+tmt-demo-2026,fx-001,pool,1,1,North,South,scheduled,true
