@@ -337,6 +337,17 @@ async function main() {
       "associationId + venueId + pitchId + scheduledStart",
     );
 
+    // ── communication_hub_settings (Epic O2 — tenant comms hub) ───────────
+    const commHub = db.collection("communication_hub_settings");
+    console.log("\ncommunication_hub_settings:");
+
+    await idx(
+      commHub,
+      { scopeType: 1, scopeId: 1 },
+      { unique: true },
+      "unique scopeType + scopeId",
+    );
+
     // ── coach_team_analytics (season rollups) ─────────────────────────────
     const coachAnalytics = db.collection("coach_team_analytics");
     console.log("\ncoach_team_analytics:");

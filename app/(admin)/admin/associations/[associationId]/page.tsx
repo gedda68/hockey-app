@@ -204,6 +204,13 @@ export default async function AssociationDetailPage({
                   Match events
                 </Link>
                 <Link
+                  href={`/admin/associations/${associationId}/communications`}
+                  className="inline-flex items-center gap-2 px-4 py-2 border-2 border-rose-500 text-rose-900 rounded-xl font-black hover:bg-rose-50 transition-all text-sm"
+                >
+                  <Mail size={18} />
+                  Communications hub
+                </Link>
+                <Link
                   href={`/admin/associations/${associationId}/edit`}
                   className="inline-flex items-center gap-2 px-6 py-3 bg-[#06054e] text-white rounded-xl font-black hover:bg-yellow-400 hover:text-[#06054e] transition-all"
                 >

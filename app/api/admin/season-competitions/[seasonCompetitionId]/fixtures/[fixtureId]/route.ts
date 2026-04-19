@@ -31,6 +31,7 @@ import {
   resolvePitchVenueForAssociation,
   type ResolvedPitchVenue,
 } from "@/lib/competitions/pitchScheduleConflict";
+import { getCommunicationHubSettingsForAssociation } from "@/lib/communications/communicationHubSettings";
 
 type Params = {
   params: Promise<{ seasonCompetitionId: string; fixtureId: string }>;
@@ -48,7 +49,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     const body = PatchLeagueFixtureBodySchema.parse(await request.json());
 
     const client = await clientPromise;
-    const db = client.db("hockey-app");
+    const db = client.db(process.env.DB_NAME || "hockey-app");
 
     const sc = await db.collection("season_competitions").findOne({
       seasonCompetitionId,
@@ -308,6 +309,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     });
 
     if (body.notifyScheduleChange && updated?.published) {
+      const commsHub = await getCommunicationHubSettingsForAssociation(db, associationId);
       const beforeLoc = {
         scheduledStart: existing.scheduledStart as string | null | undefined,
         venueName: existing.venueName as string | null | undefined,
@@ -357,6 +359,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
           awayName,
           fixtureId,
           seasonCompetitionId,
+          supplementPlain: commsHub.fixtureChangeEmailSupplementText,
           before: beforeLoc,
           after: afterLoc,
         });
@@ -373,15 +376,17 @@ export async function PATCH(request: NextRequest, { params }: Params) {
           const addr = v.addressLine?.trim();
           return addr ? `${venue} (${addr})` : venue;
         };
-        void sendFanFixturePushForFollowedTeams(db, {
-          homeTeamId,
-          awayTeamId,
-          payload: {
-            title: `Fixture update — ${label}`,
-            body: `${homeName} vs ${awayName} · R${Number(updated.round ?? 0)} · ${fmtShort(afterLoc.scheduledStart)} · ${place(afterLoc)}`,
-            url: `${APP_URL}/competitions/matches`,
-          },
-        });
+        if (commsHub.enabledPushTopics.includes("fixture_changes")) {
+          void sendFanFixturePushForFollowedTeams(db, {
+            homeTeamId,
+            awayTeamId,
+            payload: {
+              title: `Fixture update — ${label}`,
+              body: `${homeName} vs ${awayName} · R${Number(updated.round ?? 0)} · ${fmtShort(afterLoc.scheduledStart)} · ${place(afterLoc)}`,
+              url: `${APP_URL}/competitions/matches`,
+            },
+          });
+        }
       }
     }
 

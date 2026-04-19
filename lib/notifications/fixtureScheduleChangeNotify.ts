@@ -41,6 +41,8 @@ export async function sendFixtureScheduleChangeEmails(input: {
   awayName: string;
   fixtureId: string;
   seasonCompetitionId: string;
+  /** Plain text from association comms hub — escaped and shown above the standard template. */
+  supplementPlain?: string | null;
   before: {
     scheduledStart: string | null | undefined;
     venueName: string | null | undefined;
@@ -74,8 +76,19 @@ export async function sendFixtureScheduleChangeEmails(input: {
   let sent = 0;
   let failed = 0;
 
+  const supplementBlock = (() => {
+    const raw = String(input.supplementPlain ?? "").trim();
+    if (!raw) return "";
+    const body = raw
+      .split("\n")
+      .map((line) => escapeHtml(line))
+      .join("<br/>");
+    return `<p style="margin:0 0 14px;line-height:1.45">${body}</p>`;
+  })();
+
   for (const to of input.to) {
     const html = `
+      ${supplementBlock}
       <p>The following <strong>published</strong> league fixture has an updated schedule or venue.</p>
       <ul>
         <li><strong>Competition:</strong> ${escapeHtml(input.competitionLabel)}</li>
@@ -88,11 +101,14 @@ export async function sendFixtureScheduleChangeEmails(input: {
       <p style="color:#666;font-size:12px">${escapeHtml(input.fixtureId)} · ${escapeHtml(input.seasonCompetitionId)}</p>
     `;
 
+    const prefix = String(input.supplementPlain ?? "").trim()
+      ? `${String(input.supplementPlain).trim()}\n\n`
+      : "";
     const r = await sendEmail({
       to,
       subject,
       html,
-      text: `Fixture updated: ${input.homeName} vs ${input.awayName}. Round ${input.round}. Now: ${fmt(input.after.scheduledStart)} at ${place(input.after)}. ${matchesUrl}`,
+      text: `${prefix}Fixture updated: ${input.homeName} vs ${input.awayName}. Round ${input.round}. Now: ${fmt(input.after.scheduledStart)} at ${place(input.after)}. ${matchesUrl}`,
     });
     if (r.success) sent++;
     else failed++;

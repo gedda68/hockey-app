@@ -14,7 +14,8 @@ export type PlatformAuditCategory =
   | "ladder"
   | "team_lineage"
   | "competition_awards"
-  | "venue";
+  | "venue"
+  | "communication_hub";
 
 export interface PlatformAuditEntry {
   auditId: string;

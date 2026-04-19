@@ -2,7 +2,8 @@ export type AdminTelemetryEvent =
   | "admin.competitions.get"
   | "admin.competitions.create"
   | "admin.season_competitions.patch"
-  | "admin.fixtures.generate";
+  | "admin.fixtures.generate"
+  | "admin.communication_hub.patch";
 
 type TelemetryFields = Record<string, string | number | boolean | null | undefined>;
 
