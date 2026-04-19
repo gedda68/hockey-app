@@ -98,9 +98,9 @@ The following bullets in **V2 §1.3** are **out of date** relative to the curren
 ## Suggested priority order (V3)
 
 1. **N1 + N2** — Makes league operations **discoverable** and aligns with hierarchy policy (biggest gap vs tournament UX).
-2. **N3** *(shipped)* — Fixture operations console (`/admin/.../fixtures-console`): filters, bulk publish/unpublish, CSV export, scores / approve — **day-to-day comp managers without Postman** (see Epic **N**).
+2. **N3** _(shipped)_ — Fixture operations console (`/admin/.../fixtures-console`): filters, bulk publish/unpublish, CSV export, scores / approve — **day-to-day comp managers without Postman** (see Epic **N**).
 3. **V1 + V2** — Stops “venue” being only free text; enables real **pitch conflict** detection later.
-4. **Q1** *(shipped)* — Playwright tenant + admin redirect smoke (`pnpm test:e2e` with dev server).
+4. **Q1** _(shipped)_ — Playwright tenant + admin redirect smoke (`pnpm test:e2e` with dev server).
 5. **O1 / O5 / B8** — Fan and partner value when core ops UX is stable.
 
 ---
@@ -120,5 +120,6 @@ The following bullets in **V2 §1.3** are **out of date** relative to the curren
 - [ ] Live scores in-app: your current short polling is fine for MVP; WebSockets (or managed realtime) are an upgrade path when you need faster updates or less HTTP churn, and they need a clear publish path from fixture writes (or change streams), not just a socket server.
 - [ ] Push notifications: plan around FCM / APNs / Web Push, not WebSockets as the primary channel; sockets only for toasts while the app is open if you want that.
 - [ ] Chat / WhatsApp-class IM: expect persistent realtime (often WebSockets or a vendor abstraction) plus persistence, receipts, moderation, etc.; heavy lifting is product and backend, not only the wire protocol.
+- [ ] Club and association financials (e.g. sponsorship, venue hire, registrations, merchandise/uniforms and other income sources, with costs out, uniforms, tournament payments etc...) with reporting and simple cost centres with budgeting profit and loss statements and ledgers. Including graphs, revenue and spend analysis, ability to integrate with xero and other platforms. Full transparency of what comes in and what goes out and align all in/out costs. e,g, uniform costs in and revenue for sales. This leads into auto generations of end of year financials
 
 _Last updated: 2026-04-19 — O1 match-centre polling; Q1 Playwright tenant smoke._
