@@ -124,6 +124,8 @@ export const LeagueFixtureSchema = z.object({
 
   venueId: z.string().min(1).nullable().optional(),
   venueName: z.string().min(1).nullable().optional(),
+  /** Epic V2 — pitch within `association_venues` (must belong to the same association as the fixture). */
+  pitchId: z.string().min(1).nullable().optional(),
   addressLine: z.string().nullable().optional(),
   scheduledStart: z.string().nullable().optional(),
   scheduledEnd: z.string().nullable().optional(),
@@ -172,6 +174,7 @@ export const PatchLeagueFixtureBodySchema = z
   .object({
     venueId: z.string().min(1).nullable().optional(),
     venueName: z.string().min(1).nullable().optional(),
+    pitchId: z.string().min(1).nullable().optional(),
     addressLine: z.string().nullable().optional(),
     scheduledStart: IsoOrNull.optional(),
     scheduledEnd: IsoOrNull.optional(),

@@ -306,6 +306,17 @@ async function main() {
     await idx(assocVenues, { associationId: 1, status: 1 }, {},
       "index associationId + status");
 
+    // ── league_fixtures (Epic V2 — pitch overlap / admin queries) ───────────
+    const leagueFixtures = db.collection("league_fixtures");
+    console.log("\nleague_fixtures:");
+
+    await idx(
+      leagueFixtures,
+      { owningAssociationId: 1, pitchId: 1, published: 1, scheduledStart: 1 },
+      {},
+      "compound owningAssociationId + pitchId + published + scheduledStart",
+    );
+
     // ── coach_team_analytics (season rollups) ─────────────────────────────
     const coachAnalytics = db.collection("coach_team_analytics");
     console.log("\ncoach_team_analytics:");

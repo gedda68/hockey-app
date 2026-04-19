@@ -37,6 +37,7 @@ type LeagueFixtureRow = {
   homeTeamId: string;
   awayTeamId: string;
   venueName?: string | null;
+  pitchId?: string | null;
   addressLine?: string | null;
   scheduledStart?: string | null;
   published?: boolean;
@@ -93,6 +94,8 @@ export default function FixtureOperationsConsole({
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [scoreDraft, setScoreDraft] = useState<Record<string, { h: string; a: string }>>({});
   const [rowBusy, setRowBusy] = useState<string | null>(null);
+  const [pitchOptions, setPitchOptions] = useState<Array<{ pitchId: string; label: string }>>([]);
+  const [pitchDraft, setPitchDraft] = useState<Record<string, string>>({});
 
   const teamById = useMemo(() => {
     const m = new Map<string, TeamRow>();
@@ -198,6 +201,42 @@ export default function FixtureOperationsConsole({
     };
   }, [associationId]);
 
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await fetch(
+          `/api/admin/associations/${encodeURIComponent(associationId)}/venues?status=active`,
+          { credentials: "include" },
+        );
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || cancelled) return;
+        const venues = data.venues ?? [];
+        const opts: Array<{ pitchId: string; label: string }> = [];
+        for (const v of venues) {
+          const name = String(v.name ?? "Venue");
+          for (const p of v.pitches ?? []) {
+            if (p?.pitchId && p?.label) {
+              opts.push({
+                pitchId: String(p.pitchId),
+                label: `${name} — ${String(p.label)}`,
+              });
+            }
+          }
+        }
+        opts.sort((a, b) =>
+          a.label.localeCompare(b.label, undefined, { sensitivity: "base" }),
+        );
+        if (!cancelled) setPitchOptions(opts);
+      } catch {
+        if (!cancelled) setPitchOptions([]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [associationId]);
+
   const appliedInitialSeason = useRef(false);
   useEffect(() => {
     appliedInitialSeason.current = false;
@@ -239,6 +278,11 @@ export default function FixtureOperationsConsole({
       if (!fxRes.ok) throw new Error(fxJson.error || "Fixtures load failed");
       const list = (fxJson.fixtures ?? []) as LeagueFixtureRow[];
       setFixtures(list);
+      const nextPitch: Record<string, string> = {};
+      for (const f of list) {
+        nextPitch[f.fixtureId] = f.pitchId?.trim() ? String(f.pitchId) : "";
+      }
+      setPitchDraft(nextPitch);
       setSelected(new Set());
       const nextDraft: Record<string, { h: string; a: string }> = {};
       for (const f of list) {
@@ -335,6 +379,7 @@ export default function FixtureOperationsConsole({
       "fixtureId",
       "round",
       "scheduledStart",
+      "pitchId",
       "venueName",
       "addressLine",
       "homeTeamId",
@@ -354,6 +399,7 @@ export default function FixtureOperationsConsole({
           csvEscape(f.fixtureId),
           String(f.round),
           csvEscape(f.scheduledStart ?? ""),
+          csvEscape(f.pitchId ?? ""),
           csvEscape(f.venueName ?? ""),
           csvEscape(f.addressLine ?? ""),
           csvEscape(f.homeTeamId),
@@ -378,6 +424,31 @@ export default function FixtureOperationsConsole({
     a.click();
     URL.revokeObjectURL(url);
     toast.success("CSV downloaded.");
+  };
+
+  const savePitch = async (f: LeagueFixtureRow) => {
+    if (!seasonCompetitionId) return;
+    const want = pitchDraft[f.fixtureId] ?? "";
+    setRowBusy(f.fixtureId);
+    try {
+      const res = await fetch(
+        `/api/admin/season-competitions/${encodeURIComponent(seasonCompetitionId)}/fixtures/${encodeURIComponent(f.fixtureId)}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ pitchId: want.trim() ? want.trim() : null }),
+        },
+      );
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(typeof j.error === "string" ? j.error : "Pitch update failed");
+      toast.success("Pitch saved.");
+      await loadSeasonAndFixtures(seasonCompetitionId);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : String(e));
+    } finally {
+      setRowBusy(null);
+    }
   };
 
   const saveResult = async (f: LeagueFixtureRow) => {
@@ -643,6 +714,7 @@ export default function FixtureOperationsConsole({
                   <th className="px-2 py-2 text-left">Rd</th>
                   <th className="px-2 py-2 text-left">When</th>
                   <th className="px-2 py-2 text-left">Venue</th>
+                  <th className="px-2 py-2 text-left min-w-[180px]">Pitch</th>
                   <th className="px-2 py-2 text-left">Match</th>
                   <th className="px-2 py-2 text-left">Pub</th>
                   <th className="px-2 py-2 text-left">Status</th>
@@ -671,6 +743,35 @@ export default function FixtureOperationsConsole({
                       </td>
                       <td className="px-2 py-2 text-xs font-bold text-slate-700 max-w-[140px] truncate">
                         {f.venueName?.trim() || "—"}
+                      </td>
+                      <td className="px-2 py-2 align-top">
+                        <div className="flex flex-col gap-1 min-w-[160px]">
+                          <select
+                            className="rounded border px-1 py-1 text-[10px] font-bold text-slate-800 max-w-[200px]"
+                            value={pitchDraft[f.fixtureId] ?? ""}
+                            onChange={(e) =>
+                              setPitchDraft((prev) => ({
+                                ...prev,
+                                [f.fixtureId]: e.target.value,
+                              }))
+                            }
+                          >
+                            <option value="">— none —</option>
+                            {pitchOptions.map((p) => (
+                              <option key={p.pitchId} value={p.pitchId}>
+                                {p.label}
+                              </option>
+                            ))}
+                          </select>
+                          <button
+                            type="button"
+                            disabled={rowBusy === f.fixtureId}
+                            className="text-left text-[10px] font-black text-[#06054e] underline disabled:opacity-40"
+                            onClick={() => void savePitch(f)}
+                          >
+                            Save pitch
+                          </button>
+                        </div>
                       </td>
                       <td className="px-2 py-2 font-bold text-slate-900 min-w-[200px]">
                         {teamLabel(f.homeTeamId)} vs {teamLabel(f.awayTeamId)}

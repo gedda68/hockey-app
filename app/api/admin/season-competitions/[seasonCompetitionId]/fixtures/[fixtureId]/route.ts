@@ -26,6 +26,11 @@ import {
 } from "@/lib/notifications/fixtureScheduleChangeNotify";
 import { collectFanFixtureChangeEmails } from "@/lib/notifications/fanFixtureFollowers";
 import { sendFanFixturePushForFollowedTeams } from "@/lib/notifications/fanFixturePushNotify";
+import {
+  assertPublishedPitchSchedule,
+  resolvePitchVenueForAssociation,
+  type ResolvedPitchVenue,
+} from "@/lib/competitions/pitchScheduleConflict";
 
 type Params = {
   params: Promise<{ seasonCompetitionId: string; fixtureId: string }>;
@@ -70,9 +75,10 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       return NextResponse.json({ error: "Fixture not found" }, { status: 404 });
     }
 
+    const associationId = sc.owningAssociationId as string;
+
     if (body.umpires !== undefined) {
       const proposedUmpires = body.umpires ?? [];
-      const associationId = sc.owningAssociationId as string;
       const homeTeamId = existing.homeTeamId as string;
       const awayTeamId = existing.awayTeamId as string;
       const { slots } = await evaluateFixtureUmpireAssignments(db, {
@@ -99,6 +105,82 @@ export async function PATCH(request: NextRequest, { params }: Params) {
           );
         }
       }
+    }
+
+    let patchClearsPitch = false;
+    let patchSetsPitchId: string | null = null;
+    let resolvedForPitch: ResolvedPitchVenue | null = null;
+
+    if (body.pitchId !== undefined) {
+      const trimmed =
+        body.pitchId === null ? "" : typeof body.pitchId === "string" ? body.pitchId.trim() : "";
+      if (!trimmed) {
+        patchClearsPitch = true;
+      } else {
+        const r = await resolvePitchVenueForAssociation(db, associationId, trimmed);
+        if (!r) {
+          return NextResponse.json(
+            { error: "Unknown or inactive pitch for this association." },
+            { status: 400 },
+          );
+        }
+        if (
+          body.venueId !== undefined &&
+          body.venueId !== null &&
+          String(body.venueId) !== r.venueId
+        ) {
+          return NextResponse.json(
+            { error: "venueId does not match the venue for the selected pitch." },
+            { status: 400 },
+          );
+        }
+        patchSetsPitchId = trimmed;
+        resolvedForPitch = r;
+      }
+    }
+
+    const existingPitch =
+      typeof existing.pitchId === "string" && existing.pitchId.trim()
+        ? existing.pitchId.trim()
+        : null;
+    const nextPitchId = patchClearsPitch
+      ? null
+      : patchSetsPitchId
+        ? patchSetsPitchId
+        : existingPitch;
+
+    const nextPublished =
+      body.published !== undefined ? Boolean(body.published) : Boolean(existing.published);
+    const nextStart =
+      body.scheduledStart !== undefined
+        ? body.scheduledStart
+        : (existing.scheduledStart as string | null | undefined);
+    const nextEnd =
+      body.scheduledEnd !== undefined
+        ? body.scheduledEnd
+        : (existing.scheduledEnd as string | null | undefined);
+    const nextStatus =
+      body.status !== undefined ? body.status : (existing.status as string | null | undefined);
+
+    const schedCheck = await assertPublishedPitchSchedule(db, {
+      owningAssociationId: associationId,
+      seasonCompetitionId,
+      fixtureId,
+      pitchId: nextPitchId,
+      published: nextPublished,
+      scheduledStart: nextStart as string | null | undefined,
+      scheduledEnd: nextEnd as string | null | undefined,
+      status: nextStatus,
+    });
+    if (!schedCheck.ok) {
+      return NextResponse.json(
+        {
+          error: schedCheck.error,
+          code: "PITCH_SCHEDULE_CONFLICT",
+          conflictFixtureId: schedCheck.conflictFixtureId,
+        },
+        { status: 409 },
+      );
     }
 
     const nowIso = new Date().toISOString();
@@ -155,6 +237,14 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     for (const k of keys) {
       if (body[k] !== undefined) $set[k] = body[k];
     }
+    if (patchSetsPitchId && resolvedForPitch) {
+      $set.pitchId = patchSetsPitchId;
+      $set.venueId = resolvedForPitch.venueId;
+      $set.venueName = resolvedForPitch.venueName;
+      $set.addressLine = resolvedForPitch.addressLine || null;
+    } else if (patchClearsPitch) {
+      $set.pitchId = null;
+    }
     if (body.umpires !== undefined) {
       $set.umpires = umpiresToPersist;
     }
@@ -198,12 +288,14 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       summary: `Updated fixture (seasonCompetition=${seasonCompetitionId})`,
       before: {
         venueName: existing.venueName,
+        pitchId: existing.pitchId,
         scheduledStart: existing.scheduledStart,
         published: existing.published,
         status: existing.status,
       },
       after: {
         venueName: updated?.venueName,
+        pitchId: updated?.pitchId,
         scheduledStart: updated?.scheduledStart,
         published: updated?.published,
         status: updated?.status,

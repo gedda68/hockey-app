@@ -277,10 +277,15 @@ export default function LeagueCompetitionWizard({
       homeTeamId: string;
       awayTeamId: string;
       venueName: string | null;
+      pitchId?: string | null;
       scheduledStart: string | null;
       published?: boolean;
       status?: string;
     }>
+  >([]);
+
+  const [pitchOptions, setPitchOptions] = useState<
+    Array<{ pitchId: string; label: string }>
   >([]);
 
   const [seasonStatus, setSeasonStatus] = useState<string>("draft");
@@ -476,6 +481,43 @@ export default function LeagueCompetitionWizard({
       void loadFixtures().catch((e) => toast.error(String(e.message)));
     }
   }, [step, seasonCompetitionId, loadFixtures]);
+
+  useEffect(() => {
+    if (step !== "fixtures") return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await fetch(
+          `/api/admin/associations/${encodeURIComponent(associationId)}/venues?status=active`,
+          { credentials: "include" },
+        );
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || cancelled) return;
+        const venues = data.venues ?? [];
+        const opts: Array<{ pitchId: string; label: string }> = [];
+        for (const v of venues) {
+          const name = String(v.name ?? "Venue");
+          for (const p of v.pitches ?? []) {
+            if (p?.pitchId && p?.label) {
+              opts.push({
+                pitchId: String(p.pitchId),
+                label: `${name} — ${String(p.label)}`,
+              });
+            }
+          }
+        }
+        opts.sort((a, b) =>
+          a.label.localeCompare(b.label, undefined, { sensitivity: "base" }),
+        );
+        if (!cancelled) setPitchOptions(opts);
+      } catch {
+        if (!cancelled) setPitchOptions([]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [step, associationId]);
 
   useEffect(() => {
     if (step === "publish" && seasonCompetitionId) {
@@ -793,7 +835,13 @@ export default function LeagueCompetitionWizard({
 
   const patchFixture = async (
     fixtureId: string,
-    body: { venueName?: string | null; scheduledStart?: string | null; published?: boolean; status?: string },
+    body: {
+      venueName?: string | null;
+      pitchId?: string | null;
+      scheduledStart?: string | null;
+      published?: boolean;
+      status?: string;
+    },
   ) => {
     const res = await fetch(
       `/api/admin/season-competitions/${encodeURIComponent(seasonCompetitionId)}/fixtures/${encodeURIComponent(fixtureId)}`,
@@ -1476,8 +1524,10 @@ export default function LeagueCompetitionWizard({
         {step === "fixtures" && (
           <div className="space-y-3">
             <p className="text-sm font-bold text-slate-600">
-              Set venue and start time per fixture. Use status <strong>postponed</strong> when
-              rescheduling after generate.
+              Set venue and start time per fixture. Pick a <strong>pitch</strong> from your venue
+              directory to sync venue details and block double-booked published slots (same pitch +
+              overlapping time, with buffer). Leave pitch empty to type a venue name only. Use status{" "}
+              <strong>postponed</strong> when rescheduling after generate.
             </p>
             <div className="overflow-x-auto rounded-xl border border-slate-200">
               <table className="min-w-full text-sm">
@@ -1486,6 +1536,7 @@ export default function LeagueCompetitionWizard({
                     <th className="px-2 py-2 text-left">Rd</th>
                     <th className="px-2 py-2 text-left">Home</th>
                     <th className="px-2 py-2 text-left">Away</th>
+                    <th className="px-2 py-2 text-left">Pitch</th>
                     <th className="px-2 py-2 text-left">Venue</th>
                     <th className="px-2 py-2 text-left">Start</th>
                     <th className="px-2 py-2 text-left">Status</th>
@@ -1498,6 +1549,7 @@ export default function LeagueCompetitionWizard({
                     <FixtureRowEditor
                       key={fx.fixtureId}
                       fx={fx}
+                      pitchOptions={pitchOptions}
                       homeName={teamLabel(fx.homeTeamId)}
                       awayName={teamLabel(fx.awayTeamId)}
                       onSave={async (patch) => {
@@ -1673,6 +1725,7 @@ export default function LeagueCompetitionWizard({
 
 function FixtureRowEditor({
   fx,
+  pitchOptions,
   homeName,
   awayName,
   onSave,
@@ -1683,34 +1736,77 @@ function FixtureRowEditor({
     homeTeamId: string;
     awayTeamId: string;
     venueName: string | null;
+    pitchId?: string | null;
     scheduledStart: string | null;
     published?: boolean;
     status?: string;
   };
+  pitchOptions: Array<{ pitchId: string; label: string }>;
   homeName: string;
   awayName: string;
   onSave: (patch: {
     venueName?: string | null;
+    pitchId?: string | null;
     scheduledStart?: string | null;
     published?: boolean;
     status?: string;
   }) => Promise<void>;
 }) {
   const [venue, setVenue] = useState(fx.venueName ?? "");
+  const [pitchId, setPitchId] = useState(fx.pitchId?.trim() ?? "");
   const [start, setStart] = useState(
     fx.scheduledStart ? fx.scheduledStart.slice(0, 16) : "",
   );
   const [published, setPublished] = useState(Boolean(fx.published));
   const [status, setStatus] = useState(fx.status ?? "scheduled");
 
+  useEffect(() => {
+    setVenue(fx.venueName ?? "");
+    setPitchId(fx.pitchId?.trim() ?? "");
+    setStart(fx.scheduledStart ? fx.scheduledStart.slice(0, 16) : "");
+    setPublished(Boolean(fx.published));
+    setStatus(fx.status ?? "scheduled");
+  }, [
+    fx.fixtureId,
+    fx.venueName,
+    fx.pitchId,
+    fx.scheduledStart,
+    fx.published,
+    fx.status,
+  ]);
+
+  const pitchLocked = Boolean(pitchId.trim());
+
   return (
     <tr className="border-t border-slate-100">
       <td className="px-2 py-2 font-mono">{fx.round}</td>
       <td className="px-2 py-2 font-bold text-xs">{homeName}</td>
       <td className="px-2 py-2 font-bold text-xs">{awayName}</td>
+      <td className="px-2 py-2 align-top">
+        <select
+          className="max-w-[200px] rounded border px-1 py-1 text-[11px] font-bold text-slate-800"
+          value={pitchId}
+          onChange={(e) => setPitchId(e.target.value)}
+        >
+          <option value="">— none —</option>
+          {pitchOptions.map((p) => (
+            <option key={p.pitchId} value={p.pitchId}>
+              {p.label}
+            </option>
+          ))}
+        </select>
+      </td>
       <td className="px-2 py-2">
         <input
-          className="w-36 sm:w-44 rounded border px-1 py-1 text-xs font-bold"
+          className={`w-36 sm:w-44 rounded border px-1 py-1 text-xs font-bold ${
+            pitchLocked ? "bg-slate-50 text-slate-600" : ""
+          }`}
+          readOnly={pitchLocked}
+          title={
+            pitchLocked
+              ? "Venue is taken from the selected pitch; clear pitch to edit text."
+              : undefined
+          }
           value={venue}
           onChange={(e) => setVenue(e.target.value)}
         />
@@ -1743,14 +1839,37 @@ function FixtureRowEditor({
         <button
           type="button"
           className="text-xs font-black uppercase text-[#06054e] underline"
-          onClick={() =>
-            void onSave({
-              venueName: venue.trim() || null,
+          onClick={() => {
+            const trimmedPitch = pitchId.trim();
+            const patch: {
+              venueName?: string | null;
+              pitchId?: string | null;
+              scheduledStart: string | null;
+              published: boolean;
+              status:
+                | "scheduled"
+                | "postponed"
+                | "in_progress"
+                | "completed"
+                | "cancelled";
+            } = {
               scheduledStart: start ? new Date(start).toISOString() : null,
               published,
-              status: status as "scheduled" | "postponed" | "in_progress" | "completed" | "cancelled",
-            })
-          }
+              status: status as
+                | "scheduled"
+                | "postponed"
+                | "in_progress"
+                | "completed"
+                | "cancelled",
+            };
+            if (trimmedPitch) {
+              patch.pitchId = trimmedPitch;
+            } else {
+              patch.pitchId = null;
+              patch.venueName = venue.trim() || null;
+            }
+            void onSave(patch);
+          }}
         >
           Save
         </button>

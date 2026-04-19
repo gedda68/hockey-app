@@ -82,6 +82,7 @@ export async function POST(request: NextRequest, { params }: Params) {
       status: "scheduled" as const,
       venueId: null,
       venueName: null,
+      pitchId: null,
       addressLine: null,
       scheduledStart: null,
       scheduledEnd: null,
