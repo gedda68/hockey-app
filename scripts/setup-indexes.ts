@@ -317,6 +317,26 @@ async function main() {
       "compound owningAssociationId + pitchId + published + scheduledStart",
     );
 
+    // ── pitch_calendar_entries (Epic V3 — public week view + admin blocks) ─
+    const pitchCal = db.collection("pitch_calendar_entries");
+    console.log("\npitch_calendar_entries:");
+
+    await idx(pitchCal, { entryId: 1 }, { unique: true }, "unique entryId");
+
+    await idx(
+      pitchCal,
+      { associationId: 1, scheduledStart: 1 },
+      {},
+      "associationId + scheduledStart",
+    );
+
+    await idx(
+      pitchCal,
+      { associationId: 1, venueId: 1, pitchId: 1, scheduledStart: 1 },
+      {},
+      "associationId + venueId + pitchId + scheduledStart",
+    );
+
     // ── coach_team_analytics (season rollups) ─────────────────────────────
     const coachAnalytics = db.collection("coach_team_analytics");
     console.log("\ncoach_team_analytics:");

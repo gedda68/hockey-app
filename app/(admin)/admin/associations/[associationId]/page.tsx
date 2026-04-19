@@ -176,6 +176,13 @@ export default async function AssociationDetailPage({
                   Venues &amp; pitches
                 </Link>
                 <Link
+                  href={`/admin/associations/${associationId}/venue-calendar`}
+                  className="inline-flex items-center gap-2 px-4 py-2 border-2 border-cyan-600 text-cyan-900 rounded-xl font-black hover:bg-cyan-50 transition-all text-sm"
+                >
+                  <Calendar size={18} />
+                  Pitch calendar blocks
+                </Link>
+                <Link
                   href={`/admin/associations/${associationId}/division-teams`}
                   className="inline-flex items-center gap-2 px-4 py-2 border-2 border-indigo-600 text-indigo-900 rounded-xl font-black hover:bg-indigo-50 transition-all text-sm"
                 >
