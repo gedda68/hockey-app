@@ -17,6 +17,7 @@ import {
 import { getPortalRootDomain } from "@/lib/tenant/portalHost";
 import { buildPathwaysCards } from "@/lib/website/pathwaysCards";
 import PathwaysGrid from "@/components/website/pathways/PathwaysGrid";
+import LeagueIcalSubscribePanel from "@/components/website/LeagueIcalSubscribePanel";
 
 type PublicClub = {
   id: string;
@@ -323,6 +324,11 @@ export default async function ClubHubView({
               My teams view →
             </Link>
           </div>
+          <LeagueIcalSubscribePanel
+            leagues={leagues}
+            portalHint={tenant?.portalSlug ?? club.portalSlug ?? null}
+            attachPortalHint={!onClubPortal}
+          />
           <MyFixturesStrip scope={{ clubId: club.id }} title="My fixtures" />
         </section>
 

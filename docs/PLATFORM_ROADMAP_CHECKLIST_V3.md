@@ -72,7 +72,7 @@ The following bullets in **V2 §1.3** are **out of date** relative to the curren
 - [ ] **O2** **Communications hub** — Extend beyond fixture change: curated digests per tenant (email templates + push topics).
 - [ ] **O3** **Volunteer roster** — Link pathways to duty roster (canteen, goal judge) separate from umpire register — light CRM.
 - [ ] **O4** **Sponsors analytics** — Partner strip click tracking (privacy-safe) for renewal conversations.
-- [ ] **O5** **Programme PDF / ICS per team** — Bulk iCal already started (Epic **J2** in V1); add “download season for my team” from hub.
+- [x] **O5** **Programme PDF / ICS per team** — **Shipped (ICS hub):** `LeagueIcalSubscribePanel` on **association** + **club** public hubs — per–`seasonCompetitionId` **Download .ics** links to **`GET /api/calendar/league?seasonCompetitionId=`**; appends **`portal=`** when the hub is viewed off the tenant subdomain so tenant resolution matches the page. _Follow-up:_ optional PDF programme; true “my team only” filter if product wants a narrower feed than full season comp.
 
 ---
 
@@ -101,7 +101,7 @@ The following bullets in **V2 §1.3** are **out of date** relative to the curren
 2. **N3** _(shipped)_ — Fixture operations console (`/admin/.../fixtures-console`): filters, bulk publish/unpublish, CSV export, scores / approve — **day-to-day comp managers without Postman** (see Epic **N**).
 3. **V1 + V2** — Stops “venue” being only free text; enables real **pitch conflict** detection later.
 4. **Q1** _(shipped)_ — Playwright tenant + admin redirect smoke (`pnpm test:e2e` with dev server).
-5. **O1 / O5 / B8** — Fan and partner value when core ops UX is stable.
+5. **O1** *(shipped)* **/ O5** *(ICS hub shipped; PDF optional)* **/ B8** — Fan and partner value; deep links long-term.
 
 ---
 
@@ -124,4 +124,4 @@ The following bullets in **V2 §1.3** are **out of date** relative to the curren
 - [ ] uniform and merchandise shop for each club/association
 - [ ] Club and association financials (e.g. sponsorship, venue hire, registrations, merchandise/uniforms and other income sources, with costs out, uniforms, tournament payments etc...) with reporting and simple cost centres with budgeting profit and loss statements and ledgers. Including graphs, revenue and spend analysis, ability to integrate with xero and other platforms. Full transparency of what comes in and what goes out and align all in/out costs. e,g, uniform costs in and revenue for sales. This leads into auto generations of end of year financials. It should also provide a health check on the association/club.
 
-_Last updated: 2026-04-19 — O1 match-centre polling; Q1 tenant smoke; Q2 baseline caching/projections; Q3 admin structured logs._
+_Last updated: 2026-04-19 — O1 match-centre polling; O5 hub iCal; Q1–Q3._

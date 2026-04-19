@@ -25,6 +25,7 @@ import {
 } from "@/lib/website/associationHubCopy";
 import { buildPathwaysCards } from "@/lib/website/pathwaysCards";
 import PathwaysGrid from "@/components/website/pathways/PathwaysGrid";
+import LeagueIcalSubscribePanel from "@/components/website/LeagueIcalSubscribePanel";
 
 function hexToRgba(hex: string, alpha: number): string | null {
   const h = hex.trim().replace(/^#/, "");
@@ -364,6 +365,12 @@ export default async function AssociationHubView({
               </p>
             </Link>
           </div>
+
+          <LeagueIcalSubscribePanel
+            leagues={leagues}
+            portalHint={tenant?.portalSlug ?? assoc.portalSlug ?? null}
+            attachPortalHint={!onAssociationPortal}
+          />
 
           <div className="mt-10 flex items-end justify-between gap-4">
             <h3 className="text-[10px] font-black uppercase tracking-widest text-white/50">
