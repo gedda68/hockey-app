@@ -1,12 +1,15 @@
 "use client";
 
 /**
- * Epic V3 — public week grid: pitches × UTC days (matches, training, private).
+ * Epic V3 — public pitch calendar: week (full detail) or month (summary counts).
  */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import type {
+  MonthCalendarCellSummary,
+  PitchCalendarApiResponse,
+  PitchMonthCalendarResponse,
   PitchWeekCalendarResponse,
   PublicCalendarEvent,
 } from "@/lib/public/pitchWeekCalendar";
@@ -21,9 +24,19 @@ function utcMondayWeekStartYmd(d = new Date()): string {
   return new Date(start).toISOString().slice(0, 10);
 }
 
+function utcMonthYm(d = new Date()): string {
+  return d.toISOString().slice(0, 7);
+}
+
 function addDaysYmd(ymd: string, delta: number): string {
   const ms = Date.parse(`${ymd}T00:00:00.000Z`) + delta * 86_400_000;
   return new Date(ms).toISOString().slice(0, 10);
+}
+
+function addMonthsYm(ym: string, delta: number): string {
+  const [y, m] = ym.split("-").map(Number);
+  const d = new Date(Date.UTC(y, m - 1 + delta, 1));
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
 }
 
 function fmtTime(iso: string) {
@@ -78,6 +91,37 @@ function EventBlock({ ev }: { ev: PublicCalendarEvent }) {
   );
 }
 
+function MonthSummaryCell({ s }: { s: MonthCalendarCellSummary }) {
+  if (s.total === 0) {
+    return <span className="text-slate-400 font-bold">—</span>;
+  }
+  const more = s.total > s.lines.length ? s.total - s.lines.length : 0;
+  return (
+    <div className="text-[10px] space-y-1 leading-snug">
+      <div className="font-black text-slate-800">
+        {s.matchCount} game{s.matchCount === 1 ? "" : "s"} · {s.trainingCount} training ·{" "}
+        {s.privateCount} private
+      </div>
+      {s.lines.map((line, i) => (
+        <div key={i} className="truncate text-slate-600 font-semibold">
+          {line}
+        </div>
+      ))}
+      {more > 0 ? (
+        <div className="text-slate-400 font-bold">+{more} more</div>
+      ) : null}
+    </div>
+  );
+}
+
+function isMonthPayload(x: PitchCalendarApiResponse | null): x is PitchMonthCalendarResponse {
+  return x?.view === "month";
+}
+
+function isWeekPayload(x: PitchCalendarApiResponse | null): x is PitchWeekCalendarResponse {
+  return x?.view === "week";
+}
+
 export default function VenuePitchCalendarClient({
   associationId,
   associationName,
@@ -89,9 +133,11 @@ export default function VenuePitchCalendarClient({
   portalQuery?: string | null;
   initialVenueId?: string;
 }) {
+  const [viewMode, setViewMode] = useState<"week" | "month">("week");
   const [weekStart, setWeekStart] = useState(() => utcMondayWeekStartYmd());
+  const [monthYm, setMonthYm] = useState(() => utcMonthYm());
   const [venueId, setVenueId] = useState(initialVenueId);
-  const [data, setData] = useState<PitchWeekCalendarResponse | null>(null);
+  const [data, setData] = useState<PitchCalendarApiResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -100,7 +146,11 @@ export default function VenuePitchCalendarClient({
     setError(null);
     try {
       const q = new URLSearchParams();
-      q.set("weekStart", weekStart);
+      if (viewMode === "month") {
+        q.set("month", monthYm);
+      } else {
+        q.set("weekStart", weekStart);
+      }
       if (venueId.trim()) q.set("venueId", venueId.trim());
       if (portalQuery?.trim()) q.set("portal", portalQuery.trim());
       const res = await fetch(
@@ -109,14 +159,14 @@ export default function VenuePitchCalendarClient({
       );
       const j = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(typeof j.error === "string" ? j.error : "Load failed");
-      setData(j as PitchWeekCalendarResponse);
+      setData(j as PitchCalendarApiResponse);
     } catch (e) {
       setData(null);
       setError(e instanceof Error ? e.message : String(e));
     } finally {
       setLoading(false);
     }
-  }, [associationId, weekStart, venueId, portalQuery]);
+  }, [associationId, weekStart, monthYm, venueId, portalQuery, viewMode]);
 
   useEffect(() => {
     void load();
@@ -140,50 +190,114 @@ export default function VenuePitchCalendarClient({
           <strong>Transparency:</strong> published league games show team names.{" "}
           <strong>Training</strong> shows the organising club or association only. Other bookings
           appear as <strong>Private</strong> (including commercial hire — never labelled as hire on
-          this public view).
+          this public view). <strong>Month view</strong> shows counts and short previews per day and
+          pitch; open <strong>Week view</strong> for full detail.
         </p>
       </div>
 
       <div className="flex flex-wrap items-end gap-4 justify-between">
         <div>
-          <h1 className="text-2xl font-black text-[#06054e]">Pitch week calendar</h1>
+          <h1 className="text-2xl font-black text-[#06054e]">Pitch calendar</h1>
           <p className="text-sm font-bold text-slate-600 mt-1">{associationName}</p>
         </div>
         <div className="flex flex-wrap gap-2 items-center">
-          <button
-            type="button"
-            className="rounded-xl border-2 border-slate-300 px-3 py-2 text-xs font-black"
-            onClick={() => setWeekStart((w) => addDaysYmd(w, -7))}
-          >
-            ← Prev week
-          </button>
-          <button
-            type="button"
-            className="rounded-xl border-2 border-slate-300 px-3 py-2 text-xs font-black"
-            onClick={() => setWeekStart(utcMondayWeekStartYmd())}
-          >
-            This week
-          </button>
-          <button
-            type="button"
-            className="rounded-xl border-2 border-slate-300 px-3 py-2 text-xs font-black"
-            onClick={() => setWeekStart((w) => addDaysYmd(w, 7))}
-          >
-            Next week →
-          </button>
+          <div className="flex rounded-xl border-2 border-slate-300 overflow-hidden">
+            <button
+              type="button"
+              className={`px-3 py-2 text-xs font-black ${
+                viewMode === "week" ? "bg-[#06054e] text-white" : "bg-white text-slate-700"
+              }`}
+              onClick={() => setViewMode("week")}
+            >
+              Week
+            </button>
+            <button
+              type="button"
+              className={`px-3 py-2 text-xs font-black ${
+                viewMode === "month" ? "bg-[#06054e] text-white" : "bg-white text-slate-700"
+              }`}
+              onClick={() => {
+                setViewMode("month");
+                setMonthYm(weekStart.slice(0, 7));
+              }}
+            >
+              Month
+            </button>
+          </div>
+          {viewMode === "week" ? (
+            <>
+              <button
+                type="button"
+                className="rounded-xl border-2 border-slate-300 px-3 py-2 text-xs font-black"
+                onClick={() => setWeekStart((w) => addDaysYmd(w, -7))}
+              >
+                ← Prev week
+              </button>
+              <button
+                type="button"
+                className="rounded-xl border-2 border-slate-300 px-3 py-2 text-xs font-black"
+                onClick={() => setWeekStart(utcMondayWeekStartYmd())}
+              >
+                This week
+              </button>
+              <button
+                type="button"
+                className="rounded-xl border-2 border-slate-300 px-3 py-2 text-xs font-black"
+                onClick={() => setWeekStart((w) => addDaysYmd(w, 7))}
+              >
+                Next week →
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                type="button"
+                className="rounded-xl border-2 border-slate-300 px-3 py-2 text-xs font-black"
+                onClick={() => setMonthYm((m) => addMonthsYm(m, -1))}
+              >
+                ← Prev month
+              </button>
+              <button
+                type="button"
+                className="rounded-xl border-2 border-slate-300 px-3 py-2 text-xs font-black"
+                onClick={() => setMonthYm(utcMonthYm())}
+              >
+                This month
+              </button>
+              <button
+                type="button"
+                className="rounded-xl border-2 border-slate-300 px-3 py-2 text-xs font-black"
+                onClick={() => setMonthYm((m) => addMonthsYm(m, 1))}
+              >
+                Next month →
+              </button>
+            </>
+          )}
         </div>
       </div>
 
       <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 flex flex-wrap gap-4 items-center">
-        <label className="text-sm font-bold text-slate-700">
-          Week starts (UTC Monday)
-          <input
-            type="date"
-            className="mt-1 block rounded-lg border-2 border-slate-200 px-2 py-2 font-mono text-sm font-bold"
-            value={weekStart}
-            onChange={(e) => setWeekStart(e.target.value)}
-          />
-        </label>
+        {viewMode === "week" ? (
+          <label className="text-sm font-bold text-slate-700">
+            Week starts (UTC Monday)
+            <input
+              type="date"
+              className="mt-1 block rounded-lg border-2 border-slate-200 px-2 py-2 font-mono text-sm font-bold"
+              value={weekStart}
+              onChange={(e) => setWeekStart(e.target.value)}
+            />
+          </label>
+        ) : (
+          <label className="text-sm font-bold text-slate-700">
+            Month (UTC)
+            <input
+              type="month"
+              className="mt-1 block rounded-lg border-2 border-slate-200 px-2 py-2 font-mono text-sm font-bold"
+              value={monthYm}
+              onChange={(e) => setMonthYm(e.target.value)}
+            />
+          </label>
+        )}
         <label className="text-sm font-bold text-slate-700">
           Venue filter
           <select
@@ -225,7 +339,7 @@ export default function VenuePitchCalendarClient({
         </p>
       ) : null}
 
-      {data && data.columns.length > 0 ? (
+      {isWeekPayload(data) && data.columns.length > 0 ? (
         <div className="overflow-x-auto rounded-2xl border-2 border-slate-200 bg-white shadow-sm">
           <table className="min-w-full text-left text-xs">
             <thead>
@@ -273,9 +387,62 @@ export default function VenuePitchCalendarClient({
         </div>
       ) : null}
 
+      {isMonthPayload(data) && data.columns.length > 0 ? (
+        <div className="overflow-x-auto rounded-2xl border-2 border-slate-200 bg-white shadow-sm">
+          <p className="text-xs font-bold text-slate-500 px-3 py-2 border-b border-slate-100">
+            Month summary · {data.month} · UTC days
+          </p>
+          <table className="min-w-full text-left text-xs">
+            <thead>
+              <tr className="bg-slate-100">
+                <th className="sticky left-0 z-10 bg-slate-100 px-2 py-2 font-black uppercase text-slate-600 border-r border-slate-200">
+                  Day (UTC)
+                </th>
+                {data.columns.map((c) => (
+                  <th
+                    key={c.columnKey}
+                    className="px-2 py-2 font-black text-slate-700 min-w-[120px] align-bottom"
+                  >
+                    <div className="text-[10px] uppercase tracking-wide text-slate-500">
+                      {c.venueName}
+                    </div>
+                    <div className="text-xs">{c.pitchLabel}</div>
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {data.days.map((day) => (
+                <tr key={day.dateKey} className="border-t border-slate-100">
+                  <td className="sticky left-0 z-10 bg-white px-2 py-2 font-bold text-slate-800 border-r border-slate-100 whitespace-nowrap">
+                    <div>{day.dayLabel}</div>
+                    <div className="font-mono text-[10px] text-slate-500">{day.dateKey}</div>
+                  </td>
+                  {data.columns.map((col) => {
+                    const key = `${day.dateKey}::${col.columnKey}`;
+                    const s = data.summaries[key] ?? {
+                      matchCount: 0,
+                      trainingCount: 0,
+                      privateCount: 0,
+                      lines: [],
+                      total: 0,
+                    };
+                    return (
+                      <td key={col.columnKey} className="align-top px-1 py-2 bg-white max-w-[200px]">
+                        <MonthSummaryCell s={s} />
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : null}
+
       <p className="text-[11px] font-bold text-slate-500">
-        Times shown in UTC to match the <span className="font-mono">weekStart</span> anchor. Grid
-        lists anything overlapping each UTC calendar day.
+        Times and day boundaries use <strong>UTC</strong>. Week view uses a Monday anchor; month
+        view uses the full UTC calendar month.
       </p>
 
       <Link

@@ -1,12 +1,14 @@
-// GET /api/public/associations/[associationId]/pitch-week-calendar?weekStart=YYYY-MM-DD&venueId=optional
-// Epic V3 — published league fixtures on pitches + public training/private blocks (UTC week).
+// GET /api/public/associations/[associationId]/pitch-week-calendar
+// Epic V3 — Week: ?weekStart=YYYY-MM-DD | Month: ?month=YYYY-MM (UTC). Optional venueId.
 
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import { getPublicAssociationById } from "@/lib/public/publicAssociation";
 import {
+  buildPitchMonthCalendarResponse,
   buildPitchWeekCalendarResponse,
   utcParseDayStartIso,
+  utcParseMonthYm,
 } from "@/lib/public/pitchWeekCalendar";
 import { seasonCompetitionVisibleForPortalTenant } from "@/lib/tenant/seasonCompetitionTenantGate";
 import { resolvePublicTenantFromRequest } from "@/lib/tenant/publicTenantRequest";
@@ -24,18 +26,46 @@ export async function GET(request: NextRequest, { params }: Params) {
       return NextResponse.json({ error: "associationId required" }, { status: 400 });
     }
 
-    const weekStart =
-      request.nextUrl.searchParams.get("weekStart")?.trim() ?? "";
-    const weekStartMs = utcParseDayStartIso(weekStart);
-    if (!weekStartMs) {
-      return NextResponse.json(
-        { error: "Query weekStart is required (YYYY-MM-DD, UTC midnight anchor)" },
-        { status: 400 },
-      );
+    const monthYm = request.nextUrl.searchParams.get("month")?.trim() ?? "";
+    const weekStartParam = request.nextUrl.searchParams.get("weekStart")?.trim() ?? "";
+
+    let rangeStartMs: number;
+    let rangeEndExclusiveMs: number;
+    let mode: "week" | "month";
+    let weekStartYmd: string | undefined;
+    let monthYmResolved: string | undefined;
+
+    if (monthYm) {
+      const b = utcParseMonthYm(monthYm);
+      if (!b) {
+        return NextResponse.json(
+          { error: "Invalid month (use YYYY-MM, UTC calendar month)" },
+          { status: 400 },
+        );
+      }
+      mode = "month";
+      rangeStartMs = b.startMs;
+      rangeEndExclusiveMs = b.endExclusiveMs;
+      monthYmResolved = monthYm;
+    } else {
+      const weekStartMs = utcParseDayStartIso(weekStartParam);
+      if (!weekStartMs) {
+        return NextResponse.json(
+          {
+            error:
+              "Provide weekStart=YYYY-MM-DD (UTC week) or month=YYYY-MM (UTC month summary)",
+          },
+          { status: 400 },
+        );
+      }
+      mode = "week";
+      rangeStartMs = weekStartMs;
+      rangeEndExclusiveMs = weekStartMs + 7 * 86_400_000;
+      weekStartYmd = weekStartParam;
     }
-    const weekEndExclusiveMs = weekStartMs + 7 * 86_400_000;
-    const weekStartIso = new Date(weekStartMs).toISOString();
-    const weekEndExclusiveIso = new Date(weekEndExclusiveMs).toISOString();
+
+    const padStartIso = new Date(rangeStartMs - 2 * 86_400_000).toISOString();
+    const queryEndIso = new Date(rangeEndExclusiveMs + 2 * 86_400_000).toISOString();
 
     const venueFilter = request.nextUrl.searchParams.get("venueId")?.trim() || null;
 
@@ -91,8 +121,6 @@ export async function GET(request: NextRequest, { params }: Params) {
       seasonLabelById.set(id, label);
     }
 
-    const padStartIso = new Date(weekStartMs - 2 * 86_400_000).toISOString();
-
     const rawFixtures =
       seasonIds.length > 0
         ? await db
@@ -102,7 +130,7 @@ export async function GET(request: NextRequest, { params }: Params) {
               seasonCompetitionId: { $in: seasonIds },
               published: true,
               pitchId: { $nin: [null, ""] },
-              scheduledStart: { $gte: padStartIso, $lt: weekEndExclusiveIso },
+              scheduledStart: { $gte: padStartIso, $lt: queryEndIso },
               status: { $ne: "cancelled" },
             })
             .project({
@@ -124,7 +152,7 @@ export async function GET(request: NextRequest, { params }: Params) {
       .collection("pitch_calendar_entries")
       .find({
         associationId: aid,
-        scheduledStart: { $gte: padStartIso, $lt: weekEndExclusiveIso },
+        scheduledStart: { $gte: padStartIso, $lt: queryEndIso },
       })
       .project({
         entryId: 1,
@@ -189,7 +217,7 @@ export async function GET(request: NextRequest, { params }: Params) {
       if (!endIso || Number.isNaN(end) || end <= s) {
         end = s + defaultFixtureSlotMs();
       }
-      return s < weekEndExclusiveMs && end > weekStartMs;
+      return s < rangeEndExclusiveMs && end > rangeStartMs;
     });
 
     const entriesFiltered = entries.filter((e) => {
@@ -202,53 +230,71 @@ export async function GET(request: NextRequest, { params }: Params) {
       if (!endIso || Number.isNaN(end) || end <= s) {
         end = s + 3600_000;
       }
-      return s < weekEndExclusiveMs && end > weekStartMs;
+      return s < rangeEndExclusiveMs && end > rangeStartMs;
     });
 
-    const payload = buildPitchWeekCalendarResponse({
+    const venuesPayload = venues.map((v) => ({
+      venueId: String(v.venueId),
+      name: String(v.name ?? ""),
+      status: String(v.status ?? "active"),
+      pitches: (
+        ((v.pitches as { pitchId?: string; label?: string }[] | undefined) ?? []).filter(
+          (p): p is { pitchId: string; label: string } =>
+            Boolean(p?.pitchId && String(p.pitchId).trim() && p?.label && String(p.label).trim()),
+        )
+      ).map((p) => ({ pitchId: String(p.pitchId), label: String(p.label) })),
+    }));
+
+    const fixturesPayload = fixturesFiltered.map((f) => ({
+      fixtureId: String(f.fixtureId),
+      seasonCompetitionId: String(f.seasonCompetitionId),
+      round: Number(f.round ?? 0),
+      homeTeamId: String(f.homeTeamId ?? ""),
+      awayTeamId: String(f.awayTeamId ?? ""),
+      pitchId: f.pitchId as string | null | undefined,
+      venueId: f.venueId as string | null | undefined,
+      scheduledStart: f.scheduledStart as string | null | undefined,
+      scheduledEnd: f.scheduledEnd as string | null | undefined,
+      status: f.status as string | null | undefined,
+    }));
+
+    const entriesPayload = entriesFiltered.map((e) => ({
+      entryId: String(e.entryId),
+      venueId: String(e.venueId),
+      pitchId: String(e.pitchId),
+      scheduledStart: String(e.scheduledStart),
+      scheduledEnd: (e.scheduledEnd as string | null | undefined) ?? null,
+      displayKind: e.displayKind as "training" | "private",
+      trainingOrganizer: e.trainingOrganizer as "club" | "association" | undefined,
+      trainingClubId: (e.trainingClubId as string | null | undefined) ?? null,
+    }));
+
+    const common = {
       associationId: aid,
       associationName: assoc.name,
-      weekStartYmd: weekStart,
-      weekStartMs,
-      weekEndExclusiveMs,
       venueIdFilter: venueFilter,
-      venues: venues.map((v) => ({
-        venueId: String(v.venueId),
-        name: String(v.name ?? ""),
-        status: String(v.status ?? "active"),
-        pitches: (
-          ((v.pitches as { pitchId?: string; label?: string }[] | undefined) ?? []).filter(
-            (p): p is { pitchId: string; label: string } =>
-              Boolean(p?.pitchId && String(p.pitchId).trim() && p?.label && String(p.label).trim()),
-          )
-        ).map((p) => ({ pitchId: String(p.pitchId), label: String(p.label) })),
-      })),
-      fixtures: fixturesFiltered.map((f) => ({
-        fixtureId: String(f.fixtureId),
-        seasonCompetitionId: String(f.seasonCompetitionId),
-        round: Number(f.round ?? 0),
-        homeTeamId: String(f.homeTeamId ?? ""),
-        awayTeamId: String(f.awayTeamId ?? ""),
-        pitchId: f.pitchId as string | null | undefined,
-        venueId: f.venueId as string | null | undefined,
-        scheduledStart: f.scheduledStart as string | null | undefined,
-        scheduledEnd: f.scheduledEnd as string | null | undefined,
-        status: f.status as string | null | undefined,
-      })),
+      venues: venuesPayload,
+      fixtures: fixturesPayload,
       teamNameById,
       seasonLabelById,
-      entries: entriesFiltered.map((e) => ({
-        entryId: String(e.entryId),
-        venueId: String(e.venueId),
-        pitchId: String(e.pitchId),
-        scheduledStart: String(e.scheduledStart),
-        scheduledEnd: (e.scheduledEnd as string | null | undefined) ?? null,
-        displayKind: e.displayKind as "training" | "private",
-        trainingOrganizer: e.trainingOrganizer as "club" | "association" | undefined,
-        trainingClubId: (e.trainingClubId as string | null | undefined) ?? null,
-      })),
+      entries: entriesPayload,
       clubNameById,
-    });
+    };
+
+    const payload =
+      mode === "month"
+        ? buildPitchMonthCalendarResponse({
+            ...common,
+            monthYm: monthYmResolved!,
+            monthStartMs: rangeStartMs,
+            monthEndExclusiveMs: rangeEndExclusiveMs,
+          })
+        : buildPitchWeekCalendarResponse({
+            ...common,
+            weekStartYmd: weekStartYmd!,
+            weekStartMs: rangeStartMs,
+            weekEndExclusiveMs: rangeEndExclusiveMs,
+          });
 
     return NextResponse.json(payload, {
       headers: { "Cache-Control": "public, max-age=60, stale-while-revalidate=300" },

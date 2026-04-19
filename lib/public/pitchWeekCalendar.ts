@@ -1,5 +1,5 @@
 /**
- * Epic V3 — Build public venue/pitch week calendar payload (matches + training + private).
+ * Epic V3 — Public venue/pitch calendar: week (full detail) + month (summary counts).
  */
 
 import { defaultFixtureSlotMs } from "@/lib/competitions/pitchScheduleConflict";
@@ -48,6 +48,7 @@ export type PublicCalendarEvent =
     };
 
 export type PitchWeekCalendarResponse = {
+  view: "week";
   associationId: string;
   associationName: string;
   weekStart: string;
@@ -59,26 +60,67 @@ export type PitchWeekCalendarResponse = {
   cells: Record<string, PublicCalendarEvent[]>;
 };
 
+export type MonthCalendarCellSummary = {
+  matchCount: number;
+  trainingCount: number;
+  privateCount: number;
+  /** Short preview lines (matches / training labels / “Private”), newest first after sort in builder. */
+  lines: string[];
+  total: number;
+};
+
+export type PitchMonthCalendarResponse = {
+  view: "month";
+  associationId: string;
+  associationName: string;
+  month: string;
+  monthStart: string;
+  monthEndExclusive: string;
+  venueFilter: string | null;
+  days: CalendarDayHeader[];
+  columns: PitchColumn[];
+  summaries: Record<string, MonthCalendarCellSummary>;
+};
+
+export type PitchCalendarApiResponse = PitchWeekCalendarResponse | PitchMonthCalendarResponse;
+
 export function utcParseDayStartIso(ymd: string): number | null {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(ymd)) return null;
   const ms = Date.parse(`${ymd}T00:00:00.000Z`);
   return Number.isNaN(ms) ? null : ms;
 }
 
-export function buildUtcWeekDayHeaders(weekStartMs: number): CalendarDayHeader[] {
-  const fmt = new Intl.DateTimeFormat("en-AU", {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-    timeZone: "UTC",
-  });
+/** `YYYY-MM` → UTC midnight first day of month through exclusive first day of next month. */
+export function utcParseMonthYm(ym: string): { startMs: number; endExclusiveMs: number } | null {
+  if (!/^\d{4}-\d{2}$/.test(ym)) return null;
+  const [y, m] = ym.split("-").map(Number);
+  if (!Number.isFinite(y) || !Number.isFinite(m) || m < 1 || m > 12) return null;
+  const startMs = Date.UTC(y, m - 1, 1);
+  const endExclusiveMs = Date.UTC(y, m, 1);
+  return { startMs, endExclusiveMs };
+}
+
+const dayFmt = new Intl.DateTimeFormat("en-AU", {
+  weekday: "short",
+  day: "numeric",
+  month: "short",
+  timeZone: "UTC",
+});
+
+export function buildUtcDayHeadersInRange(
+  startMs: number,
+  endExclusiveMs: number,
+): CalendarDayHeader[] {
   const days: CalendarDayHeader[] = [];
-  for (let i = 0; i < 7; i++) {
-    const startMs = weekStartMs + i * 86_400_000;
-    const dateKey = new Date(startMs).toISOString().slice(0, 10);
-    days.push({ dateKey, dayLabel: fmt.format(new Date(startMs)) });
+  for (let t = startMs; t < endExclusiveMs; t += 86_400_000) {
+    const dateKey = new Date(t).toISOString().slice(0, 10);
+    days.push({ dateKey, dayLabel: dayFmt.format(new Date(t)) });
   }
   return days;
+}
+
+export function buildUtcWeekDayHeaders(weekStartMs: number): CalendarDayHeader[] {
+  return buildUtcDayHeadersInRange(weekStartMs, weekStartMs + 7 * 86_400_000);
 }
 
 export function intervalOverlapMs(
@@ -156,44 +198,52 @@ function columnKeyForPitch(columns: PitchColumn[], venueId: string, pitchId: str
   return hit?.columnKey ?? null;
 }
 
-export function buildPitchWeekCalendarResponse(input: {
-  associationId: string;
+export type DayRange = { dateKey: string; startMs: number; endMs: number };
+
+export function dayRangesFromDayHeaders(days: CalendarDayHeader[]): DayRange[] {
+  return days.map((d) => {
+    const startMs = utcParseDayStartIso(d.dateKey)!;
+    return { dateKey: d.dateKey, startMs, endMs: startMs + 86_400_000 };
+  });
+}
+
+type FixtureIn = {
+  fixtureId: string;
+  seasonCompetitionId: string;
+  round: number;
+  homeTeamId: string;
+  awayTeamId: string;
+  pitchId?: string | null;
+  venueId?: string | null;
+  scheduledStart?: string | null;
+  scheduledEnd?: string | null;
+  status?: string | null;
+};
+
+type EntryIn = {
+  entryId: string;
+  venueId: string;
+  pitchId: string;
+  scheduledStart: string;
+  scheduledEnd?: string | null;
+  displayKind: "training" | "private";
+  trainingOrganizer?: "club" | "association";
+  trainingClubId?: string | null;
+};
+
+/** Collect events per `${dateKey}::${columnKey}` for arbitrary UTC day ranges. */
+export function collectPitchCalendarCells(input: {
   associationName: string;
-  weekStartYmd: string;
-  weekStartMs: number;
-  weekEndExclusiveMs: number;
-  venueIdFilter: string | null;
   venues: VenueRow[];
-  fixtures: Array<{
-    fixtureId: string;
-    seasonCompetitionId: string;
-    round: number;
-    homeTeamId: string;
-    awayTeamId: string;
-    pitchId?: string | null;
-    venueId?: string | null;
-    scheduledStart?: string | null;
-    scheduledEnd?: string | null;
-    status?: string | null;
-  }>;
+  columns: PitchColumn[];
+  dayRanges: DayRange[];
+  fixtures: FixtureIn[];
   teamNameById: Map<string, string>;
   seasonLabelById: Map<string, string | null>;
-  entries: Array<{
-    entryId: string;
-    venueId: string;
-    pitchId: string;
-    scheduledStart: string;
-    scheduledEnd?: string | null;
-    displayKind: "training" | "private";
-    trainingOrganizer?: "club" | "association";
-    trainingClubId?: string | null;
-  }>;
+  entries: EntryIn[];
   clubNameById: Map<string, string>;
-}): PitchWeekCalendarResponse {
-  const columns = buildPitchColumnsFromVenues(input.venues, input.venueIdFilter);
-  const columnKeySet = new Set(columns.map((c) => c.columnKey));
-
-  const days = buildUtcWeekDayHeaders(input.weekStartMs);
+}): Record<string, PublicCalendarEvent[]> {
+  const columnKeySet = new Set(input.columns.map((c) => c.columnKey));
   const cells: Record<string, PublicCalendarEvent[]> = {};
 
   const pushCell = (dateKey: string, columnKey: string, ev: PublicCalendarEvent) => {
@@ -201,15 +251,6 @@ export function buildPitchWeekCalendarResponse(input: {
     if (!cells[key]) cells[key] = [];
     cells[key].push(ev);
   };
-
-  const dayRanges = days.map((d) => {
-    const start = utcParseDayStartIso(d.dateKey);
-    return {
-      dateKey: d.dateKey,
-      startMs: start!,
-      endMs: start! + 86_400_000,
-    };
-  });
 
   for (const fx of input.fixtures) {
     if (String(fx.status ?? "") === "cancelled") continue;
@@ -226,7 +267,7 @@ export function buildPitchWeekCalendarResponse(input: {
       if (!inferred) continue;
       venueId = inferred;
     }
-    const ck = columnKeyForPitch(columns, venueId, pid);
+    const ck = columnKeyForPitch(input.columns, venueId, pid);
     if (!ck || !columnKeySet.has(ck)) continue;
 
     const home =
@@ -248,7 +289,7 @@ export function buildPitchWeekCalendarResponse(input: {
       competitionLabel: comp,
     };
 
-    for (const dr of dayRanges) {
+    for (const dr of input.dayRanges) {
       if (intervalOverlapMs(startMs, endMs, dr.startMs, dr.endMs)) {
         pushCell(dr.dateKey, ck, ev);
       }
@@ -256,7 +297,7 @@ export function buildPitchWeekCalendarResponse(input: {
   }
 
   for (const en of input.entries) {
-    const ck = columnKeyForPitch(columns, en.venueId, en.pitchId);
+    const ck = columnKeyForPitch(input.columns, en.venueId, en.pitchId);
     if (!ck || !columnKeySet.has(ck)) continue;
     const startMs = Date.parse(en.scheduledStart);
     if (Number.isNaN(startMs)) continue;
@@ -287,7 +328,7 @@ export function buildPitchWeekCalendarResponse(input: {
       };
     }
 
-    for (const dr of dayRanges) {
+    for (const dr of input.dayRanges) {
       if (intervalOverlapMs(startMs, endMs, dr.startMs, dr.endMs)) {
         pushCell(dr.dateKey, ck, ev);
       }
@@ -302,7 +343,68 @@ export function buildPitchWeekCalendarResponse(input: {
     );
   }
 
+  return cells;
+}
+
+export function summarizeCellsForMonth(
+  cells: Record<string, PublicCalendarEvent[]>,
+  maxLines = 5,
+): Record<string, MonthCalendarCellSummary> {
+  const out: Record<string, MonthCalendarCellSummary> = {};
+  for (const [key, events] of Object.entries(cells)) {
+    let matchCount = 0;
+    let trainingCount = 0;
+    let privateCount = 0;
+    const lines: string[] = [];
+    for (const e of events) {
+      if (e.kind === "match") {
+        matchCount++;
+        if (lines.length < maxLines) lines.push(e.summary);
+      } else if (e.kind === "training") {
+        trainingCount++;
+        if (lines.length < maxLines) lines.push(e.summary);
+      } else {
+        privateCount++;
+        if (lines.length < maxLines) lines.push("Private");
+      }
+    }
+    const total = matchCount + trainingCount + privateCount;
+    out[key] = { matchCount, trainingCount, privateCount, lines, total };
+  }
+  return out;
+}
+
+export function buildPitchWeekCalendarResponse(input: {
+  associationId: string;
+  associationName: string;
+  weekStartYmd: string;
+  weekStartMs: number;
+  weekEndExclusiveMs: number;
+  venueIdFilter: string | null;
+  venues: VenueRow[];
+  fixtures: FixtureIn[];
+  teamNameById: Map<string, string>;
+  seasonLabelById: Map<string, string | null>;
+  entries: EntryIn[];
+  clubNameById: Map<string, string>;
+}): PitchWeekCalendarResponse {
+  const columns = buildPitchColumnsFromVenues(input.venues, input.venueIdFilter);
+  const days = buildUtcWeekDayHeaders(input.weekStartMs);
+  const dayRanges = dayRangesFromDayHeaders(days);
+  const cells = collectPitchCalendarCells({
+    associationName: input.associationName,
+    venues: input.venues,
+    columns,
+    dayRanges,
+    fixtures: input.fixtures,
+    teamNameById: input.teamNameById,
+    seasonLabelById: input.seasonLabelById,
+    entries: input.entries,
+    clubNameById: input.clubNameById,
+  });
+
   return {
+    view: "week",
     associationId: input.associationId,
     associationName: input.associationName,
     weekStart: input.weekStartYmd,
@@ -311,5 +413,49 @@ export function buildPitchWeekCalendarResponse(input: {
     days,
     columns,
     cells,
+  };
+}
+
+export function buildPitchMonthCalendarResponse(input: {
+  associationId: string;
+  associationName: string;
+  monthYm: string;
+  monthStartMs: number;
+  monthEndExclusiveMs: number;
+  venueIdFilter: string | null;
+  venues: VenueRow[];
+  fixtures: FixtureIn[];
+  teamNameById: Map<string, string>;
+  seasonLabelById: Map<string, string | null>;
+  entries: EntryIn[];
+  clubNameById: Map<string, string>;
+}): PitchMonthCalendarResponse {
+  const columns = buildPitchColumnsFromVenues(input.venues, input.venueIdFilter);
+  const days = buildUtcDayHeadersInRange(input.monthStartMs, input.monthEndExclusiveMs);
+  const dayRanges = dayRangesFromDayHeaders(days);
+  const cells = collectPitchCalendarCells({
+    associationName: input.associationName,
+    venues: input.venues,
+    columns,
+    dayRanges,
+    fixtures: input.fixtures,
+    teamNameById: input.teamNameById,
+    seasonLabelById: input.seasonLabelById,
+    entries: input.entries,
+    clubNameById: input.clubNameById,
+  });
+  const summaries = summarizeCellsForMonth(cells, 5);
+
+  return {
+    view: "month",
+    associationId: input.associationId,
+    associationName: input.associationName,
+    month: input.monthYm,
+    monthStart: new Date(input.monthStartMs).toISOString().slice(0, 10),
+    monthEndExclusive: new Date(input.monthEndExclusiveMs).toISOString().slice(0, 10),
+    venueFilter: input.venueIdFilter,
+    days,
+    columns,
+    summaries,
   };
 }
