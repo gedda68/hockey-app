@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ListOrdered, Loader2, Plus, Save, Trash2 } from "lucide-react";
 import type { FixtureMatchEventKind } from "@/types";
 
@@ -59,10 +59,15 @@ export default function MatchEventsEditorClient({
   associationId,
   associationName,
   primaryColor = "#06054e",
+  initialSeasonCompetitionId = null,
+  initialFixtureId = null,
 }: {
   associationId: string;
   associationName: string;
   primaryColor?: string;
+  /** Deep-link from fixture console (`?seasonCompetitionId=`). */
+  initialSeasonCompetitionId?: string | null;
+  initialFixtureId?: string | null;
 }) {
   const [seasonOptions, setSeasonOptions] = useState<
     { seasonCompetitionId: string; season: string; status: string }[]
@@ -98,6 +103,36 @@ export default function MatchEventsEditorClient({
       cancelled = true;
     };
   }, [associationId]);
+
+  const appliedSeasonFromUrl = useRef(false);
+  const appliedFixtureFromUrl = useRef(false);
+  useEffect(() => {
+    appliedSeasonFromUrl.current = false;
+    appliedFixtureFromUrl.current = false;
+  }, [associationId]);
+
+  useEffect(() => {
+    if (appliedSeasonFromUrl.current) return;
+    const sc = initialSeasonCompetitionId?.trim();
+    if (!sc || seasonOptions.length === 0) return;
+    if (seasonOptions.some((s) => s.seasonCompetitionId === sc)) {
+      setSeasonCompetitionId(sc);
+      appliedSeasonFromUrl.current = true;
+    }
+  }, [seasonOptions, initialSeasonCompetitionId]);
+
+  useEffect(() => {
+    appliedFixtureFromUrl.current = false;
+  }, [seasonCompetitionId]);
+
+  useEffect(() => {
+    const fx = initialFixtureId?.trim();
+    if (!fx || fixtures.length === 0 || appliedFixtureFromUrl.current) return;
+    if (fixtures.some((f) => f.fixtureId === fx)) {
+      setFixtureId(fx);
+      appliedFixtureFromUrl.current = true;
+    }
+  }, [fixtures, initialFixtureId]);
 
   const loadFixtures = useCallback(async (scId: string) => {
     if (!scId) {

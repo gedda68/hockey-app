@@ -1,14 +1,13 @@
-// Admin: edit fixture match events (goals, cards, PSO, shootout, GK) — E6 follow-up.
-
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import clientPromise from "@/lib/mongodb";
-import MatchEventsEditorClient from "@/components/admin/associations/MatchEventsEditorClient";
+import { getSession } from "@/lib/auth/session";
+import FixtureOperationsConsole from "@/components/admin/associations/FixtureOperationsConsole";
 
 async function getAssociation(associationId: string) {
   const client = await clientPromise;
-  const db = client.db("hockey-app");
+  const db = client.db(process.env.DB_NAME || "hockey-app");
   const association = await db
     .collection("associations")
     .findOne({ associationId });
@@ -20,17 +19,31 @@ async function getAssociation(associationId: string) {
   };
 }
 
-export default async function AssociationMatchEventsPage({
+export default async function AssociationFixtureOperationsPage({
   params,
   searchParams,
 }: {
   params: Promise<{ associationId: string }>;
-  searchParams: Promise<{ seasonCompetitionId?: string; fixtureId?: string }>;
+  searchParams: Promise<{ seasonCompetitionId?: string }>;
 }) {
   const { associationId } = await params;
   const sp = await searchParams;
   const association = await getAssociation(associationId);
   if (!association) notFound();
+
+  const session = await getSession();
+  if (!session) {
+    redirect(
+      "/login?next=/admin/associations/" +
+        encodeURIComponent(associationId) +
+        "/fixtures-console",
+    );
+  }
+
+  const sessionAssoc = session.associationId?.trim() || null;
+  if (session.role !== "super-admin" && sessionAssoc && sessionAssoc !== associationId) {
+    redirect(`/admin/associations/${encodeURIComponent(sessionAssoc)}/fixtures-console`);
+  }
 
   const primaryColor = association.branding?.primaryColor || "#06054e";
 
@@ -51,7 +64,7 @@ export default async function AssociationMatchEventsPage({
           {association.name}
         </Link>
         <span className="text-slate-400">/</span>
-        <span className="font-bold text-[#06054e]">Match events</span>
+        <span className="font-bold text-[#06054e]">Fixture operations</span>
       </div>
 
       <Link
@@ -62,12 +75,11 @@ export default async function AssociationMatchEventsPage({
         Back to association
       </Link>
 
-      <MatchEventsEditorClient
+      <FixtureOperationsConsole
         associationId={associationId}
         associationName={association.name}
         primaryColor={primaryColor}
         initialSeasonCompetitionId={sp.seasonCompetitionId?.trim() || null}
-        initialFixtureId={sp.fixtureId?.trim() || null}
       />
     </div>
   );
@@ -80,6 +92,6 @@ export async function generateMetadata({
 }) {
   const { associationId } = await params;
   return {
-    title: `Match events | ${associationId} | Admin`,
+    title: `Fixture operations | ${associationId} | Admin`,
   };
 }

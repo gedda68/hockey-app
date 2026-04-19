@@ -26,6 +26,7 @@ import {
   XCircle,
   BarChart3,
   Trophy,
+  Wrench,
 } from "lucide-react";
 
 export default async function AssociationDetailPage({
@@ -166,6 +167,13 @@ export default async function AssociationDetailPage({
                 >
                   <Trophy size={18} />
                   League setup
+                </Link>
+                <Link
+                  href={`/admin/associations/${associationId}/fixtures-console`}
+                  className="inline-flex items-center gap-2 px-4 py-2 border-2 border-teal-600 text-teal-900 rounded-xl font-black hover:bg-teal-50 transition-all text-sm"
+                >
+                  <Wrench size={18} />
+                  Fixture operations
                 </Link>
                 <Link
                   href={`/admin/associations/${associationId}/match-events`}

@@ -13,11 +13,12 @@ function sanitizeNext(raw: string | null): string {
 }
 
 /**
- * Establish the HttpOnly session cookie on the CURRENT host (e.g. hq.localhost)
- * and then redirect to the intended in-app path.
+ * Establish the HttpOnly session cookie on the CURRENT host and redirect to `next`.
  *
- * This is used for local multi-tenant dev where cookies set on `localhost`
- * are not reliably available on `*.localhost` across browsers.
+ * Used when login POST ran on a different host (e.g. apex `sportsolutions.com.au`) than
+ * the tenant portal (`hq.sportsolutions.com.au`): the login response may include
+ * `sessionJwt` so the browser navigates here with `?token=` and receives a host-only
+ * session cookie before loading the destination path.
  */
 export async function GET(request: NextRequest) {
   const token = request.nextUrl.searchParams.get("token");

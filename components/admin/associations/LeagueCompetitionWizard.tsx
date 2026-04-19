@@ -1494,6 +1494,14 @@ export default function LeagueCompetitionWizard({
               </table>
             </div>
             <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-4">
+              {seasonCompetitionId ? (
+                <Link
+                  href={`/admin/associations/${associationId}/fixtures-console?seasonCompetitionId=${encodeURIComponent(seasonCompetitionId)}`}
+                  className="inline-flex text-sm font-black text-emerald-900 underline"
+                >
+                  Fixture operations console (filters, bulk publish, CSV) →
+                </Link>
+              ) : null}
               <Link
                 href={`/admin/associations/${associationId}/match-events`}
                 className="inline-flex text-sm font-black text-[#06054e] underline"
@@ -1518,6 +1526,18 @@ export default function LeagueCompetitionWizard({
               Current status: <strong>{seasonStatus}</strong>. Publishing allows public fixtures
               lists (subject to each fixture&apos;s published flag).
             </p>
+            {seasonCompetitionId ? (
+              <p className="text-sm font-bold text-slate-600">
+                Day-to-day publish windows and CSV export:{" "}
+                <Link
+                  href={`/admin/associations/${associationId}/fixtures-console?seasonCompetitionId=${encodeURIComponent(seasonCompetitionId)}`}
+                  className="text-emerald-900 underline font-black"
+                >
+                  Fixture operations console
+                </Link>
+                .
+              </p>
+            ) : null}
             <div className="flex flex-wrap gap-3">
               <button
                 type="button"
