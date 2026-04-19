@@ -13,6 +13,7 @@ import {
   calculateTeamStatistics,
   type Team,
 } from "@/lib/db/schemas/team.schema";
+import { assertDivisionBelongsToSeason } from "@/lib/competitions/teamLeagueContext";
 import { ZodError } from "zod";
 
 // ============================================================================
@@ -145,6 +146,7 @@ export async function POST(
     const displayName = generateDisplayName(club.name, validatedData.name);
 
     // Validate canonical competition context if provided
+    let seasonCompForDivision: { divisions?: unknown } | null = null;
     if (validatedData.seasonCompetitionId) {
       const seasonComp = await db.collection("season_competitions").findOne({
         seasonCompetitionId: validatedData.seasonCompetitionId,
@@ -164,6 +166,23 @@ export async function POST(
           { status: 400 },
         );
       }
+      seasonCompForDivision = seasonComp as { divisions?: unknown };
+    }
+    if (validatedData.competitionDivisionId) {
+      if (!validatedData.seasonCompetitionId) {
+        return NextResponse.json(
+          { error: "competitionDivisionId requires seasonCompetitionId" },
+          { status: 400 },
+        );
+      }
+      const chk = assertDivisionBelongsToSeason({
+        seasonCompetitionId: validatedData.seasonCompetitionId,
+        divisions: seasonCompForDivision?.divisions,
+        competitionDivisionId: validatedData.competitionDivisionId,
+      });
+      if (!chk.ok) {
+        return NextResponse.json({ error: chk.error }, { status: 400 });
+      }
     }
 
     // Create team document
@@ -182,6 +201,9 @@ export async function POST(
       },
       season: validatedData.season,
       seasonCompetitionId: validatedData.seasonCompetitionId,
+      ...(validatedData.competitionDivisionId
+        ? { competitionDivisionId: validatedData.competitionDivisionId }
+        : {}),
       competition: validatedData.competition,
       grade: validatedData.grade,
       homeGround: validatedData.homeGround,

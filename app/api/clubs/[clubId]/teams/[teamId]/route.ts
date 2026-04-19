@@ -12,6 +12,7 @@ import {
   calculateTeamStatistics,
   type Team,
 } from "@/lib/db/schemas/team.schema";
+import { assertDivisionBelongsToSeason } from "@/lib/competitions/teamLeagueContext";
 import { ZodError } from "zod";
 
 // ============================================================================
@@ -189,9 +190,56 @@ export async function PUT(
           );
         }
         updateData.seasonCompetitionId = validatedData.seasonCompetitionId;
+        if (validatedData.competitionDivisionId === undefined) {
+          const existingDiv = existingTeam.competitionDivisionId as
+            | string
+            | null
+            | undefined;
+          if (existingDiv) {
+            const chk = assertDivisionBelongsToSeason({
+              seasonCompetitionId: validatedData.seasonCompetitionId,
+              divisions: seasonComp.divisions,
+              competitionDivisionId: existingDiv,
+            });
+            if (!chk.ok) {
+              updateData.competitionDivisionId = null;
+            }
+          }
+        }
       } else {
-        // Explicit clear
-        updateData.seasonCompetitionId = undefined;
+        updateData.seasonCompetitionId = null;
+        updateData.competitionDivisionId = null;
+      }
+    }
+
+    if (validatedData.competitionDivisionId !== undefined) {
+      if (validatedData.competitionDivisionId === null) {
+        updateData.competitionDivisionId = null;
+      } else {
+        const sid =
+          (updateData.seasonCompetitionId as string | undefined) ??
+          (existingTeam.seasonCompetitionId as string | undefined);
+        if (!sid) {
+          return NextResponse.json(
+            {
+              error:
+                "Link seasonCompetitionId on this team before setting competitionDivisionId",
+            },
+            { status: 400 },
+          );
+        }
+        const sc = await db.collection("season_competitions").findOne({
+          seasonCompetitionId: sid,
+        });
+        const chk = assertDivisionBelongsToSeason({
+          seasonCompetitionId: sid,
+          divisions: sc?.divisions,
+          competitionDivisionId: validatedData.competitionDivisionId,
+        });
+        if (!chk.ok) {
+          return NextResponse.json({ error: chk.error }, { status: 400 });
+        }
+        updateData.competitionDivisionId = validatedData.competitionDivisionId;
       }
     }
 

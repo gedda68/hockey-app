@@ -132,13 +132,13 @@ export const TeamSchema = z.object({
    * Canonical competition context anchor (Epic C).
    * Prefer this over the legacy free-text `competition` field.
    */
-  seasonCompetitionId: z.string().optional(),
+  seasonCompetitionId: z.union([z.string().min(1), z.null()]).optional(),
   competition: z.string().optional(), // legacy/free-text (back-compat)
   grade: z.string().optional(),
   /** Human-readable age band, e.g. "Under 14" (first-class dimension; A7). */
   ageGroupLabel: z.string().optional(),
   /** When anchored to a season competition, matches `divisions[].divisionId`. */
-  competitionDivisionId: z.string().optional(),
+  competitionDivisionId: z.union([z.string().min(1), z.null()]).optional(),
 
   // Venue
   homeGround: z.string().optional(),
@@ -213,6 +213,8 @@ export const CreateTeamRequestSchema = z.object({
   division: DivisionConfigSchema,
   season: z.string().min(1, "Season is required"),
   seasonCompetitionId: z.string().optional(),
+  /** When set, must match `divisions[].divisionId` on the linked season competition (C3/N4). */
+  competitionDivisionId: z.string().min(1).optional(),
   competition: z.string().optional(), // legacy/free-text (back-compat)
   grade: z.string().optional(),
   homeGround: z.string().optional(),
@@ -223,7 +225,9 @@ export const UpdateTeamRequestSchema = z.object({
   gender: z.enum(["male", "female", "mixed"]).optional(),
   division: DivisionConfigSchema.optional(),
   season: z.string().min(1).optional(),
-  seasonCompetitionId: z.string().optional(),
+  seasonCompetitionId: z.union([z.string().min(1), z.null()]).optional(),
+  /** Set to `null` to clear. When a string, must match a division on the team's season competition. */
+  competitionDivisionId: z.union([z.string().min(1), z.null()]).optional(),
   competition: z.string().optional(), // legacy/free-text (back-compat)
   grade: z.string().optional(),
   homeGround: z.string().optional(),

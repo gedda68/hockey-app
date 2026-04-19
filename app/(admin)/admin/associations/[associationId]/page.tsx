@@ -169,6 +169,13 @@ export default async function AssociationDetailPage({
                   League setup
                 </Link>
                 <Link
+                  href={`/admin/associations/${associationId}/division-teams`}
+                  className="inline-flex items-center gap-2 px-4 py-2 border-2 border-indigo-600 text-indigo-900 rounded-xl font-black hover:bg-indigo-50 transition-all text-sm"
+                >
+                  <Users size={18} />
+                  Teams &amp; divisions
+                </Link>
+                <Link
                   href={`/admin/associations/${associationId}/fixtures-console`}
                   className="inline-flex items-center gap-2 px-4 py-2 border-2 border-teal-600 text-teal-900 rounded-xl font-black hover:bg-teal-50 transition-all text-sm"
                 >

@@ -998,6 +998,17 @@ export default function LeagueCompetitionWizard({
             <p className="text-sm font-bold text-slate-600">
               Add one or more divisions (grades, gender, age category are optional).
             </p>
+            <p className="text-xs font-bold text-indigo-900 bg-indigo-50 border border-indigo-200 rounded-lg px-3 py-2">
+              After saving, club teams reference each division via{" "}
+              <code className="font-mono">competitionDivisionId</code>. See{" "}
+              <Link
+                href={`/admin/associations/${associationId}/division-teams`}
+                className="underline font-black"
+              >
+                Teams &amp; divisions
+              </Link>{" "}
+              for who is linked where.
+            </p>
             {divisions.map((d, idx) => (
               <div
                 key={d.divisionId}
