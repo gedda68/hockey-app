@@ -1,8 +1,9 @@
-// Epic V3 — Non-league pitch blocks shown on the public venue week calendar (training vs private).
+// Epic V3 — Non-league pitch blocks on the pitch calendar. `hire` is admin-labelled commercial /
+// venue hire; public API still renders it as Private (no hirer details).
 
 import { z } from "zod";
 
-export const PitchCalendarDisplayKindSchema = z.enum(["training", "private"]);
+export const PitchCalendarDisplayKindSchema = z.enum(["training", "private", "hire"]);
 
 export const PitchCalendarTrainingOrganizerSchema = z.enum(["club", "association"]);
 
@@ -24,18 +25,18 @@ export const PitchCalendarEntryDocSchema = z
   })
   .strict()
   .superRefine((row, ctx) => {
-    if (row.displayKind === "private") {
+    if (row.displayKind === "private" || row.displayKind === "hire") {
       if (row.trainingOrganizer != null) {
         ctx.addIssue({
           code: "custom",
-          message: "trainingOrganizer must be absent for private",
+          message: "trainingOrganizer must be absent for private or hire",
           path: ["trainingOrganizer"],
         });
       }
       if (row.trainingClubId != null && row.trainingClubId !== undefined) {
         ctx.addIssue({
           code: "custom",
-          message: "trainingClubId must be absent for private",
+          message: "trainingClubId must be absent for private or hire",
           path: ["trainingClubId"],
         });
       }
@@ -70,18 +71,18 @@ export const CreatePitchCalendarEntryBodySchema = z
   })
   .strict()
   .superRefine((b, ctx) => {
-    if (b.displayKind === "private") {
+    if (b.displayKind === "private" || b.displayKind === "hire") {
       if (b.trainingOrganizer != null) {
         ctx.addIssue({
           code: "custom",
-          message: "trainingOrganizer must not be set for private entries",
+          message: "trainingOrganizer must not be set for private or hire entries",
           path: ["trainingOrganizer"],
         });
       }
       if (b.trainingClubId != null && b.trainingClubId !== undefined) {
         ctx.addIssue({
           code: "custom",
-          message: "trainingClubId must not be set for private entries",
+          message: "trainingClubId must not be set for private or hire entries",
           path: ["trainingClubId"],
         });
       }

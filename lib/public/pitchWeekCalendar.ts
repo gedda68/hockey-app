@@ -226,7 +226,7 @@ type EntryIn = {
   pitchId: string;
   scheduledStart: string;
   scheduledEnd?: string | null;
-  displayKind: "training" | "private";
+  displayKind: "training" | "private" | "hire";
   trainingOrganizer?: "club" | "association";
   trainingClubId?: string | null;
 };
@@ -304,7 +304,7 @@ export function collectPitchCalendarCells(input: {
     const endMs = entryEndMs(startMs, en.scheduledEnd ?? null);
 
     let ev: PublicCalendarEvent;
-    if (en.displayKind === "private") {
+    if (en.displayKind === "private" || en.displayKind === "hire") {
       ev = {
         kind: "private",
         entryId: en.entryId,

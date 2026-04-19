@@ -146,7 +146,7 @@ export default function TopNavbar({ clubs, tickerLines = [] }: TopNavbarProps) {
         <nav
           className={
             portalTenant && usePublicHeaderBanner
-              ? "relative w-full h-[var(--public-header-height)] flex flex-col overflow-hidden transition-all duration-300 ease-out"
+              ? "relative w-full h-[var(--public-header-height)] flex flex-col overflow-visible transition-all duration-300 ease-out"
               : portalTenant
                 ? "w-full h-[var(--public-header-height)] flex flex-col transition-all duration-300 ease-out"
                 : "w-full h-[var(--public-header-height)] flex flex-col bg-gradient-to-r from-green-500 via-yellow-400 to-[#06054e] transition-all duration-300 ease-out"

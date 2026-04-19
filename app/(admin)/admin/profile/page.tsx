@@ -18,9 +18,11 @@ import { getSession } from "@/lib/auth/session";
 import { getDatabase } from "@/lib/mongodb";
 import {
   ROLE_DEFINITIONS,
+  hasPermission,
   type RoleAssignment,
   type UserRole,
 } from "@/lib/types/roles";
+import ProfileAccountEditor from "@/components/admin/ProfileAccountEditor";
 import {
   listCoachAnalyticsForMemberCoach,
   listCoachAnalyticsForStaff,
@@ -179,6 +181,27 @@ export default async function AdminProfilePage() {
     };
   }
 
+  const canEditProfile = hasPermission(session.role as UserRole, "profile.edit");
+  const userDoc = user as {
+    firstName?: string;
+    lastName?: string;
+    email?: string;
+    name?: string;
+    phone?: string | null;
+  } | null;
+  const initialFirst =
+    String(userDoc?.firstName ?? "").trim() ||
+    String(session.firstName ?? "").trim() ||
+    String(session.name ?? "").split(" ")[0] ||
+    "";
+  const initialLast =
+    String(userDoc?.lastName ?? "").trim() ||
+    String(session.lastName ?? "").trim() ||
+    String(session.name ?? "").split(" ").slice(1).join(" ") ||
+    "";
+  const initialEmail = String(userDoc?.email ?? session.email ?? "").trim();
+  const initialPhone = String(userDoc?.phone ?? "").trim();
+
   return (
     <div className="p-6 lg:p-10 max-w-4xl mx-auto space-y-8">
       <div>
@@ -256,6 +279,18 @@ export default async function AdminProfilePage() {
                 </pre>
               </div>
             )}
+          </div>
+          <div className="px-6 pb-6 border-t border-slate-100 pt-6">
+            <h3 className="text-sm font-black text-[#06054e] mb-3 uppercase tracking-wide">
+              Update your account
+            </h3>
+            <ProfileAccountEditor
+              canEdit={canEditProfile}
+              initialFirstName={initialFirst}
+              initialLastName={initialLast}
+              initialEmail={initialEmail}
+              initialPhone={initialPhone}
+            />
           </div>
         </section>
       )}

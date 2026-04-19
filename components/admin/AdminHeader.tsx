@@ -69,7 +69,7 @@ export default function AdminHeader() {
   ];
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-[1000] shadow-lg overflow-hidden">
+    <header className="fixed top-0 left-0 right-0 z-[1000] shadow-lg overflow-visible">
       {useBanner ? (
         <>
           {/* eslint-disable-next-line @next/next/no-img-element -- admin-uploaded or trusted branding URL */}

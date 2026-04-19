@@ -19,7 +19,7 @@ export default function ConditionalPublicHeader({
 
   return (
     <header
-      className="fixed top-0 left-0 right-0 z-[1000] overflow-hidden"
+      className="fixed top-0 left-0 right-0 z-[1000] overflow-visible"
       style={{ height: "var(--public-header-height)" }}
     >
       {children}

@@ -46,7 +46,16 @@ describe("evaluateAdminRouteAccess", () => {
     ).toBe("allow");
   });
 
-  it("denies registrar from /admin/clubs/* (clubs route is CLUB_AND_ABOVE only)", () => {
+  it("allows club registrar to their own club profile edit route", () => {
+    expect(
+      evaluateAdminRouteAccess(
+        "/admin/clubs/my-club/edit",
+        session({ role: "registrar", clubId: "my-club" }),
+      ),
+    ).toBe("allow");
+  });
+
+  it("denies registrar from another club's edit route", () => {
     expect(
       evaluateAdminRouteAccess(
         "/admin/clubs/other-club/edit",
@@ -112,6 +121,18 @@ describe("evaluateAdminRouteAccess", () => {
         "/admin/associations/my-assoc",
         session({
           role: "assoc-competition",
+          associationId: "my-assoc",
+        }),
+      ),
+    ).toBe("allow");
+  });
+
+  it("allows assoc-committee to their association edit route", () => {
+    expect(
+      evaluateAdminRouteAccess(
+        "/admin/associations/my-assoc/edit",
+        session({
+          role: "assoc-committee",
           associationId: "my-assoc",
         }),
       ),

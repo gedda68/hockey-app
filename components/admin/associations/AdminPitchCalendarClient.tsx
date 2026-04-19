@@ -23,10 +23,16 @@ type EntryRow = {
   pitchId: string;
   scheduledStart: string;
   scheduledEnd?: string | null;
-  displayKind: "training" | "private";
+  displayKind: "training" | "private" | "hire";
   trainingOrganizer?: "club" | "association";
   trainingClubId?: string | null;
 };
+
+function entryKindLabel(kind: string) {
+  if (kind === "hire") return "Venue hire";
+  if (kind === "private") return "Private";
+  return "Training";
+}
 
 export default function AdminPitchCalendarClient({
   associationId,
@@ -45,7 +51,7 @@ export default function AdminPitchCalendarClient({
   const [pitchId, setPitchId] = useState("");
   const [scheduledStart, setScheduledStart] = useState("");
   const [scheduledEnd, setScheduledEnd] = useState("");
-  const [displayKind, setDisplayKind] = useState<"training" | "private">("training");
+  const [displayKind, setDisplayKind] = useState<"training" | "private" | "hire">("training");
   const [trainingOrganizer, setTrainingOrganizer] = useState<"club" | "association">(
     "association",
   );
@@ -171,17 +177,19 @@ export default function AdminPitchCalendarClient({
       <div>
         <h1 className="text-2xl font-black text-[#06054e]">Pitch calendar blocks</h1>
         <p className="text-sm font-bold text-slate-600 mt-1">
-          {associationName} — training sessions show the organising club or association on the{" "}
+          {associationName} — use <strong>Venue hire</strong> for commercial / facility hire so it
+          appears in admin lists; the{" "}
           <Link
             href={`/associations/${encodeURIComponent(associationId)}/venue-calendar`}
             className="text-emerald-800 underline font-black"
             target="_blank"
             rel="noreferrer"
           >
-            public pitch week view
-          </Link>
-          . <strong>Private</strong> hides details (use for hire or anything else you do not want
-          labelled).
+            public pitch calendar
+          </Link>{" "}
+          still shows hire only as <strong>Private</strong> (no hirer or fee details).{" "}
+          <strong>Training</strong> shows club or association. <strong>Private</strong> is generic
+          hidden detail.
         </p>
       </div>
 
@@ -248,14 +256,17 @@ export default function AdminPitchCalendarClient({
           </label>
         </div>
         <label className="block text-sm font-bold text-slate-700">
-          Visibility on public calendar
+          Block type (public vs admin)
           <select
             className="mt-1 w-full rounded-xl border-2 border-slate-200 px-3 py-2 font-bold"
             value={displayKind}
-            onChange={(e) => setDisplayKind(e.target.value as "training" | "private")}
+            onChange={(e) =>
+              setDisplayKind(e.target.value as "training" | "private" | "hire")
+            }
           >
-            <option value="training">Training (show club or association)</option>
-            <option value="private">Private (no details)</option>
+            <option value="training">Training (public shows organiser)</option>
+            <option value="hire">Venue hire (admin label — public shows as Private)</option>
+            <option value="private">Private (public shows as Private)</option>
           </select>
         </label>
         {displayKind === "training" ? (
@@ -316,7 +327,7 @@ export default function AdminPitchCalendarClient({
                 className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-100 bg-slate-50 px-3 py-2 text-sm"
               >
                 <div>
-                  <span className="font-black text-slate-800">{e.displayKind}</span>
+                  <span className="font-black text-slate-800">{entryKindLabel(e.displayKind)}</span>
                   <span className="font-mono text-xs text-slate-500 ml-2">{e.entryId}</span>
                   <div className="text-xs font-bold text-slate-600 mt-1">
                     {e.scheduledStart}

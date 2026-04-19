@@ -215,7 +215,7 @@ export default async function AssociationDetailPage({
           </div>
         </div>
 
-        <div className="max-w-7xl mx-auto px-6 py-8">
+        <div className="max-w-7xl mx-auto px-6 pt-12 pb-8">
           {/* Header - WITH ALL IDENTITY FIELDS */}
           <div className="bg-white rounded-[2rem] shadow-xl border border-slate-100 p-8 mb-6">
             <div className="flex items-start gap-4 mb-6">

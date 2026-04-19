@@ -357,9 +357,10 @@ export default async function AssociationHubView({
               href={`/associations/${encodeURIComponent(associationId)}/venue-calendar`}
               className="block rounded-2xl border border-white/10 bg-white/5 px-5 py-4 font-black text-white hover:border-emerald-400/30 sm:col-span-2"
             >
-              Pitch week calendar →
+              Pitch calendar (week &amp; month) →
               <p className="mt-1 text-xs font-semibold text-white/60">
-                Who is on which pitch: games, training, and private blocks (no hire labels)
+                Games, training, and other bookings (commercial hire shows only as &quot;Private&quot;
+                for transparency)
               </p>
             </Link>
           </div>

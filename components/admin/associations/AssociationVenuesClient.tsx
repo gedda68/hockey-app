@@ -235,6 +235,22 @@ export default function AssociationVenuesClient({
               Requires <code className="font-mono">competitions.manage</code> or{" "}
               <code className="font-mono">competitions.fixtures</code>.
             </p>
+            <div className="mt-4 flex flex-wrap gap-3 text-xs font-black">
+              <Link
+                href={`/admin/associations/${encodeURIComponent(associationId)}/venue-calendar`}
+                className="inline-flex rounded-xl border-2 border-cyan-600 bg-cyan-50 px-3 py-2 text-cyan-900 hover:bg-cyan-100"
+              >
+                Pitch calendar &amp; venue hire blocks →
+              </Link>
+              <Link
+                href={`/associations/${encodeURIComponent(associationId)}/venue-calendar`}
+                className="inline-flex rounded-xl border-2 border-slate-300 px-3 py-2 text-slate-800 hover:bg-slate-50"
+                target="_blank"
+                rel="noreferrer"
+              >
+                Public calendar (preview) ↗
+              </Link>
+            </div>
           </div>
         </div>
       </div>

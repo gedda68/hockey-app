@@ -100,7 +100,7 @@ function MonthSummaryCell({ s }: { s: MonthCalendarCellSummary }) {
     <div className="text-[10px] space-y-1 leading-snug">
       <div className="font-black text-slate-800">
         {s.matchCount} game{s.matchCount === 1 ? "" : "s"} · {s.trainingCount} training ·{" "}
-        {s.privateCount} private
+        {s.privateCount} private / hire
       </div>
       {s.lines.map((line, i) => (
         <div key={i} className="truncate text-slate-600 font-semibold">
@@ -188,10 +188,11 @@ export default function VenuePitchCalendarClient({
       <div className="rounded-2xl border-2 border-slate-200 bg-white p-6 shadow-sm">
         <p className="text-xs font-bold text-slate-600 leading-relaxed">
           <strong>Transparency:</strong> published league games show team names.{" "}
-          <strong>Training</strong> shows the organising club or association only. Other bookings
-          appear as <strong>Private</strong> (including commercial hire — never labelled as hire on
-          this public view). <strong>Month view</strong> shows counts and short previews per day and
-          pitch; open <strong>Week view</strong> for full detail.
+          <strong>Training</strong> shows the organising club or association only.{" "}
+          <strong>Venue hire</strong> and other sensitive bookings appear only as{" "}
+          <strong>Private</strong> here (no hirer, fees, or contract text).{" "}
+          <strong>Month view</strong> shows counts per day and pitch; <strong>Week view</strong> has
+          full detail for games and training.
         </p>
       </div>
 

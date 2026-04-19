@@ -1,7 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
+import { useAuth } from "@/lib/auth/AuthContext";
+import { shouldDefaultClubListToAssociation } from "@/lib/auth/clubListScope";
 import {
   Building2,
   Plus,
@@ -42,6 +44,7 @@ interface Association {
 
 export default function ClubsList() {
   const router = useRouter();
+  const { user } = useAuth();
   const [clubs, setClubs] = useState<Club[]>([]);
   const [associations, setAssociations] = useState<Association[]>([]);
   const [loading, setLoading] = useState(true);
@@ -50,9 +53,27 @@ export default function ClubsList() {
   const [filterStatus, setFilterStatus] = useState("active");
 
   useEffect(() => {
+    if (!user) return;
+    if (shouldDefaultClubListToAssociation(user) && user.associationId) {
+      setFilterAssociation(user.associationId);
+    }
+  }, [user]);
+
+  useEffect(() => {
     fetchClubs();
     fetchAssociations();
   }, [filterAssociation, filterStatus]);
+
+  const associationOptions = useMemo(() => {
+    if (!user || user.role === "super-admin") return associations;
+    const ids = new Set<string>();
+    if (user.associationId) ids.add(user.associationId);
+    for (const sr of user.scopedRoles ?? []) {
+      if (sr.scopeType === "association" && sr.scopeId) ids.add(sr.scopeId);
+    }
+    if (ids.size === 0) return associations;
+    return associations.filter((a) => ids.has(a.associationId));
+  }, [associations, user]);
 
   const fetchAssociations = async () => {
     try {
@@ -147,8 +168,10 @@ export default function ClubsList() {
                 onChange={(e) => setFilterAssociation(e.target.value)}
                 className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-100 rounded-xl font-bold focus:border-yellow-400 outline-none"
               >
-                <option value="">All Associations</option>
-                {associations.map((assoc) => (
+                {user?.role === "super-admin" ? (
+                  <option value="">All Associations</option>
+                ) : null}
+                {associationOptions.map((assoc) => (
                   <option key={assoc.associationId} value={assoc.associationId}>
                     {assoc.name}
                   </option>
@@ -175,11 +198,17 @@ export default function ClubsList() {
               {filteredClubs.length} club{filteredClubs.length !== 1 ? "s" : ""}{" "}
               found
             </span>
-            {(search || filterAssociation || filterStatus) && (
+            {(search ||
+              filterStatus !== "active" ||
+              (user?.role === "super-admin" && filterAssociation !== "")) && (
               <button
                 onClick={() => {
                   setSearch("");
-                  setFilterAssociation("");
+                  setFilterAssociation(
+                    shouldDefaultClubListToAssociation(user)
+                      ? (user?.associationId ?? "")
+                      : "",
+                  );
                   setFilterStatus("active");
                 }}
                 className="text-blue-600 font-bold hover:underline"

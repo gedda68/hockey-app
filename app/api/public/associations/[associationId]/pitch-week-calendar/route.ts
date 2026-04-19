@@ -264,7 +264,7 @@ export async function GET(request: NextRequest, { params }: Params) {
       pitchId: String(e.pitchId),
       scheduledStart: String(e.scheduledStart),
       scheduledEnd: (e.scheduledEnd as string | null | undefined) ?? null,
-      displayKind: e.displayKind as "training" | "private",
+      displayKind: e.displayKind as "training" | "private" | "hire",
       trainingOrganizer: e.trainingOrganizer as "club" | "association" | undefined,
       trainingClubId: (e.trainingClubId as string | null | undefined) ?? null,
     }));

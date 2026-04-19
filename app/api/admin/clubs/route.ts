@@ -8,6 +8,8 @@ import {
   requirePermission,
   requireResourceAccess,
 } from "@/lib/auth/middleware";
+import { getSession } from "@/lib/auth/session";
+import { getClubListScope } from "@/lib/auth/clubListScope";
 import { generateSlug } from "@/lib/utils/slug";
 import { escapeRegex } from "@/lib/utils/regex";
 import type { ClubDoc } from "@/types/api";
@@ -139,6 +141,13 @@ export async function GET(request: NextRequest) {
     const { response: authRes } = await requirePermission(request, "club.view");
     if (authRes) return authRes;
 
+    const session = await getSession();
+    if (!session) {
+      return NextResponse.json({ error: "Unauthorized - Please log in" }, { status: 401 });
+    }
+
+    const listScope = getClubListScope(session);
+
     const { searchParams } = new URL(request.url);
 
     // Filters
@@ -169,17 +178,52 @@ export async function GET(request: NextRequest) {
     // Build query
     const query: Record<string, unknown> = {};
 
+    if (listScope.kind === "none") {
+      return NextResponse.json({
+        clubs: [],
+        pagination: {
+          page,
+          limit,
+          total: 0,
+          totalPages: 0,
+        },
+      });
+    }
+
+    const paramAssoc = associationId || parentAssociationId;
+    if (paramAssoc) {
+      query.parentAssociationId = paramAssoc;
+    } else if (listScope.kind === "associations") {
+      query.parentAssociationId =
+        listScope.associationIds.length === 1
+          ? listScope.associationIds[0]
+          : { $in: listScope.associationIds };
+    } else if (listScope.kind === "clubs" && !idsParam) {
+      query.$or = [
+        { id: { $in: listScope.clubRefs } },
+        { slug: { $in: listScope.clubRefs } },
+      ];
+    }
+
     // Batch fetch by IDs (e.g. for colour map population)
     if (idsParam) {
       const ids = idsParam.split(",").map((s) => s.trim()).filter(Boolean);
       if (ids.length > 0) {
-        query.$or = [{ id: { $in: ids } }, { clubId: { $in: ids } }];
+        if (listScope.kind === "clubs") {
+          query.$and = [
+            {
+              $or: [
+                { id: { $in: listScope.clubRefs } },
+                { slug: { $in: listScope.clubRefs } },
+              ],
+            },
+            { $or: [{ id: { $in: ids } }, { clubId: { $in: ids } }] },
+          ];
+          delete query.$or;
+        } else {
+          query.$or = [{ id: { $in: ids } }, { clubId: { $in: ids } }];
+        }
       }
-    }
-
-    // Filter by association (priority - used by wizard)
-    if (associationId || parentAssociationId) {
-      query.parentAssociationId = associationId || parentAssociationId;
     }
 
     // Filter by region (geolocation - backwards compatibility)

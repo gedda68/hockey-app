@@ -37,6 +37,7 @@ const ASSOC_STAFF_ROLES = [
   "assoc-coach",
   "assoc-selector",
   "assoc-registrar",
+  "assoc-competition",
   "media-marketing",
 ];
 
@@ -187,7 +188,8 @@ const ROUTE_RULES: RouteRule[] = [
     scopeCheck: true,
   },
 
-  { pattern: /^\/admin\/associations(\/|$)/, allowedRoles: ASSOCIATION_TREE_ROLES, scopeCheck: true },
+  /** Association directory + per-org pages (profile edit, venues, etc.) — all association staff. */
+  { pattern: /^\/admin\/associations(\/|$)/, allowedRoles: ASSOC_STAFF_ROLES, scopeCheck: true },
   { pattern: /^\/admin\/tournaments(\/|$)/, allowedRoles: ASSOCIATION_ROLES, scopeCheck: true },
 
   { pattern: /^\/admin\/representative(\/|$)/, allowedRoles: ASSOC_STAFF_ROLES, scopeCheck: true },
@@ -204,7 +206,8 @@ const ROUTE_RULES: RouteRule[] = [
     ],
   },
 
-  { pattern: /^\/admin\/clubs(\/|$)/, allowedRoles: CLUB_AND_ABOVE, scopeCheck: true },
+  /** Club directory + club profile edit — club management roles, not only club-admin. */
+  { pattern: /^\/admin\/clubs(\/|$)/, allowedRoles: CLUB_MANAGEMENT, scopeCheck: true },
   { pattern: /^\/admin\/fees(\/|$)/, allowedRoles: FINANCE_ROLES, scopeCheck: true },
 
   { pattern: /^\/admin\/members(\/|$)/, allowedRoles: CLUB_MANAGEMENT, scopeCheck: true },

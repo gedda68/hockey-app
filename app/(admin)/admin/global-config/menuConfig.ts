@@ -93,10 +93,27 @@ const SETTINGS_ROLES = [
   "club-admin", "club-committee",
 ];
 
-/** Roles that can see club directory */
+/** Roles that can see club directory and open club profile / edit (scoped in UI + API). */
 const CLUBS_ROLES = [
   "super-admin",
-  "association-admin", "assoc-committee", "assoc-registrar",
+  "association-admin",
+  "assoc-committee",
+  "assoc-registrar",
+  "club-admin",
+  "club-committee",
+  "registrar",
+];
+
+/** Who sees the Associations sidebar block (matches admin route access for /admin/associations). */
+const ASSOCIATION_DIRECTORY_ROLES = [
+  "super-admin",
+  "association-admin",
+  "assoc-committee",
+  "assoc-coach",
+  "assoc-selector",
+  "assoc-registrar",
+  "assoc-competition",
+  "media-marketing",
 ];
 
 /** Roles that can see staff management */
@@ -332,14 +349,14 @@ export const menuConfig: MenuItem[] = [
     description: "Association hierarchy and management",
     color: "from-teal-500 to-teal-600",
     section: "directory",
-    allowedRoles: ["super-admin", "association-admin", "assoc-committee"],
+    allowedRoles: ASSOCIATION_DIRECTORY_ROLES,
     subItems: [
       {
         label: "All Associations",
         href: "/admin/associations",
         icon: "🏛️",
         description: "Association directory",
-        allowedRoles: ["super-admin", "association-admin", "assoc-committee"],
+        allowedRoles: ASSOCIATION_DIRECTORY_ROLES,
       },
       {
         label: "Add Association",

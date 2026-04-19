@@ -305,45 +305,21 @@ export default function AdminSidebar() {
         `}
         style={{ backgroundColor: branding?.primaryColor ?? "#06054e" }}
       >
-        {/* Entity header — logo + name */}
-        <div
-          className="p-4 border-b border-white/10 flex items-center justify-between gap-3"
-          style={{ backgroundColor: branding ? `${branding.primaryColor}cc` : "transparent" }}
-        >
-          <div className="flex items-center gap-3 min-w-0">
-            {branding?.logo ? (
-              <img
-                src={branding.logo}
-                alt={branding.shortName || branding.name}
-                className="h-9 w-9 object-contain rounded-lg bg-white/10 p-1 flex-shrink-0"
-              />
-            ) : (
-              <div className="h-9 w-9 bg-white/20 rounded-lg flex items-center justify-center flex-shrink-0 text-xl">
-                🏑
-              </div>
-            )}
-            <div className="min-w-0">
-              <h1 className="text-sm font-black uppercase leading-tight truncate">
-                {branding?.name ?? "Hockey Admin"}
-              </h1>
-              <p className="text-xs text-white/60 mt-0.5">Management Portal</p>
-            </div>
-          </div>
+        <div className="md:hidden flex justify-end border-b border-white/10 px-2 py-2">
           <button
-            className="md:hidden text-white/70 flex-shrink-0"
+            type="button"
+            className="text-white/80 hover:text-white rounded-lg px-3 py-1.5 text-sm font-bold"
             onClick={() => setMobileOpen(false)}
+            aria-label="Close menu"
           >
             ✕
           </button>
         </div>
 
-        {/* Navigation */}
-        <nav className="flex-1 overflow-y-auto py-4">
+        {/* Navigation — no section captions; extra top padding below the admin header */}
+        <nav className="flex-1 overflow-y-auto pt-8 pb-4 md:pt-10">
           {visibleMenu.map((group) => (
             <div key={group.key} className="mb-5 last:mb-0">
-              <div className="px-4 pb-2 text-[10px] font-black uppercase tracking-widest text-white/45">
-                {group.label}
-              </div>
               <ul className="space-y-1">
                 {group.items.map((item) => (
                   <SidebarItem
