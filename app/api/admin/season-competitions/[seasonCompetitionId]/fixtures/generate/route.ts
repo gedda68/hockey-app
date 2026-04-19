@@ -12,6 +12,10 @@ import { generateRoundRobin } from "@/lib/competitions/roundRobin";
 import { logPlatformAudit } from "@/lib/audit/platformAuditLog";
 import { invalidateStandingsBundleCache } from "@/lib/competitions/standingsReadCache";
 import { isLeagueFixtureBulkReplaceEnabled } from "@/lib/platform/featureFlags";
+import {
+  adminTelemetryFromRequestLike,
+  logAdminTelemetry,
+} from "@/lib/observability/adminTelemetry";
 
 const BodySchema = z.object({
   teamIds: z.array(z.string().min(1)).min(2),
@@ -33,7 +37,7 @@ export async function POST(request: NextRequest, { params }: Params) {
     const body = BodySchema.parse(await request.json());
 
     const client = await clientPromise;
-    const db = client.db("hockey-app");
+    const db = client.db(process.env.DB_NAME || "hockey-app");
 
     const sc = await db.collection("season_competitions").findOne({
       seasonCompetitionId,
@@ -116,6 +120,26 @@ export async function POST(request: NextRequest, { params }: Params) {
       resourceId: seasonCompetitionId,
       summary: `Generated ${docs.length} fixtures (double=${Boolean(body.doubleRound)})`,
       metadata: { teamCount: body.teamIds.length, replace: Boolean(body.replace) },
+    });
+
+    logAdminTelemetry("admin.fixtures.generate", {
+      ...adminTelemetryFromRequestLike({
+        hostHeader:
+          request.headers.get("x-forwarded-host") ?? request.headers.get("host"),
+        pathname: new URL(request.url).pathname,
+        method: request.method,
+      }),
+      userId: user.userId,
+      role: user.role,
+      associationId: user.associationId ?? null,
+      clubId: user.clubId ?? null,
+      seasonCompetitionId,
+      owningAssociationId: String(sc.owningAssociationId ?? ""),
+      competitionId: String(sc.competitionId ?? ""),
+      teamCount: body.teamIds.length,
+      doubleRound: Boolean(body.doubleRound),
+      replace: Boolean(body.replace),
+      fixturesInserted: docs.length,
     });
 
     return NextResponse.json({

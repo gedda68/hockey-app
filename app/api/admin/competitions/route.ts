@@ -15,6 +15,10 @@ import {
 } from "@/lib/db/schemas/competition.schema";
 import { ZodError } from "zod";
 import { logPlatformAudit } from "@/lib/audit/platformAuditLog";
+import {
+  adminTelemetryFromRequestLike,
+  logAdminTelemetry,
+} from "@/lib/observability/adminTelemetry";
 
 function newId(prefix: string) {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
@@ -44,7 +48,7 @@ export async function GET(request: NextRequest) {
       | "all";
 
     const client = await clientPromise;
-    const db = client.db("hockey-app");
+    const db = client.db(process.env.DB_NAME || "hockey-app");
 
     // Club-scoped admins cannot manage competitions.
     if (
@@ -81,6 +85,24 @@ export async function GET(request: NextRequest) {
             .find(seasonCompQuery)
             .toArray(),
     ]);
+
+    logAdminTelemetry("admin.competitions.get", {
+      ...adminTelemetryFromRequestLike({
+        hostHeader:
+          request.headers.get("x-forwarded-host") ?? request.headers.get("host"),
+        pathname: new URL(request.url).pathname,
+        method: request.method,
+      }),
+      userId: user.userId,
+      role: user.role,
+      associationId: user.associationId ?? null,
+      clubId: user.clubId ?? null,
+      owningAssociationId: owningAssociationId ?? null,
+      season: season ?? null,
+      include,
+      competitionCount: competitions.length,
+      seasonCompetitionCount: seasonCompetitions.length,
+    });
 
     return NextResponse.json({
       competitions:
@@ -120,7 +142,7 @@ export async function POST(request: NextRequest) {
     const kind = body?.kind;
 
     const client = await clientPromise;
-    const db = client.db("hockey-app");
+    const db = client.db(process.env.DB_NAME || "hockey-app");
 
     // Club-scoped admins cannot manage competitions.
     if (
@@ -174,6 +196,22 @@ export async function POST(request: NextRequest) {
         resourceId: competition.competitionId,
         summary: `Created competition "${competition.name}"`,
         after: { competition },
+      });
+
+      logAdminTelemetry("admin.competitions.create", {
+        ...adminTelemetryFromRequestLike({
+          hostHeader:
+            request.headers.get("x-forwarded-host") ?? request.headers.get("host"),
+          pathname: new URL(request.url).pathname,
+          method: request.method,
+        }),
+        userId: user.userId,
+        role: user.role,
+        associationId: user.associationId ?? null,
+        clubId: user.clubId ?? null,
+        kind: "competition",
+        owningAssociationId: competition.owningAssociationId,
+        competitionId: competition.competitionId,
       });
 
       return NextResponse.json({ competition }, { status: 201 });
@@ -288,6 +326,24 @@ export async function POST(request: NextRequest) {
         resourceId: seasonCompetition.seasonCompetitionId,
         summary: `Created season competition season=${seasonCompetition.season}`,
         after: { seasonCompetition },
+      });
+
+      logAdminTelemetry("admin.competitions.create", {
+        ...adminTelemetryFromRequestLike({
+          hostHeader:
+            request.headers.get("x-forwarded-host") ?? request.headers.get("host"),
+          pathname: new URL(request.url).pathname,
+          method: request.method,
+        }),
+        userId: user.userId,
+        role: user.role,
+        associationId: user.associationId ?? null,
+        clubId: user.clubId ?? null,
+        kind: "seasonCompetition",
+        owningAssociationId: seasonCompetition.owningAssociationId,
+        seasonCompetitionId: seasonCompetition.seasonCompetitionId,
+        competitionId: seasonCompetition.competitionId,
+        season: seasonCompetition.season,
       });
 
       return NextResponse.json({ seasonCompetition }, { status: 201 });

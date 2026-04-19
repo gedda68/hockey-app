@@ -18,6 +18,10 @@ import { AwardsLabelsSchema } from "@/lib/db/schemas/competitionAwards.schema";
 import { z, ZodError } from "zod";
 import { logPlatformAudit } from "@/lib/audit/platformAuditLog";
 import { invalidateStandingsBundleCache } from "@/lib/competitions/standingsReadCache";
+import {
+  adminTelemetryFromRequestLike,
+  logAdminTelemetry,
+} from "@/lib/observability/adminTelemetry";
 
 type Params = { params: Promise<{ seasonCompetitionId: string }> };
 
@@ -56,7 +60,7 @@ export async function GET(request: NextRequest, { params }: Params) {
   try {
     const { seasonCompetitionId } = await params;
     const client = await clientPromise;
-    const db = client.db("hockey-app");
+    const db = client.db(process.env.DB_NAME || "hockey-app");
 
     const sc = await db.collection("season_competitions").findOne({
       seasonCompetitionId,
@@ -98,7 +102,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     const validated = UpdateSeasonCompetitionSchema.parse(body);
 
     const client = await clientPromise;
-    const db = client.db("hockey-app");
+    const db = client.db(process.env.DB_NAME || "hockey-app");
 
     const existing = await db.collection("season_competitions").findOne({
       seasonCompetitionId,
@@ -219,6 +223,25 @@ export async function PATCH(request: NextRequest, { params }: Params) {
           ?.clubNominatedVenues,
       },
       metadata: { owningAssociationId: existing.owningAssociationId },
+    });
+
+    logAdminTelemetry("admin.season_competitions.patch", {
+      ...adminTelemetryFromRequestLike({
+        hostHeader:
+          request.headers.get("x-forwarded-host") ?? request.headers.get("host"),
+        pathname: new URL(request.url).pathname,
+        method: request.method,
+      }),
+      userId: user.userId,
+      role: user.role,
+      associationId: user.associationId ?? null,
+      clubId: user.clubId ?? null,
+      seasonCompetitionId,
+      owningAssociationId: String(existing.owningAssociationId ?? ""),
+      fields: Object.keys(validated).join(","),
+      statusFrom: String(existing.status ?? ""),
+      statusTo:
+        validated.status !== undefined ? String(validated.status ?? "") : null,
     });
 
     return NextResponse.json({ ...updated, _id: updated?._id?.toString?.() });
