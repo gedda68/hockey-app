@@ -27,6 +27,7 @@ import {
   BarChart3,
   Trophy,
   Wrench,
+  MousePointerClick,
 } from "lucide-react";
 
 export default async function AssociationDetailPage({
@@ -209,6 +210,13 @@ export default async function AssociationDetailPage({
                 >
                   <Mail size={18} />
                   Communications hub
+                </Link>
+                <Link
+                  href={`/admin/associations/${associationId}/partner-analytics`}
+                  className="inline-flex items-center gap-2 px-4 py-2 border-2 border-amber-600 text-amber-950 rounded-xl font-black hover:bg-amber-50 transition-all text-sm"
+                >
+                  <MousePointerClick size={18} />
+                  Partner analytics
                 </Link>
                 <Link
                   href={`/admin/associations/${associationId}/edit`}

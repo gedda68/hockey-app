@@ -17,6 +17,7 @@ import {
   ChevronRight,
   ChevronLeft,
   ClipboardList,
+  MousePointerClick,
 } from "lucide-react";
 import Link from "next/link";
 import { ToastContainer, useToast } from "@/components/ui/Toast";
@@ -564,13 +565,22 @@ export default function ClubForm({
               </div>
             </div>
             {isEdit && clubId ? (
-              <Link
-                href={`/admin/clubs/${encodeURIComponent(clubId)}/volunteer-duty-roster`}
-                className="inline-flex items-center gap-2 self-start rounded-xl border-2 border-amber-200 bg-amber-50 px-4 py-2.5 text-sm font-black text-[#06054e] hover:border-amber-400"
-              >
-                <ClipboardList size={18} />
-                Volunteer duty roster
-              </Link>
+              <div className="flex flex-col gap-2 self-start sm:flex-row sm:items-center">
+                <Link
+                  href={`/admin/clubs/${encodeURIComponent(clubId)}/volunteer-duty-roster`}
+                  className="inline-flex items-center gap-2 rounded-xl border-2 border-amber-200 bg-amber-50 px-4 py-2.5 text-sm font-black text-[#06054e] hover:border-amber-400"
+                >
+                  <ClipboardList size={18} />
+                  Volunteer duty roster
+                </Link>
+                <Link
+                  href={`/admin/clubs/${encodeURIComponent(clubId)}/partner-analytics`}
+                  className="inline-flex items-center gap-2 rounded-xl border-2 border-slate-200 bg-white px-4 py-2.5 text-sm font-black text-[#06054e] hover:border-amber-300"
+                >
+                  <MousePointerClick size={18} />
+                  Partner analytics
+                </Link>
+              </div>
             ) : null}
           </div>
         </div>

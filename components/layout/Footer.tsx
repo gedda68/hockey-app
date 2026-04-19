@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useMemo } from "react";
 import { usePublicTenant } from "@/lib/contexts/PublicTenantContext";
-import type { PublicSitePartner } from "@/lib/tenant/tenantPartners";
+import PartnerStripClickable from "@/components/website/PartnerStripClickable";
 
 const DEFAULT_PRIMARY = "#06054e";
 
@@ -14,58 +14,6 @@ function luminance(hex: string): number {
   const g = parseInt(h.slice(2, 4), 16) / 255;
   const b = parseInt(h.slice(4, 6), 16) / 255;
   return 0.2126 * r + 0.7152 * g + 0.0722 * b;
-}
-
-function PartnersStrip({
-  partners,
-  borderColor,
-  headingClass,
-}: {
-  partners: PublicSitePartner[];
-  borderColor: string;
-  headingClass: string;
-}) {
-  if (!partners.length) return null;
-  return (
-    <div className="border-b px-4 py-8 sm:px-8" style={{ borderColor }}>
-      <p className={`text-center text-[10px] font-black uppercase tracking-[0.28em] ${headingClass}`}>
-        Partners &amp; sponsors
-      </p>
-      <ul className="mx-auto mt-5 flex max-w-5xl flex-wrap items-center justify-center gap-x-10 gap-y-6">
-        {partners.map((p) => {
-          const inner = (
-            <span className="flex flex-col items-center gap-2 text-center">
-              {p.logoUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element -- remote partner logos
-                <img
-                  src={p.logoUrl}
-                  alt=""
-                  className="max-h-11 w-auto max-w-[140px] object-contain opacity-95"
-                />
-              ) : null}
-              <span className="text-xs font-bold leading-tight">{p.name}</span>
-            </span>
-          );
-          return (
-            <li key={p.name}>
-              {p.url ? (
-                <a
-                  href={p.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="block opacity-90 transition hover:opacity-100"
-                >
-                  {inner}
-                </a>
-              ) : (
-                <div className="opacity-90">{inner}</div>
-              )}
-            </li>
-          );
-        })}
-      </ul>
-    </div>
-  );
 }
 
 export default function Footer() {
@@ -92,7 +40,16 @@ export default function Footer() {
         color: lightBg ? "#0f172a" : "rgba(224,231,255,0.92)",
       }}
     >
-      <PartnersStrip partners={partners} borderColor={borderColor} headingClass={stripHeading} />
+      {partners.length > 0 && tenant ? (
+        <PartnerStripClickable
+          partners={partners}
+          scopeType={tenant.kind}
+          scopeId={tenant.id}
+          layout="footer"
+          borderColor={borderColor}
+          headingClass={stripHeading}
+        />
+      ) : null}
 
       <div
         className={`grid w-full grid-cols-1 gap-8 p-10 sm:grid-cols-3 ${lightBg ? "" : ""}`}

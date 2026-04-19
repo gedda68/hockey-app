@@ -337,6 +337,24 @@ async function main() {
       "associationId + venueId + pitchId + scheduledStart",
     );
 
+    // ── partner_strip_click_daily (Epic O4 — privacy-safe sponsor strip) ───
+    const partnerClicks = db.collection("partner_strip_click_daily");
+    console.log("\npartner_strip_click_daily:");
+
+    await idx(
+      partnerClicks,
+      { scopeType: 1, scopeId: 1, partnerRef: 1, day: 1 },
+      { unique: true },
+      "unique scopeType + scopeId + partnerRef + day",
+    );
+
+    await idx(
+      partnerClicks,
+      { scopeType: 1, scopeId: 1, day: -1 },
+      {},
+      "scopeType + scopeId + day (range reports)",
+    );
+
     // ── club_volunteer_duty_leads (Epic O3 — duty roster / light CRM) ──────
     const volDuty = db.collection("club_volunteer_duty_leads");
     console.log("\nclub_volunteer_duty_leads:");
