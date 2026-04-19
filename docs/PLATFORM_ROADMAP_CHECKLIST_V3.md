@@ -8,12 +8,12 @@ This document **supersedes `PLATFORM_ROADMAP_CHECKLIST_V2.md` for forward planni
 
 ## 0. Snapshot: what the codebase already does well
 
-| Area | Reality (as implemented) |
-|------|---------------------------|
+| Area                        | Reality (as implemented)                                                                                                                                                                                                                                           |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | **League engine (backend)** | `Competition` / `SeasonCompetition`, divisions, lifecycle, round-robin generation (`POST .../fixtures/generate`), fixtures with venue/time/publish, results, ladders, roll-ups, match events, tenant gates on public reads — see V1 Epics **C**, **E**, **L5/L6**. |
-| **Tournaments (admin)** | Substantial **`/admin/tournaments`** UI: create/edit rep tournaments, entry rules, multi-division draws, fixture lists, results path — V1 **D**. |
-| **Umpiring** | Official register, COI/availability checks, assignment notify, honoraria ledger, **`/admin/associations/[id]/officiating-report`** with **stacked “allocation mix” bar** (assigned / accepted / declined / unspecified) + club/region tables — V1 **F**. |
-| **Public / fan** | This round, match centre, standings, fan prefs, push, pathways, tenant news/gallery/branding — V2 **B1–B7**, **P***, **L2–L4**. |
+| **Tournaments (admin)**     | Substantial **`/admin/tournaments`** UI: create/edit rep tournaments, entry rules, multi-division draws, fixture lists, results path — V1 **D**.                                                                                                                   |
+| **Umpiring**                | Official register, COI/availability checks, assignment notify, honoraria ledger, **`/admin/associations/[id]/officiating-report`** with **stacked “allocation mix” bar** (assigned / accepted / declined / unspecified) + club/region tables — V1 **F**.           |
+| **Public / fan**            | This round, match centre, standings, fan prefs, push, pathways, tenant news/gallery/branding — V2 **B1–B7**, **P\***, **L2–L4**.                                                                                                                                   |
 
 ---
 
@@ -40,17 +40,17 @@ This document **supersedes `PLATFORM_ROADMAP_CHECKLIST_V2.md` for forward planni
 
 The following bullets in **V2 §1.3** are **out of date** relative to the current repo; V3 carries the correction:
 
-| V2 statement | Current state |
-|--------------|----------------|
-| News / all portals same | **Closed:** `scopeType` + `scopeId`, `lib/portal/newsScope.ts`, admin + public consumers (see V2 **L2** marked shipped). |
-| Home gallery one for all | **Closed:** tenant disk segments + admin scope (V2 **L3**). |
+| V2 statement                    | Current state                                                                                                                                         |
+| ------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| News / all portals same         | **Closed:** `scopeType` + `scopeId`, `lib/portal/newsScope.ts`, admin + public consumers (see V2 **L2** marked shipped).                              |
+| Home gallery one for all        | **Closed:** tenant disk segments + admin scope (V2 **L3**).                                                                                           |
 | Competition UI for level policy | **Partially closed:** API enforces owning association + **stored `level > 1`** for new season leagues; **admin wizard copy / defaults** still **N2**. |
 
 ---
 
 ## Epic N — Next product: league operations UX
 
-- [x] **N1** **League competition wizard (admin)** — **Shipped (baseline):** `/admin/associations/[associationId]/competitions` + `LeagueCompetitionWizard` — create or pick `Competition`, season year, optional display name + logo URL, divisions, extended ladder rules (incl. shootout/ET points, forfeit goal defaults for standings), `POST .../competitions` + `PATCH .../season-competitions`, round-robin `POST .../fixtures/generate` with replace warning + `isLeagueFixtureBulkReplaceEnabled()`, fixture grid (venue, datetime-local, status incl. postponed, published), publish / in-progress transitions. **API:** `GET .../associations/[id]/league-builder-teams` for team pickers. **Association-only** (route under association admin; club roles cannot hit competition POST). *Follow-up:* bulk venue apply, richer validation, super-admin-only multi-association picker polish. **TODO (deferred):** use persisted `blockoutPeriods`, `specialMatchPeriods`, and `finalsSeries` in automated scheduling / finals bracket generation and optional public “finals & specials” surfacing — intentionally not wired yet; revisit when prioritising scheduler or fan-facing finals UX.
+- [x] **N1** **League competition wizard (admin)** — **Shipped (baseline):** `/admin/associations/[associationId]/competitions` + `LeagueCompetitionWizard` — create or pick `Competition`, season year, optional display name + logo URL, divisions, extended ladder rules (incl. shootout/ET points, forfeit goal defaults for standings), `POST .../competitions` + `PATCH .../season-competitions`, round-robin `POST .../fixtures/generate` with replace warning + `isLeagueFixtureBulkReplaceEnabled()`, fixture grid (venue, datetime-local, status incl. postponed, published), publish / in-progress transitions. **API:** `GET .../associations/[id]/league-builder-teams` for team pickers. **Association-only** (route under association admin; club roles cannot hit competition POST). _Follow-up:_ bulk venue apply, richer validation, super-admin-only multi-association picker polish. **TODO (deferred):** use persisted `blockoutPeriods`, `specialMatchPeriods`, and `finalsSeries` in automated scheduling / finals bracket generation and optional public “finals & specials” surfacing — intentionally not wired yet; revisit when prioritising scheduler or fan-facing finals UX.
 - [x] **N2** **Policy-aligned defaults** — **Shipped:** wizard loads `associations.level`; national/state (`level <= 1`) shows `LeagueHierarchyPolicyCallout` (canonical hierarchy + season-league ownership, cite `docs/domain/CANONICAL_GRAPH.md`), links to `/admin/tournaments` and associations list; read-only **owningAssociationId** strip; POST bodies still use route `associationId`. **Session:** unauthenticated → `/login?next=…`; association-scoped users are redirected to `/admin/associations/{session.associationId}/competitions` if the URL association does not match (super-admin exempt). **Guard:** **Save & continue** disabled and client toast when creating a new `SeasonCompetition` at `level <= 1` (aligned with `POST /api/admin/competitions` season validation).
 - [x] **N3** **Fixture operations console** — **Shipped:** `/admin/associations/[associationId]/fixtures-console` + `FixtureOperationsConsole` — season picker (optional `?seasonCompetitionId=` deep link), filters (round, club home/away, venue substring, scheduled date range), selectable rows, sequential bulk **Publish / Unpublish** via existing fixture `PATCH`, **CSV export** of filtered rows (UTF-8 BOM), per-row **Save scores** / **Approve result** (`PATCH .../result`), links to **Match events** with `?seasonCompetitionId=&fixtureId=`, **League setup** wizard, and **Bulk import → league fixture results**. Association hub + league wizard cross-links.
 - [x] **N4** **Division ↔ team entry UX** — **Shipped:** `/admin/associations/[associationId]/division-teams` + `DivisionTeamOverviewClient`; **GET** `/api/admin/associations/[id]/division-team-overview` (registrar / competition / fixtures read); **PATCH** `/api/admin/associations/[id]/teams/[teamId]/league-context` (canonical link + optional **Sync label** from `competitions.name`). **Club team API:** `competitionDivisionId` on **CreateTeamRequestSchema** / **UpdateTeamRequestSchema** with validation against `season_competitions.divisions`; clearing `seasonCompetitionId` clears division; stale division cleared when season changes (`lib/competitions/teamLeagueContext.ts`). Explains **legacy `competition` string** vs **`seasonCompetitionId` + `competitionDivisionId`**; orphan-team linker; links to **League setup** + club admin.
@@ -86,12 +86,12 @@ The following bullets in **V2 §1.3** are **out of date** relative to the curren
 
 ## Carry-forward (no new epic id required)
 
-| Source | Item |
-|--------|------|
-| V2 **B8** | Official app parity / deep links — still long-term. |
-| V1 **D4** follow-up | Knockout from draw skeleton, declared champion field, rep `resultApprovalRequired` — keep in tournament backlog; **N1** should not duplicate draw engine work. |
-| V2 **P1/P2** follow-ups | Richer pathways CMS, club “fixtures for visitors” — incremental. |
-| V2 **B2** follow-up | oEmbed + playlists per tenant. |
+| Source                  | Item                                                                                                                                                           |
+| ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| V2 **B8**               | Official app parity / deep links — still long-term.                                                                                                            |
+| V1 **D4** follow-up     | Knockout from draw skeleton, declared champion field, rep `resultApprovalRequired` — keep in tournament backlog; **N1** should not duplicate draw engine work. |
+| V2 **P1/P2** follow-ups | Richer pathways CMS, club “fixtures for visitors” — incremental.                                                                                               |
+| V2 **B2** follow-up     | oEmbed + playlists per tenant.                                                                                                                                 |
 
 ---
 
@@ -107,12 +107,22 @@ The following bullets in **V2 §1.3** are **out of date** relative to the curren
 
 ## Traceability
 
-| Prior doc | V3 relationship |
-|-----------|-----------------|
-| **V1** A–K | Still the **feature shipped** checklist; V3 does not re-mark those boxes. |
-| **V2** L/P/B/T/M | Tenancy + benchmark work largely complete; V3 **§1.4** corrects stale gap text. |
-| **`docs/domain/CANONICAL_GRAPH.md`** | **N2** wizard must reference stored `level` vs stakeholder labels. |
+| Prior doc                            | V3 relationship                                                                 |
+| ------------------------------------ | ------------------------------------------------------------------------------- |
+| **V1** A–K                           | Still the **feature shipped** checklist; V3 does not re-mark those boxes.       |
+| **V2** L/P/B/T/M                     | Tenancy + benchmark work largely complete; V3 **§1.4** corrects stale gap text. |
+| **`docs/domain/CANONICAL_GRAPH.md`** | **N2** wizard must reference stored `level` vs stakeholder labels.              |
 
 ---
 
-*Last updated: 2026-04-19 — O1 public match-centre polling MVP.*
+## Future Enhancements
+
+|---------------------------------------------------|
+** Enhancements **
+
+- [ ] Live scores in-app: your current short polling is fine for MVP; WebSockets (or managed realtime) are an upgrade path when you need faster updates or less HTTP churn, and they need a clear publish path from fixture writes (or change streams), not just a socket server.
+- [ ] Push notifications: plan around FCM / APNs / Web Push, not WebSockets as the primary channel; sockets only for toasts while the app is open if you want that.
+- [ ] Chat / WhatsApp-class IM: expect persistent realtime (often WebSockets or a vendor abstraction) plus persistence, receipts, moderation, etc.; heavy lifting is product and backend, not only the wire protocol.
+      |---------------------------------------------------|
+
+_Last updated: 2026-04-19 — O1 public match-centre polling MVP._
