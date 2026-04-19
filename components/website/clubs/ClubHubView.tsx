@@ -229,6 +229,7 @@ export default async function ClubHubView({
           aria-label="On this page"
         >
           {hubNavLink("#pathways", "Get involved")}
+          {hubNavLink(`/clubs/${encodeURIComponent(club.slug)}/volunteer-duties`, "Volunteer duties")}
           {hubNavLink("#match-day", "Fixtures")}
           {hubNavLink("#news", "News")}
           {hubNavLink("#contact", "Contact")}

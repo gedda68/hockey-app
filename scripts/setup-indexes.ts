@@ -337,6 +337,21 @@ async function main() {
       "associationId + venueId + pitchId + scheduledStart",
     );
 
+    // ── club_volunteer_duty_leads (Epic O3 — duty roster / light CRM) ──────
+    const volDuty = db.collection("club_volunteer_duty_leads");
+    console.log("\nclub_volunteer_duty_leads:");
+
+    await idx(volDuty, { leadId: 1 }, { unique: true }, "unique leadId");
+
+    await idx(
+      volDuty,
+      { clubId: 1, createdAt: -1 },
+      {},
+      "clubId + createdAt (newest first)",
+    );
+
+    await idx(volDuty, { clubId: 1, status: 1 }, {}, "clubId + status");
+
     // ── communication_hub_settings (Epic O2 — tenant comms hub) ───────────
     const commHub = db.collection("communication_hub_settings");
     console.log("\ncommunication_hub_settings:");

@@ -153,17 +153,27 @@ export function buildPathwaysCards(
     id: "volunteer",
     title: "Volunteer",
     blurb:
-      "Help around the club or association — managers, selectors, committee, and more use the same role request workflow.",
+      "Game-day duties (canteen, goal judge, table, setup) use the club duty roster — separate from the umpire register. Role requests (manager, committee, etc.) stay under My registrations.",
     links:
       ctx.kind === "club"
         ? [
             {
+              href: q(
+                `/clubs/${encodeURIComponent(ctx.clubSlug)}/volunteer-duties`,
+              ),
+              label: "Game-day duty roster (sign up)",
+            },
+            {
               href: q(myRegistrationsLoginUrl({ role: "volunteer", clubId: ctx.clubId })),
-              label: "Request volunteer role",
+              label: "Request volunteer role (account)",
             },
           ]
         : ctx.kind === "association"
           ? [
+              {
+                href: q(`/clubs`),
+                label: "Member clubs — open a hub → Volunteer duties",
+              },
               {
                 href: q(
                   myRegistrationsLoginUrl({
@@ -179,6 +189,10 @@ export function buildPathwaysCards(
               },
             ]
           : [
+              {
+                href: q(`/clubs`),
+                label: "Choose a club → Volunteer duties",
+              },
               {
                 href: q(myRegistrationsLoginUrl({ role: "volunteer" })),
                 label: "Request volunteer role",

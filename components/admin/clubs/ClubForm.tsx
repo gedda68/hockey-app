@@ -16,7 +16,9 @@ import {
   X,
   ChevronRight,
   ChevronLeft,
+  ClipboardList,
 } from "lucide-react";
+import Link from "next/link";
 import { ToastContainer, useToast } from "@/components/ui/Toast";
 import { useAdminEditingScope } from "@/components/admin/AdminEditingScopeProvider";
 
@@ -547,18 +549,29 @@ export default function ClubForm({
       <div className="max-w-5xl mx-auto space-y-6 pb-32">
         {/* Header */}
         <div className="bg-white rounded-[2rem] shadow-xl border border-slate-100 p-8">
-          <div className="flex items-center gap-6">
-            <div className="w-20 h-20 rounded-3xl bg-[#06054e] text-white flex items-center justify-center">
-              <Building2 size={40} />
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-6">
+              <div className="w-20 h-20 rounded-3xl bg-[#06054e] text-white flex items-center justify-center">
+                <Building2 size={40} />
+              </div>
+              <div>
+                <h1 className="text-4xl font-black text-[#06054e]">
+                  {isEdit ? "Edit Club" : "New Club"}
+                </h1>
+                <p className="text-slate-500 font-bold">
+                  {isEdit ? "Update club details" : "Create a new hockey club"}
+                </p>
+              </div>
             </div>
-            <div>
-              <h1 className="text-4xl font-black text-[#06054e]">
-                {isEdit ? "Edit Club" : "New Club"}
-              </h1>
-              <p className="text-slate-500 font-bold">
-                {isEdit ? "Update club details" : "Create a new hockey club"}
-              </p>
-            </div>
+            {isEdit && clubId ? (
+              <Link
+                href={`/admin/clubs/${encodeURIComponent(clubId)}/volunteer-duty-roster`}
+                className="inline-flex items-center gap-2 self-start rounded-xl border-2 border-amber-200 bg-amber-50 px-4 py-2.5 text-sm font-black text-[#06054e] hover:border-amber-400"
+              >
+                <ClipboardList size={18} />
+                Volunteer duty roster
+              </Link>
+            ) : null}
           </div>
         </div>
 
