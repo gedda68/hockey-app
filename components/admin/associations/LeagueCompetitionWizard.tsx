@@ -18,6 +18,7 @@ import {
   Rocket,
 } from "lucide-react";
 import { isLeagueFixtureBulkReplaceEnabled } from "@/lib/platform/featureFlags";
+import { LeagueHierarchyPolicyCallout } from "@/components/admin/associations/LeagueHierarchyPolicyCallout";
 import { roundRobinRoundCounts } from "@/lib/competitions/roundRobin";
 import { ladderFinalistCount } from "@/lib/competitions/seasonFinalsRules";
 import type { FinalsSeriesFormat } from "@/lib/db/schemas/competition.schema";
@@ -219,15 +220,23 @@ function CalendarWindowRowsEditor({
 export default function LeagueCompetitionWizard({
   associationId,
   associationName,
+  associationLevel,
   primaryColor = "#06054e",
   initialSeasonCompetitionId,
 }: {
   associationId: string;
   associationName: string;
+  /** Stored `associations.level` from DB; null if missing (policy callout skipped). */
+  associationLevel: number | null;
   primaryColor?: string;
   initialSeasonCompetitionId?: string | null;
 }) {
   const replaceAllowed = isLeagueFixtureBulkReplaceEnabled();
+
+  const nationalOrStateBlocksNewSeasonLeague = useMemo(() => {
+    if (associationLevel === null || !Number.isFinite(associationLevel)) return false;
+    return associationLevel <= 1;
+  }, [associationLevel]);
 
   const [step, setStep] = useState<StepId>("competition");
   const [loading, setLoading] = useState(false);
@@ -614,6 +623,12 @@ export default function LeagueCompetitionWizard({
   };
 
   const handleSaveRulesAndDivisions = async () => {
+    if (!seasonCompetitionId && nationalOrStateBlocksNewSeasonLeague) {
+      toast.error(
+        "Season club-vs-club leagues cannot be created for national or state associations (stored level ≤ 1). Use a regional association in this wizard, or use Tournaments for rep play.",
+      );
+      return;
+    }
     setLoading(true);
     try {
       if (!seasonCompetitionId) {
@@ -798,6 +813,13 @@ export default function LeagueCompetitionWizard({
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
+      {associationLevel !== null && associationLevel <= 1 ? (
+        <LeagueHierarchyPolicyCallout
+          associationLevel={associationLevel}
+          associationName={associationName}
+        />
+      ) : null}
+
       <div className="rounded-2xl border-2 border-slate-200 bg-white p-6 shadow-sm">
         <div className="flex items-start gap-3 mb-4">
           <div
@@ -823,6 +845,18 @@ export default function LeagueCompetitionWizard({
               and edit schedules.
             </p>
           </div>
+        </div>
+
+        <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 mb-5 text-xs font-bold text-slate-700 space-y-1">
+          <div className="font-black uppercase text-slate-500 tracking-wide">
+            League owner (owningAssociationId)
+          </div>
+          <div className="font-mono text-sm text-slate-900 break-all">{associationId}</div>
+          <p className="text-slate-500 font-semibold leading-relaxed">
+            New competitions and season leagues created in this wizard use this ID as{" "}
+            <code className="font-mono text-[11px]">owningAssociationId</code> (aligned with your admin
+            context for this page).
+          </p>
         </div>
 
         <div className="flex flex-wrap gap-2 mb-6">
@@ -906,6 +940,16 @@ export default function LeagueCompetitionWizard({
 
         {step === "season" && (
           <div className="space-y-4">
+            {nationalOrStateBlocksNewSeasonLeague && !initialSeasonCompetitionId ? (
+              <p className="text-sm font-bold text-amber-900 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3">
+                You can still name a <strong>base competition</strong> for branding, but saving a{" "}
+                <strong>season league</strong> will be blocked at national/state level. Open{" "}
+                <Link href="/admin/tournaments" className="underline font-black text-amber-950">
+                  Tournaments
+                </Link>{" "}
+                for rep draws, or switch to a regional association (level ≥ 2) for club-vs-club seasons.
+              </p>
+            ) : null}
             <div>
               <label className="block text-xs font-black uppercase text-slate-500 mb-1">
                 Season year
@@ -1531,7 +1575,10 @@ export default function LeagueCompetitionWizard({
             {step === "rules" && (
               <button
                 type="button"
-                disabled={loading}
+                disabled={
+                  loading ||
+                  (!seasonCompetitionId && nationalOrStateBlocksNewSeasonLeague)
+                }
                 onClick={() => void handleSaveRulesAndDivisions()}
                 className="inline-flex items-center gap-2 rounded-xl bg-yellow-400 text-[#06054e] px-5 py-2.5 font-black text-sm hover:bg-yellow-300 disabled:opacity-50"
               >

@@ -1,20 +1,25 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import clientPromise from "@/lib/mongodb";
+import { getSession } from "@/lib/auth/session";
 import LeagueCompetitionWizard from "@/components/admin/associations/LeagueCompetitionWizard";
 
 async function getAssociation(associationId: string) {
   const client = await clientPromise;
-  const db = client.db("hockey-app");
+  const db = client.db(process.env.DB_NAME || "hockey-app");
   const association = await db
     .collection("associations")
     .findOne({ associationId });
   if (!association) return null;
+  const levelRaw = association.level;
+  const level =
+    typeof levelRaw === "number" && Number.isFinite(levelRaw) ? Math.floor(levelRaw) : null;
   return {
     associationId: association.associationId as string,
     name: association.name as string,
     branding: (association.branding as { primaryColor?: string }) || {},
+    level,
   };
 }
 
@@ -29,6 +34,17 @@ export default async function AssociationLeagueCompetitionsPage({
   const sp = await searchParams;
   const association = await getAssociation(associationId);
   if (!association) notFound();
+
+  const session = await getSession();
+  if (!session) {
+    redirect("/login?next=/admin/associations/" + encodeURIComponent(associationId) + "/competitions");
+  }
+
+  // N2: scoped association admins must use their own tenant (URL matches session owning association).
+  const sessionAssoc = session.associationId?.trim() || null;
+  if (session.role !== "super-admin" && sessionAssoc && sessionAssoc !== associationId) {
+    redirect(`/admin/associations/${encodeURIComponent(sessionAssoc)}/competitions`);
+  }
 
   const primaryColor = association.branding?.primaryColor || "#06054e";
 
@@ -63,6 +79,7 @@ export default async function AssociationLeagueCompetitionsPage({
       <LeagueCompetitionWizard
         associationId={associationId}
         associationName={association.name}
+        associationLevel={association.level}
         primaryColor={primaryColor}
         initialSeasonCompetitionId={sp.seasonCompetitionId?.trim() || null}
       />
