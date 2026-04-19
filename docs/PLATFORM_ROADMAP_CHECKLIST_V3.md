@@ -78,7 +78,7 @@ The following bullets in **V2 §1.3** are **out of date** relative to the curren
 
 ## Epic Q — Quality, scale, and trust
 
-- [ ] **Q1** **Playwright tenant smoke (L6 residual)** — Subdomain news, gallery, fixtures denial for wrong tenant, login redirect — automate V2 **L6** manual sweep.
+- [x] **Q1** **Playwright tenant smoke (L6 residual)** — **Shipped:** `e2e/helpers/tenantApiContext.ts` + expanded **`epic-l6-tenant-public-api-smoke`** (wrong-host **fixtures / standings / calendar / match-centre** for another tenant’s `seasonCompetitionId` / fixture; **`/api/news`** array smoke) + **`epic-q1-browser-tenant-smoke`** (unauthenticated **`/admin/...` → login** or SSO; **`bha.localhost`** home + **`/news`** load). Requires **`pnpm dev`** and tiered demo hosts (**`bha.localhost`**, **`ha.localhost`**); run **`pnpm test:e2e`**.
 - [ ] **Q2** **Performance budgets** — Standings bundle, large fixture lists, image CDN headers for gallery/news.
 - [ ] **Q3** **Admin observability** — Extend structured logs to competition mutations and fixture generate (correlate `seasonCompetitionId`, user).
 
@@ -98,9 +98,9 @@ The following bullets in **V2 §1.3** are **out of date** relative to the curren
 ## Suggested priority order (V3)
 
 1. **N1 + N2** — Makes league operations **discoverable** and aligns with hierarchy policy (biggest gap vs tournament UX).
-2. **N3** — Unlocks day-to-day comp managers without Postman.
+2. **N3** *(shipped)* — Fixture operations console (`/admin/.../fixtures-console`): filters, bulk publish/unpublish, CSV export, scores / approve — **day-to-day comp managers without Postman** (see Epic **N**).
 3. **V1 + V2** — Stops “venue” being only free text; enables real **pitch conflict** detection later.
-4. **Q1** — Protects multi-tenant releases.
+4. **Q1** *(shipped)* — Playwright tenant + admin redirect smoke (`pnpm test:e2e` with dev server).
 5. **O1 / O5 / B8** — Fan and partner value when core ops UX is stable.
 
 ---
@@ -117,12 +117,8 @@ The following bullets in **V2 §1.3** are **out of date** relative to the curren
 
 ## Future Enhancements
 
-|---------------------------------------------------|
-** Enhancements **
-
 - [ ] Live scores in-app: your current short polling is fine for MVP; WebSockets (or managed realtime) are an upgrade path when you need faster updates or less HTTP churn, and they need a clear publish path from fixture writes (or change streams), not just a socket server.
 - [ ] Push notifications: plan around FCM / APNs / Web Push, not WebSockets as the primary channel; sockets only for toasts while the app is open if you want that.
 - [ ] Chat / WhatsApp-class IM: expect persistent realtime (often WebSockets or a vendor abstraction) plus persistence, receipts, moderation, etc.; heavy lifting is product and backend, not only the wire protocol.
-      |---------------------------------------------------|
 
-_Last updated: 2026-04-19 — O1 public match-centre polling MVP._
+_Last updated: 2026-04-19 — O1 match-centre polling; Q1 Playwright tenant smoke._
