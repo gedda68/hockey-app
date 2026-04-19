@@ -169,6 +169,13 @@ export default async function AssociationDetailPage({
                   League setup
                 </Link>
                 <Link
+                  href={`/admin/associations/${associationId}/venues`}
+                  className="inline-flex items-center gap-2 px-4 py-2 border-2 border-violet-600 text-violet-900 rounded-xl font-black hover:bg-violet-50 transition-all text-sm"
+                >
+                  <MapPin size={18} />
+                  Venues &amp; pitches
+                </Link>
+                <Link
                   href={`/admin/associations/${associationId}/division-teams`}
                   className="inline-flex items-center gap-2 px-4 py-2 border-2 border-indigo-600 text-indigo-900 rounded-xl font-black hover:bg-indigo-50 transition-all text-sm"
                 >

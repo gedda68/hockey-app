@@ -293,6 +293,19 @@ async function main() {
       "compound memberId + seasonYear + date (list/summarize)",
     );
 
+    // ── association_venues (Epic V1) ───────────────────────────────────────
+    const assocVenues = db.collection("association_venues");
+    console.log("\nassociation_venues:");
+
+    await idx(assocVenues, { venueId: 1 }, { unique: true },
+      "unique index on venueId");
+
+    await idx(assocVenues, { associationId: 1, name: 1 }, {},
+      "index associationId + name");
+
+    await idx(assocVenues, { associationId: 1, status: 1 }, {},
+      "index associationId + status");
+
     // ── coach_team_analytics (season rollups) ─────────────────────────────
     const coachAnalytics = db.collection("coach_team_analytics");
     console.log("\ncoach_team_analytics:");

@@ -1149,6 +1149,16 @@ export default function LeagueCompetitionWizard({
                 exists, then you can record venues and calendar blockouts.
               </p>
             )}
+            <p className="text-xs font-bold text-violet-900 bg-violet-50 border border-violet-200 rounded-lg px-3 py-2">
+              Epic V master data: maintain canonical venues &amp; pitches in{" "}
+              <Link
+                href={`/admin/associations/${associationId}/venues`}
+                className="underline font-black"
+              >
+                Venues &amp; pitches
+              </Link>{" "}
+              (optional today; fixture grid can still use free-text until V2 links pitches).
+            </p>
             <p className="text-sm font-bold text-slate-600">
               Nominate each club&apos;s <strong>league home ground</strong>, record dates to{" "}
               <strong>avoid</strong> for the regular draw (holidays, school breaks), dates reserved

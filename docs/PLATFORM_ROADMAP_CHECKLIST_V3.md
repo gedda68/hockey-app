@@ -59,7 +59,7 @@ The following bullets in **V2 §1.3** are **out of date** relative to the curren
 
 ## Epic V — Venues, pitches, and (optional) hire
 
-- [ ] **V1** **Venue & pitch master data** — Mongo (or extend club/association): `venues[]` or collection with `associationId`, address, geo, `pitches[{ id, label, surface }]`. Admin CRUD under association (or super-admin).
+- [x] **V1** **Venue & pitch master data** — **Shipped:** Mongo collection **`association_venues`** (`venueId`, `associationId`, `name`, optional `shortCode`, `status`, structured **`address`**, optional **`geo`**, **`pitches[]`** with `pitchId` + `label` + `surface` enum, `notes`); **GET/POST** `/api/admin/associations/[id]/venues`, **GET/PATCH/DELETE** `/api/admin/associations/[id]/venues/[venueId]` (`competitions.manage` **or** `competitions.fixtures` + association scope); **DELETE** blocked if **`league_fixtures`** reference `venueId`; audit category **`venue`**. **UI:** `/admin/associations/[id]/venues` + `AssociationVenuesClient`; association hub + league wizard **Venues** step link. **Indexes:** `scripts/setup-indexes.ts` (`venueId` unique, `associationId+name`, `associationId+status`).
 - [ ] **V2** **Fixture links to pitch** — `league_fixtures.pitchId` (nullable) + UI pickers; validation: no overlapping **published** fixtures on same pitch + overlapping time (configurable buffer).
 - [ ] **V3** **Venue calendar (read)** — Week grid per venue or per association: who is on which pitch (public read optional for transparency).
 - [ ] **V4** **Field hire / commercial (optional)** — Blocks for “hire period”, cost, invoicing hook, council permit doc upload — **only** if product commits; otherwise stay with **V1–V3** as operational scheduling.
