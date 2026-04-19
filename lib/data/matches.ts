@@ -73,6 +73,27 @@ function mapStoredMatchToPublic(m: Match): PublicMatch {
 
 const PUBLIC_SC_STATUSES = new Set(["published", "in_progress", "completed"]);
 
+/**
+ * Public scoreboard / timeline visibility. Live fixtures expose running scores
+ * (and events) without waiting for final approval; finals still honour approval.
+ */
+function publicFixtureResultVisibility(
+  fixtureStatus: unknown,
+  resultStatus: unknown,
+  requiresApproval: boolean,
+): { showScores: boolean; showEvents: boolean } {
+  const fs = String(fixtureStatus ?? "").toLowerCase();
+  const rs = String(resultStatus ?? "");
+  const isLive = fs === "in_progress";
+  const isComplete = fs === "completed";
+  const approved = rs === "approved";
+  const canShowFinalResult = requiresApproval ? approved : isComplete;
+  return {
+    showScores: canShowFinalResult || isLive,
+    showEvents: canShowFinalResult || isLive,
+  };
+}
+
 function parseSeasonNumber(season: unknown): number {
   const n = Number(season);
   if (!Number.isFinite(n)) return new Date().getFullYear();
@@ -230,14 +251,17 @@ export async function getMatches(opts?: GetMatchesOptions): Promise<Match[]> {
         String(sc.competitionId ?? "Competition");
 
       const requiresApproval = Boolean(sc.resultApprovalRequired);
-      const rs = String(f.resultStatus ?? "");
-      const canShowResult = requiresApproval ? rs === "approved" : String(f.status) === "completed";
+      const { showScores, showEvents } = publicFixtureResultVisibility(
+        f.status,
+        f.resultStatus,
+        requiresApproval,
+      );
 
       const result = (f.result ?? null) as any;
-      const homeScore = canShowResult ? (typeof result?.homeScore === "number" ? result.homeScore : null) : null;
-      const awayScore = canShowResult ? (typeof result?.awayScore === "number" ? result.awayScore : null) : null;
-      const sh = canShowResult ? (typeof result?.shootoutHomeScore === "number" ? result.shootoutHomeScore : null) : null;
-      const sa = canShowResult ? (typeof result?.shootoutAwayScore === "number" ? result.shootoutAwayScore : null) : null;
+      const homeScore = showScores ? (typeof result?.homeScore === "number" ? result.homeScore : null) : null;
+      const awayScore = showScores ? (typeof result?.awayScore === "number" ? result.awayScore : null) : null;
+      const sh = showScores ? (typeof result?.shootoutHomeScore === "number" ? result.shootoutHomeScore : null) : null;
+      const sa = showScores ? (typeof result?.shootoutAwayScore === "number" ? result.shootoutAwayScore : null) : null;
       const hasShootout = sh != null && sa != null;
 
       const venue =
@@ -253,7 +277,7 @@ export async function getMatches(opts?: GetMatchesOptions): Promise<Match[]> {
 
       const rawEvents = f.matchEvents as FixtureMatchEventPublic[] | null | undefined;
       const matchEvents =
-        canShowResult && Array.isArray(rawEvents) && rawEvents.length > 0
+        showEvents && Array.isArray(rawEvents) && rawEvents.length > 0
           ? rawEvents
           : undefined;
 
@@ -396,15 +420,16 @@ export async function getPublicMatchById(
   const awayTeamId = String(fx.awayTeamId ?? "");
 
   const requiresApproval = Boolean(sc.resultApprovalRequired);
-  const rs = String(fx.resultStatus ?? "");
-  const canShowResult = requiresApproval
-    ? rs === "approved"
-    : String(fx.status) === "completed";
+  const { showScores, showEvents } = publicFixtureResultVisibility(
+    fx.status,
+    fx.resultStatus,
+    requiresApproval,
+  );
   const result = (fx.result ?? null) as any;
-  const homeScore = canShowResult ? (typeof result?.homeScore === "number" ? result.homeScore : null) : null;
-  const awayScore = canShowResult ? (typeof result?.awayScore === "number" ? result.awayScore : null) : null;
-  const sh = canShowResult ? (typeof result?.shootoutHomeScore === "number" ? result.shootoutHomeScore : null) : null;
-  const sa = canShowResult ? (typeof result?.shootoutAwayScore === "number" ? result.shootoutAwayScore : null) : null;
+  const homeScore = showScores ? (typeof result?.homeScore === "number" ? result.homeScore : null) : null;
+  const awayScore = showScores ? (typeof result?.awayScore === "number" ? result.awayScore : null) : null;
+  const sh = showScores ? (typeof result?.shootoutHomeScore === "number" ? result.shootoutHomeScore : null) : null;
+  const sa = showScores ? (typeof result?.shootoutAwayScore === "number" ? result.shootoutAwayScore : null) : null;
   const hasShootout = sh != null && sa != null;
 
   const rawUmpires = fx.umpires as FixtureUmpireSlot[] | null | undefined;
@@ -412,7 +437,7 @@ export async function getPublicMatchById(
 
   const rawEvents = fx.matchEvents as FixtureMatchEventPublic[] | null | undefined;
   const matchEvents =
-    canShowResult && Array.isArray(rawEvents) && rawEvents.length > 0 ? rawEvents : undefined;
+    showEvents && Array.isArray(rawEvents) && rawEvents.length > 0 ? rawEvents : undefined;
 
   const venue =
     String(fx.venueName ?? "") ||
@@ -528,15 +553,16 @@ export async function getPublicMatchCentreById(
   const awayTeamId = String(fx.awayTeamId ?? "");
 
   const requiresApproval = Boolean(sc.resultApprovalRequired);
-  const rs = String(fx.resultStatus ?? "");
-  const canShowResult = requiresApproval
-    ? rs === "approved"
-    : String(fx.status) === "completed";
+  const { showScores, showEvents } = publicFixtureResultVisibility(
+    fx.status,
+    fx.resultStatus,
+    requiresApproval,
+  );
   const result = (fx.result ?? null) as any;
-  const homeScore = canShowResult ? (typeof result?.homeScore === "number" ? result.homeScore : null) : null;
-  const awayScore = canShowResult ? (typeof result?.awayScore === "number" ? result.awayScore : null) : null;
-  const sh = canShowResult ? (typeof result?.shootoutHomeScore === "number" ? result.shootoutHomeScore : null) : null;
-  const sa = canShowResult ? (typeof result?.shootoutAwayScore === "number" ? result.shootoutAwayScore : null) : null;
+  const homeScore = showScores ? (typeof result?.homeScore === "number" ? result.homeScore : null) : null;
+  const awayScore = showScores ? (typeof result?.awayScore === "number" ? result.awayScore : null) : null;
+  const sh = showScores ? (typeof result?.shootoutHomeScore === "number" ? result.shootoutHomeScore : null) : null;
+  const sa = showScores ? (typeof result?.shootoutAwayScore === "number" ? result.shootoutAwayScore : null) : null;
   const hasShootout = sh != null && sa != null;
 
   const rawUmpires = fx.umpires as FixtureUmpireSlot[] | null | undefined;
@@ -545,7 +571,7 @@ export async function getPublicMatchCentreById(
 
   const rawEvents = fx.matchEvents as FixtureMatchEventPublic[] | null | undefined;
   const matchEvents =
-    canShowResult && Array.isArray(rawEvents) && rawEvents.length > 0 ? rawEvents : undefined;
+    showEvents && Array.isArray(rawEvents) && rawEvents.length > 0 ? rawEvents : undefined;
 
   const venueName = fx.venueName ? String(fx.venueName) : null;
   const addressLine = fx.addressLine ? String(fx.addressLine) : null;

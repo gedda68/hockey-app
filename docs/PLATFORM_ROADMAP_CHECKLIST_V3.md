@@ -68,7 +68,7 @@ The following bullets in **V2 §1.3** are **out of date** relative to the curren
 
 ## Epic O — Operations & value-add (cross-cutting)
 
-- [ ] **O1** **Live / near-live scores** — Public match centre “live” state (websocket or short polling) for key comps; falls under federation benchmark aspirations (V2 **B8** adjacency).
+- [x] **O1** **Live / near-live scores** — Public match centre short polling (`GET /api/public/match-centre/[fixtureId]`, `PublicMatchCentreClient`) plus running scores/timeline while fixture `in_progress`; websockets optional later.
 - [ ] **O2** **Communications hub** — Extend beyond fixture change: curated digests per tenant (email templates + push topics).
 - [ ] **O3** **Volunteer roster** — Link pathways to duty roster (canteen, goal judge) separate from umpire register — light CRM.
 - [ ] **O4** **Sponsors analytics** — Partner strip click tracking (privacy-safe) for renewal conversations.
@@ -115,4 +115,4 @@ The following bullets in **V2 §1.3** are **out of date** relative to the curren
 
 ---
 
-*Last updated: 2026-04-18 — V3 created from codebase review (admin routes, competition/tournament APIs, officiating report UI, fixture/venue schema).*
+*Last updated: 2026-04-19 — O1 public match-centre polling MVP.*
