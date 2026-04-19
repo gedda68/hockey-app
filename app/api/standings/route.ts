@@ -68,14 +68,21 @@ export async function GET(request: NextRequest) {
       includeRollups,
     });
 
-    return NextResponse.json({
-      seasonCompetitionId,
-      season: sc.season ?? null,
-      requiresResultApproval: requiresApproval,
-      ladderRules: sc.ladderRules ?? null,
-      standings,
-      ...(includeRollups && rollups ? { rollups } : {}),
-    });
+    return NextResponse.json(
+      {
+        seasonCompetitionId,
+        season: sc.season ?? null,
+        requiresResultApproval: requiresApproval,
+        ladderRules: sc.ladderRules ?? null,
+        standings,
+        ...(includeRollups && rollups ? { rollups } : {}),
+      },
+      {
+        headers: {
+          "Cache-Control": "public, s-maxage=15, stale-while-revalidate=120",
+        },
+      },
+    );
   } catch (error: unknown) {
     console.error("GET /api/standings error:", error);
     return NextResponse.json(

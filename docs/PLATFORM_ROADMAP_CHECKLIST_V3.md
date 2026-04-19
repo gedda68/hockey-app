@@ -79,7 +79,7 @@ The following bullets in **V2 §1.3** are **out of date** relative to the curren
 ## Epic Q — Quality, scale, and trust
 
 - [x] **Q1** **Playwright tenant smoke (L6 residual)** — **Shipped:** `e2e/helpers/tenantApiContext.ts` + expanded **`epic-l6-tenant-public-api-smoke`** (wrong-host **fixtures / standings / calendar / match-centre** for another tenant’s `seasonCompetitionId` / fixture; **`/api/news`** array smoke) + **`epic-q1-browser-tenant-smoke`** (unauthenticated **`/admin/...` → login** or SSO; **`bha.localhost`** home + **`/news`** load). Requires **`pnpm dev`** and tiered demo hosts (**`bha.localhost`**, **`ha.localhost`**); run **`pnpm test:e2e`**.
-- [ ] **Q2** **Performance budgets** — Standings bundle, large fixture lists, image CDN headers for gallery/news.
+- [x] **Q2** **Performance budgets** — **Shipped (baseline):** Mongo projections + short CDN caching headers on public heavy APIs: `GET /api/fixtures` (projection + `Cache-Control: public, s-maxage=15, stale-while-revalidate=120`), `GET /api/standings` (same), `GET /api/news` (`s-maxage=30`), and static upload caching via `next.config.ts` headers for `/uploads/*` (`max-age=31536000, immutable`). Also de-hardcoded DB name in standings bundle (`lib/competitions/standingsBundle.ts`). _Follow-up:_ add explicit paging for very large fixture sets; add perf CI thresholds once a stable dataset exists.
 - [ ] **Q3** **Admin observability** — Extend structured logs to competition mutations and fixture generate (correlate `seasonCompetitionId`, user).
 
 ---
@@ -120,6 +120,8 @@ The following bullets in **V2 §1.3** are **out of date** relative to the curren
 - [ ] Live scores in-app: your current short polling is fine for MVP; WebSockets (or managed realtime) are an upgrade path when you need faster updates or less HTTP churn, and they need a clear publish path from fixture writes (or change streams), not just a socket server.
 - [ ] Push notifications: plan around FCM / APNs / Web Push, not WebSockets as the primary channel; sockets only for toasts while the app is open if you want that.
 - [ ] Chat / WhatsApp-class IM: expect persistent realtime (often WebSockets or a vendor abstraction) plus persistence, receipts, moderation, etc.; heavy lifting is product and backend, not only the wire protocol.
-- [ ] Club and association financials (e.g. sponsorship, venue hire, registrations, merchandise/uniforms and other income sources, with costs out, uniforms, tournament payments etc...) with reporting and simple cost centres with budgeting profit and loss statements and ledgers. Including graphs, revenue and spend analysis, ability to integrate with xero and other platforms. Full transparency of what comes in and what goes out and align all in/out costs. e,g, uniform costs in and revenue for sales. This leads into auto generations of end of year financials
+- [ ] Performance budgets: once you have a stable demo dataset, add CI checks that warn/fail if public endpoints regress beyond agreed thresholds (e.g. p95 response time or payload size for `/api/fixtures`, `/api/standings`, `/api/news`).
+- [ ] uniform and merchandise shop for each club/association
+- [ ] Club and association financials (e.g. sponsorship, venue hire, registrations, merchandise/uniforms and other income sources, with costs out, uniforms, tournament payments etc...) with reporting and simple cost centres with budgeting profit and loss statements and ledgers. Including graphs, revenue and spend analysis, ability to integrate with xero and other platforms. Full transparency of what comes in and what goes out and align all in/out costs. e,g, uniform costs in and revenue for sales. This leads into auto generations of end of year financials. It should also provide a health check on the association/club.
 
-_Last updated: 2026-04-19 — O1 match-centre polling; Q1 Playwright tenant smoke._
+_Last updated: 2026-04-19 — O1 match-centre polling; Q1 tenant smoke; Q2 baseline caching/projections._

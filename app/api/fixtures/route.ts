@@ -63,6 +63,23 @@ export async function GET(request: NextRequest) {
         seasonCompetitionId,
         published: true,
       })
+      .project({
+        fixtureId: 1,
+        seasonCompetitionId: 1,
+        competitionId: 1,
+        round: 1,
+        homeTeamId: 1,
+        awayTeamId: 1,
+        status: 1,
+        venueName: 1,
+        addressLine: 1,
+        scheduledStart: 1,
+        scheduledEnd: 1,
+        timezone: 1,
+        resultStatus: 1,
+        result: 1,
+        matchEvents: 1,
+      })
       .sort({ round: 1, scheduledStart: 1, fixtureId: 1 })
       .toArray();
 
@@ -115,12 +132,19 @@ export async function GET(request: NextRequest) {
           : null,
     }));
 
-    return NextResponse.json({
-      seasonCompetitionId,
-      season: sc.season ?? null,
-      requiresResultApproval: requiresApproval,
-      fixtures,
-    });
+    return NextResponse.json(
+      {
+        seasonCompetitionId,
+        season: sc.season ?? null,
+        requiresResultApproval: requiresApproval,
+        fixtures,
+      },
+      {
+        headers: {
+          "Cache-Control": "public, s-maxage=15, stale-while-revalidate=120",
+        },
+      },
+    );
   } catch (error: unknown) {
     console.error("GET /api/fixtures error:", error);
     return NextResponse.json(

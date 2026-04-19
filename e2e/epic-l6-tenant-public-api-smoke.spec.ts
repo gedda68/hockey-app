@@ -134,9 +134,9 @@ test("wrong tenant host cannot read fixtures / standings / calendar for another 
     test.skip(!bhaId || !haId, "tenant ids not resolvable in current DB");
 
     const seasonCompetitionId = await getFirstSeasonCompetitionId(bha);
-    test.skip(!seasonCompetitionId, "no leagues returned for BHA tenant");
+    test.skip(seasonCompetitionId == null, "no leagues returned for BHA tenant");
 
-    const q = `seasonCompetitionId=${encodeURIComponent(seasonCompetitionId)}`;
+    const q = `seasonCompetitionId=${encodeURIComponent(seasonCompetitionId!)}`;
 
     for (const path of [
       `/api/fixtures?${q}`,
@@ -178,18 +178,18 @@ test("wrong tenant host cannot read public match centre for another tenant fixtu
     test.skip(!bhaId || !haId, "tenant ids not resolvable in current DB");
 
     const scId = await getFirstSeasonCompetitionId(bha);
-    test.skip(!scId, "no leagues returned for BHA tenant");
+    test.skip(scId == null, "no leagues returned for BHA tenant");
 
-    const fixtureId = await getFirstFixtureId(bha, scId);
-    test.skip(!fixtureId, "no fixtures returned for BHA season");
+    const fixtureId = await getFirstFixtureId(bha, scId!);
+    test.skip(fixtureId == null, "no fixtures returned for BHA season");
 
     const ok = await bha.get(
-      `/api/public/match-centre/${encodeURIComponent(fixtureId)}`,
+      `/api/public/match-centre/${encodeURIComponent(fixtureId!)}`,
     );
     expect(ok.status()).toBeLessThan(500);
 
     const denied = await ha.get(
-      `/api/public/match-centre/${encodeURIComponent(fixtureId)}`,
+      `/api/public/match-centre/${encodeURIComponent(fixtureId!)}`,
     );
     expect(denied.status()).toBe(404);
   } finally {

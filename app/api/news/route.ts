@@ -43,7 +43,12 @@ export async function GET(request: NextRequest) {
       updatedAt: item.updatedAt,
     }));
 
-    return NextResponse.json(plainNewsItems);
+    return NextResponse.json(plainNewsItems, {
+      headers: {
+        // News is read-mostly; allow short CDN caching to cut DB load on busy tenants.
+        "Cache-Control": "public, s-maxage=30, stale-while-revalidate=300",
+      },
+    });
   } catch (error) {
     console.error("Error fetching news:", error);
     return NextResponse.json(
