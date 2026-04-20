@@ -11,7 +11,14 @@
       "Bash(ls app/api/role-requests/)",
       "Bash(ls middleware.ts)",
       "Bash(ls lib/auth/middleware.ts)",
-      "Bash(ls src/middleware.ts)"
+      "Bash(ls src/middleware.ts)",
+      "Bash(xargs sed:*)",
+      "Bash(cat C:/dev/nextjs-projects/hockey-app/app/api/payments/[paymentId]/route.ts)",
+      "Bash(head -50 C:/dev/nextjs-projects/hockey-app/app/api/admin/associations/[associationId]/fees/route.ts)",
+      "Bash(head -40 C:/dev/nextjs-projects/hockey-app/app/api/admin/associations/[associationId]/colors/route.ts)",
+      "Bash(cat C:/dev/nextjs-projects/hockey-app/app/api/admin/news/[id]/route.ts)",
+      "Bash(head -60 C:/dev/nextjs-projects/hockey-app/app/api/admin/associations/[associationId]/communications/route.ts)",
+      "Bash(head -60 C:/dev/nextjs-projects/hockey-app/app/api/admin/associations/[associationId]/officiating-report/route.ts)"
     ]
   }
 }
