@@ -1,93 +1,91 @@
-// app/api/admin/clubs/route.ts
-// ADMIN API - Returns ALL clubs (active + inactive) for admin panel
+// app/api/clubs/route.ts
+// ADMIN API — Returns clubs for the admin panel.
+// ALL methods require authentication and at minimum the club.view permission.
+// Write methods (POST, PUT, DELETE) require club.edit or system.manage.
+//
+// Public club directory (name, slug, logo only) → GET /api/public/clubs
 
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { MongoClient } from "mongodb";
+import { requirePermission, requireAnyPermission } from "@/lib/auth/middleware";
 
 const uri = process.env.MONGODB_URI!;
+const DB_NAME = process.env.DB_NAME || "hockey-app";
 
-export async function GET() {
+// ── GET ───────────────────────────────────────────────────────────────────────
+
+export async function GET(request: NextRequest) {
+  const { response } = await requirePermission(request, "club.view");
+  if (response) return response;
+
   const client = new MongoClient(uri);
-
   try {
     await client.connect();
-    const database = client.db(process.env.DB_NAME || "hockey-app");
-    const clubsCollection = database.collection("clubs");
+    const db = client.db(DB_NAME);
 
-    // Return ALL clubs (no filtering by active status)
-    const clubs = await clubsCollection
-      .find({}) // ← No filter - returns ALL clubs
+    const clubs = await db
+      .collection("clubs")
+      .find({})
       .sort({ name: 1 })
       .toArray();
-
-    console.log(`📊 Admin API: Returning ${clubs.length} total clubs`);
 
     return NextResponse.json({ clubs });
   } catch (error) {
     console.error("❌ Error fetching clubs:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch clubs" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to fetch clubs" }, { status: 500 });
   } finally {
     await client.close();
   }
 }
 
-export async function POST(request: Request) {
-  const client = new MongoClient(uri);
+// ── POST ──────────────────────────────────────────────────────────────────────
 
+export async function POST(request: NextRequest) {
+  const { response } = await requireAnyPermission(request, [
+    "club.create",
+    "system.manage",
+  ]);
+  if (response) return response;
+
+  const client = new MongoClient(uri);
   try {
     const body = await request.json();
-
     await client.connect();
-    const database = client.db(process.env.DB_NAME || "hockey-app");
-    const clubsCollection = database.collection("clubs");
+    const db = client.db(DB_NAME);
 
-    // Generate slug from club name
     const slug = body.name
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/(^-|-$)/g, "");
 
-    // Add slug to club data
-    const clubData = {
-      ...body,
-      slug,
-    };
+    const result = await db.collection("clubs").insertOne({ ...body, slug });
 
-    const result = await clubsCollection.insertOne(clubData);
-
-    console.log(`✅ Created club: ${body.name} (slug: ${slug})`);
-
-    return NextResponse.json({
-      success: true,
-      id: result.insertedId,
-      slug,
-    });
+    return NextResponse.json({ success: true, id: result.insertedId, slug }, { status: 201 });
   } catch (error) {
     console.error("❌ Error creating club:", error);
-    return NextResponse.json(
-      { error: "Failed to create club" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to create club" }, { status: 500 });
   } finally {
     await client.close();
   }
 }
 
-export async function PUT(request: Request) {
-  const client = new MongoClient(uri);
+// ── PUT ───────────────────────────────────────────────────────────────────────
 
+export async function PUT(request: NextRequest) {
+  const { response } = await requireAnyPermission(request, [
+    "club.edit",
+    "system.manage",
+  ]);
+  if (response) return response;
+
+  const client = new MongoClient(uri);
   try {
     const body = await request.json();
     const { id, ...updateData } = body;
 
     await client.connect();
-    const database = client.db(process.env.DB_NAME || "hockey-app");
-    const clubsCollection = database.collection("clubs");
+    const db = client.db(DB_NAME);
 
-    // Regenerate slug if name is being updated
     if (updateData.name) {
       updateData.slug = updateData.name
         .toLowerCase()
@@ -95,36 +93,33 @@ export async function PUT(request: Request) {
         .replace(/(^-|-$)/g, "");
     }
 
-    const result = await clubsCollection.updateOne(
-      { id },
-      { $set: { ...updateData, updatedAt: new Date().toISOString() } }
-    );
+    const result = await db
+      .collection("clubs")
+      .updateOne({ id }, { $set: { ...updateData, updatedAt: new Date().toISOString() } });
 
     if (result.matchedCount === 0) {
       return NextResponse.json({ error: "Club not found" }, { status: 404 });
     }
 
-    console.log(
-      `✅ Updated club: ${updateData.name || id}${
-        updateData.slug ? ` (slug: ${updateData.slug})` : ""
-      }`
-    );
-
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("❌ Error updating club:", error);
-    return NextResponse.json(
-      { error: "Failed to update club" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to update club" }, { status: 500 });
   } finally {
     await client.close();
   }
 }
 
-export async function DELETE(request: Request) {
-  const client = new MongoClient(uri);
+// ── DELETE ────────────────────────────────────────────────────────────────────
 
+export async function DELETE(request: NextRequest) {
+  const { response } = await requireAnyPermission(request, [
+    "club.delete",
+    "system.manage",
+  ]);
+  if (response) return response;
+
+  const client = new MongoClient(uri);
   try {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");
@@ -134,24 +129,18 @@ export async function DELETE(request: Request) {
     }
 
     await client.connect();
-    const database = client.db(process.env.DB_NAME || "hockey-app");
-    const clubsCollection = database.collection("clubs");
+    const db = client.db(DB_NAME);
 
-    const result = await clubsCollection.deleteOne({ id });
+    const result = await db.collection("clubs").deleteOne({ id });
 
     if (result.deletedCount === 0) {
       return NextResponse.json({ error: "Club not found" }, { status: 404 });
     }
 
-    console.log(`✅ Deleted club: ${id}`);
-
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("❌ Error deleting club:", error);
-    return NextResponse.json(
-      { error: "Failed to delete club" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to delete club" }, { status: 500 });
   } finally {
     await client.close();
   }
