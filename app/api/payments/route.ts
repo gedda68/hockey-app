@@ -20,7 +20,7 @@ import { buildPaymentScopeFilter } from "@/lib/auth/scopeGuard";
 // ── GET ───────────────────────────────────────────────────────────────────────
 
 export async function GET(request: NextRequest) {
-  const session = await getSession(request);
+  const session = await getSession();
   if (!session) {
     return NextResponse.json({ error: "Authentication required" }, { status: 401 });
   }

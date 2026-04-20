@@ -33,6 +33,23 @@ import {
 export type ScopeType = "association" | "club";
 
 /**
+ * Minimal session shape needed by the scope-guard helpers.
+ * Both `SessionData` (from session.ts) and `UserSession` (from db/schemas/user.ts)
+ * satisfy this interface, so either can be passed to the helpers below.
+ */
+export interface SessionLike {
+  userId: string;
+  role: string;
+  associationId?: string | null;
+  clubId?: string | null;
+  clubSlug?: string | null;
+  memberId?: string | null;
+  // SessionData compat fields forwarded to DB-backed scope helpers
+  email?: string;
+  scopedRoles?: unknown;
+}
+
+/**
  * Returns a 403 `NextResponse` if the session does NOT have access to the
  * requested scope, or `null` if access is granted.
  *
@@ -41,7 +58,7 @@ export type ScopeType = "association" | "club";
  * @param id       The association/club ID or slug from URL params / body.
  */
 export async function assertScopeMatch(
-  session: SessionData | null,
+  session: SessionLike | null,
   type: ScopeType,
   id: string,
 ): Promise<NextResponse | null> {
@@ -59,10 +76,11 @@ export async function assertScopeMatch(
     );
   }
 
+  // Cast is safe: SessionLike satisfies every field that the DB helpers read.
   const allowed =
     type === "association"
-      ? await userCanAccessAssociationResource(session, id)
-      : await userCanAccessClubResource(session, id);
+      ? await userCanAccessAssociationResource(session as SessionData, id)
+      : await userCanAccessClubResource(session as SessionData, id);
 
   if (!allowed) {
     return NextResponse.json(
@@ -90,7 +108,7 @@ export async function assertScopeMatch(
  * the caller should be rejected outright.
  */
 export async function buildPaymentScopeFilter(
-  session: SessionData | null,
+  session: SessionLike | null,
   requestedMemberId?: string | null,
 ): Promise<{ filter: Record<string, unknown> } | { response: NextResponse }> {
   if (!session) {
@@ -166,7 +184,7 @@ export async function buildPaymentScopeFilter(
  * Returns a 403 response if denied, or null if allowed.
  */
 export async function assertPaymentMutationAccess(
-  session: SessionData | null,
+  session: SessionLike | null,
   paymentMemberId: string,
   paymentClubId?: string,
 ): Promise<NextResponse | null> {

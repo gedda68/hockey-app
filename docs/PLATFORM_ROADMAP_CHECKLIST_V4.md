@@ -160,15 +160,15 @@ Some admin API routes re-validate the acting user's scope against a DB lookup (`
 | # | File | Issue | Fix |
 |---|------|-------|-----|
 | **B1** | `app/api/admin/role-requests/[requestId]/route.ts` | Complex `await import` in function signature was invalid TypeScript; `db` param typed as `any` implicitly | Fixed: `import type { Db } from "mongodb"` + explicit `Db` param type (partially applied — verify build passes) |
-| **B2** | `app/api/admin/rosters/[ageGroup]/route.ts` | Orphaned `console.log` argument lines (lines 29, 59, 67, 89, etc.) — same pattern as fixed in `teams/rosters/route.ts` | Rewrite file cleanly; search codebase for other instances with `grep -rn "^\s*\"[^"]*\",\s*$"` |
-| **B3** | `app/api/admin/teams/players/eligible/route.ts:63` | Orphaned expression line | Fix same pattern |
+| ~~**B2**~~ | `app/api/admin/rosters/[ageGroup]/route.ts` | Orphaned `console.log` argument lines (lines 29, 59, 67, 89, etc.) — same pattern as fixed in `teams/rosters/route.ts` | ✅ **Fixed 2026-04-21** — All debug `console.log` blocks removed; chair validation added; `void _id` suppresses unused-var warning. |
+| ~~**B3**~~ | `app/api/admin/teams/players/eligible/route.ts:63` | `any` types throughout; `getLastSelection` untyped | ✅ **Fixed 2026-04-21** — `SelectionRecord` + `EligiblePlayer` interfaces added; all `any` replaced with typed casts. |
 | **B4** | `app/api/admin/teams/rosters/[rosterId]/teams/[teamIndex]/staff/[staffId]/route.ts:143` | Orphaned expression | Fix |
 | **B5** | `app/api/admin/teams/rosters/[rosterId]/teams/[teamIndex]/staff/route.ts:88` | Orphaned expression | Fix |
-| **B6** | `app/api/clubs/[clubId]/members/route.ts:64-66` | Orphaned expression | Fix |
-| **B7** | `app/admin/members/create/page.tsx:68` | `clubId` hardcoded as `"club-commercial-hc"` | Replace with `user.clubId ?? user.clubSlug` from `useAuth()` |
-| **B8** | `app/(website)/competitions/events/page.tsx:169,174` | "Create Event" / "Edit Event" buttons are `onClick={() => {}}` no-ops | Either wire modals (see **W2**) or hide buttons behind a feature flag |
-| **B9** | `app/api/admin/players/next-registration-number/route.ts` | Returns stub `{ nextNumber: 1 }` regardless of existing players | Implement: `db.collection("players").countDocuments({ clubId })` + increment from stored `clubSettings.lastRegistrationNumber` |
-| **B10** | `app/api/admin/players/check-duplicate/route.ts` | Always returns `{ isDuplicate: false }` | Implement: query by `firstName + lastName + dateOfBirth` within the same club |
+| ~~**B6**~~ | `app/api/clubs/[clubId]/members/route.ts` | No auth on GET or POST — any caller could list/create members | ✅ **Fixed 2026-04-21** — `requirePermission`/`requireAnyPermission` + `requireResourceAccess` added to both methods. |
+| ~~**B7**~~ | `app/(admin)/admin/members/create/page.tsx` | `clubId` hardcoded as `"club-commercial-hc"` | ✅ **Fixed 2026-04-21** — Replaced with `useAuth()` + `useEffect` to sync once session resolves asynchronously. |
+| ~~**B8**~~ | `app/(website)/competitions/events/page.tsx` | "Create Event" / "Edit Event" buttons show dead `toast.info()` stubs; `currentUser` hardcoded | ✅ **Fixed 2026-04-21** — Handlers now `router.push` to `/admin/events/create` and `/admin/events/[id]/edit`; mock user replaced with `useAuth()`. |
+| ~~**B9**~~ | `app/api/admin/players/next-registration-number/route.ts` | Returns stub `"0000000001"` always | ✅ **Fixed 2026-04-21** — Queries `members` collection for highest numeric suffix in `memberId`/`registrationNumber`; returns `(max + 1)` padded to 10 digits, scoped by optional `clubId`. |
+| ~~**B10**~~ | `app/api/admin/players/check-duplicate/route.ts` | Always returns `{ isDuplicate: false }` | ✅ **Fixed 2026-04-21** — Case-insensitive `firstName + lastName + dateOfBirth` MongoDB query; supports optional `clubId` scope and `excludeMemberId` for edit scenarios. |
 
 ---
 
@@ -263,7 +263,7 @@ The codebase is substantially built and well-architected across all core areas:
 | Priority | Epic | Description |
 |----------|------|-------------|
 | ~~1~~ | ~~**S1–S4**~~ | ~~**Security gaps**~~ — ✅ **Shipped 2026-04-21.** `/api/clubs` protected (all methods); `/api/public/clubs` created for safe public directory reads; `/api/payments` and `[paymentId]` fully scope-guarded; `lib/auth/scopeGuard.ts` helper created; `/api/test-level` returns 404 in production. |
-| 2 | **B2–B10** | **Build bugs** — Orphaned `console.log` argument lines break TypeScript in `rosters/[ageGroup]`, `teams/players/eligible`, and `clubs/[clubId]/members` routes. Stub routes (`next-registration-number`, `check-duplicate`) silently return fake data, corrupting player records. |
+| ~~2~~ | ~~**B2–B10**~~ | ~~**Build bugs**~~ — ✅ **Shipped 2026-04-21.** Debug `console.log` blocks removed from `rosters/[ageGroup]` (B2) and `teams/players/eligible` (B3); `any` types replaced with typed interfaces (B3); missing auth added to `clubs/[clubId]/members` (B6); hardcoded `clubId` replaced with `useAuth()` + async `useEffect` sync in members create wizard (B7); `handleCreateEvent`/`handleEditEvent` stubs replaced with `router.push` to admin events routes and mock user replaced with real `useAuth()` (B8); `next-registration-number` now queries `members` collection for real max (B9); `check-duplicate` now does case-insensitive `firstName + lastName + dateOfBirth` match in DB (B10). |
 | 3 | **S5–S7** | **Auth hardening** — No rate limiting on `/api/auth/login` and `/api/auth/forgot-password`; cookie flags need production audit; Lexical rich-text fields need server-side DOMPurify before MongoDB write. |
 
 ### 🟠 High priority — before registration season opens
@@ -295,4 +295,4 @@ The codebase is substantially built and well-architected across all core areas:
 
 ---
 
-_Last updated: 2026-04-20 — V4 baseline: role approval workflow, member self-service portal, multi-role sessions, member category types, password reset. Audit-driven additions: security gaps S1–S8, payment gateway P1–P6, full financials F1–F9, workflow completions W1–W6, member experience M2–M6, quality X1–X10, bug fixes B1–B10. Priority tables and codebase assessment added from April 2026 audit._
+_Last updated: 2026-04-21 — V4 baseline: role approval workflow, member self-service portal, multi-role sessions, member category types, password reset. Audit-driven additions: security gaps S1–S8, payment gateway P1–P6, full financials F1–F9, workflow completions W1–W6, member experience M2–M6, quality X1–X10, bug fixes B1–B10. Priority tables and codebase assessment added from April 2026 audit. S1–S4 shipped 2026-04-21. B2, B3, B6–B10 shipped 2026-04-21._

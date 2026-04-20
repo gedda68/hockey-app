@@ -18,7 +18,9 @@
       "Bash(head -40 C:/dev/nextjs-projects/hockey-app/app/api/admin/associations/[associationId]/colors/route.ts)",
       "Bash(cat C:/dev/nextjs-projects/hockey-app/app/api/admin/news/[id]/route.ts)",
       "Bash(head -60 C:/dev/nextjs-projects/hockey-app/app/api/admin/associations/[associationId]/communications/route.ts)",
-      "Bash(head -60 C:/dev/nextjs-projects/hockey-app/app/api/admin/associations/[associationId]/officiating-report/route.ts)"
+      "Bash(head -60 C:/dev/nextjs-projects/hockey-app/app/api/admin/associations/[associationId]/officiating-report/route.ts)",
+      "Bash(cat C:/dev/nextjs-projects/hockey-app/app/api/admin/rosters/[ageGroup]/route.ts)",
+      "Bash(npx tsc:*)"
     ]
   }
 }

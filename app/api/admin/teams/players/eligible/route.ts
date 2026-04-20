@@ -12,6 +12,29 @@ import {
   memberBelongsToClubFilter,
 } from "@/lib/rosters/memberClubQuery";
 
+interface SelectionRecord {
+  division?: string;
+  season?: string;
+  selectedDate?: string;
+  [key: string]: unknown;
+}
+
+interface EligiblePlayer {
+  id: string;
+  playerId: string;
+  memberId: string;
+  firstName: string;
+  lastName: string;
+  preferredName: string;
+  dateOfBirth: string;
+  gender: string;
+  memberNumber: string;
+  primaryPosition: string;
+  secondaryPosition: string;
+  teamSelectionHistory: SelectionRecord[];
+  lastSelection: SelectionRecord | null;
+}
+
 export async function GET(request: NextRequest) {
   try {
     const { response: authRes } = await requirePermission(request, "team.roster");
@@ -23,17 +46,10 @@ export async function GET(request: NextRequest) {
     const season   = searchParams.get("season") ?? new Date().getFullYear().toString();
 
     if (!clubId) {
-      return NextResponse.json(
-        { error: "Club ID is required" },
-        { status: 400 },
-      );
+      return NextResponse.json({ error: "Club ID is required" }, { status: 400 });
     }
 
-    const { response: scopeRes } = await requireResourceAccess(
-      request,
-      "club",
-      clubId,
-    );
+    const { response: scopeRes } = await requireResourceAccess(request, "club", clubId);
     if (scopeRes) return scopeRes;
 
     const client = await clientPromise;
@@ -46,31 +62,32 @@ export async function GET(request: NextRequest) {
         "membership.status": { $in: ACTIVE_MEMBERSHIP_STATUSES },
       })
       .project({
-        memberId:            1,
-        personalInfo:        1,
-        membership:          1,
+        memberId:             1,
+        personalInfo:         1,
+        membership:           1,
         teamSelectionHistory: 1,
       })
       .limit(200)
       .toArray();
 
-    const eligiblePlayers = members.map((m) => {
-      const pi  = m.personalInfo ?? {};
-      const mem = m.membership   ?? {};
+    const eligiblePlayers: EligiblePlayer[] = members.map((m) => {
+      const pi  = (m.personalInfo  ?? {}) as Record<string, string>;
+      const mem = (m.membership    ?? {}) as Record<string, string>;
+      const history = (m.teamSelectionHistory ?? []) as SelectionRecord[];
       return {
         id:                   m._id.toString(),
-        playerId:             m.memberId,
-        memberId:             m.memberId,
+        playerId:             m.memberId as string,
+        memberId:             m.memberId as string,
         firstName:            pi.firstName   ?? "Unknown",
         lastName:             pi.lastName    ?? "Unknown",
         preferredName:        pi.preferredName ?? "",
         dateOfBirth:          pi.dateOfBirth ?? "",
         gender:               pi.gender      ?? "",
-        memberNumber:         mem.memberNumber ?? m.memberId,
+        memberNumber:         mem.memberNumber ?? (m.memberId as string),
         primaryPosition:      mem.primaryPosition   ?? pi.primaryPosition   ?? "",
         secondaryPosition:    mem.secondaryPosition ?? pi.secondaryPosition ?? "",
-        teamSelectionHistory: m.teamSelectionHistory ?? [],
-        lastSelection:        getLastSelection(m.teamSelectionHistory ?? [], division, season),
+        teamSelectionHistory: history,
+        lastSelection:        getLastSelection(history, division, season),
       };
     });
 
@@ -91,15 +108,20 @@ export async function GET(request: NextRequest) {
   }
 }
 
-function getLastSelection(history: any[], division: string, season: string) {
+function getLastSelection(
+  history: SelectionRecord[],
+  division: string,
+  season: string,
+): SelectionRecord | null {
   if (!history || history.length === 0) return null;
 
-  const relevantSelections = history
-    .filter((sel: any) => sel.division === division && sel.season === season)
-    .sort(
-      (a: any, b: any) =>
-        new Date(b.selectedDate).getTime() - new Date(a.selectedDate).getTime(),
-    );
+  const relevant = history
+    .filter((sel) => sel.division === division && sel.season === season)
+    .sort((a, b) => {
+      const aTime = a.selectedDate ? new Date(a.selectedDate).getTime() : 0;
+      const bTime = b.selectedDate ? new Date(b.selectedDate).getTime() : 0;
+      return bTime - aTime;
+    });
 
-  return relevantSelections[0] ?? null;
+  return relevant[0] ?? null;
 }

@@ -13,7 +13,7 @@ type Params = { params: Promise<{ paymentId: string }> };
 // ── GET ───────────────────────────────────────────────────────────────────────
 
 export async function GET(request: NextRequest, { params }: Params) {
-  const session = await getSession(request);
+  const session = await getSession();
   if (!session) {
     return NextResponse.json({ error: "Authentication required" }, { status: 401 });
   }

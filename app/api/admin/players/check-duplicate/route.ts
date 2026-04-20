@@ -1,15 +1,27 @@
 // app/api/admin/players/check-duplicate/route.ts
-// Check if a player already exists based on firstName, lastName, dateOfBirth
+// Case-insensitive match on firstName + lastName + dateOfBirth in the members
+// collection. Optionally scoped to a single club via the clubId body field.
 
 import { NextRequest, NextResponse } from "next/server";
 import { requirePermission } from "@/lib/auth/middleware";
+import clientPromise from "@/lib/mongodb";
 
 export async function POST(request: NextRequest) {
   try {
-    const { response: authRes } = await requirePermission(request, "member.create");
+    const { response: authRes } = await requirePermission(
+      request,
+      "member.create",
+    );
     if (authRes) return authRes;
 
-    const { firstName, lastName, dateOfBirth } = await request.json();
+    const body = await request.json();
+    const { firstName, lastName, dateOfBirth, clubId, excludeMemberId } = body as {
+      firstName?: string;
+      lastName?: string;
+      dateOfBirth?: string;
+      clubId?: string;
+      excludeMemberId?: string; // skip this member when editing an existing record
+    };
 
     if (!firstName || !lastName || !dateOfBirth) {
       return NextResponse.json(
@@ -18,46 +30,53 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log("🔍 Checking for duplicate player:", {
-      firstName,
-      lastName,
-      dateOfBirth,
+    const client = await clientPromise;
+    const db = client.db(process.env.DB_NAME || "hockey-app");
+
+    const query: Record<string, unknown> = {
+      "personalInfo.firstName": {
+        $regex: new RegExp(`^${escapeRegex(firstName.trim())}$`, "i"),
+      },
+      "personalInfo.lastName": {
+        $regex: new RegExp(`^${escapeRegex(lastName.trim())}$`, "i"),
+      },
+      "personalInfo.dateOfBirth": dateOfBirth,
+    };
+
+    if (clubId) {
+      query.clubId = clubId;
+    }
+
+    if (excludeMemberId) {
+      query.memberId = { $ne: excludeMemberId };
+    }
+
+    const existingMember = await db.collection("members").findOne(query, {
+      projection: {
+        memberId: 1,
+        clubId: 1,
+        "personalInfo.firstName": 1,
+        "personalInfo.lastName": 1,
+        "personalInfo.dateOfBirth": 1,
+      },
     });
 
-    // TODO: Replace with your actual database query
-    // import { connectDB } from '@/lib/mongodb';
-    // const db = await connectDB();
+    if (existingMember) {
+      return NextResponse.json({
+        isDuplicate: true,
+        existingMember: {
+          memberId: existingMember.memberId,
+          firstName: existingMember.personalInfo?.firstName,
+          lastName: existingMember.personalInfo?.lastName,
+          dateOfBirth: existingMember.personalInfo?.dateOfBirth,
+          clubId: existingMember.clubId,
+        },
+      });
+    }
 
-    // const existingPlayer = await db.collection('players').findOne({
-    //   firstName: { $regex: new RegExp(`^${firstName}$`, 'i') }, // Case-insensitive
-    //   lastName: { $regex: new RegExp(`^${lastName}$`, 'i') },   // Case-insensitive
-    //   dateOfBirth: dateOfBirth
-    // });
-    //
-    // if (existingPlayer) {
-    //   return NextResponse.json({
-    //     isDuplicate: true,
-    //     existingPlayer: {
-    //       playerId: existingPlayer.playerId,
-    //       firstName: existingPlayer.firstName,
-    //       lastName: existingPlayer.lastName,
-    //       dateOfBirth: existingPlayer.dateOfBirth,
-    //       clubId: existingPlayer.clubId,
-    //     }
-    //   });
-    // }
-    //
-    // return NextResponse.json({ isDuplicate: false });
-
-    // TEMPORARY MOCK - Always returns not duplicate
-    console.log("⚠️ Using mock duplicate check - implement database query");
-
-    return NextResponse.json({
-      isDuplicate: false,
-      message: "MOCK DATA - Implement database query to check for duplicates",
-    });
+    return NextResponse.json({ isDuplicate: false });
   } catch (error: unknown) {
-    console.error("❌ Error checking duplicate player:", error);
+    console.error("❌ Error checking duplicate member:", error);
     return NextResponse.json(
       {
         error: "Failed to check duplicate",
@@ -66,4 +85,9 @@ export async function POST(request: NextRequest) {
       { status: 500 },
     );
   }
+}
+
+/** Escape special regex characters in user-supplied strings */
+function escapeRegex(str: string): string {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

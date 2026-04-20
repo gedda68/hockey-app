@@ -15,9 +15,10 @@ import {
   Trash2,
 } from "lucide-react";
 import { Event } from "@/types/event";
-import { User, getEventPermissions } from "@/lib/permissions/event-permissions";
+import { User, UserRole, getEventPermissions } from "@/lib/permissions/event-permissions";
 import EventModal from "@/components/events/EventModal";
 import EventCalendar from "@/components/events/EventCalendar";
+import { useAuth } from "@/lib/auth/AuthContext";
 
 const CATEGORY_STYLES: Record<
   string,
@@ -113,12 +114,18 @@ export default function EventsPage() {
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  // Mock current user - replace with actual auth
-  const [currentUser] = useState<User>({
-    id: "user123",
-    role: "club_admin",
-    clubs: ["ipswich-hornets", "bha"],
-  });
+  // Derive event-permissions User from the real session
+  const { user: sessionUser } = useAuth();
+  const currentUser: User | null = sessionUser
+    ? {
+        id: sessionUser.userId ?? "",
+        role: (sessionUser.role?.replace("-", "_") as UserRole) ?? "public",
+        clubs: sessionUser.clubId ? [sessionUser.clubId] : [],
+        associations: sessionUser.associationId
+          ? [sessionUser.associationId]
+          : [],
+      }
+    : null;
 
   useEffect(() => {
     fetch("/api/events?upcoming=true")
@@ -166,13 +173,14 @@ export default function EventsPage() {
   };
 
   const handleCreateEvent = (date?: Date) => {
-    // TODO: Open create event form/modal
-    toast.info(`Create event${date ? ` on ${date.toLocaleDateString()}` : ""}` );
+    const qs = date
+      ? `?date=${date.toISOString().split("T")[0]}`
+      : "";
+    router.push(`/admin/events/create${qs}`);
   };
 
   const handleEditEvent = (event: Event) => {
-    // TODO: Open edit event form/modal
-    toast.info(`Edit event: ${event.name}`);
+    router.push(`/admin/events/${event.id}/edit`);
   };
 
   const handleDeleteEvent = async (event: Event) => {
@@ -194,7 +202,7 @@ export default function EventsPage() {
   };
 
   const canCreate =
-    currentUser &&
+    currentUser != null &&
     currentUser.role !== "public" &&
     currentUser.role !== "member";
 

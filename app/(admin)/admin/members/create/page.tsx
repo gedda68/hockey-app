@@ -1,7 +1,8 @@
 // app/(admin)/admin/members/create/page.tsx
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useAuth } from "@/lib/auth/AuthContext";
 import {
   ArrowLeft,
   ArrowRight,
@@ -61,12 +62,18 @@ const TOTAL_STEPS = STEPS.length;
 
 export default function CreateMemberPage() {
   const router = useRouter();
+  const { user } = useAuth();
   const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Derive the club ID from the session. Prefer the canonical clubId, fall back
+  // to the slug (clubSlug). Super-admins without a club scope will have an empty
+  // string here — they can change it in the Membership step.
+  const sessionClubId = user?.clubId ?? user?.clubSlug ?? "";
+
   const [formData, setFormData] = useState({
-    clubId: "club-commercial-hc", // TODO: Get from user context
-    associationId: "",
+    clubId: sessionClubId,
+    associationId: user?.associationId ?? "",
     personalInfo: {
       salutation: "",
       firstName: "",
@@ -124,6 +131,18 @@ export default function CreateMemberPage() {
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  // Sync club/association IDs once the session resolves asynchronously.
+  // On the first render user may still be null; this effect runs once user
+  // becomes available and back-fills any fields that are still empty.
+  useEffect(() => {
+    if (!user) return;
+    setFormData((prev) => ({
+      ...prev,
+      clubId: prev.clubId || user.clubId || user.clubSlug || "",
+      associationId: prev.associationId || user.associationId || "",
+    }));
+  }, [user]);
 
   const updateFormData = (section: string, data: unknown) => {
     setFormData((prev) => ({

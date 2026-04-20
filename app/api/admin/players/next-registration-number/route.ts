@@ -1,65 +1,76 @@
 // app/api/admin/players/next-registration-number/route.ts
-// Get next available registration number from players.playerId
+// Returns the next available registration number for a club's members.
+// Scans the members collection for the highest numeric suffix in memberId
+// or registrationNumber fields, then returns (max + 1) padded to 10 digits.
 
 import { NextRequest, NextResponse } from "next/server";
 import { requirePermission } from "@/lib/auth/middleware";
+import clientPromise from "@/lib/mongodb";
 
 export async function GET(request: NextRequest) {
   try {
-    const { response: authRes } = await requirePermission(request, "member.create");
+    const { response: authRes } = await requirePermission(
+      request,
+      "member.create",
+    );
     if (authRes) return authRes;
 
-    // TODO: Replace with your actual database connection
-    // import { connectDB } from '@/lib/mongodb';
-    // const db = await connectDB();
+    const { searchParams } = new URL(request.url);
+    const clubId = searchParams.get("clubId");
 
-    // Get all players and find the highest playerId number
-    // const players = await db.collection('players')
-    //   .find({})
-    //   .sort({ playerId: -1 })
-    //   .limit(100) // Get last 100 to be safe
-    //   .toArray();
+    const client = await clientPromise;
+    const db = client.db(process.env.DB_NAME || "hockey-app");
 
-    // let maxNumber = 0;
-    //
-    // for (const player of players) {
-    //   if (player.playerId) {
-    //     // Extract numeric part from playerId
-    //     // playerId format could be: "player-1234-xxx" or just "0000000042"
-    //     const numericPart = player.playerId.match(/\d+/);
-    //     if (numericPart) {
-    //       const num = parseInt(numericPart[0]);
-    //       if (num > maxNumber) {
-    //         maxNumber = num;
-    //       }
-    //     }
-    //   }
-    // }
-    //
-    // // Next number is maxNumber + 1
-    // const nextNumber = maxNumber + 1;
-    //
-    // // Format with leading zeros (10 digits total)
-    // const formattedNumber = nextNumber.toString().padStart(10, '0');
-    //
-    // return NextResponse.json({
-    //   nextNumber: formattedNumber,
-    //   lastNumber: maxNumber
-    // });
+    // Build the query — scope to club when provided
+    const query: Record<string, unknown> = {};
+    if (clubId) {
+      query.clubId = clubId;
+    }
 
-    // TEMPORARY MOCK - Replace with actual database query above
-    console.log("⚠️ Using mock registration number - implement database query");
+    // Fetch all memberIds for the club (lightweight projection)
+    const members = await db
+      .collection("members")
+      .find(query, {
+        projection: { memberId: 1, "membership.registrationNumber": 1 },
+      })
+      .toArray();
+
+    let maxNumber = 0;
+
+    for (const member of members) {
+      // Check registrationNumber first (explicit field), then fall back to memberId
+      const candidates: unknown[] = [
+        member.membership?.registrationNumber,
+        member.memberId,
+      ];
+
+      for (const raw of candidates) {
+        if (!raw) continue;
+        const str = String(raw);
+        // Extract the longest run of digits from the value
+        const match = str.match(/(\d+)/g);
+        if (match) {
+          for (const m of match) {
+            const n = parseInt(m, 10);
+            if (n > maxNumber) maxNumber = n;
+          }
+        }
+      }
+    }
+
+    const nextNumber = maxNumber + 1;
+    const formattedNumber = nextNumber.toString().padStart(10, "0");
 
     return NextResponse.json({
-      nextNumber: "0000000001",
-      message: "MOCK DATA - Implement database query to find highest playerId",
+      nextNumber: formattedNumber,
+      lastNumber: maxNumber,
     });
   } catch (error: unknown) {
     console.error("❌ Error getting next registration number:", error);
     return NextResponse.json(
       {
         error: "Failed to get next registration number",
-        nextNumber: "0000000001", // Fallback to first number
+        nextNumber: "0000000001", // Fallback
       },
       { status: 500 },
     );

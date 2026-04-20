@@ -1,9 +1,15 @@
 // app/api/clubs/[clubId]/members/route.ts
 // Complete API: Create member + List members (with unique ID check)
+// Both methods require authentication and club-level scope validation.
 
 import { NextRequest, NextResponse } from "next/server";
-import type { Db } from 'mongodb';
+import type { Db } from "mongodb";
 import clientPromise from "@/lib/mongodb";
+import {
+  requirePermission,
+  requireAnyPermission,
+  requireResourceAccess,
+} from "@/lib/auth/middleware";
 
 // Helper to generate member ID
 function generateMemberId(clubShortName: string, sequence: number): string {
@@ -46,8 +52,19 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ clubId: string }> }
 ) {
+  // Require member.create permission and club-level scope
+  const { response: authRes } = await requireAnyPermission(request, [
+    "member.create",
+    "club.members",
+    "system.manage",
+  ]);
+  if (authRes) return authRes;
+
   try {
     const { clubId } = await params; // This is the slug
+
+    const { response: scopeRes } = await requireResourceAccess(request, "club", clubId);
+    if (scopeRes) return scopeRes;
 
 
     const client = await clientPromise;
@@ -142,8 +159,15 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ clubId: string }> }
 ) {
+  // Require at minimum club.view and scope to the requested club
+  const { response: authRes } = await requirePermission(request, "club.members");
+  if (authRes) return authRes;
+
   try {
     const { clubId } = await params; // This is the slug
+
+    const { response: scopeRes } = await requireResourceAccess(request, "club", clubId);
+    if (scopeRes) return scopeRes;
 
 
     const client = await clientPromise;
