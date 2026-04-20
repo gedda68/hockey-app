@@ -226,4 +226,73 @@ Some admin API routes re-validate the acting user's scope against a DB lookup (`
 
 ---
 
-_Last updated: 2026-04-20 — V4 baseline: role approval workflow, member self-service portal, multi-role sessions, member category types, password reset. Audit-driven additions: security gaps S1–S8, payment gateway P1–P6, full financials F1–F9, workflow completions W1–W6, member experience M2–M6, quality X1–X10, bug fixes B1–B10._
+## Codebase Assessment (April 2026 audit)
+
+### What is in great shape
+
+The codebase is substantially built and well-architected across all core areas:
+
+| Area | Status |
+|------|--------|
+| **League engine** | Competitions, fixtures, results, ladders, round-robin generation — production-ready |
+| **RBAC** | 24 roles, 40+ permissions, multi-scope `ScopedRole[]` session, middleware enforcement |
+| **Role workflow** | Full approval lifecycle with fee-waiver audit trail; admin queue + member self-service portal |
+| **Venue / pitch** | Registry, conflict detection (overlapping published fixtures), week/month calendar |
+| **Officiating** | Umpire register, officiating reports, honoraria ledger, communications hub |
+| **Fan features** | Live scores (polling), iCal exports, push notifications, tenant news/gallery, partner analytics |
+| **Volunteer & sponsors** | Duty roster CRM, partner strip click tracking |
+| **Data model** | Rich typed schemas for members, teams, competitions; validation helpers; audit collections |
+
+### Where attention is needed
+
+| Category | Key gaps |
+|----------|----------|
+| **Security** | `/api/clubs` and `/api/payments` are unauthenticated; dev test routes exposed; no login rate limiting |
+| **Build stability** | Orphaned `console.log` argument lines still break TypeScript in 5+ files; stub routes return fake data |
+| **Payments** | Stripe is in "simulate" mode; no Checkout session, no webhook, no per-club fee schedule |
+| **Tests** | ~5 unit tests total; role-request lifecycle, registration, and API auth guards have zero coverage |
+| **TypeScript** | ~100+ violations; `strict` mode not enabled; JSX-in-try-catch anti-patterns in several pages |
+| **Workflows** | Nominations → ballot → result not closed; umpire assignment is a stub; events CRUD is placeholder |
+
+---
+
+## Suggested priority order (V4)
+
+### 🔴 Immediate — before any public-facing release
+
+| Priority | Epic | Description |
+|----------|------|-------------|
+| 1 | **S1–S4** | **Security gaps** — `/api/clubs` and `/api/payments` have zero auth; any anonymous caller can enumerate all clubs and query payment records. Dev test routes (`/api/test-level`) exposed in production. |
+| 2 | **B2–B10** | **Build bugs** — Orphaned `console.log` argument lines break TypeScript in `rosters/[ageGroup]`, `teams/players/eligible`, and `clubs/[clubId]/members` routes. Stub routes (`next-registration-number`, `check-duplicate`) silently return fake data, corrupting player records. |
+| 3 | **S5–S7** | **Auth hardening** — No rate limiting on `/api/auth/login` and `/api/auth/forgot-password`; cookie flags need production audit; Lexical rich-text fields need server-side DOMPurify before MongoDB write. |
+
+### 🟠 High priority — before registration season opens
+
+| Priority | Epic | Description |
+|----------|------|-------------|
+| 4 | **P1–P3** | **Stripe integration** — Per-club fee schedule, Checkout session creation, webhook handler to auto-advance role-requests from `pending_payment → awaiting_approval`. Without this, all fee collection is manual registrar entry. |
+| 5 | **R6–R7** | **Seasonal re-registration** — Roles marked `seasonalRegistration: true` expire at season end. Email reminders 6 weeks and 2 weeks out via Resend; role-expiry dashboard page (route exists, body is stub). |
+| 6 | **X1–X4** | **TypeScript strict + ESLint CI gate + error boundaries** — Enabling lint as a CI gate stops regressions; fixing `strict` mode flushes hidden runtime bugs; replacing JSX-in-try-catch with proper `<ErrorBoundary>` components fixes concurrent rendering issues. |
+
+### 🟡 Medium priority — next quarter
+
+| Priority | Epic | Description |
+|----------|------|-------------|
+| 7 | **X5–X7** | **Test coverage** — Role-request lifecycle, member registration, and all admin API auth guards have zero automated tests. A single bad deploy can silently break fee collection or approval. |
+| 8 | **M2–M5** | **Member self-service** — Editable profile page, tokenised invitation onboarding wizard (replacing hardcoded clubId placeholders), family account linking, automated renewal reminders. |
+| 9 | **W1** | **Nominations → ballot → result** — Window and submission exist; ballot voting UI is sketched; the result-to-role-request link is missing. Closes the governance loop. |
+| 10 | **W3** | **Umpire assignment close-out** — COI and availability APIs are stubs; the officiating report is live but reads no real assignment data, so its allocation-mix chart is always empty. |
+| 11 | **W2** | **Events CRUD** — "Create Event" and "Edit Event" buttons exist on the public competition calendar but are `onClick={() => {}}` no-ops. |
+
+### 🟢 Longer term — own sprint or product stream
+
+| Priority | Epic | Description |
+|----------|------|-------------|
+| 12–14 | **F1–F3** | Financials foundation: chart of accounts per club/association, income ledger (replacing flat `payments` collection), expense ledger. |
+| 15–16 | **W4–W6** | Bulk member CSV import for club onboarding; automated season rollover (archive → copy forward → generate renewals); weekly digest email (reserved fields in communications hub). |
+| 17 | **M6** | Digital membership card — QR-coded PDF via `jsPDF` (already in deps), generated on role approval and emailed via Resend. |
+| 18 | **F4–F9** | Full P&L report, quarterly GST/BAS helper, Xero OAuth2 integration, merchandise/uniform shop with Stripe. Large commercial module — treat as a separate product stream. |
+
+---
+
+_Last updated: 2026-04-20 — V4 baseline: role approval workflow, member self-service portal, multi-role sessions, member category types, password reset. Audit-driven additions: security gaps S1–S8, payment gateway P1–P6, full financials F1–F9, workflow completions W1–W6, member experience M2–M6, quality X1–X10, bug fixes B1–B10. Priority tables and codebase assessment added from April 2026 audit._
