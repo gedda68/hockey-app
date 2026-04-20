@@ -48,3 +48,5 @@ next-env.d.ts
 *.zip
 *copy*.ts
 *Copy*.ts
+# Exceptions — production source files that legitimately contain "Copy" in the name
+!lib/website/associationHubCopy.ts

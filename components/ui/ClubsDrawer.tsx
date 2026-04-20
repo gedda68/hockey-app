@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef } from "react";
-import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
+import { motion, AnimatePresence, useReducedMotion } from "motion/react";
 import { X, Shield } from "lucide-react";
 import ClubIcon from "@/components/ui/ClubIcon";
 import { useFocusTrap } from "@/lib/a11y/useFocusTrap";

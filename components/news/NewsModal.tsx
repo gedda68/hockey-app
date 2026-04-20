@@ -1,7 +1,7 @@
 // components/news/NewsModal.tsx
 "use client";
 
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence } from "motion/react";
 import { X, Calendar, User } from "lucide-react";
 import { NewsItem } from "@/types/news";
 import Image from "next/image";
