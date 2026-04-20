@@ -108,9 +108,10 @@ export default function AssociationVenuesClient({
       toast.error("Venue name is required.");
       return;
     }
-    if (!draft.street.trim() || !draft.suburb.trim() || !draft.city.trim()) {
-      toast.error("Address needs at least street, suburb, and city.");
+    if (!draft.street.trim() || (!draft.suburb.trim() && !draft.city.trim())) {
+      toast.error("Address needs at least a street and either a suburb or city.");
       return;
+
     }
     setCreating(true);
     try {

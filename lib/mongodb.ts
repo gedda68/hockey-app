@@ -1,6 +1,10 @@
 import dns from "node:dns";
 import { MongoClient, Db, type MongoClientOptions } from "mongodb";
 
+// Force Node.js to use a public DNS resolver
+dns.setDefaultResultOrder('ipv4first')
+dns.setServers(['8.8.8.8', '1.1.1.1'])
+
 // Prefer IPv4 for mongodb+srv on Windows — dual-stack / IPv6 paths sometimes fail TLS to Atlas.
 // Set MONGODB_DNS_IPV4FIRST=false to skip (e.g. if you must prefer IPv6).
 if (

@@ -18,6 +18,8 @@ import {
 import { requestMetadataBase } from "@/lib/tenant/requestMetadataBase";
 
 const inter = Inter({ subsets: ["latin"] });
+//console.log('MONGO URI:', process.env.MONGODB_URI)
+
 
 function absolutizeMetadataIcon(href: string | null, base: URL): string | null {
   if (!href) return null;
