@@ -7,6 +7,7 @@ import { requireRole } from "@/lib/auth/middleware";
 import { MEDIA_CONTENT_ADMIN_ROLES } from "@/lib/auth/mediaContentRoles";
 import { writeFile, mkdir, unlink } from "fs/promises";
 import path from "path";
+import { sanitizeRichText } from "@/lib/utils/sanitizeServer";
 
 const uri = process.env.MONGODB_URI!;
 
@@ -73,6 +74,11 @@ export async function PUT(
     }
     if (newFlyer && existing.flyer?.startsWith("/uploads/")) {
       await deleteFile(existing.flyer);
+    }
+
+    // Sanitise rich-text HTML before storing — prevents stored XSS (S7)
+    if (typeof updateData.fullDescription === "string") {
+      updateData.fullDescription = sanitizeRichText(updateData.fullDescription);
     }
 
     // Prepare update

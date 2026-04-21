@@ -19,6 +19,7 @@ import { MEDIA_CONTENT_ADMIN_ROLES } from "@/lib/auth/mediaContentRoles";
 import { writeFile, mkdir } from "fs/promises";
 import path from "path";
 import { v4 as uuidv4 } from "uuid";
+import { sanitizeRichText } from "@/lib/utils/sanitizeServer";
 
 const uri = process.env.MONGODB_URI!;
 
@@ -142,6 +143,11 @@ export async function POST(request: NextRequest) {
       }
     } else {
       eventData = await request.json();
+    }
+
+    // Sanitise rich-text HTML before storing — prevents stored XSS (S7)
+    if (typeof eventData.fullDescription === "string") {
+      eventData.fullDescription = sanitizeRichText(eventData.fullDescription);
     }
 
     const name      = typeof eventData.name      === "string" ? eventData.name.trim() : "";

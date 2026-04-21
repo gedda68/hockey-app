@@ -19,6 +19,7 @@ import {
 } from "@/lib/news/newsAttachments";
 import { parseVideoEmbed } from "@/lib/website/videoEmbeds";
 import { buildNewsAttachmentsFromFormData } from "@/lib/news/buildNewsAttachmentsFromForm";
+import { sanitizeRichText } from "@/lib/utils/sanitizeServer";
 
 function newsUploadDiskPath(publicPath: string): string {
   const rel = String(publicPath ?? "").replace(/^\/+/, "");
@@ -135,6 +136,9 @@ export async function PUT(
       attachments = built.attachments.length ? built.attachments : undefined;
     }
 
+    // Sanitise rich-text HTML before storing — prevents stored XSS (S7)
+    const safeContent = sanitizeRichText(content);
+
     const trimmedVideo = videoUrl?.trim() ? videoUrl.trim() : "";
     if (trimmedVideo && !parseVideoEmbed(trimmedVideo)) {
       return NextResponse.json(
@@ -153,7 +157,7 @@ export async function PUT(
 
     const updateData: Record<string, unknown> = {
       title,
-      content,
+      content: safeContent,
       image: finalImageUrl,
       imageUrl: finalImageUrl,
       videoUrl: finalVideoUrl,

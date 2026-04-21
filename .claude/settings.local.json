@@ -23,7 +23,15 @@
       "Bash(npx tsc:*)",
       "Bash(node -e \"const lr = require\\('lucide-react'\\); console.log\\('Radio:', !!lr.Radio, 'Globe:', !!lr.Globe, 'FileSpreadsheet:', !!lr.FileSpreadsheet\\);\")",
       "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(json.dumps\\(d.get\\('middleware',{}\\), indent=2\\)\\)\")",
-      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(list\\(d.keys\\(\\)\\)\\)\")"
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(list\\(d.keys\\(\\)\\)\\)\")",
+      "Bash(find /c/dev/nextjs-projects/hockey-app/app -type f \\\\\\( -name \"*.tsx\" -o -name \"*.ts\" \\\\\\) ! -path \"*/.claude/*\" -exec grep -l \"LexicalEditor\\\\|RichTextEditor\" {} \\\\;)",
+      "Bash(find /c/dev/nextjs-projects/hockey-app/app -type f \\\\\\( -name \"*.tsx\" -o -name \"*.ts\" \\\\\\) ! -path \"*/.claude/*\" -exec grep -l \"news\\\\|content\\\\|formData.append.*content\" {} \\\\;)",
+      "Bash(grep -r \"dangerouslySetInnerHTML\" /c/dev/nextjs-projects/hockey-app/app --include=\"*.tsx\" --include=\"*.ts\" ! -path \"*/.claude/*\")",
+      "Bash(grep -r \"innerHTML\\\\|dangerouslySetInnerHTML\\\\|sanitizeHtml\" /c/dev/nextjs-projects/hockey-app/app --include=\"*.tsx\" ! -path \"*/.claude/*\")",
+      "Bash(find /c/dev/nextjs-projects/hockey-app -type f \\\\\\( -name \"*.tsx\" -o -name \"*.ts\" \\\\\\) ! -path \"*/.claude/*\" -exec grep -l \"\\\\.content\\\\|\\\\.body\\\\|\\\\.html\" {} \\\\;)",
+      "Bash(grep -E \"\\\\.\\(tsx|ts\\)$\")",
+      "Bash(find /c/dev/nextjs-projects/hockey-app/app/api -type f -name \"*.ts\" -exec grep -l \"content\\\\|body\\\\|html\\\\|richText\\\\|description\\\\|supplement\" {} \\\\;)",
+      "Bash(pnpm add:*)"
     ]
   }
 }

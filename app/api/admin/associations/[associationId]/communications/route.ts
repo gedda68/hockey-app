@@ -18,6 +18,7 @@ import {
   logAdminTelemetry,
 } from "@/lib/observability/adminTelemetry";
 import { ZodError } from "zod";
+import { stripAllTags } from "@/lib/utils/sanitizeServer";
 
 /** Covers super-admin, association-admin, assoc-committee, assoc-competition, media-marketing (see `ROLE_DEFINITIONS`). */
 const PERMS = [
@@ -87,14 +88,15 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       updatedAt: now,
       updatedBy: user.userId,
     };
+    // Strip all HTML tags from plain-text email supplement fields (S7)
     if (body.fixtureChangeEmailSupplementText !== undefined) {
-      $set.fixtureChangeEmailSupplementText = body.fixtureChangeEmailSupplementText;
+      $set.fixtureChangeEmailSupplementText = stripAllTags(body.fixtureChangeEmailSupplementText);
     }
     if (body.weeklyDigestEnabled !== undefined) {
       $set.weeklyDigestEnabled = body.weeklyDigestEnabled;
     }
     if (body.weeklyDigestIntroText !== undefined) {
-      $set.weeklyDigestIntroText = body.weeklyDigestIntroText;
+      $set.weeklyDigestIntroText = stripAllTags(body.weeklyDigestIntroText);
     }
     if (body.enabledPushTopics !== undefined) {
       $set.enabledPushTopics = body.enabledPushTopics;

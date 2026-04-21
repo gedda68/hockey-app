@@ -20,6 +20,7 @@ import {
 } from "@/lib/news/newsAttachments";
 import { parseVideoEmbed } from "@/lib/website/videoEmbeds";
 import { buildNewsAttachmentsFromFormData } from "@/lib/news/buildNewsAttachmentsFromForm";
+import { sanitizeRichText } from "@/lib/utils/sanitizeServer";
 
 // GET — list news visible to this admin (portal-scoped)
 export async function GET(request: NextRequest) {
@@ -101,7 +102,10 @@ export async function POST(request: NextRequest) {
     const scopeTypeField = formData.get("scopeType") as string | null;
     const scopeIdField = formData.get("scopeId") as string | null;
 
-    if (!title || !content || !publishDate || !expiryDate) {
+    // Sanitise rich-text HTML before storing — prevents stored XSS (S7)
+    const safeContent = sanitizeRichText(content);
+
+    if (!title || !safeContent || !publishDate || !expiryDate) {
       return NextResponse.json(
         { error: "Title, content, publish date, and expiry date are required" },
         { status: 400 },
@@ -192,7 +196,7 @@ export async function POST(request: NextRequest) {
     const newsItem = {
       id: new ObjectId().toString(),
       title,
-      content,
+      content: safeContent,
       image: finalImageUrl,
       imageUrl: finalImageUrl,
       videoUrl: finalVideoUrl,
