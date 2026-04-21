@@ -1,10 +1,30 @@
 // lib/auth/session.ts
 // JWT session using jose — Edge-compatible
+//
+// ── Cookie attribute audit (S6) ───────────────────────────────────────────────
+//
+//   Name      → "__Host-session" in production (no SESSION_COOKIE_DOMAIN set)
+//               "session" in development or when a cross-subdomain Domain= is
+//               required.  See lib/auth/cookieName.ts for the full rationale.
+//
+//   HttpOnly  → true (always)      — JS cannot read the token; XSS-safe.
+//   Secure    → true in production — cookie only sent over HTTPS.
+//   SameSite  → "lax"             — blocks cross-site POST; allows top-level
+//               navigations (e.g. OAuth redirects).  "strict" would break
+//               email password-reset links landing with a redirect.
+//   Path      → "/"               — required by __Host-; covers all routes.
+//   Domain    → absent in production (enforced by __Host-); ".localhost" only
+//               in local dev with tenant subdomains.
+//   Expires   → 7 days rolling    — matches JWT expiry.
 
 import { cookies } from "next/headers";
 import type { NextResponse } from "next/server";
 import { SignJWT, jwtVerify } from "jose";
 import { getPortalRootDomain } from "@/lib/tenant/portalHost";
+import {
+  activeSessionCookieName,
+  sessionCookieNameForWrite,
+} from "@/lib/auth/cookieName";
 
 const SECRET_KEY = process.env.JWT_SECRET;
 if (!SECRET_KEY) throw new Error("JWT_SECRET environment variable is not set");
@@ -54,7 +74,7 @@ export interface SessionData {
   username?: string;
   forcePasswordChange?: boolean;
   /**
-   * Subdomain label for the active persona’s portal ({slug}.{PORTAL_ROOT_DOMAIN}).
+   * Subdomain label for the active persona's portal ({slug}.{PORTAL_ROOT_DOMAIN}).
    * Used by middleware to keep /admin and /portal on the correct tenant host.
    */
   portalSubdomain?: string | null;
@@ -103,9 +123,11 @@ function sessionCookieBase(portalSubdomain: string | null | undefined) {
   const domain = resolvedSessionCookieDomain(portalSubdomain);
   return {
     httpOnly: true as const,
-    secure: process.env.NODE_ENV === "production",
+    // Secure=true in production. __Host- prefix additionally enforces this
+    // browser-side for production deployments (see cookieName.ts).
+    secure:   process.env.NODE_ENV === "production",
     sameSite: "lax" as const,
-    path: "/",
+    path:     "/",
     ...(domain ? { domain } : {}),
   };
 }
@@ -154,7 +176,8 @@ export async function attachSessionCookie(
   data: SessionData,
 ): Promise<void> {
   const { value, options } = await createSessionCookieParts(data);
-  res.cookies.set("session", value, options);
+  const name = sessionCookieNameForWrite(options.domain);
+  res.cookies.set(name, value, options);
 }
 
 /** Host-only cookie (no Domain=...), for localhost/subdomain quirks. */
@@ -163,20 +186,25 @@ export async function attachSessionCookieHostOnly(
   data: SessionData,
 ): Promise<void> {
   const { value, options } = await createSessionCookieParts(data);
-  res.cookies.set("session", value, withoutDomain(options));
+  const hostOnlyOpts = withoutDomain(options);
+  // No Domain= → eligible for __Host- in production
+  const name = activeSessionCookieName();
+  res.cookies.set(name, value, hostOnlyOpts);
 }
 
 // Create session (sets HttpOnly cookie) — Server Components / non-Response flows
 export async function createSession(data: SessionData): Promise<void> {
   const { value, options } = await createSessionCookieParts(data);
+  const name = sessionCookieNameForWrite(options.domain);
   const cookieStore = await cookies();
-  cookieStore.set("session", value, options);
+  cookieStore.set(name, value, options);
 }
 
 // Read current session (Server Components / API Routes)
 export async function getSession(): Promise<SessionData | null> {
   const cookieStore = await cookies();
-  const token = cookieStore.get("session")?.value;
+  // Use the same name that was used at write time (deterministic per environment)
+  const token = cookieStore.get(activeSessionCookieName())?.value;
   if (!token) return null;
   return decrypt(token);
 }
@@ -184,13 +212,17 @@ export async function getSession(): Promise<SessionData | null> {
 // Delete session cookie
 export async function deleteSession(): Promise<void> {
   const cookieStore = await cookies();
-  const existing = cookieStore.get("session")?.value;
+  // Read with the active name (matches what was set)
+  const name    = activeSessionCookieName();
+  const existing = cookieStore.get(name)?.value;
   let portalSubdomain: string | null | undefined;
   if (existing) {
     portalSubdomain = (await decrypt(existing))?.portalSubdomain;
   }
-  cookieStore.set("session", "", {
-    ...sessionCookieBase(portalSubdomain),
+  const base       = sessionCookieBase(portalSubdomain);
+  const deleteName = sessionCookieNameForWrite((base as { domain?: string }).domain);
+  cookieStore.set(deleteName, "", {
+    ...base,
     expires: new Date(0),
   });
 }

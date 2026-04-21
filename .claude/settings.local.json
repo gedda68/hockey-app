@@ -21,7 +21,9 @@
       "Bash(head -60 C:/dev/nextjs-projects/hockey-app/app/api/admin/associations/[associationId]/officiating-report/route.ts)",
       "Bash(cat C:/dev/nextjs-projects/hockey-app/app/api/admin/rosters/[ageGroup]/route.ts)",
       "Bash(npx tsc:*)",
-      "Bash(node -e \"const lr = require\\('lucide-react'\\); console.log\\('Radio:', !!lr.Radio, 'Globe:', !!lr.Globe, 'FileSpreadsheet:', !!lr.FileSpreadsheet\\);\")"
+      "Bash(node -e \"const lr = require\\('lucide-react'\\); console.log\\('Radio:', !!lr.Radio, 'Globe:', !!lr.Globe, 'FileSpreadsheet:', !!lr.FileSpreadsheet\\);\")",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(json.dumps\\(d.get\\('middleware',{}\\), indent=2\\)\\)\")",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(list\\(d.keys\\(\\)\\)\\)\")"
     ]
   }
 }

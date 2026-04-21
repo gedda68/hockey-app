@@ -17,6 +17,7 @@ import {
   RESOLVED_PORTAL_SLUG_HEADER,
   resolvePortalSlugForRequest,
 } from "@/lib/tenant/portalHost";
+import { activeSessionCookieName } from "@/lib/auth/cookieName";
 
 const SECRET_KEY = process.env.JWT_SECRET;
 if (!SECRET_KEY) throw new Error("JWT_SECRET environment variable is not set");
@@ -51,7 +52,7 @@ interface SessionData {
 }
 
 async function getSession(req: NextRequest): Promise<SessionData | null> {
-  const token = req.cookies.get("session")?.value;
+  const token = req.cookies.get(activeSessionCookieName())?.value;
   if (!token) return null;
   try {
     const { payload } = await jwtVerify(token, key, { algorithms: ["HS256"] });

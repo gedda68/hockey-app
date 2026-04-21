@@ -13,6 +13,7 @@ import {
 import { createSessionCookieParts } from "@/lib/auth/session";
 import { pickTenantOriginForLogin } from "@/lib/auth/postLoginTenant";
 import { rateLimitResponse } from "@/lib/rateLimit";
+import { activeSessionCookieName } from "@/lib/auth/cookieName";
 
 /**
  * When login POST runs on the apex host but the client will redirect to a tenant
@@ -108,7 +109,7 @@ export async function POST(request: NextRequest) {
       const res = NextResponse.json(resBody);
       // Host-only on this origin; cross-host tenants use `sessionJwt` + `/api/auth/consume-session`.
       const { domain: _domain, ...hostOnly } = parts.options;
-      res.cookies.set("session", parts.value, hostOnly);
+      res.cookies.set(activeSessionCookieName(), parts.value, hostOnly);
       return res;
     }
 
@@ -154,7 +155,7 @@ export async function POST(request: NextRequest) {
       }
       const res = NextResponse.json(resBody);
       const { domain: _domain, ...hostOnly } = parts.options;
-      res.cookies.set("session", parts.value, hostOnly);
+      res.cookies.set(activeSessionCookieName(), parts.value, hostOnly);
       return res;
     }
 
