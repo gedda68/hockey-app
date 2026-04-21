@@ -13,8 +13,10 @@ import {
   Share2,
   CheckCircle,
   Users,
+  ExternalLink,
 } from "lucide-react";
 import Image from "next/image";
+import Link from "next/link";
 import { Event } from "@/types/event";
 
 interface EventModalProps {
@@ -32,6 +34,8 @@ export default function EventModal({
   onEdit,
   onDelete,
 }: EventModalProps) {
+  const [copied, setCopied] = useState(false);
+
   if (!event) return null;
 
   const formatDate = (date: Date) => {
@@ -43,16 +47,15 @@ export default function EventModal({
     });
   };
 
+  const eventUrl = `${typeof window !== "undefined" ? window.location.origin : ""}/competitions/events/${(event as unknown as { slug?: string }).slug || event.id}`;
+
   const handleShare = () => {
     if (navigator.share) {
-      navigator.share({
-        title: event.name,
-        text: event.shortDescription,
-        url: window.location.href,
-      });
+      navigator.share({ title: event.name, text: event.shortDescription, url: eventUrl });
     } else {
-      navigator.clipboard.writeText(window.location.href);
-      alert("Link copied to clipboard!");
+      navigator.clipboard.writeText(eventUrl);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
     }
   };
 
@@ -154,8 +157,23 @@ export default function EventModal({
                       className="p-3 bg-white/20 hover:bg-white/30 text-white rounded-xl transition-all"
                       title="Share"
                     >
-                      <Share2 size={20} />
+                      {copied ? (
+                        <span className="text-xs font-bold px-1">Copied!</span>
+                      ) : (
+                        <Share2 size={20} />
+                      )}
                     </button>
+
+                    {/* VIEW FULL PAGE BUTTON */}
+                    <Link
+                      href={`/competitions/events/${(event as unknown as { slug?: string }).slug || event.id}`}
+                      className="p-3 bg-white/20 hover:bg-white/30 text-white rounded-xl transition-all flex items-center gap-1 text-xs font-bold"
+                      title="View full event page"
+                      onClick={onClose}
+                    >
+                      <ExternalLink size={16} />
+                      <span className="hidden sm:inline">View</span>
+                    </Link>
 
                     {/* CLOSE BUTTON */}
                     <button

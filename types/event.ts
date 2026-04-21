@@ -28,6 +28,22 @@ export type EventScope =
 export type EventVisibility = "public" | "private" | "members-only";
 export type OrgType = "association" | "club" | "team" | "competition";
 
+/**
+ * Controls which calendars an event is automatically propagated to.
+ *
+ * - "none"        → only appears in the org that created it
+ * - "team"        → visible to all teams of the owning club
+ * - "club"        → visible to all clubs of the owning association
+ * - "association" → same as "club" (association-wide)
+ * - "global"      → appears in every calendar under the association
+ */
+export type CalendarPropagation =
+  | "none"
+  | "team"
+  | "club"
+  | "association"
+  | "global";
+
 export interface EventDocument {
   _id?: ObjectId;
   id: string; // UUID for external reference
@@ -87,6 +103,13 @@ export interface EventDocument {
 
   // Visibility & Access
   visibility: EventVisibility;
+
+  /**
+   * Calendar propagation scope — controls which calendars this event
+   * is automatically surfaced in beyond its owning organisation.
+   */
+  calendarPropagation?: CalendarPropagation;
+
   requiresRegistration: boolean;
   registrationConfig?: {
     deadline?: Date;
@@ -108,7 +131,7 @@ export interface EventDocument {
     _id?: ObjectId;
     name: string;
     url: string;
-    type: "pdf" | "doc" | "docx" | "xlsx" | "image";
+    type: "pdf" | "doc" | "docx" | "xls" | "xlsx" | "csv" | "txt" | "image" | "other";
     size?: number; // bytes
     uploadedAt?: Date;
     uploadedBy?: string; // userId

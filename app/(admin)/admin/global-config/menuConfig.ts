@@ -479,6 +479,45 @@ export const menuConfig: MenuItem[] = [
     ],
   },
 
+  // ── Events / Calendar ────────────────────────────────────────────────────────
+  {
+    label: "Events",
+    href: "/admin/events",
+    icon: "📅",
+    description: "Create and manage events for associations, clubs, and teams",
+    color: "from-orange-500 to-amber-500",
+    section: "content",
+    allowedRoles: [
+      "super-admin",
+      "association-admin", "assoc-committee", "media-marketing",
+      "club-admin", "club-committee",
+    ],
+    subItems: [
+      {
+        label: "All Events",
+        href: "/admin/events",
+        icon: "📅",
+        description: "View and manage all events",
+        allowedRoles: [
+          "super-admin",
+          "association-admin", "assoc-committee", "media-marketing",
+          "club-admin", "club-committee",
+        ],
+      },
+      {
+        label: "New Event",
+        href: "/admin/events/create",
+        icon: "➕",
+        description: "Create a new event",
+        allowedRoles: [
+          "super-admin",
+          "association-admin", "assoc-committee", "media-marketing",
+          "club-admin", "club-committee",
+        ],
+      },
+    ],
+  },
+
   // ── News / Media ─────────────────────────────────────────────────────────────
   {
     label: "News & Media",

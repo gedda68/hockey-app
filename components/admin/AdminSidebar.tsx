@@ -192,6 +192,20 @@ function buildMenuForUser(user: User | null): MenuItem[] {
   const fees = resolvedFeesItem(role, clubRef, assocId);
   const selectionPolicyHref = resolvedSelectionPolicyHref(user);
   const leagueSetupHref = resolvedLeagueSetupHref(user);
+
+  // Events: scope-aware hrefs
+  const eventsHref = SIDEBAR_CLUB_ROLES.includes(role) && clubRef
+    ? `/admin/clubs/${clubRef}/events`
+    : SIDEBAR_ASSOC_ROLES.includes(role) && assocId
+    ? `/admin/associations/${assocId}/events`
+    : "/admin/events";
+
+  const eventsCreateHref = SIDEBAR_CLUB_ROLES.includes(role) && clubRef
+    ? `/admin/events/create?scope=club&scopeId=${clubRef}&returnTo=/admin/clubs/${clubRef}/events`
+    : SIDEBAR_ASSOC_ROLES.includes(role) && assocId
+    ? `/admin/events/create?scope=association&scopeId=${assocId}&returnTo=/admin/associations/${assocId}/events`
+    : "/admin/events/create";
+
   items = items.map((item) => {
     if (item.label === "Fees") return { ...item, href: fees.href };
     if (item.label === "Team selection policy") {
@@ -199,6 +213,17 @@ function buildMenuForUser(user: User | null): MenuItem[] {
     }
     if (item.label === "League setup") {
       return { ...item, href: leagueSetupHref };
+    }
+    if (item.label === "Events") {
+      return {
+        ...item,
+        href: eventsHref,
+        subItems: item.subItems?.map((sub) => {
+          if (sub.label === "All Events") return { ...sub, href: eventsHref };
+          if (sub.label === "New Event")  return { ...sub, href: eventsCreateHref };
+          return sub;
+        }),
+      };
     }
     // Also fix "Rep Fees" sub-item inside "Representative" for assoc roles
     if (item.label === "Representative" && item.subItems) {
