@@ -14,11 +14,16 @@ import { randomBytes } from "crypto";
 import { getDatabase } from "@/lib/mongodb";
 import { sendEmail } from "@/lib/email/client";
 import { buildPasswordResetEmail } from "@/lib/email/templates/passwordReset";
+import { rateLimitResponse } from "@/lib/rateLimit";
 
 const TOKEN_EXPIRY_MS = 60 * 60 * 1000; // 60 minutes
 const EXPIRY_MINUTES = 60;
 
 export async function POST(request: NextRequest) {
+  // ── Rate limiting: 10 attempts / 15 min per IP ────────────────────────────
+  const limited = rateLimitResponse(request, "forgot-password");
+  if (limited) return limited;
+
   try {
     const body = await request.json();
     const email = (body.email ?? "").trim().toLowerCase();

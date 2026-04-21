@@ -9,10 +9,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDatabase } from "@/lib/mongodb";
 import { hashPassword } from "@/lib/auth/username";
+import { rateLimitResponse } from "@/lib/rateLimit";
 
 const MIN_PASSWORD_LENGTH = 8;
 
 export async function POST(request: NextRequest) {
+  // ── Rate limiting: 10 attempts / 15 min per IP ────────────────────────────
+  const limited = rateLimitResponse(request, "reset-password");
+  if (limited) return limited;
+
   try {
     const body = await request.json();
     const { token, password, confirmPassword } = body;

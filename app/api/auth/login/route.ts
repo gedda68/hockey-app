@@ -12,6 +12,7 @@ import {
 } from "@/lib/auth/createAppSession";
 import { createSessionCookieParts } from "@/lib/auth/session";
 import { pickTenantOriginForLogin } from "@/lib/auth/postLoginTenant";
+import { rateLimitResponse } from "@/lib/rateLimit";
 
 /**
  * When login POST runs on the apex host but the client will redirect to a tenant
@@ -41,6 +42,10 @@ function shouldReturnSessionJwtForCrossHostLogin(
 }
 
 export async function POST(request: NextRequest) {
+  // ── Rate limiting: 10 attempts / 15 min per IP ────────────────────────────
+  const limited = rateLimitResponse(request, "login");
+  if (limited) return limited;
+
   try {
     const body = await request.json();
     const { username, email, password } = body;
