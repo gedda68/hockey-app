@@ -3,7 +3,7 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { toast } from "sonner";
@@ -100,11 +100,7 @@ export default function TeamDetailView({
   const [error, setError] = useState("");
   const [showRosterManager, setShowRosterManager] = useState(false);
 
-  useEffect(() => {
-    fetchTeam();
-  }, [clubId, teamId]);
-
-  const fetchTeam = async () => {
+  const fetchTeam = useCallback(async () => {
     setIsLoading(true);
     try {
       const res = await fetch(
@@ -120,7 +116,11 @@ export default function TeamDetailView({
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [clubId, teamId]);
+
+  useEffect(() => {
+    void fetchTeam();
+  }, [fetchTeam]);
 
   const handleDelete = async () => {
     if (!team) return;

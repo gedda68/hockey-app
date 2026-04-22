@@ -109,7 +109,9 @@ export default function PublicTournamentPage() {
     void load();
   }, [load]);
 
-  const fixtures = data?.fixtures ?? [];
+  // Memoised so the array reference is stable between renders — prevents the
+  // two useMemo hooks below from re-running on every render when data is null.
+  const fixtures = useMemo(() => data?.fixtures ?? [], [data]);
   const selected = fixtures.find((x) => x.fixtureId === selectedId) ?? null;
 
   const knockoutByRound = useMemo(() => {

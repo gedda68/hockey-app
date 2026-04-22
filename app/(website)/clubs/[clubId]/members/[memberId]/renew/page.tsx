@@ -130,42 +130,41 @@ export default function ComprehensiveRenewalPage({ params }: RenewalPageProps) {
   const [renewalNotes, setRenewalNotes] = useState("");
 
   useEffect(() => {
-    fetchMember();
-  }, [clubId, memberId]);
+    const fetchMember = async () => {
+      setIsLoading(true);
+      try {
+        const res = await fetch(`/api/clubs/${clubId}/members/${memberId}`);
 
-  const fetchMember = async () => {
-    setIsLoading(true);
-    try {
-      const res = await fetch(`/api/clubs/${clubId}/members/${memberId}`);
+        if (!res.ok) {
+          throw new Error("Failed to fetch member");
+        }
 
-      if (!res.ok) {
-        throw new Error("Failed to fetch member");
+        const data = await res.json();
+        setMember(data);
+
+        // Pre-fill all form fields
+        setPersonalInfo(data.personalInfo || {});
+        setContact(data.contact || {});
+        setAddress(data.address || {});
+        setSocialMedia(data.socialMedia || []);
+        setHealthcare(data.healthcare || {});
+        setEmergencyContacts(data.emergencyContacts || []);
+        setMembership(data.membership || {});
+        setMedical(data.medical || {});
+        setRoles(data.roles || []);
+
+        // Calculate next renewal period
+        const nextYear = new Date().getFullYear() + 1;
+        setNewPeriodStart(`${nextYear}-01-01`);
+        setNewPeriodEnd(`${nextYear}-12-31`);
+      } catch (err) {
+        setError(getErrorMessage(err));
+      } finally {
+        setIsLoading(false);
       }
-
-      const data = await res.json();
-      setMember(data);
-
-      // Pre-fill all form fields
-      setPersonalInfo(data.personalInfo || {});
-      setContact(data.contact || {});
-      setAddress(data.address || {});
-      setSocialMedia(data.socialMedia || []);
-      setHealthcare(data.healthcare || {});
-      setEmergencyContacts(data.emergencyContacts || []);
-      setMembership(data.membership || {});
-      setMedical(data.medical || {});
-      setRoles(data.roles || []);
-
-      // Calculate next renewal period
-      const nextYear = new Date().getFullYear() + 1;
-      setNewPeriodStart(`${nextYear}-01-01`);
-      setNewPeriodEnd(`${nextYear}-12-31`);
-    } catch (err) {
-      setError(getErrorMessage(err));
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    };
+    void fetchMember();
+  }, [clubId, memberId]);
 
   const handleRenewal = async () => {
     setIsProcessing(true);

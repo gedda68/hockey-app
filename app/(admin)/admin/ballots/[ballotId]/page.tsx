@@ -10,7 +10,7 @@
  * - Admins see live vote counts and a "Close Ballot" button.
  */
 
-import { useState, useEffect, use } from "react";
+import { useState, useEffect, useCallback, use } from "react";
 import {
   Vote,
   CheckCircle,
@@ -250,7 +250,7 @@ export default function BallotPage({ params }: { params: Promise<{ ballotId: str
   const [closing, setClosing]     = useState(false);
   const [closeResult, setCloseResult] = useState<{ outcome: string; message: string; secondBallot?: any } | null>(null);
 
-  async function fetchBallot() {
+  const fetchBallot = useCallback(async () => {
     try {
       const res = await fetch(`/api/admin/ballots/${ballotId}`);
       if (!res.ok) {
@@ -265,9 +265,9 @@ export default function BallotPage({ params }: { params: Promise<{ ballotId: str
     } finally {
       setLoading(false);
     }
-  }
+  }, [ballotId]);
 
-  useEffect(() => { fetchBallot(); }, [ballotId]);
+  useEffect(() => { void fetchBallot(); }, [fetchBallot]);
 
   async function handleVote() {
     if (!selected || !data) return;

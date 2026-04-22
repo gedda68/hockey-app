@@ -72,7 +72,27 @@ export default function UsersManagementContent() {
   }, []);
 
   useEffect(() => {
-    applyFilters();
+    let filtered = [...users];
+
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(
+        (user) =>
+          user.firstName.toLowerCase().includes(query) ||
+          user.lastName.toLowerCase().includes(query) ||
+          user.email.toLowerCase().includes(query)
+      );
+    }
+
+    if (filterRole !== "all") {
+      filtered = filtered.filter((user) => user.role === filterRole);
+    }
+
+    if (filterStatus !== "all") {
+      filtered = filtered.filter((user) => user.status === filterStatus);
+    }
+
+    setFilteredUsers(filtered);
     setCurrentPage(1);
   }, [users, searchQuery, filterRole, filterStatus]);
 
@@ -95,30 +115,6 @@ export default function UsersManagementContent() {
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const applyFilters = () => {
-    let filtered = [...users];
-
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(
-        (user) =>
-          user.firstName.toLowerCase().includes(query) ||
-          user.lastName.toLowerCase().includes(query) ||
-          user.email.toLowerCase().includes(query)
-      );
-    }
-
-    if (filterRole !== "all") {
-      filtered = filtered.filter((user) => user.role === filterRole);
-    }
-
-    if (filterStatus !== "all") {
-      filtered = filtered.filter((user) => user.status === filterStatus);
-    }
-
-    setFilteredUsers(filtered);
   };
 
   const toggleUserStatus = async (user: User) => {

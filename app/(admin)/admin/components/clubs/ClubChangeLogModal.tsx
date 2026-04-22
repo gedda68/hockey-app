@@ -34,22 +34,21 @@ export default function ClubChangeLogModal({
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchChanges();
-  }, [clubId]);
-
-  const fetchChanges = async () => {
-    try {
-      const response = await fetch(`/api/admin/clubs/${clubId}/changelog`);
-      if (response.ok) {
-        const data = await response.json();
-        setChanges(data);
+    const fetchChanges = async () => {
+      try {
+        const response = await fetch(`/api/admin/clubs/${clubId}/changelog`);
+        if (response.ok) {
+          const data = await response.json();
+          setChanges(data);
+        }
+      } catch (error) {
+        console.error("Error fetching change log:", error);
+      } finally {
+        setLoading(false);
       }
-    } catch (error) {
-      console.error("Error fetching change log:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
+    };
+    void fetchChanges();
+  }, [clubId]);
 
   const getChangeTypeIcon = (type: string) => {
     switch (type) {

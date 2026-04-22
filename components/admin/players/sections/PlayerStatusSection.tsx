@@ -36,7 +36,8 @@ export default function PlayerStatusSection({
     seasons: formData.status?.seasons ?? statusDefaults.seasons,
   };
 
-  // ✨ AUTO-CALCULATE DATES ON MOUNT
+  // ✨ AUTO-CALCULATE DATES ON MOUNT.
+  // ✨ AUTO-CALCULATE DATES ON MOUNT.
   useEffect(() => {
     const needsInitialization =
       !status.registrationDate ||
@@ -75,6 +76,9 @@ export default function PlayerStatusSection({
         renewalReminderDate,
       });
     }
+  // `status` and `onChange` are intentionally omitted: one-time mount initializer
+  // guarded by needsInitialization; adding them causes a loop via formData.status.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // ✨ AUTO-UPDATE RENEWAL REMINDER when expiry date changes

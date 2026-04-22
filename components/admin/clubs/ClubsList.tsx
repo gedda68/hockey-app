@@ -60,8 +60,33 @@ export default function ClubsList() {
   }, [user]);
 
   useEffect(() => {
-    fetchClubs();
-    fetchAssociations();
+    const fetchClubs = async () => {
+      try {
+        setLoading(true);
+        const params = new URLSearchParams();
+        if (filterAssociation) params.append("associationId", filterAssociation);
+        if (filterStatus) params.append("status", filterStatus);
+
+        const res = await fetch(`/api/admin/clubs?${params}`);
+        const data = await res.json();
+        setClubs(data.clubs || []);
+      } catch (error) {
+        console.error("Error fetching clubs:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    const fetchAssociations = async () => {
+      try {
+        const res = await fetch("/api/admin/associations");
+        const data = await res.json();
+        setAssociations(data.associations || []);
+      } catch (error) {
+        console.error("Error fetching associations:", error);
+      }
+    };
+    void fetchClubs();
+    void fetchAssociations();
   }, [filterAssociation, filterStatus]);
 
   const associationOptions = useMemo(() => {

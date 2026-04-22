@@ -1,32 +1,28 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 
 export default function RefreshButton() {
   const router = useRouter();
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [autoRefresh, setAutoRefresh] = useState(true); // Default to ON
 
-  const handleRefresh = () => {
+  const handleRefresh = useCallback(() => {
     setIsRefreshing(true);
     router.refresh();
     setTimeout(() => setIsRefreshing(false), 800);
-  };
+  }, [router]);
 
   // Auto-refresh logic
   useEffect(() => {
-    let interval: NodeJS.Timeout;
-
-    if (autoRefresh) {
-      interval = setInterval(() => {
-        handleRefresh();
-        console.log("Live scores auto-synced");
-      }, 30000); // Refresh every 30 seconds
-    }
-
+    if (!autoRefresh) return;
+    const interval = setInterval(() => {
+      handleRefresh();
+      console.log("Live scores auto-synced");
+    }, 30000); // Refresh every 30 seconds
     return () => clearInterval(interval);
-  }, [autoRefresh]);
+  }, [autoRefresh, handleRefresh]);
 
   return (
     <div className="flex items-center gap-4">

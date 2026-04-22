@@ -82,45 +82,40 @@ export default function TeamsList({ clubId }: TeamsListProps) {
   const [seasons, setSeasons] = useState<string[]>([]);
 
   useEffect(() => {
-    fetchTeams();
-  }, [clubId, statusFilter]);
+    const fetchTeams = async () => {
+      setIsLoading(true);
+      try {
+        const params = new URLSearchParams();
+        if (statusFilter !== "all") {
+          params.append("status", statusFilter);
+        }
+
+        const res = await fetch(`/api/clubs/${clubId}/teams?${params}`);
+        if (!res.ok) throw new Error("Failed to fetch teams");
+
+        const data = await res.json();
+        setTeams(data);
+
+        // Extract unique seasons
+        const uniqueSeasons = [...new Set(data.map((t: Team) => t.season))]
+          .sort()
+          .reverse() as string[];
+        setSeasons(uniqueSeasons);
+
+        // Set default season to most recent
+        if (uniqueSeasons.length > 0 && selectedSeason === "all") {
+          setSelectedSeason(uniqueSeasons[0]);
+        }
+      } catch (err) {
+        setError(getErrorMessage(err));
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    void fetchTeams();
+  }, [clubId, statusFilter, selectedSeason]);
 
   useEffect(() => {
-    filterTeams();
-  }, [teams, searchQuery, selectedCategory, selectedSeason]);
-
-  const fetchTeams = async () => {
-    setIsLoading(true);
-    try {
-      const params = new URLSearchParams();
-      if (statusFilter !== "all") {
-        params.append("status", statusFilter);
-      }
-
-      const res = await fetch(`/api/clubs/${clubId}/teams?${params}`);
-      if (!res.ok) throw new Error("Failed to fetch teams");
-
-      const data = await res.json();
-      setTeams(data);
-
-      // Extract unique seasons
-      const uniqueSeasons = [...new Set(data.map((t: Team) => t.season))]
-        .sort()
-        .reverse() as string[];
-      setSeasons(uniqueSeasons);
-
-      // Set default season to most recent
-      if (uniqueSeasons.length > 0 && selectedSeason === "all") {
-        setSelectedSeason(uniqueSeasons[0]);
-      }
-    } catch (err) {
-      setError(getErrorMessage(err));
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const filterTeams = () => {
     let filtered = teams;
 
     // Search filter
@@ -157,7 +152,7 @@ export default function TeamsList({ clubId }: TeamsListProps) {
     });
 
     setFilteredTeams(filtered);
-  };
+  }, [teams, searchQuery, selectedCategory, selectedSeason]);
 
   const clearSearch = () => setSearchQuery("");
 

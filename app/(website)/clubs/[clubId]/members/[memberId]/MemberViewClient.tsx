@@ -74,55 +74,54 @@ export default function MemberViewClient({
   });
 
   useEffect(() => {
-    fetchData();
-  }, [clubId, memberId]);
+    const fetchData = async () => {
+      try {
+        // Fetch member
+        const memberRes = await fetch(`/api/clubs/${clubId}/members/${memberId}`);
+        if (!memberRes.ok) throw new Error("Failed to fetch member");
+        const memberData = await memberRes.json();
+        setMember(memberData);
 
-  const fetchData = async () => {
-    try {
-      // Fetch member
-      const memberRes = await fetch(`/api/clubs/${clubId}/members/${memberId}`);
-      if (!memberRes.ok) throw new Error("Failed to fetch member");
-      const memberData = await memberRes.json();
-      setMember(memberData);
-
-      // Fetch config items
-      const configRes = await fetch(`/api/clubs/${clubId}/config`);
-      if (configRes.ok) {
-        const configData = await configRes.json();
-        setConfigItems(configData);
-      }
-
-      // Fetch related members if family relationships exist
-      if (
-        memberData.familyRelationships &&
-        memberData.familyRelationships.length > 0
-      ) {
-        const relatedIds = memberData.familyRelationships.map(
-          (r: any) => r.relatedMemberId,
-        );
-        const relatedData: Record<string, any> = {};
-
-        for (const relatedId of relatedIds) {
-          try {
-            const res = await fetch(
-              `/api/clubs/${clubId}/members/${relatedId}`,
-            );
-            if (res.ok) {
-              relatedData[relatedId] = await res.json();
-            }
-          } catch (err) {
-            console.error(`Failed to fetch related member ${relatedId}:`, err);
-          }
+        // Fetch config items
+        const configRes = await fetch(`/api/clubs/${clubId}/config`);
+        if (configRes.ok) {
+          const configData = await configRes.json();
+          setConfigItems(configData);
         }
 
-        setRelatedMembers(relatedData);
+        // Fetch related members if family relationships exist
+        if (
+          memberData.familyRelationships &&
+          memberData.familyRelationships.length > 0
+        ) {
+          const relatedIds = memberData.familyRelationships.map(
+            (r: any) => r.relatedMemberId,
+          );
+          const relatedData: Record<string, any> = {};
+
+          for (const relatedId of relatedIds) {
+            try {
+              const res = await fetch(
+                `/api/clubs/${clubId}/members/${relatedId}`,
+              );
+              if (res.ok) {
+                relatedData[relatedId] = await res.json();
+              }
+            } catch (err) {
+              console.error(`Failed to fetch related member ${relatedId}:`, err);
+            }
+          }
+
+          setRelatedMembers(relatedData);
+        }
+      } catch (err) {
+        setError(getErrorMessage(err));
+      } finally {
+        setIsLoading(false);
       }
-    } catch (err) {
-      setError(getErrorMessage(err));
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    };
+    void fetchData();
+  }, [clubId, memberId]);
 
   const handleToggleStatus = async () => {
     if (!member) return;

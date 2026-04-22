@@ -46,37 +46,36 @@ export default function RoleSelectionStep({
   // Calculate fees when roles or age category changes
   useEffect(() => {
     if (selectedRoles.length > 0 && ageCategory) {
-      calculateFees();
+      const calculateFees = async () => {
+        setIsCalculating(true);
+
+        try {
+          const res = await fetch("/api/registration/calculate-fees", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              clubId,
+              roleIds: selectedRoles,
+              ageCategory,
+              seasonYear: new Date().getFullYear().toString(),
+            }),
+          });
+
+          if (!res.ok) throw new Error("Failed to calculate fees");
+
+          const data = await res.json();
+          setFees(data);
+        } catch (error) {
+          console.error("Error calculating fees:", error);
+        } finally {
+          setIsCalculating(false);
+        }
+      };
+      void calculateFees();
     } else {
       setFees(null);
     }
-  }, [selectedRoles, ageCategory]);
-
-  const calculateFees = async () => {
-    setIsCalculating(true);
-
-    try {
-      const res = await fetch("/api/registration/calculate-fees", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          clubId,
-          roleIds: selectedRoles,
-          ageCategory,
-          seasonYear: new Date().getFullYear().toString(),
-        }),
-      });
-
-      if (!res.ok) throw new Error("Failed to calculate fees");
-
-      const data = await res.json();
-      setFees(data);
-    } catch (error) {
-      console.error("Error calculating fees:", error);
-    } finally {
-      setIsCalculating(false);
-    }
-  };
+  }, [selectedRoles, ageCategory, clubId]);
 
   const toggleRole = (roleId: string) => {
     setSelectedRoles((prev) =>

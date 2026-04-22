@@ -50,101 +50,100 @@ export default function EditMemberPage({
 
   useEffect(() => {
     if (!memberId) return;
-    fetchMember();
-  }, [memberId]);
+    const fetchMember = async () => {
+      try {
+        const res = await fetch(`/api/admin/members/${memberId}`);
+        const data = await res.json();
 
-  const fetchMember = async () => {
-    try {
-      const res = await fetch(`/api/admin/members/${memberId}`);
-      const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Failed to load member");
 
-      if (!res.ok) throw new Error(data.error || "Failed to load member");
-
-      // Normalize data structure
-      const member = data.member;
-      const normalized = {
-        ...member,
-        personalInfo: {
-          salutation: member.personalInfo?.salutation || "",
-          firstName: member.personalInfo?.firstName || "",
-          middleName: member.personalInfo?.middleName || "",
-          lastName: member.personalInfo?.lastName || "",
-          displayName: member.personalInfo?.displayName || "",
-          dateOfBirth: member.personalInfo?.dateOfBirth || "",
-          gender: member.personalInfo?.gender || "",
-          photoUrl: member.personalInfo?.photoUrl || "",
-          relatedMembers: member.personalInfo?.relatedMembers || [],
-        },
-        contact: {
-          email: member.contact?.email || "",
-          phone: member.contact?.phone || "",
-          mobile: member.contact?.mobile || "",
-          emergencyContact: {
-            name: member.contact?.emergencyContact?.name || "",
-            relationship: member.contact?.emergencyContact?.relationship || "",
-            phone: member.contact?.emergencyContact?.phone || "",
-            email: member.contact?.emergencyContact?.email || "",
+        // Normalize data structure
+        const member = data.member;
+        const normalized = {
+          ...member,
+          personalInfo: {
+            salutation: member.personalInfo?.salutation || "",
+            firstName: member.personalInfo?.firstName || "",
+            middleName: member.personalInfo?.middleName || "",
+            lastName: member.personalInfo?.lastName || "",
+            displayName: member.personalInfo?.displayName || "",
+            dateOfBirth: member.personalInfo?.dateOfBirth || "",
+            gender: member.personalInfo?.gender || "",
+            photoUrl: member.personalInfo?.photoUrl || "",
+            relatedMembers: member.personalInfo?.relatedMembers || [],
           },
-        },
-        address: {
-          street: member.address?.street || "",
-          suburb: member.address?.suburb || "",
-          state: member.address?.state || "",
-          postcode: member.address?.postcode || "",
-          country: member.address?.country || "Australia",
-        },
-        membership: {
-          joinDate: member.membership?.joinDate || "",
-          membershipTypes: member.membership?.membershipTypes || [],
-          status: member.membership?.status || "Active",
-          expiryDate: member.membership?.expiryDate || "",
-          renewalDate: member.membership?.renewalDate || "",
-        },
-        medical: {
-          conditions: member.medical?.conditions || "",
-          medications: member.medical?.medications || "",
-          allergies: member.medical?.allergies || "",
-          doctorName: member.medical?.doctorName || "",
-          doctorPhone: member.medical?.doctorPhone || "",
-          medicare: {
-            number: member.medical?.medicare?.number || "",
-            referenceNumber: member.medical?.medicare?.referenceNumber || "",
-            expiryDate: member.medical?.medicare?.expiryDate || "",
-            cardColor: member.medical?.medicare?.cardColor || "",
+          contact: {
+            email: member.contact?.email || "",
+            phone: member.contact?.phone || "",
+            mobile: member.contact?.mobile || "",
+            emergencyContact: {
+              name: member.contact?.emergencyContact?.name || "",
+              relationship: member.contact?.emergencyContact?.relationship || "",
+              phone: member.contact?.emergencyContact?.phone || "",
+              email: member.contact?.emergencyContact?.email || "",
+            },
           },
-          privateHealth: {
-            hasInsurance: member.medical?.privateHealth?.hasInsurance || false,
-            provider: member.medical?.privateHealth?.provider || "",
-            membershipNumber:
-              member.medical?.privateHealth?.membershipNumber || "",
-            policyType: member.medical?.privateHealth?.policyType || "",
-            coverLevel: member.medical?.privateHealth?.coverLevel || "",
-            expiryDate: member.medical?.privateHealth?.expiryDate || "",
-            ambulanceCover:
-              member.medical?.privateHealth?.ambulanceCover || false,
-            emergencyNumber:
-              member.medical?.privateHealth?.emergencyNumber || "",
-            notes: member.medical?.privateHealth?.notes || "",
+          address: {
+            street: member.address?.street || "",
+            suburb: member.address?.suburb || "",
+            state: member.address?.state || "",
+            postcode: member.address?.postcode || "",
+            country: member.address?.country || "Australia",
           },
-          additionalNotes: member.medical?.additionalNotes || "",
-        },
-        roles: member.roles || [],
-        teams: member.teams || [],
-        clubId: member.clubId || "",
-        associationId: member.associationId || "",
-        notes: member.notes || "",
-      };
+          membership: {
+            joinDate: member.membership?.joinDate || "",
+            membershipTypes: member.membership?.membershipTypes || [],
+            status: member.membership?.status || "Active",
+            expiryDate: member.membership?.expiryDate || "",
+            renewalDate: member.membership?.renewalDate || "",
+          },
+          medical: {
+            conditions: member.medical?.conditions || "",
+            medications: member.medical?.medications || "",
+            allergies: member.medical?.allergies || "",
+            doctorName: member.medical?.doctorName || "",
+            doctorPhone: member.medical?.doctorPhone || "",
+            medicare: {
+              number: member.medical?.medicare?.number || "",
+              referenceNumber: member.medical?.medicare?.referenceNumber || "",
+              expiryDate: member.medical?.medicare?.expiryDate || "",
+              cardColor: member.medical?.medicare?.cardColor || "",
+            },
+            privateHealth: {
+              hasInsurance: member.medical?.privateHealth?.hasInsurance || false,
+              provider: member.medical?.privateHealth?.provider || "",
+              membershipNumber:
+                member.medical?.privateHealth?.membershipNumber || "",
+              policyType: member.medical?.privateHealth?.policyType || "",
+              coverLevel: member.medical?.privateHealth?.coverLevel || "",
+              expiryDate: member.medical?.privateHealth?.expiryDate || "",
+              ambulanceCover:
+                member.medical?.privateHealth?.ambulanceCover || false,
+              emergencyNumber:
+                member.medical?.privateHealth?.emergencyNumber || "",
+              notes: member.medical?.privateHealth?.notes || "",
+            },
+            additionalNotes: member.medical?.additionalNotes || "",
+          },
+          roles: member.roles || [],
+          teams: member.teams || [],
+          clubId: member.clubId || "",
+          associationId: member.associationId || "",
+          notes: member.notes || "",
+        };
 
-      setOriginalData(JSON.parse(JSON.stringify(normalized)));
-      setFormData(normalized);
-      setRoles(normalized.roles);
-    } catch (error) {
-      toast.error(getErrorMessage(error));
-      router.push("/admin/members");
-    } finally {
-      setIsLoading(false);
-    }
-  };
+        setOriginalData(JSON.parse(JSON.stringify(normalized)));
+        setFormData(normalized);
+        setRoles(normalized.roles);
+      } catch (error) {
+        toast.error(getErrorMessage(error));
+        router.push("/admin/members");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    void fetchMember();
+  }, [memberId, router]);
 
   // Fetch change history
   const fetchChangeHistory = async () => {

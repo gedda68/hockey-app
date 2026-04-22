@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Roster } from "../types";
 
 export function useRosters(selectedYear: string) {
@@ -6,11 +6,16 @@ export function useRosters(selectedYear: string) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
+  // Track whether we already have data so fetchRosters can decide which
+  // loading state to show without adding rosters.length to useCallback deps
+  // (which would cause an infinite fetch loop via the useEffect below).
+  const hasDataRef = useRef(false);
+
   const fetchRosters = useCallback(async () => {
     try {
       // Logic: If we already have data, show the subtle 'refreshing' spinner
       // If we have no data (changing years), show the full-page 'loading' state
-      if (rosters.length === 0) setLoading(true);
+      if (!hasDataRef.current) setLoading(true);
       setRefreshing(true);
 
       console.log(`=== FETCHING ROSTERS FOR SEASON: ${selectedYear} ===`);
@@ -37,6 +42,7 @@ export function useRosters(selectedYear: string) {
         `✅ Fetched: ${rosterData.length} rosters for ${selectedYear}`
       );
 
+      hasDataRef.current = true;
       setRosters(rosterData);
     } catch (error) {
       console.error("❌ Error:", error);
@@ -47,9 +53,16 @@ export function useRosters(selectedYear: string) {
     }
   }, [selectedYear]); // Re-memoize function when year changes
 
-  // Trigger fetch on initial load
+  // Reset the "has data" flag whenever the year changes so the full loading
+  // spinner is shown again (not just the subtle refreshing indicator).
   useEffect(() => {
-    fetchRosters();
+    hasDataRef.current = false;
+  }, [selectedYear]);
+
+  // Trigger fetch on initial load and whenever fetchRosters is re-memoized
+  // (i.e. when selectedYear changes).
+  useEffect(() => {
+    void fetchRosters();
   }, [fetchRosters]);
 
   return {

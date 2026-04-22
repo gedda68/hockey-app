@@ -48,22 +48,21 @@ export default function RegistrationWorkflow({
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    fetchWorkflowState();
+    const fetchWorkflowState = async () => {
+      try {
+        const res = await fetch(`/api/members/${memberId}/registration-status`);
+        if (!res.ok) throw new Error("Failed to fetch workflow state");
+
+        const data = await res.json();
+        setWorkflow(data);
+      } catch (error) {
+        console.error("Error fetching workflow:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    void fetchWorkflowState();
   }, [memberId]);
-
-  const fetchWorkflowState = async () => {
-    try {
-      const res = await fetch(`/api/members/${memberId}/registration-status`);
-      if (!res.ok) throw new Error("Failed to fetch workflow state");
-
-      const data = await res.json();
-      setWorkflow(data);
-    } catch (error) {
-      console.error("Error fetching workflow:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   if (isLoading) {
     return (

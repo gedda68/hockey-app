@@ -3,7 +3,7 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import {
   DndContext,
   DragOverlay,
@@ -100,38 +100,7 @@ export default function ClubTeamsPage() {
     updatedRoster: TeamRoster;
   } | null>(null);
 
-  useEffect(() => {
-    fetchClubs();
-  }, []);
-
-  useEffect(() => {
-    fetchRosters();
-  }, [season, selectedClubId]);
-
-  useEffect(() => {
-    if (rosters.length > 0 && !selectedDivision) {
-      const sortedKeys = Object.keys(divisionGroups).sort((a, b) => {
-        const divA = a.split("-")[0];
-        const divB = b.split("-")[0];
-        return getDivisionSortOrder(divA) - getDivisionSortOrder(divB);
-      });
-      if (sortedKeys.length > 0) {
-        setSelectedDivision(sortedKeys[0]);
-      }
-    }
-  }, [rosters, selectedDivision]);
-
-  const fetchClubs = async () => {
-    try {
-      const response = await fetch("/api/admin/clubs");
-      const data = await response.json();
-      setClubs(data.clubs || []);
-    } catch (error) {
-      console.error("Error fetching clubs:", error);
-    }
-  };
-
-  const fetchRosters = async () => {
+  const fetchRosters = useCallback(async () => {
     setLoading(true);
     try {
       const url = `/api/admin/teams/rosters?season=${season}${selectedClubId !== "all" ? `&clubId=${selectedClubId}` : ""}`;
@@ -149,7 +118,24 @@ export default function ClubTeamsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [season, selectedClubId]);
+
+  useEffect(() => {
+    const fetchClubs = async () => {
+      try {
+        const response = await fetch("/api/admin/clubs");
+        const data = await response.json();
+        setClubs(data.clubs || []);
+      } catch (error) {
+        console.error("Error fetching clubs:", error);
+      }
+    };
+    void fetchClubs();
+  }, []);
+
+  useEffect(() => {
+    void fetchRosters();
+  }, [fetchRosters]);
 
   const handleAddRoster = async (data: {
     clubId: string;
@@ -440,18 +426,37 @@ export default function ClubTeamsPage() {
     await persistRosterMove(fromRosterId, updatedRoster, player, fromData, toData, fromTeamName, "unavailable");
   }
 
-  // Group rosters by division and SORT
-  const divisionGroups = rosters.reduce(
-    (acc, roster) => {
-      const key = `${roster.division}-${roster.category}-${roster.gender}`;
-      if (!acc[key]) {
-        acc[key] = [];
-      }
-      acc[key].push(roster);
-      return acc;
-    },
-    {} as Record<string, TeamRoster[]>,
+  // Group rosters by division and SORT — memoised so the object reference is
+  // stable between renders, allowing it to be safely used in a useEffect dep array.
+  const divisionGroups = useMemo(
+    () =>
+      rosters.reduce(
+        (acc, roster) => {
+          const key = `${roster.division}-${roster.category}-${roster.gender}`;
+          if (!acc[key]) acc[key] = [];
+          acc[key].push(roster);
+          return acc;
+        },
+        {} as Record<string, TeamRoster[]>,
+      ),
+    [rosters],
   );
+
+  // Auto-select the first division once rosters (and thus divisionGroups) load.
+  // divisionGroups is memoised above so this effect only fires when it changes.
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- placed after useMemo declaration
+  useEffect(() => {
+    if (rosters.length > 0 && !selectedDivision) {
+      const sortedKeys = Object.keys(divisionGroups).sort((a, b) => {
+        const divA = a.split("-")[0];
+        const divB = b.split("-")[0];
+        return getDivisionSortOrder(divA) - getDivisionSortOrder(divB);
+      });
+      if (sortedKeys.length > 0) {
+        setSelectedDivision(sortedKeys[0]);
+      }
+    }
+  }, [rosters.length, selectedDivision, divisionGroups]);
 
   // Sort division keys
   const sortedDivisionKeys = Object.keys(divisionGroups).sort((a, b) => {

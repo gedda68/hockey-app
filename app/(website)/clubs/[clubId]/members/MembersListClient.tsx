@@ -216,7 +216,41 @@ export default function MembersList({ clubId }: MembersListProps) {
   const currentMembers = sortedMembers.slice(startIndex, endIndex);
 
   useEffect(() => {
-    fetchData();
+    const fetchData = async () => {
+      setIsLoading(true);
+      try {
+        // Fetch members
+        const membersRes = await fetch(`/api/clubs/${clubId}/members`);
+        if (!membersRes.ok) throw new Error("Failed to fetch members");
+        const membersData = await membersRes.json();
+
+        setMembers(membersData);
+        setFilteredMembers(membersData);
+
+        // Try to fetch config items (optional - gracefully handle if not available)
+        try {
+          const configRes = await fetch(`/api/admin/config?activeOnly=true`);
+          if (configRes.ok) {
+            const configData = await configRes.json();
+            setConfigItems(configData);
+          } else {
+            console.warn("Config API not available, will display raw values");
+            setConfigItems([]);
+          }
+        } catch (configError) {
+          console.warn(
+            "Config API not available, will display raw values",
+            configError,
+          );
+          setConfigItems([]);
+        }
+      } catch (err) {
+        setError(getErrorMessage(err));
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    void fetchData();
   }, [clubId]);
 
   // Filter members with role search
@@ -258,41 +292,6 @@ export default function MembersList({ clubId }: MembersListProps) {
     setFilteredMembers(filtered);
     setCurrentPage(1);
   }, [searchQuery, members, configItems]);
-
-  const fetchData = async () => {
-    setIsLoading(true);
-    try {
-      // Fetch members
-      const membersRes = await fetch(`/api/clubs/${clubId}/members`);
-      if (!membersRes.ok) throw new Error("Failed to fetch members");
-      const membersData = await membersRes.json();
-
-      setMembers(membersData);
-      setFilteredMembers(membersData);
-
-      // Try to fetch config items (optional - gracefully handle if not available)
-      try {
-        const configRes = await fetch(`/api/admin/config?activeOnly=true`);
-        if (configRes.ok) {
-          const configData = await configRes.json();
-          setConfigItems(configData);
-        } else {
-          console.warn("Config API not available, will display raw values");
-          setConfigItems([]);
-        }
-      } catch (configError) {
-        console.warn(
-          "Config API not available, will display raw values",
-          configError,
-        );
-        setConfigItems([]);
-      }
-    } catch (err) {
-      setError(getErrorMessage(err));
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   const handleDelete = async (memberId: string) => {
     if (!confirm("Are you sure you want to delete this member?")) {

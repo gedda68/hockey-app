@@ -75,7 +75,7 @@ export default function AdminBrandingBar() {
         })
         .catch(() => {});
     }
-  }, [user?.clubId, user?.clubSlug, user?.associationId, user?.role]);
+  }, [user]);
 
   // Super-admins and users with no branding data: render nothing
   if (!branding) return null;

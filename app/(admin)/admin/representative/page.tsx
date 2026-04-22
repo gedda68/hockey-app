@@ -141,10 +141,11 @@ export default function AdminPanel() {
     }
   };
 
-  // Trigger fetch whenever the year is changed via the ActionBar
+  // fetchRosters is memoized with [selectedYear] in useRosters, so this effect
+  // re-runs automatically when the year changes (new function reference).
   useEffect(() => {
-    fetchRosters();
-  }, [selectedYear]);
+    void fetchRosters();
+  }, [fetchRosters]);
 
   if (loading && rosters.length === 0) {
     return (

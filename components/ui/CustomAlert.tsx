@@ -4,7 +4,7 @@
 "use client";
 
 import { X, AlertCircle, CheckCircle, AlertTriangle, Info } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 
 interface CustomAlertProps {
   type: "success" | "error" | "warning" | "info";
@@ -23,16 +23,16 @@ export default function CustomAlert({
 }: CustomAlertProps) {
   const [isVisible, setIsVisible] = useState(true);
 
+  const handleClose = useCallback(() => {
+    setIsVisible(false);
+    setTimeout(onClose, 300); // Wait for animation
+  }, [onClose]);
+
   useEffect(() => {
     if (!autoClose) return;
     const timer = setTimeout(handleClose, autoClose);
     return () => clearTimeout(timer);
-  }, [autoClose]);
-
-  const handleClose = () => {
-    setIsVisible(false);
-    setTimeout(onClose, 300); // Wait for animation
-  };
+  }, [autoClose, handleClose]);
 
   const styles = {
     success: {

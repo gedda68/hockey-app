@@ -49,48 +49,48 @@ export default function MemberHistoryPage({ params }: MemberHistoryPageProps) {
   const [filter, setFilter] = useState<string>("all");
 
   useEffect(() => {
-    fetchMember();
-    fetchAuditLogs();
-  }, [clubId, memberId, filter]);
+    const fetchMember = async () => {
+      try {
+        const res = await fetch(`/api/clubs/${clubId}/members/${memberId}`);
+        if (res.ok) {
+          const data = await res.json();
+          setMember(data);
+        }
+      } catch (err) {
+        console.error("Error fetching member:", err);
+      }
+    };
 
-  const fetchMember = async () => {
-    try {
-      const res = await fetch(`/api/clubs/${clubId}/members/${memberId}`);
-      if (res.ok) {
+    const fetchAuditLogs = async () => {
+      setIsLoading(true);
+      try {
+        const url =
+          filter === "all"
+            ? `/api/clubs/${clubId}/members/${memberId}/audit`
+            : `/api/clubs/${clubId}/members/${memberId}/audit?action=${filter}`;
+
+        const res = await fetch(url);
+
+        if (!res.ok) {
+          throw new Error("Failed to fetch audit logs");
+        }
+
         const data = await res.json();
-        setMember(data);
-      }
-    } catch (err) {
-      console.error("Error fetching member:", err);
-    }
-  };
 
-  const fetchAuditLogs = async () => {
-    setIsLoading(true);
-    try {
-      const url =
-        filter === "all"
-          ? `/api/clubs/${clubId}/members/${memberId}/audit`
-          : `/api/clubs/${clubId}/members/${memberId}/audit?action=${filter}`;
-
-      const res = await fetch(url);
-
-      if (!res.ok) {
-        throw new Error("Failed to fetch audit logs");
-      }
-
-      const data = await res.json();
-
-      // API returns { logs: [...], total: X }
-      setLogs(data.logs || []);
-    } catch (err) {
-      console.error("Error fetching audit logs:", err);
-      setError(getErrorMessage(err));
-      setLogs([]); // Set empty array on error
-    } finally {
+        // API returns { logs: [...], total: X }
+        setLogs(data.logs || []);
+      } catch (err) {
+        console.error("Error fetching audit logs:", err);
+        setError(getErrorMessage(err));
+        setLogs([]); // Set empty array on error
+      } finally {
       setIsLoading(false);
     }
   };
+
+    void fetchMember();
+    void fetchAuditLogs();
+  }, [clubId, memberId, filter]);
 
   const formatTimestamp = (timestamp: string) => {
     return new Date(timestamp).toLocaleString("en-AU", {

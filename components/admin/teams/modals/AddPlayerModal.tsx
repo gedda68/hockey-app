@@ -63,8 +63,51 @@ export default function AddPlayerModal({
   const [playerPosition, setPlayerPosition] = useState("");
 
   useEffect(() => {
-    fetchEligiblePlayers();
-  }, []);
+    const fetchEligiblePlayers = async () => {
+      setLoading(true);
+      try {
+        const url =
+          `/api/admin/teams/players/eligible?` +
+          new URLSearchParams({
+            clubId: roster.clubId,
+            division: roster.division,
+            category: roster.category,
+            gender: roster.gender,
+            season: roster.season || "2026",
+          });
+
+        const response = await fetch(url);
+        const data = await response.json();
+
+        const rosterMemberIds = new Set<string>();
+        const collect = (p: { id?: string; playerId?: string; memberId?: string }) => {
+          if (p.id) rosterMemberIds.add(String(p.id));
+          if (p.playerId) rosterMemberIds.add(String(p.playerId));
+          if (p.memberId) rosterMemberIds.add(String(p.memberId));
+        };
+        for (const t of roster.teams) for (const p of t.players) collect(p);
+        for (const p of roster.shadowPlayers) collect(p);
+        for (const p of roster.withdrawn) collect(p);
+
+        const eligible = (data.players || []).filter((p: Player) => {
+          const mid = p.memberId || p.playerId;
+          return mid && !rosterMemberIds.has(mid) && !rosterMemberIds.has(p.id);
+        });
+
+        setPlayers(eligible);
+        setFilteredPlayers(eligible);
+      } catch (error) {
+        console.error("Error fetching eligible players:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    void fetchEligiblePlayers();
+  // roster.teams / .shadowPlayers / .withdrawn are used for exclusion filtering
+  // but are arrays — using them directly as deps would trigger on every render.
+  // The modal opens once per roster; these values are stable for its lifetime.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [roster.clubId, roster.division, roster.category, roster.gender, roster.season]);
 
   useEffect(() => {
     if (searchTerm) {

@@ -64,7 +64,7 @@ export default function ClubSection({
   // Get club object safely - ALWAYS return an object
   const club = formData.club || {};
 
-  // ✨ CRITICAL FIX: Initialize club object on mount
+  // ✨ CRITICAL FIX: Initialize club object on mount.
   useEffect(() => {
     if (!initialized) {
       console.log("🎬 Initializing club object...");
@@ -87,9 +87,11 @@ export default function ClubSection({
       onChange("club", initialClub);
       setInitialized(true);
     }
+  // `onChange` is intentionally omitted — stable prop callback; guard prevents loops.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialized]);
 
-  // Fetch next registration number and SET IT
+  // Fetch next registration number and SET IT.
   useEffect(() => {
     const fetchAndSetRegistrationNumber = async () => {
       try {
@@ -123,9 +125,12 @@ export default function ClubSection({
     if (initialized && !club.registrationNumber) {
       fetchAndSetRegistrationNumber();
     }
+  // `club` and `onChange` are intentionally omitted: club spreads are stable at
+  // the time this runs (after init), and adding them would cause an update loop.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialized]);
 
-  // Fetch member number and SET IT
+  // Fetch member number and SET IT.
   useEffect(() => {
     const fetchAndSetMemberNumber = async () => {
       if (!formData.linkedMemberId) {
@@ -184,6 +189,9 @@ export default function ClubSection({
     if (initialized && formData.linkedMemberId) {
       fetchAndSetMemberNumber();
     }
+  // `club` and `onChange` are intentionally omitted — adding them creates a loop
+  // via formData.club re-derivation on each onChange call.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialized, formData.linkedMemberId]);
 
   // Fetch clubs

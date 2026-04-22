@@ -100,7 +100,22 @@ export default function AddStaffModal({
   const [showPhoneOnPublicSite, setShowPhoneOnPublicSite] = useState(false);
 
   useEffect(() => {
-    fetchClubMembers();
+    const fetchClubMembers = async () => {
+      setLoading(true);
+      try {
+        const response = await fetch(`/api/admin/clubs/${id}/members`);
+        const data = await response.json();
+
+        console.log("📋 Fetched members:", data);
+
+        setMembers(data.members || []);
+      } catch (error) {
+        console.error("Error fetching members:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    void fetchClubMembers();
   }, [id]);
 
   useEffect(() => {

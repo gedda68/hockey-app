@@ -2,7 +2,7 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { getErrorMessage } from "@/lib/utils/errors";
 import { useRouter } from "next/navigation";
 import AddMemberForm from "../../new/AddMemberForm";
@@ -21,56 +21,56 @@ export default function EditMemberClient({
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetchMember();
-  }, [clubId, memberId]);
-
-  const fetchMember = async () => {
+  const fetchMember = useCallback(async () => {
     setIsLoading(true);
     setError(null);
 
-    try {
-      console.log(`🔍 Fetching member: ${memberId} from club: ${clubId}`);
-      const url = `/api/clubs/${clubId}/members/${memberId}`;
-      console.log(`📡 URL: ${url}`);
+      try {
+        console.log(`🔍 Fetching member: ${memberId} from club: ${clubId}`);
+        const url = `/api/clubs/${clubId}/members/${memberId}`;
+        console.log(`📡 URL: ${url}`);
 
-      const res = await fetch(url);
+        const res = await fetch(url);
 
-      console.log(`📊 Response status: ${res.status} ${res.statusText}`);
+        console.log(`📊 Response status: ${res.status} ${res.statusText}`);
 
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        console.error(`❌ Error response:`, errorData);
+        if (!res.ok) {
+          const errorData = await res.json().catch(() => ({}));
+          console.error(`❌ Error response:`, errorData);
 
-        if (res.status === 404) {
+          if (res.status === 404) {
+            throw new Error(
+              errorData.hint || errorData.error || "Member not found",
+            );
+          }
+          if (res.status === 403) {
+            throw new Error(
+              "Access denied. You don't have permission to view this member.",
+            );
+          }
           throw new Error(
-            errorData.hint || errorData.error || "Member not found",
+            errorData.error || `Failed to load member (${res.status})`,
           );
         }
-        if (res.status === 403) {
-          throw new Error(
-            "Access denied. You don't have permission to view this member.",
-          );
-        }
-        throw new Error(
-          errorData.error || `Failed to load member (${res.status})`,
+
+        const data = await res.json();
+        console.log(
+          `✅ Member loaded:`,
+          data.personalInfo?.firstName,
+          data.personalInfo?.lastName,
         );
+        setMember(data);
+      } catch (err) {
+        console.error("❌ Error fetching member:", err);
+        setError(getErrorMessage(err));
+      } finally {
+        setIsLoading(false);
       }
+  }, [clubId, memberId]);
 
-      const data = await res.json();
-      console.log(
-        `✅ Member loaded:`,
-        data.personalInfo?.firstName,
-        data.personalInfo?.lastName,
-      );
-      setMember(data);
-    } catch (err) {
-      console.error("❌ Error fetching member:", err);
-      setError(getErrorMessage(err));
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  useEffect(() => {
+    void fetchMember();
+  }, [fetchMember]);
 
   const handleSuccess = (updatedMember: any) => {
     console.log("✅ Member updated successfully:", updatedMember.memberId);

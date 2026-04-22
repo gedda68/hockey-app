@@ -122,33 +122,32 @@ export default function RosterManager({
   );
 
   useEffect(() => {
-    fetchData();
-  }, []);
+    const fetchData = async () => {
+      setIsLoading(true);
+      try {
+        const [membersRes, rolesRes] = await Promise.all([
+          fetch(`/api/clubs/${clubId}/members`),
+          fetch(`/api/admin/club-roles?activeOnly=true`),
+        ]);
 
-  const fetchData = async () => {
-    setIsLoading(true);
-    try {
-      const [membersRes, rolesRes] = await Promise.all([
-        fetch(`/api/clubs/${clubId}/members`),
-        fetch(`/api/admin/club-roles?activeOnly=true`),
-      ]);
+        if (!membersRes.ok) throw new Error("Failed to fetch members");
+        if (!rolesRes.ok) throw new Error("Failed to fetch roles");
 
-      if (!membersRes.ok) throw new Error("Failed to fetch members");
-      if (!rolesRes.ok) throw new Error("Failed to fetch roles");
+        const [membersData, rolesData] = await Promise.all([
+          membersRes.json(),
+          rolesRes.json(),
+        ]);
 
-      const [membersData, rolesData] = await Promise.all([
-        membersRes.json(),
-        rolesRes.json(),
-      ]);
-
-      setAllMembers(membersData);
-      setRoles(rolesData);
-    } catch (err) {
-      setError(getErrorMessage(err));
-    } finally {
-      setIsLoading(false);
-    }
-  };
+        setAllMembers(membersData);
+        setRoles(rolesData);
+      } catch (err) {
+        setError(getErrorMessage(err));
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    void fetchData();
+  }, [clubId]);
 
   // Filter eligible members (not already in roster)
   const rosterMemberIds = team.roster.map((r) => r.memberId);

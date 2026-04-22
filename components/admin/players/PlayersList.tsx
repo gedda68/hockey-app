@@ -3,7 +3,7 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth/AuthContext";
 import {
@@ -107,11 +107,7 @@ export default function PlayersList() {
     opportunity: OpenOpportunity;
   } | null>(null);
 
-  useEffect(() => {
-    fetchData();
-  }, [isClubScoped, user?.clubId]);
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       setLoading(true);
 
@@ -141,7 +137,11 @@ export default function PlayersList() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [isClubScoped, user?.clubId]);
+
+  useEffect(() => {
+    void fetchData();
+  }, [fetchData]);
 
   const getStatusInfo = (status?: string) => {
     const statusMap = {

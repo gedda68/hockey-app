@@ -37,30 +37,29 @@ export default function AssociationColorsPage({
   });
 
   useEffect(() => {
-    fetchAssociation();
-  }, [associationId]);
+    const fetchAssociation = async () => {
+      try {
+        const res = await fetch(`/api/admin/associations/${associationId}`);
+        if (!res.ok) throw new Error("Failed to fetch");
 
-  const fetchAssociation = async () => {
-    try {
-      const res = await fetch(`/api/admin/associations/${associationId}`);
-      if (!res.ok) throw new Error("Failed to fetch");
+        const data = await res.json();
+        setAssociation(data);
 
-      const data = await res.json();
-      setAssociation(data);
-
-      if (data.branding) {
-        setColors({
-          primaryColor: data.branding.primaryColor || "#06054e",
-          secondaryColor: data.branding.secondaryColor || "#FFD700",
-          tertiaryColor: data.branding.tertiaryColor || "#FFFFFF",
-        });
+        if (data.branding) {
+          setColors({
+            primaryColor: data.branding.primaryColor || "#06054e",
+            secondaryColor: data.branding.secondaryColor || "#FFD700",
+            tertiaryColor: data.branding.tertiaryColor || "#FFFFFF",
+          });
+        }
+      } catch (err) {
+        setError("Failed to load association");
+      } finally {
+        setIsLoading(false);
       }
-    } catch (err) {
-      setError("Failed to load association");
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    };
+    void fetchAssociation();
+  }, [associationId]);
 
   const handleSave = async () => {
     setIsSaving(true);

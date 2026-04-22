@@ -280,7 +280,7 @@ export default function PersonalSection({
     console.log("✅ Auto-fill complete - ALL fields including gender");
   };
 
-  // ✨ UPDATED - Check for existing players AND members (NOW INCLUDES DOB MATCHING)
+  // ✨ UPDATED - Check for existing players AND members (NOW INCLUDES DOB MATCHING).
   useEffect(() => {
     const checkForExisting = async () => {
       const firstName = formData.firstName?.trim() || "";
@@ -539,7 +539,12 @@ export default function PersonalSection({
 
     const timer = setTimeout(checkForExisting, 800);
     return () => clearTimeout(timer);
-  }, [formData.firstName, formData.lastName, formData.dateOfBirth]); // ✨ ADDED - formData.dateOfBirth to dependencies
+  // Debounced search — triggered only by name/DOB changes. Other values used inside
+  // (autoFillFromMember, getGenderName, existingPlayers.length, linkedMemberId) are
+  // intentionally omitted: functions need useCallback refactoring (future work);
+  // state deps would re-run on every result causing infinite loops.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formData.firstName, formData.lastName, formData.dateOfBirth]);
 
   // ✨ UPDATED - Link to selected member (now shows which fields were filled)
   const handleLinkToMember = async (member: ExistingMember) => {
