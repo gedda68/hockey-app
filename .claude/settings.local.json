@@ -31,7 +31,12 @@
       "Bash(find /c/dev/nextjs-projects/hockey-app -type f \\\\\\( -name \"*.tsx\" -o -name \"*.ts\" \\\\\\) ! -path \"*/.claude/*\" -exec grep -l \"\\\\.content\\\\|\\\\.body\\\\|\\\\.html\" {} \\\\;)",
       "Bash(grep -E \"\\\\.\\(tsx|ts\\)$\")",
       "Bash(find /c/dev/nextjs-projects/hockey-app/app/api -type f -name \"*.ts\" -exec grep -l \"content\\\\|body\\\\|html\\\\|richText\\\\|description\\\\|supplement\" {} \\\\;)",
-      "Bash(pnpm add:*)"
+      "Bash(pnpm add:*)",
+      "Bash(ls .github/workflows/)",
+      "Bash(ls -la vitest.setup.ts)",
+      "Bash(dir \"C:\\\\dev\\\\nextjs-projects\\\\hockey-app\\\\app\\\\api\\\\admin\\\\associations\" /b)",
+      "Bash(pnpm test:*)",
+      "Bash(pnpm exec:*)"
     ]
   }
 }

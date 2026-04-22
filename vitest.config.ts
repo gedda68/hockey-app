@@ -7,10 +7,12 @@ export default defineConfig({
     globals: true,
     setupFiles: ["./vitest.setup.ts"],
     // Playwright specs live under `e2e/` with `*.spec.ts`; Vitest must not load them.
+    // Also exclude git worktrees created by Claude Code under `.claude/worktrees/`.
     exclude: [
       "**/node_modules/**",
       "**/dist/**",
       "e2e/**",
+      ".claude/**",
       "**/.{idea,git,cache,output,temp}/**",
     ],
     coverage: {
