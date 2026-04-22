@@ -32,7 +32,9 @@ export function makeRequest(path: string, options: MakeRequestOptions = {}): Nex
     url += `?${sp.toString()}`;
   }
 
-  const init: RequestInit = {
+  // NextRequest accepts a narrower RequestInit than the DOM type — `signal`
+  // cannot be null, only undefined.  Build the object without null-able fields.
+  const init: { method: string; headers: Record<string, string>; body?: string } = {
     method,
     headers: {
       "content-type": "application/json",

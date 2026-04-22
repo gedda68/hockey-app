@@ -20,7 +20,9 @@ import { v4 as uuidv4 } from "uuid";
 import clientPromise from "@/lib/mongodb";
 import { getSession } from "@/lib/auth/session";
 import { ROLE_DEFINITIONS } from "@/lib/types/roles";
+import { resolveFeeWithFallback, buildFeeDescription } from "@/lib/fees/feeSchedule";
 import type { SubmitRoleRequestBody, RoleRequest } from "@/types/roleRequests";
+import type { FeeScheduleEntry } from "@/types/feeSchedule";
 
 // ── POST — submit a request ───────────────────────────────────────────────────
 
@@ -98,21 +100,72 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // ── Resolve scope name for display ────────────────────────────────────────
+    // ── Resolve scope name + fee schedule ────────────────────────────────────
+    //
+    // For club-scoped roles we load both the club document and its parent
+    // association so the fallback chain works:
+    //   club feeSchedule → parent association feeSchedule → undefined
+    //
+    // For association-scoped roles we load only the association document.
     let scopeName: string | undefined;
+    let resolvedFeeAmountCents: number | undefined;
+    let resolvedFeeDescription: string | undefined;
+
+    const effectiveSeasonYear = seasonYear ?? String(new Date().getFullYear());
+
     if (scopeId) {
       if (scopeType === "club") {
         const club = await db.collection("clubs").findOne(
           { $or: [{ id: scopeId }, { slug: scopeId }] },
-          { projection: { name: 1 } }
+          { projection: { name: 1, feeSchedule: 1, parentAssociationId: 1 } },
         );
         scopeName = club?.name;
+
+        // Look up parent association schedule for fallback
+        let assocSchedule: FeeScheduleEntry[] | null = null;
+        if (club?.parentAssociationId) {
+          const assoc = await db.collection("associations").findOne(
+            { associationId: club.parentAssociationId },
+            { projection: { feeSchedule: 1 } },
+          );
+          assocSchedule = assoc?.feeSchedule ?? null;
+        }
+
+        const entry = resolveFeeWithFallback(
+          club?.feeSchedule ?? null,
+          assocSchedule,
+          requestedRole,
+          effectiveSeasonYear,
+        );
+        if (entry) {
+          resolvedFeeAmountCents = entry.amountCents;
+          resolvedFeeDescription = buildFeeDescription(
+            entry,
+            roleDef.label,
+            scopeName ?? scopeId,
+          );
+        }
       } else if (scopeType === "association") {
         const assoc = await db.collection("associations").findOne(
           { associationId: scopeId },
-          { projection: { name: 1, fullName: 1 } }
+          { projection: { name: 1, fullName: 1, feeSchedule: 1 } },
         );
         scopeName = assoc?.fullName ?? assoc?.name;
+
+        const entry = resolveFeeWithFallback(
+          assoc?.feeSchedule ?? null,
+          null,
+          requestedRole,
+          effectiveSeasonYear,
+        );
+        if (entry) {
+          resolvedFeeAmountCents = entry.amountCents;
+          resolvedFeeDescription = buildFeeDescription(
+            entry,
+            roleDef.label,
+            scopeName ?? scopeId,
+          );
+        }
       }
     }
 
@@ -129,18 +182,25 @@ export async function POST(request: NextRequest) {
       memberName,
       requestedRole,
       scopeType,
-      ...(scopeId    ? { scopeId }    : {}),
-      ...(scopeName  ? { scopeName }  : {}),
-      ...(seasonYear ? { seasonYear } : {}),
-      ...(notes      ? { notes }      : {}),
-      requestedBy:     session.userId,
-      requestedByName: session.name,
-      requestedAt:     now,
+      ...(scopeId           ? { scopeId }                           : {}),
+      ...(scopeName         ? { scopeName }                         : {}),
+      ...(seasonYear        ? { seasonYear }                        : {}),
+      ...(notes             ? { notes }                             : {}),
+      requestedBy:          session.userId,
+      requestedByName:      session.name,
+      requestedAt:          now,
       requiresFee,
-      feePaid:         false,
+      // P1: store the fee amount resolved from the club/association schedule
+      ...(resolvedFeeAmountCents !== undefined
+        ? { feeAmountCents: resolvedFeeAmountCents }
+        : {}),
+      ...(resolvedFeeDescription
+        ? { feeDescription: resolvedFeeDescription }
+        : {}),
+      feePaid:              false,
       status,
-      createdAt:       now,
-      updatedAt:       now,
+      createdAt:            now,
+      updatedAt:            now,
     };
 
     await db.collection("role_requests").insertOne(roleRequest);

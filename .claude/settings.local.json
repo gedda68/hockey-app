@@ -36,7 +36,8 @@
       "Bash(ls -la vitest.setup.ts)",
       "Bash(dir \"C:\\\\dev\\\\nextjs-projects\\\\hockey-app\\\\app\\\\api\\\\admin\\\\associations\" /b)",
       "Bash(pnpm test:*)",
-      "Bash(pnpm exec:*)"
+      "Bash(pnpm exec:*)",
+      "Bash(grep -r \"feeAmount\\\\|fee_schedule\\\\|amountCents\\\\|registrationFee\" /c/dev/nextjs-projects/hockey-app --include=\"*.ts\" --include=\"*.tsx\" ! -path \"*/node_modules/*\" ! -path \"*/.next/*\" ! -path \"*/.claude/*\")"
     ]
   }
 }

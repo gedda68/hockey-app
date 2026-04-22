@@ -62,6 +62,22 @@ const AssociationSchema = z.object({
 
   positions: z.array(z.any()).default([]),
 
+  /**
+   * P1 — Registration fee schedule.
+   * Each entry maps (role, seasonYear) to an amountCents value consulted by
+   * POST /api/role-requests at submission time.
+   */
+  feeSchedule: z
+    .array(
+      z.object({
+        role:        z.string().min(1),
+        seasonYear:  z.string().regex(/^\d{4}$/, "Must be a 4-digit year"),
+        amountCents: z.number().int().min(0),
+        currency:    z.literal("AUD").default("AUD"),
+      }),
+    )
+    .default([]),
+
   // ✅ FIX: Fees with nullable dates
   fees: z
     .array(

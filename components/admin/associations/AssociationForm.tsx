@@ -26,7 +26,10 @@ import {
   Users,
   Plus,
   Trash2,
+  Receipt,
 } from "lucide-react";
+import FeeScheduleEditor from "@/components/admin/shared/FeeScheduleEditor";
+import type { FeeScheduleEntry } from "@/types/feeSchedule";
 import { ToastContainer, useToast } from "@/components/ui/Toast";
 import { useAdminEditingScope } from "@/components/admin/AdminEditingScopeProvider";
 import {
@@ -86,6 +89,7 @@ interface AssociationInitialData {
     publicHeaderBannerUrl?: string;
   };
   fees?: AssociationFee[];
+  feeSchedule?: FeeScheduleEntry[];
   positions?: AssociationPosition[];
   settings?: {
     requiresApproval?: boolean;
@@ -135,6 +139,12 @@ const SECTIONS = [
     desc: "Membership fees",
   },
   {
+    id: "feeSchedule",
+    label: "Reg. Fees",
+    icon: Receipt,
+    desc: "Registration fee schedule",
+  },
+  {
     id: "positions",
     label: "Positions",
     icon: Users,
@@ -155,6 +165,7 @@ type SectionId =
   | "social"
   | "branding"
   | "fees"
+  | "feeSchedule"
   | "positions"
   | "settings";
 
@@ -210,6 +221,7 @@ const defaultFormData = {
 
   // Fees & Positions
   fees: [] as AssociationFee[],
+  feeSchedule: [] as FeeScheduleEntry[],
   positions: [] as AssociationPosition[],
 
   // Settings
@@ -356,6 +368,9 @@ export default function AssociationForm({
             }))
           : [],
         fees: Array.isArray(initialData.fees) ? initialData.fees : [],
+        feeSchedule: Array.isArray(initialData.feeSchedule)
+          ? initialData.feeSchedule
+          : [],
         positions: Array.isArray(initialData.positions)
           ? initialData.positions
           : [],
@@ -543,6 +558,12 @@ export default function AssociationForm({
           twitter: formData.twitter || undefined,
         },
         fees: cleanedFees,
+        feeSchedule: (formData.feeSchedule || []).map((entry) => ({
+          role:        entry.role,
+          seasonYear:  entry.seasonYear,
+          amountCents: entry.amountCents,
+          currency:    "AUD" as const,
+        })),
         positions: cleanedPositions,
         settings: {
           requiresApproval: formData.requiresApproval,
@@ -1572,6 +1593,14 @@ export default function AssociationForm({
     );
   };
 
+  const renderFeeSchedule = (): ReactElement => (
+    <FeeScheduleEditor
+      schedule={formData.feeSchedule || []}
+      onChange={(rows) => handleChange("feeSchedule", rows)}
+      scopeLabel={formData.fullName || formData.name || "this association"}
+    />
+  );
+
   const renderPositions = () => {
     const positions = formData.positions || [];
 
@@ -1803,6 +1832,7 @@ export default function AssociationForm({
     social: renderSocial,
     branding: renderBranding,
     fees: renderFees,
+    feeSchedule: renderFeeSchedule,
     positions: renderPositions,
     settings: renderSettings,
   };

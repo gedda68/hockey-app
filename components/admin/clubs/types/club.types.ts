@@ -1,6 +1,8 @@
 // types/club.types.ts
 // Central type definitions for Club forms and components
 
+import type { FeeScheduleEntry } from "@/types/feeSchedule";
+
 export interface Association {
   associationId: string;
   code: string;
@@ -71,6 +73,13 @@ export interface ClubFormData {
   /** Public footer / portal partners (B5) — same shape as association `branding.partners` */
   publicPartners: { name: string; url: string; logoUrl: string }[];
 
+  /**
+   * Per-role registration fee schedule (P1).
+   * Each entry maps a (role, seasonYear) pair to an amount in cents AUD.
+   * Consulted by POST /api/role-requests at submission time.
+   */
+  feeSchedule: FeeScheduleEntry[];
+
   // Status
   active: boolean;
 }
@@ -81,7 +90,8 @@ export type SectionId =
   | "contact"
   | "address"
   | "colors"
-  | "committee";
+  | "committee"
+  | "registration";
 
 export interface SectionDefinition {
   id: SectionId;
@@ -156,6 +166,7 @@ export const DEFAULT_CLUB_DATA: ClubFormData = {
   // Committee
   committee: [],
   publicPartners: [],
+  feeSchedule: [],
   committeePositions: [
     "President",
     "Vice President",

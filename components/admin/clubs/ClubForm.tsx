@@ -18,6 +18,7 @@ import {
   ChevronLeft,
   ClipboardList,
   MousePointerClick,
+  DollarSign,
 } from "lucide-react";
 import Link from "next/link";
 import { ToastContainer, useToast } from "@/components/ui/Toast";
@@ -40,6 +41,7 @@ import AddressSection from "./sections/AddressSection";
 import ColorsSection from "./sections/ColorsSection";
 import CommitteeSection from "./sections/CommitteeSection";
 import ClubPartnersEditor from "./ClubPartnersEditor";
+import FeeScheduleEditor from "@/components/admin/shared/FeeScheduleEditor";
 
 interface ClubFormProps {
   clubId?: string;
@@ -68,6 +70,12 @@ const SECTIONS: SectionDefinition[] = [
     label: "Committee",
     icon: Users,
     desc: "Committee members",
+  },
+  {
+    id: "registration",
+    label: "Reg. Fees",
+    icon: DollarSign,
+    desc: "Registration fee schedule",
   },
 ];
 
@@ -200,6 +208,12 @@ export default function ClubForm({
             }))
           : [],
         active: initialData.active ?? true,
+        feeSchedule: Array.isArray(
+          (initialData as { feeSchedule?: unknown }).feeSchedule,
+        )
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          ? ((initialData as any).feeSchedule as import("@/types/feeSchedule").FeeScheduleEntry[])
+          : [],
       });
 
       setCompletedSections(new Set(SECTIONS.map((s) => s.id)));
@@ -438,6 +452,12 @@ export default function ClubForm({
         committee: formData.committee,
         committeePositions: formData.committeePositions,
         active: formData.active,
+        feeSchedule: (formData.feeSchedule || []).map((entry) => ({
+          role:        entry.role,
+          seasonYear:  entry.seasonYear,
+          amountCents: entry.amountCents,
+          currency:    "AUD" as const,
+        })),
         publicPartners: (formData.publicPartners || [])
           .filter((p) => p.name.trim())
           .slice(0, 20)
@@ -540,6 +560,14 @@ export default function ClubForm({
         );
       case "committee":
         return <CommitteeSection {...props} />;
+      case "registration":
+        return (
+          <FeeScheduleEditor
+            schedule={formData.feeSchedule || []}
+            onChange={(rows) => handleChange("feeSchedule", rows)}
+            scopeLabel={formData.name || "this club"}
+          />
+        );
       default:
         return null;
     }
