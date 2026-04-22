@@ -43,7 +43,8 @@
       "Bash(node -e \"const Stripe = require\\('stripe'\\); const s = new Stripe\\('sk_test_x'\\); console.log\\(s.VERSION ?? 'no version'\\)\")",
       "Bash(node -e \"const Stripe = require\\('stripe'\\); console.log\\(Stripe.API_VERSION ?? Stripe.LATEST_API_VERSION ?? 'unknown'\\)\")",
       "Bash(node -e \"const s = require\\('stripe'\\); console.log\\(Object.keys\\(s\\).slice\\(0,5\\)\\)\")",
-      "Bash(node -e \"const pkg = require\\('./node_modules/stripe/package.json'\\); console.log\\(pkg.version\\)\")"
+      "Bash(node -e \"const pkg = require\\('./node_modules/stripe/package.json'\\); console.log\\(pkg.version\\)\")",
+      "Bash(ls -la /c/dev/nextjs-projects/hockey-app/app/api/admin/associations/[associationId]/communications/)"
     ]
   }
 }

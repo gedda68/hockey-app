@@ -40,6 +40,7 @@ import {
   Printer,
   History,
   CalendarDays,
+  Undo2,
 } from "lucide-react";
 import type { MyFeesResponse, MyFeesYear, MyFeeSection, MyFeeItem } from "@/app/api/member/my-fees/route";
 
@@ -505,6 +506,215 @@ function ReceiptModal({ payment, onClose }: { payment: PaymentRecord; onClose: (
   );
 }
 
+// ── Refund modal ──────────────────────────────────────────────────────────────
+
+function RefundModal({
+  payment,
+  onClose,
+  onSuccess,
+}: {
+  payment: PaymentRecord;
+  onClose: () => void;
+  onSuccess: () => void;
+}) {
+  const totalPaid        = payment.amountCents ?? Math.round(payment.amount * 100);
+  const alreadyRefunded  = payment.refundAmountCents ?? 0;
+  const maxRefundable    = totalPaid - alreadyRefunded;
+
+  const [reason, setReason]         = useState("");
+  const [partial, setPartial]       = useState(false);
+  const [amountStr, setAmountStr]   = useState(
+    (maxRefundable / 100).toFixed(2)
+  );
+  const [submitting, setSubmitting] = useState(false);
+
+  const amountCents = Math.round(parseFloat(amountStr || "0") * 100);
+  const amountValid = amountCents > 0 && amountCents <= maxRefundable;
+  const reasonValid = reason.trim().length >= 10;
+  const canSubmit   = reasonValid && (!partial || amountValid) && !submitting;
+
+  const isStripePayment = typeof payment.stripePaymentIntentId === "string" &&
+    payment.stripePaymentIntentId.startsWith("pi_");
+
+  async function handleSubmit() {
+    setSubmitting(true);
+    try {
+      const body: Record<string, unknown> = { reason: reason.trim() };
+      if (partial) body.amountCents = amountCents;
+
+      const res = await fetch(`/api/payments/${payment.paymentId}/refund`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast.error(data.error ?? "Refund failed");
+        return;
+      }
+      toast.success(
+        `${formatCents(data.amountCents as number)} refund recorded successfully`
+      );
+      onSuccess();
+      onClose();
+    } catch {
+      toast.error("Network error — please try again");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+        {/* Header */}
+        <div className="flex items-center justify-between p-5 border-b">
+          <div className="flex items-center gap-2">
+            <Undo2 className="w-5 h-5 text-blue-600" />
+            <h2 className="font-bold text-gray-900">Initiate Refund</h2>
+          </div>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl leading-none">×</button>
+        </div>
+
+        <div className="p-5 space-y-4">
+          {/* Payment summary */}
+          <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 text-sm space-y-1.5">
+            <div className="flex justify-between">
+              <span className="text-gray-500">Payment</span>
+              <span className="font-mono font-medium text-gray-900">{payment.paymentId}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-500">Total paid</span>
+              <span className="font-semibold text-gray-900">{formatCents(totalPaid)}</span>
+            </div>
+            {alreadyRefunded > 0 && (
+              <div className="flex justify-between">
+                <span className="text-gray-500">Already refunded</span>
+                <span className="text-blue-700">{formatCents(alreadyRefunded)}</span>
+              </div>
+            )}
+            <div className="flex justify-between border-t pt-1.5">
+              <span className="text-gray-500 font-medium">Max refundable</span>
+              <span className="font-bold text-gray-900">{formatCents(maxRefundable)}</span>
+            </div>
+          </div>
+
+          {/* Gateway notice */}
+          {isStripePayment ? (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 text-xs text-blue-800">
+              <strong>Stripe payment</strong> — this will call the Stripe API to return funds to the original payment method (typically 5–10 business days).
+            </div>
+          ) : (
+            <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-xs text-amber-800">
+              <strong>Manual adjustment</strong> — no Stripe call will be made. This records the refund in the system only.
+            </div>
+          )}
+
+          {/* Full vs partial toggle */}
+          <div className="space-y-2">
+            <label className="text-sm font-semibold text-gray-700">Refund type</label>
+            <div className="flex gap-2">
+              <button
+                onClick={() => { setPartial(false); setAmountStr((maxRefundable / 100).toFixed(2)); }}
+                className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium border transition-colors ${
+                  !partial
+                    ? "bg-blue-600 text-white border-blue-600"
+                    : "bg-white text-gray-700 border-gray-300 hover:border-blue-400"
+                }`}
+              >
+                Full — {formatCents(maxRefundable)}
+              </button>
+              <button
+                onClick={() => setPartial(true)}
+                className={`flex-1 py-2 px-3 rounded-lg text-sm font-medium border transition-colors ${
+                  partial
+                    ? "bg-blue-600 text-white border-blue-600"
+                    : "bg-white text-gray-700 border-gray-300 hover:border-blue-400"
+                }`}
+              >
+                Partial amount
+              </button>
+            </div>
+          </div>
+
+          {/* Partial amount input */}
+          {partial && (
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+                Refund amount (AUD)
+              </label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 font-medium">$</span>
+                <input
+                  type="number"
+                  value={amountStr}
+                  onChange={(e) => setAmountStr(e.target.value)}
+                  min="0.01"
+                  max={(maxRefundable / 100).toFixed(2)}
+                  step="0.01"
+                  className={`w-full pl-7 pr-3 py-2.5 border rounded-lg text-sm focus:outline-none focus:ring-2 ${
+                    amountValid ? "border-gray-300 focus:ring-blue-400" : "border-red-300 focus:ring-red-400"
+                  }`}
+                />
+              </div>
+              {!amountValid && amountStr !== "" && (
+                <p className="text-xs text-red-600 mt-1">
+                  Amount must be between $0.01 and {formatCents(maxRefundable)}
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* Reason — mandatory (anti-nepotism audit) */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+              Reason <span className="text-red-500">*</span>
+              <span className="font-normal text-gray-400 ml-1">(mandatory — visible to member)</span>
+            </label>
+            <textarea
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              rows={3}
+              placeholder="e.g. Member withdrew from the season due to injury; full refund approved by committee."
+              className={`w-full border rounded-lg px-3 py-2.5 text-sm resize-none focus:outline-none focus:ring-2 ${
+                reason.trim().length > 0 && !reasonValid
+                  ? "border-red-300 focus:ring-red-400"
+                  : "border-gray-300 focus:ring-blue-400"
+              }`}
+            />
+            {reason.trim().length > 0 && !reasonValid && (
+              <p className="text-xs text-red-600 mt-1">Reason must be at least 10 characters</p>
+            )}
+            <p className="text-xs text-gray-400 mt-1">
+              This reason is included in the confirmation email sent to the member and stored in the audit log.
+            </p>
+          </div>
+
+          {/* Actions */}
+          <div className="flex gap-2 pt-1">
+            <button
+              onClick={onClose}
+              disabled={submitting}
+              className="flex-1 border border-gray-300 text-gray-700 py-2.5 rounded-lg text-sm font-medium hover:bg-gray-50 transition disabled:opacity-50"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleSubmit}
+              disabled={!canSubmit}
+              className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2.5 rounded-lg text-sm font-bold transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            >
+              {submitting
+                ? <><RefreshCw className="w-4 h-4 animate-spin" />Processing…</>
+                : <><Undo2 className="w-4 h-4" />Confirm Refund</>}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Payment status badge ──────────────────────────────────────────────────────
 
 function PaymentStatusBadge({ status }: { status: PaymentStatus | string }) {
@@ -518,7 +728,7 @@ function PaymentStatusBadge({ status }: { status: PaymentStatus | string }) {
 
 // ── Payment card ──────────────────────────────────────────────────────────────
 
-function PaymentCard({ payment, showMember, onViewReceipt }: { payment: PaymentRecord; showMember: boolean; onViewReceipt: (p: PaymentRecord) => void }) {
+function PaymentCard({ payment, showMember, onViewReceipt, onRefund }: { payment: PaymentRecord; showMember: boolean; onViewReceipt: (p: PaymentRecord) => void; onRefund?: (p: PaymentRecord) => void }) {
   const [expanded, setExpanded] = useState(false);
   const memberName = [payment.memberDetails?.firstName, payment.memberDetails?.lastName].filter(Boolean).join(" ");
   const totalDollars = payment.amount ?? ((payment.amountCents ?? 0) / 100);
@@ -553,7 +763,7 @@ function PaymentCard({ payment, showMember, onViewReceipt }: { payment: PaymentR
         {/* Right: amount + actions */}
         <div className="flex flex-col items-end gap-1.5 shrink-0">
           <span className="font-bold text-gray-900 tabular-nums">{formatCents(Math.round(totalDollars * 100))}</span>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1 flex-wrap justify-end">
             {(payment.lineItems?.length ?? 0) > 1 && (
               <button
                 onClick={() => setExpanded((v) => !v)}
@@ -570,6 +780,15 @@ function PaymentCard({ payment, showMember, onViewReceipt }: { payment: PaymentR
               <Receipt className="w-3 h-3" />
               Receipt
             </button>
+            {onRefund && (payment.status === "paid" || payment.status === "partially_refunded") && (
+              <button
+                onClick={() => onRefund(payment)}
+                className="flex items-center gap-1 text-xs bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 px-2 py-1 rounded-lg transition font-medium"
+              >
+                <Undo2 className="w-3 h-3" />
+                Refund
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -594,9 +813,10 @@ function PaymentCard({ payment, showMember, onViewReceipt }: { payment: PaymentR
 // ── Payment History view ──────────────────────────────────────────────────────
 
 function PaymentHistoryView({ isAdmin }: { isAdmin: boolean }) {
-  const [payments, setPayments]       = useState<PaymentRecord[]>([]);
-  const [loading, setLoading]         = useState(false);
-  const [receipt, setReceipt]         = useState<PaymentRecord | null>(null);
+  const [payments, setPayments]           = useState<PaymentRecord[]>([]);
+  const [loading, setLoading]             = useState(false);
+  const [receipt, setReceipt]             = useState<PaymentRecord | null>(null);
+  const [refundingPayment, setRefundingPayment] = useState<PaymentRecord | null>(null);
 
   // Filters
   const [search, setSearch]           = useState("");
@@ -736,6 +956,7 @@ function PaymentHistoryView({ isAdmin }: { isAdmin: boolean }) {
                 payment={p}
                 showMember={isAdmin}
                 onViewReceipt={setReceipt}
+                onRefund={isAdmin ? setRefundingPayment : undefined}
               />
             ))}
           </div>
@@ -744,6 +965,15 @@ function PaymentHistoryView({ isAdmin }: { isAdmin: boolean }) {
 
       {/* Receipt modal */}
       {receipt && <ReceiptModal payment={receipt} onClose={() => setReceipt(null)} />}
+
+      {/* Refund modal */}
+      {refundingPayment && (
+        <RefundModal
+          payment={refundingPayment}
+          onClose={() => setRefundingPayment(null)}
+          onSuccess={() => { setRefundingPayment(null); load(); }}
+        />
+      )}
     </div>
   );
 }
