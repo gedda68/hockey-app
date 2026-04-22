@@ -3,6 +3,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { getErrorMessage } from "@/lib/utils/errors";
 import { useRouter } from "next/navigation";
 import AddMemberForm from "../../new/AddMemberForm";
 
@@ -63,9 +64,9 @@ export default function EditMemberClient({
         data.personalInfo?.lastName,
       );
       setMember(data);
-    } catch (err: any) {
+    } catch (err) {
       console.error("❌ Error fetching member:", err);
-      setError(err.message);
+      setError(getErrorMessage(err));
     } finally {
       setIsLoading(false);
     }

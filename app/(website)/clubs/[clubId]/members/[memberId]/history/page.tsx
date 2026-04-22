@@ -4,6 +4,7 @@
 "use client";
 
 import { useState, useEffect, use } from "react";
+import { getErrorMessage } from "@/lib/utils/errors";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -82,9 +83,9 @@ export default function MemberHistoryPage({ params }: MemberHistoryPageProps) {
 
       // API returns { logs: [...], total: X }
       setLogs(data.logs || []);
-    } catch (err: any) {
+    } catch (err) {
       console.error("Error fetching audit logs:", err);
-      setError(err.message);
+      setError(getErrorMessage(err));
       setLogs([]); // Set empty array on error
     } finally {
       setIsLoading(false);

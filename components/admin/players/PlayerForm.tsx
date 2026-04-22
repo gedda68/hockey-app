@@ -20,6 +20,7 @@ import RepresentativeSection from "./sections/RepresentativeSection";
 import InjuriesSection from "./sections/InjuriesSection";
 import StatsSection from "./sections/StatsSection";
 import { PlayerFormData } from "@/types/player.types";
+import { getErrorMessage } from "@/lib/utils/errors";
 import {
   User,
   Building,
@@ -399,9 +400,9 @@ export default function PlayerForm({
           throw new Error(errorData.error || "Failed to save");
         }
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error("❌ Error saving section:", error);
-      alert(`Failed to save section. ${error.message || "Please try again."}`);
+      alert(`Failed to save section. ${getErrorMessage(error) || "Please try again."}`);
     } finally {
       setIsSaving(false);
     }
@@ -505,9 +506,9 @@ export default function PlayerForm({
 
       // Redirect to players list
       window.location.href = "/admin/players";
-    } catch (error: any) {
+    } catch (error) {
       console.error("❌ Error saving player:", error);
-      alert(`Failed to save player. ${error.message || "Please try again."}`);
+      alert(`Failed to save player. ${getErrorMessage(error) || "Please try again."}`);
     } finally {
       setIsSaving(false);
     }

@@ -4,28 +4,50 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import type { Mock } from "vitest";
+
+// ── Typed DB mock ─────────────────────────────────────────────────────────────
+// Using Vitest's Mock type so that .mockResolvedValue / .mockReturnValue work
+// within test bodies without losing type safety.
+
+interface MockCollection {
+  findOne:           Mock;
+  findOneAndUpdate:  Mock;
+}
+
+interface MockDb {
+  collection: Mock;
+}
 
 // ── Mirrors the generateMemberId function from app/api/admin/members/route.ts ─
 
 async function generateMemberId(
-  db: any,
-  clubId: string
+  db: MockDb,
+  clubId: string,
 ): Promise<string> {
   const clubsCol = db.collection("clubs");
-  const club = await clubsCol.findOne({ id: clubId });
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const club = await clubsCol.findOne({ id: clubId }) as Record<string, any> | null;
   if (!club) throw new Error("Club not found");
 
-  const shortName = club.shortName || "CLB";
+  const shortName = (club.shortName as string | undefined) ?? "CLB";
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const updateRes = await clubsCol.findOneAndUpdate(
     { id: clubId },
     { $inc: { memberSequence: 1 } },
-    { returnDocument: "after", upsert: false }
-  );
+    { returnDocument: "after", upsert: false },
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  ) as Record<string, any> | null;
 
-  const updatedDoc = updateRes.value || updateRes;
-  const sequence = updatedDoc?.memberSequence;
+  if (!updateRes) throw new Error("Failed to generate member sequence");
 
+  // Support both new driver (document directly) and old driver ({ value: document })
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const updatedDoc: Record<string, any> =
+    (updateRes.value as Record<string, unknown> | null) ?? updateRes;
+
+  const sequence = updatedDoc.memberSequence as number | undefined;
   if (!sequence) throw new Error("Failed to generate member sequence");
 
   return `${shortName}-${String(sequence).padStart(7, "0")}`;
@@ -34,13 +56,13 @@ async function generateMemberId(
 // ── Tests ───────────────────────────────────────────────────────────────────
 
 describe("generateMemberId", () => {
-  let mockDb: any;
+  let mockDb: MockDb;
 
   beforeEach(() => {
     mockDb = {
       collection: vi.fn().mockReturnValue({
-        findOne: vi.fn(),
-        findOneAndUpdate: vi.fn(),
+        findOne:           vi.fn(),
+        findOneAndUpdate:  vi.fn(),
       }),
     };
   });
@@ -86,19 +108,18 @@ describe("generateMemberId", () => {
     col.findOne.mockResolvedValue(null);
 
     await expect(generateMemberId(mockDb, "nonexistent")).rejects.toThrow(
-      "Club not found"
+      "Club not found",
     );
   });
 
   it("throws when the sequence update returns no document", async () => {
     const col = mockDb.collection("clubs");
     col.findOne.mockResolvedValue({ id: "chc", shortName: "CHC" });
-    // null response causes `updatedDoc.value` read to throw a TypeError
     col.findOneAndUpdate.mockResolvedValue(null);
 
-    // The actual error thrown is a TypeError reading .value on null;
-    // the important thing is that the promise rejects (member ID not returned)
-    await expect(generateMemberId(mockDb, "chc")).rejects.toThrow();
+    await expect(generateMemberId(mockDb, "chc")).rejects.toThrow(
+      "Failed to generate member sequence",
+    );
   });
 
   it("handles the older MongoDB driver response shape (result.value)", async () => {
@@ -160,7 +181,7 @@ describe("Member POST validation", () => {
 
   it("rejects missing clubId", () => {
     expect(validateMemberBody({ ...valid, clubId: undefined })).toBe(
-      "Club ID is required"
+      "Club ID is required",
     );
   });
 
@@ -169,7 +190,7 @@ describe("Member POST validation", () => {
       validateMemberBody({
         ...valid,
         personalInfo: { ...valid.personalInfo, firstName: "" },
-      })
+      }),
     ).toBe("First name and last name are required");
   });
 
@@ -178,7 +199,7 @@ describe("Member POST validation", () => {
       validateMemberBody({
         ...valid,
         contact: { ...valid.contact, email: undefined },
-      })
+      }),
     ).toBe("Email is required");
   });
 });

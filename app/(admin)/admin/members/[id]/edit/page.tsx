@@ -3,6 +3,7 @@
 
 import { useState, useEffect, use } from "react";
 import { toast } from "sonner";
+import { getErrorMessage } from "@/lib/utils/errors";
 import { useRouter } from "next/navigation";
 import {
   Save,
@@ -137,8 +138,8 @@ export default function EditMemberPage({
       setOriginalData(JSON.parse(JSON.stringify(normalized)));
       setFormData(normalized);
       setRoles(normalized.roles);
-    } catch (error: any) {
-      toast.error(error.message);
+    } catch (error) {
+      toast.error(getErrorMessage(error));
       router.push("/admin/members");
     } finally {
       setIsLoading(false);
@@ -229,8 +230,8 @@ export default function EditMemberPage({
       if (showHistory) {
         fetchChangeHistory();
       }
-    } catch (error: any) {
-      toast.error(error.message);
+    } catch (error) {
+      toast.error(getErrorMessage(error));
     } finally {
       setIsSaving(null);
     }

@@ -7,6 +7,7 @@
 
 import Link from "next/link";
 import { useState, useEffect, useCallback } from "react";
+import { getErrorMessage } from "@/lib/utils/errors";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { useBrand } from "@/lib/contexts/BrandContext";
 import { filterMenuForRole } from "@/app/(admin)/admin/global-config/menuConfig";
@@ -130,8 +131,8 @@ export default function DashboardPage() {
       const res  = await fetch(`/api/admin/analytics?${params}`);
       if (!res.ok) throw new Error("Failed to load analytics");
       setAnalytics(await res.json());
-    } catch (e: any) {
-      setError(e.message);
+    } catch (e) {
+      setError(getErrorMessage(e));
     } finally {
       setLoading(false);
     }

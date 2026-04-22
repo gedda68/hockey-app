@@ -14,6 +14,7 @@ import {
   UserPlus,
   Building2,
 } from "lucide-react";
+import { getErrorMessage } from "@/lib/utils/errors";
 
 interface Club {
   id: string;
@@ -107,8 +108,8 @@ export default function ClubRegistrationForm({
       setTimeout(() => {
         router.push(`/clubs/${club.slug}`);
       }, 2000);
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err) {
+      setError(getErrorMessage(err));
     } finally {
       setIsSubmitting(false);
     }

@@ -17,6 +17,7 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { toast } from "sonner";
+import { getErrorMessage } from "@/lib/utils/errors";
 
 interface CreateUserModalProps {
   isOpen: boolean;
@@ -197,9 +198,9 @@ export default function CreateUserModal({
       });
       setAssociationSearch("");
       setClubSearch("");
-    } catch (error: any) {
+    } catch (error) {
       console.error("Error creating user:", error);
-      toast.error(error.message || "Failed to create user");
+      toast.error(getErrorMessage(error) || "Failed to create user");
     } finally {
       setIsLoading(false);
     }

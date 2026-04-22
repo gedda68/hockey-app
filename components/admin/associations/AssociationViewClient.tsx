@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Trash2, Loader2 } from "lucide-react";
 import { ToastContainer, useToast } from "@/components/ui/Toast";
+import { getErrorMessage } from "@/lib/utils/errors";
 
 interface Props {
   associationId: string;
@@ -42,8 +43,8 @@ export default function AssociationViewClient({
         router.push("/admin/associations");
         router.refresh();
       }, 1200);
-    } catch (err: any) {
-      toastError("Delete failed", err.message);
+    } catch (err) {
+      toastError("Delete failed", getErrorMessage(err));
     } finally {
       setIsDeleting(false);
     }

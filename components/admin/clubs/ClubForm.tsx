@@ -23,6 +23,7 @@ import {
 import Link from "next/link";
 import { ToastContainer, useToast } from "@/components/ui/Toast";
 import { useAdminEditingScope } from "@/components/admin/AdminEditingScopeProvider";
+import { getErrorMessage } from "@/lib/utils/errors";
 
 // Types
 import {
@@ -508,9 +509,9 @@ export default function ClubForm({
         router.push("/admin/clubs");
         router.refresh();
       }, 1200);
-    } catch (err: any) {
+    } catch (err) {
       console.error("❌ SAVE ERROR:", err);
-      toastError("Save failed", err.message);
+      toastError("Save failed", getErrorMessage(err));
     } finally {
       setIsSaving(false);
     }

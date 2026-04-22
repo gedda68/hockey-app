@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { Plus, Edit, Trash2, Save, X, UserCircle } from "lucide-react";
 import { toast } from "sonner";
+import { getErrorMessage } from "@/lib/utils/errors";
 
 interface Gender {
   genderId: string;
@@ -81,9 +82,9 @@ export default function ConfigGenderPage() {
 
       await fetchGenders();
       handleCancel();
-    } catch (error: any) {
+    } catch (error) {
       console.error("Error creating gender:", error);
-      toast.error(error.message || "Failed to create gender option");
+      toast.error(getErrorMessage(error) || "Failed to create gender option");
     }
   };
 

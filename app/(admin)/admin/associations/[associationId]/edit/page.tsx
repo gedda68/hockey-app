@@ -5,6 +5,7 @@ import AssociationForm from "@/components/admin/associations/AssociationForm";
 import clientPromise from "@/lib/mongodb";
 import Link from "next/link";
 import { ArrowLeft, AlertCircle } from "lucide-react";
+import { getErrorMessage } from "@/lib/utils/errors";
 
 /** Mongo may return Date, ISO string, epoch ms, or extended JSON `{ $date }`. */
 function toIsoString(value: unknown): string | undefined {
@@ -276,7 +277,7 @@ export default async function EditAssociationPage({
         </div>
       </div>
     );
-  } catch (error: any) {
+  } catch (error) {
     console.error("Error loading edit association page:", error);
 
     return (
@@ -290,7 +291,7 @@ export default async function EditAssociationPage({
                   Error Loading Association
                 </h2>
                 <p className="text-red-700 font-bold mb-4">
-                  {error.message || "Failed to load association data"}
+                  {getErrorMessage(error) || "Failed to load association data"}
                 </p>
                 <div className="flex gap-3">
                   <Link

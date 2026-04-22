@@ -24,12 +24,9 @@ export default function CustomAlert({
   const [isVisible, setIsVisible] = useState(true);
 
   useEffect(() => {
-    if (autoClose) {
-      const timer = setTimeout(() => {
-        handleClose();
-      }, autoClose);
-      return () => clearTimeout(timer);
-    }
+    if (!autoClose) return;
+    const timer = setTimeout(handleClose, autoClose);
+    return () => clearTimeout(timer);
   }, [autoClose]);
 
   const handleClose = () => {

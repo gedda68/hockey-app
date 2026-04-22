@@ -20,6 +20,7 @@ import {
   Crown,
   X,
 } from "lucide-react";
+import { getErrorMessage } from "@/lib/utils/errors";
 
 interface Team {
   _id: string;
@@ -112,8 +113,8 @@ export default function TeamsList({ clubId }: TeamsListProps) {
       if (uniqueSeasons.length > 0 && selectedSeason === "all") {
         setSelectedSeason(uniqueSeasons[0]);
       }
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err) {
+      setError(getErrorMessage(err));
     } finally {
       setIsLoading(false);
     }

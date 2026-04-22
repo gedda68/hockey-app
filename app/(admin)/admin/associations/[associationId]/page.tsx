@@ -3,6 +3,7 @@
 
 import clientPromise from "@/lib/mongodb";
 import Link from "next/link";
+import { getErrorMessage } from "@/lib/utils/errors";
 import {
   Building2,
   Edit,
@@ -861,7 +862,7 @@ export default async function AssociationDetailPage({
         </div>
       </div>
     );
-  } catch (error: any) {
+  } catch (error) {
     console.error("Error loading association:", error);
     return (
       <div className="min-h-screen bg-slate-50">
@@ -874,7 +875,7 @@ export default async function AssociationDetailPage({
                   Error Loading Association
                 </h2>
                 <p className="text-red-700 font-bold mb-4">
-                  {error.message || "Failed to load association data"}
+                  {getErrorMessage(error) || "Failed to load association data"}
                 </p>
                 <Link
                   href="/admin/associations"

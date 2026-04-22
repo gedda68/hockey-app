@@ -10,6 +10,7 @@ import PersonalDetailsStep from "./PersonalDetailsStep";
 import RoleSelectionStep from "./RoleSelectionStep";
 import RegistrationSummaryStep from "./RegistrationSummaryStep";
 import { CheckCircle2, AlertCircle } from "lucide-react";
+import { getErrorMessage } from "@/lib/utils/errors";
 
 interface CompleteRegistrationFormProps {
   clubId: string;
@@ -73,8 +74,8 @@ export default function CompleteRegistrationForm({
       const summaryData = await res.json();
       setSummary(summaryData);
       setCurrentStep(4);
-    } catch (err: any) {
-      setError(err.message || "Failed to generate summary");
+    } catch (err) {
+      setError(getErrorMessage(err) || "Failed to generate summary");
     }
   };
 
@@ -125,8 +126,8 @@ export default function CompleteRegistrationForm({
       const result = await res.json();
       setCompletedRegistration(result);
       setCurrentStep(5); // Success step
-    } catch (err: any) {
-      setError(err.message || "Failed to submit registration");
+    } catch (err) {
+      setError(getErrorMessage(err) || "Failed to submit registration");
       throw err;
     }
   };

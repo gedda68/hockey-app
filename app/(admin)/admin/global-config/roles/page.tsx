@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Plus, Edit, Trash2, Save, X, UserCog } from "lucide-react";
+import { getErrorMessage } from "@/lib/utils/errors";
 
 interface Role {
   roleId: string;
@@ -121,9 +122,9 @@ export default function ConfigRolesPage() {
 
       await fetchRoles();
       handleCancel();
-    } catch (error: any) {
+    } catch (error) {
       console.error("Error creating role:", error);
-      alert(error.message || "Failed to create role");
+      alert(getErrorMessage(error) || "Failed to create role");
     }
   };
 

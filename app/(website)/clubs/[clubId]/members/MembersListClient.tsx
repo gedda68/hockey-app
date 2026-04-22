@@ -4,6 +4,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { getErrorMessage } from "@/lib/utils/errors";
 import { toast } from "sonner";
 import {
   User,
@@ -286,8 +287,8 @@ export default function MembersList({ clubId }: MembersListProps) {
         );
         setConfigItems([]);
       }
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err) {
+      setError(getErrorMessage(err));
     } finally {
       setIsLoading(false);
     }
@@ -307,8 +308,8 @@ export default function MembersList({ clubId }: MembersListProps) {
 
       setMembers(members.filter((m) => m.memberId !== memberId));
       toast.success("Member deleted successfully");
-    } catch (err: any) {
-      toast.error(err.message || "Failed to delete member");
+    } catch (err) {
+      toast.error(getErrorMessage(err) || "Failed to delete member");
     }
   };
 

@@ -4,6 +4,7 @@
 "use client";
 
 import { useState, useRef } from "react";
+import { getErrorMessage } from "@/lib/utils/errors";
 import Image from "next/image";
 
 interface ImageUploadProps {
@@ -82,9 +83,9 @@ export default function ImageUpload({
       onImageUploaded(data.url);
 
       console.log("✅ Image uploaded:", data.url);
-    } catch (error: any) {
+    } catch (error) {
       console.error("Upload error:", error);
-      setError(error.message || "Failed to upload image");
+      setError(getErrorMessage(error) || "Failed to upload image");
       setPreview(currentImage || null);
     } finally {
       setUploading(false);

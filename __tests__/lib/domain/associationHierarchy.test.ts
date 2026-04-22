@@ -5,7 +5,7 @@ import { deriveAssociationLevelAndHierarchy } from "@/lib/domain/associationHier
 function mockDb(parentMap: Record<string, { parentAssociationId?: string }>): Db {
   return {
     collection: () => ({
-      findOne: vi.fn().mockImplementation(async (q: any) => {
+      findOne: vi.fn().mockImplementation(async (q: Record<string, unknown>) => {
         const id = String(q?.associationId ?? "");
         const hit = parentMap[id];
         return hit ? { associationId: id, ...hit } : null;

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { getErrorMessage } from "@/lib/utils/errors";
 
 // MINIMAL TEST COMPONENT - Just level dropdown and save
 export default function MinimalLevelTest() {
@@ -54,9 +55,9 @@ export default function MinimalLevelTest() {
       const data = await res.json();
       console.log("🧪 MINIMAL TEST - RESPONSE:", data);
       setResult(data);
-    } catch (err: any) {
+    } catch (err) {
       console.error("🧪 MINIMAL TEST - ERROR:", err);
-      setResult({ error: err.message });
+      setResult({ error: getErrorMessage(err) });
     }
   };
 

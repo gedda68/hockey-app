@@ -3,6 +3,7 @@
 import { headers } from "next/headers";
 import PlayerForm from "@/components/admin/players/PlayerForm";
 import { notFound } from "next/navigation";
+import { getErrorMessage } from "@/lib/utils/errors";
 
 interface EditPlayerPageProps {
   params: Promise<{ playerId: string }>;
@@ -63,7 +64,7 @@ async function getPlayerData(playerId: string, cookie: string) {
       },
       notes: notesData?.notes || playerData.player.notes || [],
     };
-  } catch (error: any) {
+  } catch (error) {
     console.error("Error loading player data:", error);
     return null;
   }

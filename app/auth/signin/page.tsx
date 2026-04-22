@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { getErrorMessage } from "@/lib/utils/errors";
 import { useRouter } from "next/navigation";
 import { LogIn, AlertCircle } from "lucide-react";
 
@@ -36,9 +37,9 @@ export default function SignInPage() {
       alert("Login successful!");
       router.push("/");
       router.refresh();
-    } catch (err: any) {
+    } catch (err) {
       console.error("Login error:", err);
-      setError(err.message);
+      setError(getErrorMessage(err));
     } finally {
       setIsLoading(false);
     }

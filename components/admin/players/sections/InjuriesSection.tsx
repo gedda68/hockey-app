@@ -6,6 +6,7 @@
 
 import { useState } from "react";
 import { BaseSectionProps, InjuryRecord, InjuryDocument } from "@/types/player.types";
+import { getErrorMessage } from "@/lib/utils/errors";
 import {
   Zap,
   Plus,
@@ -332,8 +333,8 @@ export default function InjuriesSection({ formData, onChange }: BaseSectionProps
             : d,
         ),
       });
-    } catch (err: any) {
-      alert(`Upload failed: ${err.message}`);
+    } catch (err) {
+      alert(`Upload failed: ${getErrorMessage(err)}`);
     } finally {
       setUploading((prev) => ({ ...prev, [docId]: false }));
     }

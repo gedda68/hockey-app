@@ -5,6 +5,7 @@ import AssociationForm from "@/components/admin/associations/AssociationForm";
 import clientPromise from "@/lib/mongodb";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
+import { getErrorMessage } from "@/lib/utils/errors";
 
 export default async function NewAssociationPage() {
   try {
@@ -47,7 +48,7 @@ export default async function NewAssociationPage() {
         </div>
       </div>
     );
-  } catch (error: any) {
+  } catch (error) {
     console.error("Error loading new association page:", error);
 
     return (
@@ -58,7 +59,7 @@ export default async function NewAssociationPage() {
               Error Loading Page
             </h2>
             <p className="text-red-700 font-bold mb-4">
-              {error.message || "Failed to load association form"}
+              {getErrorMessage(error) || "Failed to load association form"}
             </p>
             <Link
               href="/admin/associations"

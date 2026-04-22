@@ -20,6 +20,7 @@ import {
   User,
 } from "lucide-react";
 import { toast } from "sonner";
+import { getErrorMessage } from "@/lib/utils/errors";
 
 interface User {
   userId: string;
@@ -288,9 +289,9 @@ export default function EditUserModal({
       toast.success("User updated successfully!");
       onSuccess();
       onClose();
-    } catch (error: any) {
+    } catch (error) {
       console.error("Error updating user:", error);
-      toast.error(error.message || "Failed to update user");
+      toast.error(getErrorMessage(error) || "Failed to update user");
     } finally {
       setIsLoading(false);
     }

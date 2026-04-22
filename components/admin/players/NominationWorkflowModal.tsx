@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import { calcAgeForSeason } from "@/types/nominations";
 import type { OpenOpportunity } from "@/types/tournaments";
+import { getErrorMessage } from "@/lib/utils/errors";
 
 // ── Local interfaces ─────────────────────────────────────────────────────────
 interface LocalEmergencyContact {
@@ -221,8 +222,8 @@ export default function NominationWorkflowModal({
         const err = await res.json().catch(() => ({}));
         throw new Error(err.error ?? "Failed to update player details");
       }
-    } catch (err: any) {
-      setPatchError(err.message);
+    } catch (err) {
+      setPatchError(getErrorMessage(err));
       throw err;
     } finally {
       setPatching(false);
@@ -322,8 +323,8 @@ export default function NominationWorkflowModal({
       }).catch(console.warn);
 
       setStep("done");
-    } catch (err: any) {
-      setSubmitError(err.message);
+    } catch (err) {
+      setSubmitError(getErrorMessage(err));
     } finally {
       setSubmitting(false);
     }

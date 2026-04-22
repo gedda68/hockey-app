@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import SocialMediaEditor from "@/components/SocialMediaEditor";
 import MemberHeader from "@/components/MemberHeader";
+import { getErrorMessage } from "@/lib/utils/errors";
 
 interface SocialMediaLink {
   platform: string;
@@ -159,8 +160,8 @@ export default function ComprehensiveRenewalPage({ params }: RenewalPageProps) {
       const nextYear = new Date().getFullYear() + 1;
       setNewPeriodStart(`${nextYear}-01-01`);
       setNewPeriodEnd(`${nextYear}-12-31`);
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err) {
+      setError(getErrorMessage(err));
     } finally {
       setIsLoading(false);
     }
@@ -214,8 +215,8 @@ export default function ComprehensiveRenewalPage({ params }: RenewalPageProps) {
 
       toast.success("Membership renewed and details updated!");
       router.push(`/clubs/${clubId}/members/${memberId}`);
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err) {
+      setError(getErrorMessage(err));
     } finally {
       setIsProcessing(false);
     }

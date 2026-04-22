@@ -25,6 +25,7 @@ import {
   Settings,
 } from "lucide-react";
 import RosterManager from "./RosterManager";
+import { getErrorMessage } from "@/lib/utils/errors";
 
 interface Team {
   _id: string;
@@ -114,8 +115,8 @@ export default function TeamDetailView({
 
       const data = await res.json();
       setTeam(data);
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err) {
+      setError(getErrorMessage(err));
     } finally {
       setIsLoading(false);
     }
@@ -141,8 +142,8 @@ export default function TeamDetailView({
 
       toast.success("Team deleted successfully");
       router.push(`/clubs/${clubId}/teams`);
-    } catch (err: any) {
-      toast.error(err.message || "Failed to delete team");
+    } catch (err) {
+      toast.error(getErrorMessage(err) || "Failed to delete team");
     }
   };
 

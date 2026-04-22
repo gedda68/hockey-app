@@ -18,6 +18,7 @@ import {
   Settings,
   Save,
 } from "lucide-react";
+import { getErrorMessage } from "@/lib/utils/errors";
 
 interface Member {
   memberId: string;
@@ -142,8 +143,8 @@ export default function RosterManager({
 
       setAllMembers(membersData);
       setRoles(rolesData);
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err) {
+      setError(getErrorMessage(err));
     } finally {
       setIsLoading(false);
     }
@@ -246,8 +247,8 @@ export default function RosterManager({
       setTimeout(() => {
         onClose();
       }, 1000);
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err) {
+      setError(getErrorMessage(err));
     }
   };
 
@@ -288,8 +289,8 @@ export default function RosterManager({
       setTimeout(() => {
         onClose();
       }, 1000);
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err) {
+      setError(getErrorMessage(err));
     }
   };
 
@@ -317,8 +318,8 @@ export default function RosterManager({
       }
 
       setSuccess("Leadership updated successfully");
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err) {
+      setError(getErrorMessage(err));
     } finally {
       setIsSaving(false);
     }

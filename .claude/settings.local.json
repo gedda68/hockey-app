@@ -47,7 +47,9 @@
       "Bash(ls -la /c/dev/nextjs-projects/hockey-app/app/api/admin/associations/[associationId]/communications/)",
       "Bash(npx vitest:*)",
       "Bash(grep -v \"^$\")",
-      "Bash(ls /c/dev/nextjs-projects/hockey-app/app/api/admin/associations/*/communications/)"
+      "Bash(ls /c/dev/nextjs-projects/hockey-app/app/api/admin/associations/*/communications/)",
+      "Bash(grep -v \"//.*: any\")",
+      "Bash(grep -v \"node_modules\\\\|\\\\.next\\\\|//.*: any\")"
     ]
   }
 }

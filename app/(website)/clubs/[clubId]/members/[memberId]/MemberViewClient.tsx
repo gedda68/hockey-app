@@ -15,6 +15,7 @@ import HealthcareSection from "@/components/member-sections/HealthcareSection";
 import MembershipSection from "@/components/member-sections/MembershipSection";
 import { User, MapPin, Heart, Award } from "lucide-react";
 import CelebrationAlerts from "@/components/celebrations/CelebrationAlerts";
+import { getErrorMessage } from "@/lib/utils/errors";
 
 interface MemberViewClientProps {
   clubId: string;
@@ -116,8 +117,8 @@ export default function MemberViewClient({
 
         setRelatedMembers(relatedData);
       }
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err) {
+      setError(getErrorMessage(err));
     } finally {
       setIsLoading(false);
     }
@@ -145,8 +146,8 @@ export default function MemberViewClient({
 
       const updatedMember = await res.json();
       setMember(updatedMember);
-    } catch (err: any) {
-      toast.error(err.message || "Failed to update status");
+    } catch (err) {
+      toast.error(getErrorMessage(err) || "Failed to update status");
     }
   };
 
@@ -167,8 +168,8 @@ export default function MemberViewClient({
       if (!res.ok) throw new Error("Failed to delete member");
 
       router.push(`/clubs/${clubId}/members`);
-    } catch (err: any) {
-      toast.error(err.message || "Failed to delete member");
+    } catch (err) {
+      toast.error(getErrorMessage(err) || "Failed to delete member");
     }
   };
 

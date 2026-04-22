@@ -5,6 +5,7 @@
 
 import { useState } from "react";
 import { BaseSectionProps, PlayerDocument } from "@/types/player.types";
+import { getErrorMessage } from "@/lib/utils/errors";
 import {
   FileText,
   Upload,
@@ -171,9 +172,9 @@ export default function DocumentsSection({
       alert(
         `✅ File uploaded successfully!\n\nFile: ${file.name}\nSize: ${formatFileSize(file.size)}`,
       );
-    } catch (error: any) {
+    } catch (error) {
       console.error("❌ Upload error:", error);
-      alert(`Upload failed: ${error.message}`);
+      alert(`Upload failed: ${getErrorMessage(error)}`);
     } finally {
       setUploading((prev) => ({ ...prev, [docId]: false }));
     }

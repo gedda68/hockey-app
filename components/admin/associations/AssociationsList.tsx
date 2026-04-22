@@ -20,6 +20,7 @@ import Link from "next/link";
 import { ToastContainer, useToast } from "@/components/ui/Toast";
 import EntityColorBar, { EntityColorDot } from "@/components/ui/EntityColorBar";
 import { LEVEL_MAP } from "@/lib/domain/associationLevelDisplay";
+import { getErrorMessage } from "@/lib/utils/errors";
 
 interface Association {
   associationId: string;
@@ -146,8 +147,8 @@ export default function AssociationsList() {
 
       setAssociations(associationsArray);
       setFilteredAssociations(associationsArray);
-    } catch (err: any) {
-      setError(err.message || "Failed to load associations");
+    } catch (err) {
+      setError(getErrorMessage(err) || "Failed to load associations");
       setAssociations([]);
       setFilteredAssociations([]);
     } finally {
@@ -194,8 +195,8 @@ export default function AssociationsList() {
       success("Association deleted", `${deleteTarget.name} has been removed.`);
       setDeleteTarget(null);
       fetchAssociations();
-    } catch (err: any) {
-      toastError("Delete failed", err.message);
+    } catch (err) {
+      toastError("Delete failed", getErrorMessage(err));
     } finally {
       setIsDeleting(false);
     }

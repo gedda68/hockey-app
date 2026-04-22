@@ -4,6 +4,7 @@
 
 import { useState, useRef, useCallback, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
+import { getErrorMessage } from "@/lib/utils/errors";
 import * as XLSX from "xlsx";
 import {
   Upload, Download, CheckCircle, XCircle, AlertCircle,
@@ -529,8 +530,8 @@ function EntityPanel({ entity }: { entity: EntityDef }) {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Import failed");
       setResult(data);
-    } catch (err: any) {
-      setResult({ imported: 0, updated: 0, skipped: 0, errors: [{ row: 0, message: err.message }] });
+    } catch (err) {
+      setResult({ imported: 0, updated: 0, skipped: 0, errors: [{ row: 0, message: getErrorMessage(err) }] });
     } finally {
       setImporting(false);
     }

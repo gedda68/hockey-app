@@ -42,7 +42,7 @@ export default function AddPlayerForm() {
           : [];
 
         setClubs(sortedClubs);
-      } catch (err: any) {
+      } catch (err) {
         console.error("Error fetching clubs:", err);
         setError("Failed to load clubs.");
       } finally {

@@ -7,6 +7,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft, Save, AlertCircle } from "lucide-react";
+import { getErrorMessage } from "@/lib/utils/errors";
 
 interface CreateTeamFormProps {
   clubId: string;
@@ -128,8 +129,8 @@ export default function CreateTeamForm({
 
       const team = await res.json();
       router.push(`/clubs/${clubId}/teams/${team.teamId}`);
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err) {
+      setError(getErrorMessage(err));
     } finally {
       setIsSubmitting(false);
     }

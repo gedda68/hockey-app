@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { calcAgeForSeason } from "@/types/nominations";
 import type { OpenOpportunity } from "@/types/tournaments";
+import { getErrorMessage } from "@/lib/utils/errors";
 import type { BaseSectionProps, RepOfficialNomination } from "@/types/player.types";
 import NominationWorkflowModal from "../NominationWorkflowModal";
 
@@ -200,8 +201,8 @@ export default function RepresentativeSection({ formData }: BaseSectionProps) {
       }).catch(console.warn);
 
       setOfficialSubmitted((prev) => [...prev, key]);
-    } catch (err: any) {
-      setOfficialError(err.message);
+    } catch (err) {
+      setOfficialError(getErrorMessage(err));
     } finally {
       setSubmittingOfficial(null);
     }

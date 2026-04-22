@@ -5,6 +5,7 @@
 
 import { useState } from "react";
 import { Plus, Edit, Trash2, Save, X, LucideIcon } from "lucide-react";
+import { getErrorMessage } from "@/lib/utils/errors";
 
 export interface ConfigItem {
   _id?: any;
@@ -143,8 +144,8 @@ export default function ConfigTable({
       await onAdd(formData);
       handleCancel();
       await onRefresh();
-    } catch (error: any) {
-      alert(error.message || `Failed to create ${singularName.toLowerCase()}`);
+    } catch (error) {
+      alert(getErrorMessage(error) || `Failed to create ${singularName.toLowerCase()}`);
     } finally {
       setIsSaving(false);
     }
@@ -161,9 +162,9 @@ export default function ConfigTable({
       await onEdit(editingId, formData);
       handleCancel();
       await onRefresh();
-    } catch (error: any) {
+    } catch (error) {
       console.error("❌ Save failed:", error);
-      alert(error.message || `Failed to update ${singularName.toLowerCase()}`);
+      alert(getErrorMessage(error) || `Failed to update ${singularName.toLowerCase()}`);
     } finally {
       setIsSaving(false);
     }
@@ -175,8 +176,8 @@ export default function ConfigTable({
     try {
       await onDelete(id, name);
       await onRefresh();
-    } catch (error: any) {
-      alert(error.message || `Failed to delete ${singularName.toLowerCase()}`);
+    } catch (error) {
+      alert(getErrorMessage(error) || `Failed to delete ${singularName.toLowerCase()}`);
     }
   };
 
@@ -184,8 +185,8 @@ export default function ConfigTable({
     try {
       await onToggleActive(item);
       await onRefresh();
-    } catch (error: any) {
-      alert(error.message || "Failed to update status");
+    } catch (error) {
+      alert(getErrorMessage(error) || "Failed to update status");
     }
   };
 

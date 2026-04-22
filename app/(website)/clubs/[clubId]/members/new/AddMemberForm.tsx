@@ -417,7 +417,7 @@ export default function AddMemberForm({
         description: 'Go to Step 5 and click "Add Emergency Contact".',
       });
       setCurrentStep(5);
-      return false;
+      return;
     }
 
     // ⚠️ VALIDATION 2: Check if emergency contacts are complete
@@ -430,7 +430,7 @@ export default function AddMemberForm({
         description: `Name, relationship and phone are required. Missing in ${invalidContacts.length} contact(s).`,
       });
       setCurrentStep(5);
-      return false;
+      return;
     }
 
     setIsLoading(true);

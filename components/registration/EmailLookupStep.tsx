@@ -11,6 +11,7 @@ import {
   UserCheck,
   AlertCircle,
 } from "lucide-react";
+import { getErrorMessage } from "@/lib/utils/errors";
 
 interface EmailLookupStepProps {
   onComplete: (data: {
@@ -77,8 +78,8 @@ export default function EmailLookupStep({
         memberId: data.memberId,
         suggestedData: data.suggestedData,
       });
-    } catch (err: any) {
-      setError(err.message || "Failed to check email");
+    } catch (err) {
+      setError(getErrorMessage(err) || "Failed to check email");
     } finally {
       setIsChecking(false);
     }
