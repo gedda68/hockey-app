@@ -9,6 +9,14 @@
 //   registrar            → payments for their club only
 //   any other auth user  → their own payments only
 //
+// GET query params:
+//   ?memberId=     narrow to a specific member (scope rules still apply)
+//   ?status=       "paid" | "pending" | "refunded" | "cancelled" | etc.
+//   ?seasonYear=   e.g. "2025"
+//   ?search=       fuzzy member name / email search (admin callers only —
+//                  ignored when scope already pins to a single memberId)
+//   ?limit=        max results (default 50, cap 200)
+//
 // POST (create manual payment record) → requires club.fees or system.manage
 
 import { NextRequest, NextResponse } from "next/server";
@@ -28,9 +36,10 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const requestedMemberId = searchParams.get("memberId") || null;
-    const status = searchParams.get("status");
+    const status     = searchParams.get("status");
     const seasonYear = searchParams.get("seasonYear");
-    const limit = Math.min(parseInt(searchParams.get("limit") || "50"), 200);
+    const search     = searchParams.get("search")?.trim() || null;
+    const limit      = Math.min(parseInt(searchParams.get("limit") || "50"), 200);
 
     // Resolve scope-aware filter
     const scopeResult = await buildPaymentScopeFilter(session, requestedMemberId);
@@ -40,8 +49,46 @@ export async function GET(request: NextRequest) {
     const db = client.db();
 
     const query: Record<string, unknown> = { ...scopeResult.filter };
-    if (status) query.status = status;
+    if (status)     query.status     = status;
     if (seasonYear) query.seasonYear = seasonYear;
+
+    // ── Member name / email search ────────────────────────────────────────────
+    // Only applied for admin callers whose scope filter does NOT already pin to
+    // a single memberId (regular members always see only their own payments).
+    const scopeHasSingleMember = typeof scopeResult.filter.memberId === "string";
+
+    if (search && !scopeHasSingleMember) {
+      // Escape regex metacharacters to prevent ReDoS
+      const escaped = search.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const regex   = new RegExp(escaped, "i");
+
+      const matchingMembers = await db
+        .collection("members")
+        .find(
+          {
+            $or: [
+              { "personalInfo.firstName": regex },
+              { "personalInfo.lastName":  regex },
+              { "contact.primaryEmail":   regex },
+            ],
+          },
+          { projection: { memberId: 1 } },
+        )
+        .limit(100)
+        .toArray();
+
+      const matchingIds = matchingMembers
+        .map((m) => m.memberId as string)
+        .filter(Boolean);
+
+      if (matchingIds.length === 0) {
+        // No members match — return empty rather than leaking all records
+        return NextResponse.json([]);
+      }
+
+      // AND with existing scope filter (scope may already restrict by clubId etc.)
+      query.memberId = { $in: matchingIds };
+    }
 
     const payments = await db
       .collection("payments")
