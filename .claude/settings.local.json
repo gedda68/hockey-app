@@ -61,7 +61,8 @@
       "Bash(echo \"EXIT_ESLINT:$?\")",
       "Bash(grep -oE \"[a-z@/._-]{5,}\")",
       "Bash(python3 -c ':*)",
-      "Bash(echo \"TSC exit: $?\")"
+      "Bash(echo \"TSC exit: $?\")",
+      "Bash(echo \"TSC: $?\")"
     ]
   }
 }
