@@ -8,14 +8,20 @@
  *   days?     — warn window in days (default 60)
  *   clubId?   — filter to a specific club (super-admin / assoc-admin only)
  *   assocId?  — filter to a specific association's clubs
+ *   format?   — "json" (default) | "csv"  — CSV triggers a file download
  *
- * Response:
+ * JSON response:
  *   {
  *     expiringSoon: RoleExpirySummary[]
  *     expired: RoleExpirySummary[]
  *     totalExpiringSoon: number
  *     totalExpired: number
  *   }
+ *
+ * CSV response:
+ *   Attachment download — "role-expiry.csv"
+ *   Columns: status, memberId, memberName, email, role, roleLabel, scopeId,
+ *            scopeName, seasonYear, expiresAt, daysUntilExpiry
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -60,6 +66,7 @@ export async function GET(req: NextRequest) {
   const days    = parseInt(searchParams.get("days") ?? "60", 10);
   const clubId  = searchParams.get("clubId")  ?? undefined;
   const assocId = searchParams.get("assocId") ?? undefined;
+  const format  = searchParams.get("format")  ?? "json";
 
   const client = await clientPromise;
   const db = client.db("hockey-app");
@@ -152,6 +159,61 @@ export async function GET(req: NextRequest) {
   // Sort: most urgent first
   expiringSoon.sort((a, b) => a.daysUntilExpiry - b.daysUntilExpiry);
   expired.sort((a, b) => a.daysUntilExpiry - b.daysUntilExpiry); // most recently expired first
+
+  // ── CSV export ──────────────────────────────────────────────────────────────
+  if (format === "csv") {
+    function csvEscape(s: string): string {
+      if (/[",\n\r]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+      return s;
+    }
+
+    const header = [
+      "status", "memberId", "memberName", "email",
+      "role", "roleLabel", "scopeId", "scopeName",
+      "seasonYear", "expiresAt", "daysUntilExpiry",
+    ].join(",");
+
+    const rows: string[] = [header];
+
+    for (const r of expired) {
+      rows.push([
+        csvEscape("expired"),
+        csvEscape(r.memberId),
+        csvEscape(r.memberName),
+        csvEscape(r.email ?? ""),
+        csvEscape(r.role),
+        csvEscape(r.roleLabel),
+        csvEscape(r.scopeId ?? ""),
+        csvEscape(r.scopeName ?? ""),
+        csvEscape(r.seasonYear ?? ""),
+        csvEscape(r.expiresAt),
+        csvEscape(String(r.daysUntilExpiry)),
+      ].join(","));
+    }
+    for (const r of expiringSoon) {
+      rows.push([
+        csvEscape("expiring_soon"),
+        csvEscape(r.memberId),
+        csvEscape(r.memberName),
+        csvEscape(r.email ?? ""),
+        csvEscape(r.role),
+        csvEscape(r.roleLabel),
+        csvEscape(r.scopeId ?? ""),
+        csvEscape(r.scopeName ?? ""),
+        csvEscape(r.seasonYear ?? ""),
+        csvEscape(r.expiresAt),
+        csvEscape(String(r.daysUntilExpiry)),
+      ].join(","));
+    }
+
+    return new NextResponse(rows.join("\r\n"), {
+      status: 200,
+      headers: {
+        "Content-Type": "text/csv; charset=utf-8",
+        "Content-Disposition": `attachment; filename="role-expiry-${new Date().toISOString().slice(0, 10)}.csv"`,
+      },
+    });
+  }
 
   return NextResponse.json({
     expiringSoon,
