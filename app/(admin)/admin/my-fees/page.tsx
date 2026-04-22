@@ -148,6 +148,10 @@ interface PaymentLineItem {
   name: string;
   amount?: number;
   description?: string;
+  /** Whether the line-item amount includes GST (P6). */
+  gstIncluded?: boolean;
+  /** GST component in cents (P6). */
+  gstAmountCents?: number;
 }
 
 interface PaymentRecord {
@@ -164,6 +168,10 @@ interface PaymentRecord {
   paidDate?: string;
   refundedAt?: string;
   refundAmountCents?: number;
+  /** Whether the payment amount includes GST (P6). */
+  gstIncluded?: boolean;
+  /** Pre-calculated GST component in cents for the whole payment (P6). */
+  gstAmountCents?: number;
   lineItems?: PaymentLineItem[];
   notes?: string;
   createdAt: string;
@@ -486,6 +494,40 @@ function ReceiptModal({ payment, onClose }: { payment: PaymentRecord; onClose: (
             <span className="text-gray-700">Total</span>
             <span className="text-gray-900">{formatCents(Math.round(totalDollars * 100))}</span>
           </div>
+
+          {/* GST breakdown (P6) */}
+          {(() => {
+            // Aggregate GST from line items when available; fall back to top-level field
+            const totalCents = Math.round(totalDollars * 100);
+            let gstCentsDisplay: number | null = null;
+
+            if ((payment.lineItems?.length ?? 0) > 0) {
+              const sumGst = payment.lineItems!.reduce((acc, item) => {
+                if (item.gstAmountCents !== undefined) return acc + item.gstAmountCents;
+                if (item.gstIncluded && item.amount !== undefined) {
+                  const ac = Math.round(item.amount * 100);
+                  return acc + Math.round(ac - ac / 1.1);
+                }
+                return acc;
+              }, 0);
+              if (sumGst > 0) gstCentsDisplay = sumGst;
+            } else if (payment.gstAmountCents !== undefined && payment.gstAmountCents > 0) {
+              gstCentsDisplay = payment.gstAmountCents;
+            } else if (payment.gstIncluded) {
+              gstCentsDisplay = Math.round(totalCents - totalCents / 1.1);
+            }
+
+            if (gstCentsDisplay === null) {
+              return (
+                <p className="text-xs text-gray-400 text-right -mt-1">GST-free</p>
+              );
+            }
+            return (
+              <div className="text-xs text-gray-500 text-right space-y-0.5 -mt-1">
+                <span>incl. GST {formatCents(gstCentsDisplay)}</span>
+              </div>
+            );
+          })()}
 
           {/* Refund info */}
           {payment.refundAmountCents !== undefined && payment.refundAmountCents > 0 && (

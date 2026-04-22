@@ -81,14 +81,28 @@ export function formatFeeAmount(entry: Pick<FeeScheduleEntry, "amountCents" | "c
 
 /**
  * Build a human-readable fee description string for the role-request document.
- * e.g. "2025 Player Registration — Commercial Hockey Club  [$120.00 AUD]"
+ *
+ * @example
+ * // GST-inclusive (default AUS)
+ * "2025 Player Registration — Commercial Hockey Club [$120.00 AUD incl. GST]"
+ *
+ * @example
+ * // Explicitly GST-free
+ * "2025 Volunteer Registration — North Hockey Club [$50.00 AUD GST-free]"
  */
 export function buildFeeDescription(
   entry: FeeScheduleEntry,
   roleLabel: string,
   scopeName: string,
 ): string {
-  return `${entry.seasonYear} ${roleLabel} Registration — ${scopeName} [${formatFeeAmount(entry)}]`;
+  const amountStr = formatFeeAmount(entry);
+  let gstLabel = "";
+  if (entry.gstIncluded === true) {
+    gstLabel = " incl. GST";
+  } else if (entry.gstIncluded === false) {
+    gstLabel = " GST-free";
+  }
+  return `${entry.seasonYear} ${roleLabel} Registration — ${scopeName} [${amountStr}${gstLabel}]`;
 }
 
 // ── Validation ────────────────────────────────────────────────────────────────

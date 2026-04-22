@@ -54,6 +54,13 @@ export interface FeeScheduleEntry {
 
   /** Currency code. Always "AUD" — stored explicitly for forward compatibility. */
   currency: "AUD";
+
+  /**
+   * Whether the `amountCents` is GST-inclusive (true, the AUS default) or
+   * GST-exclusive (false, used for genuinely GST-free supplies).
+   * When omitted the receipt display treats the fee as GST-inclusive.
+   */
+  gstIncluded?: boolean;
 }
 
 /**

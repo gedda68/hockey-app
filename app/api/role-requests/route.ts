@@ -21,6 +21,7 @@ import clientPromise from "@/lib/mongodb";
 import { getSession } from "@/lib/auth/session";
 import { ROLE_DEFINITIONS } from "@/lib/types/roles";
 import { resolveFeeWithFallback, buildFeeDescription } from "@/lib/fees/feeSchedule";
+import { calculateGST } from "@/lib/fees/gst";
 import type { SubmitRoleRequestBody, RoleRequest } from "@/types/roleRequests";
 import type { FeeScheduleEntry } from "@/types/feeSchedule";
 
@@ -110,6 +111,8 @@ export async function POST(request: NextRequest) {
     let scopeName: string | undefined;
     let resolvedFeeAmountCents: number | undefined;
     let resolvedFeeDescription: string | undefined;
+    let resolvedGstIncluded: boolean | undefined;
+    let resolvedGstAmountCents: number | undefined;
 
     const effectiveSeasonYear = seasonYear ?? String(new Date().getFullYear());
 
@@ -144,6 +147,11 @@ export async function POST(request: NextRequest) {
             roleDef.label,
             scopeName ?? scopeId,
           );
+          resolvedGstIncluded    = entry.gstIncluded;
+          resolvedGstAmountCents = calculateGST(
+            entry.amountCents,
+            entry.gstIncluded ?? true,
+          ).gst;
         }
       } else if (scopeType === "association") {
         const assoc = await db.collection("associations").findOne(
@@ -165,6 +173,11 @@ export async function POST(request: NextRequest) {
             roleDef.label,
             scopeName ?? scopeId,
           );
+          resolvedGstIncluded    = entry.gstIncluded;
+          resolvedGstAmountCents = calculateGST(
+            entry.amountCents,
+            entry.gstIncluded ?? true,
+          ).gst;
         }
       }
     }
@@ -196,6 +209,13 @@ export async function POST(request: NextRequest) {
         : {}),
       ...(resolvedFeeDescription
         ? { feeDescription: resolvedFeeDescription }
+        : {}),
+      // P6: GST metadata derived from the resolved fee schedule entry
+      ...(resolvedGstIncluded !== undefined
+        ? { gstIncluded: resolvedGstIncluded }
+        : {}),
+      ...(resolvedGstAmountCents !== undefined
+        ? { gstAmountCents: resolvedGstAmountCents }
         : {}),
       feePaid:              false,
       status,

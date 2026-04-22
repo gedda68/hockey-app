@@ -102,6 +102,7 @@ export default function FeeScheduleEditor({
         seasonYear:  DEFAULT_YEAR,
         amountCents: 0,
         currency:    "AUD",
+        gstIncluded: true,
       },
     ]);
   };
@@ -161,10 +162,11 @@ export default function FeeScheduleEditor({
       ) : (
         <>
           {/* Table header */}
-          <div className="hidden md:grid md:grid-cols-[1fr_140px_140px_40px] gap-3 px-4">
+          <div className="hidden md:grid md:grid-cols-[1fr_140px_140px_72px_40px] gap-3 px-4">
             <span className="text-xs font-black uppercase text-slate-400 tracking-wide">Role</span>
             <span className="text-xs font-black uppercase text-slate-400 tracking-wide">Season Year</span>
             <span className="text-xs font-black uppercase text-slate-400 tracking-wide">Amount (AUD)</span>
+            <span className="text-xs font-black uppercase text-slate-400 tracking-wide text-center">GST inc.</span>
             <span />
           </div>
 
@@ -181,7 +183,7 @@ export default function FeeScheduleEditor({
               return (
                 <div
                   key={idx}
-                  className={`grid grid-cols-1 md:grid-cols-[1fr_140px_140px_40px] gap-3 items-center p-4 rounded-2xl border-2 transition-colors ${
+                  className={`grid grid-cols-1 md:grid-cols-[1fr_140px_140px_72px_40px] gap-3 items-center p-4 rounded-2xl border-2 transition-colors ${
                     hasDuplicate
                       ? "bg-red-50 border-red-200"
                       : "bg-slate-50 border-slate-100"
@@ -252,6 +254,28 @@ export default function FeeScheduleEditor({
                     </div>
                   </div>
 
+                  {/* GST included toggle */}
+                  <div className="flex flex-col items-start md:items-center gap-1">
+                    <label className="block text-xs font-black uppercase text-slate-400 mb-1 md:hidden">
+                      GST inc.
+                    </label>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={entry.gstIncluded ?? true}
+                        onChange={(e) =>
+                          updateRow(idx, { gstIncluded: e.target.checked })
+                        }
+                        className="sr-only peer"
+                      />
+                      <div className="w-9 h-5 bg-slate-200 rounded-full peer peer-checked:bg-yellow-400 transition-colors" />
+                      <div className="absolute left-0.5 top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform peer-checked:translate-x-4" />
+                    </label>
+                    <span className="text-xs text-slate-400 md:hidden">
+                      {(entry.gstIncluded ?? true) ? "GST incl." : "GST-free"}
+                    </span>
+                  </div>
+
                   {/* Delete */}
                   <div className="flex justify-end md:justify-center">
                     <button
@@ -267,7 +291,7 @@ export default function FeeScheduleEditor({
 
                   {/* Duplicate warning */}
                   {hasDuplicate && (
-                    <div className="md:col-span-4 flex items-center gap-2 text-xs font-bold text-red-600 px-1 -mt-1">
+                    <div className="md:col-span-5 flex items-center gap-2 text-xs font-bold text-red-600 px-1 -mt-1">
                       <AlertCircle size={14} />
                       Duplicate role + season year — only the first matching entry
                       will be used. Remove the duplicate.

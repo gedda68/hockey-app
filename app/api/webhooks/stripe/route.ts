@@ -124,6 +124,9 @@ async function handleCheckoutSessionCompleted(
     feeDescription:          rr.feeDescription  as string | undefined,
     requestedRole:           rr.requestedRole   as string | undefined,
     seasonYear:              rr.seasonYear      as string | undefined,
+    // P6: forward GST metadata stored on the role_request at submission time
+    gstIncluded:             rr.gstIncluded     as boolean | undefined,
+    gstAmountCents:          rr.gstAmountCents  as number | undefined,
   });
 
   console.info(

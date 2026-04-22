@@ -57,16 +57,20 @@ function appBaseUrl(): string {
  * it without duplicating logic.
  */
 export async function recordRoleRequestPayment(opts: {
-  requestId:             string;
-  memberId:              string;
-  amountCents:           number;
-  paymentMethod:         string;
-  transactionId:         string;
-  stripePaymentIntentId?: string | null;
+  requestId:               string;
+  memberId:                string;
+  amountCents:             number;
+  paymentMethod:           string;
+  transactionId:           string;
+  stripePaymentIntentId?:  string | null;
   stripeCheckoutSessionId?: string | null;
-  feeDescription?:       string;
-  requestedRole?:        string;
-  seasonYear?:           string;
+  feeDescription?:         string;
+  requestedRole?:          string;
+  seasonYear?:             string;
+  /** Whether the fee amount includes GST (P6). Defaults to false for backwards compat. */
+  gstIncluded?:            boolean;
+  /** GST component in cents, pre-calculated from the fee schedule entry (P6). */
+  gstAmountCents?:         number;
 }): Promise<{ paymentId: string }> {
   const client = await clientPromise;
   const db = client.db(process.env.DB_NAME ?? "hockey-app");
@@ -82,15 +86,19 @@ export async function recordRoleRequestPayment(opts: {
     amountCents: opts.amountCents,
     lineItems: [
       {
-        itemId:      `rr-${opts.requestId}`,
-        feeId:       opts.requestId,
-        type:        "other",
-        name:        opts.feeDescription ??
-                     `${opts.requestedRole ?? "Role"} registration fee`,
-        amount:      opts.amountCents / 100,
-        gstIncluded: false,
+        itemId:        `rr-${opts.requestId}`,
+        feeId:         opts.requestId,
+        type:          "other",
+        name:          opts.feeDescription ??
+                       `${opts.requestedRole ?? "Role"} registration fee`,
+        amount:        opts.amountCents / 100,
+        gstIncluded:   opts.gstIncluded ?? false,
+        gstAmountCents: opts.gstAmountCents ?? 0,
       },
     ],
+    // P6: top-level GST fields mirror the line item for quick reporting queries
+    gstIncluded:   opts.gstIncluded ?? false,
+    gstAmountCents: opts.gstAmountCents ?? 0,
     status:        "paid",
     seasonYear:    opts.seasonYear ?? new Date().getFullYear().toString(),
     paymentMethod: opts.paymentMethod,
@@ -250,9 +258,11 @@ export async function POST(request: NextRequest) {
         amountCents:    feeAmountCents,
         paymentMethod:  "simulated",
         transactionId,
-        feeDescription: rr.feeDescription as string | undefined,
-        requestedRole:  rr.requestedRole  as string | undefined,
-        seasonYear:     rr.seasonYear     as string | undefined,
+        feeDescription: rr.feeDescription   as string | undefined,
+        requestedRole:  rr.requestedRole    as string | undefined,
+        seasonYear:     rr.seasonYear       as string | undefined,
+        gstIncluded:    rr.gstIncluded      as boolean | undefined,
+        gstAmountCents: rr.gstAmountCents   as number | undefined,
       });
 
       return NextResponse.json({ url: successUrl, simulated: true });

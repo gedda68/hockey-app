@@ -1,4 +1,5 @@
 import type { Db } from "mongodb";
+import { calculateGST } from "@/lib/fees/gst";
 
 export type PaymentLineLike = {
   type?: string;
@@ -11,9 +12,19 @@ export type PaymentLineLike = {
   tournamentId?: string;
 };
 
+/**
+ * Return the GST component (in dollars) for a line-item amount (in dollars).
+ *
+ * Delegates to the canonical `calculateGST` function (lib/fees/gst.ts) so that
+ * rounding is always consistent with the ATO 1/11 formula.
+ *
+ * @param amount      Dollar amount as stored in `payments.lineItems[].amount`.
+ * @param gstIncluded Whether the amount is GST-inclusive.
+ * @returns GST component in dollars (float, rounded to nearest cent).
+ */
 export function gstComponentFromLine(amount: number, gstIncluded: boolean): number {
-  if (!gstIncluded) return 0;
-  return amount - amount / 1.1;
+  const amountCents = Math.round(amount * 100);
+  return calculateGST(amountCents, gstIncluded).gst / 100;
 }
 
 export interface RegistrationPaymentSummary {

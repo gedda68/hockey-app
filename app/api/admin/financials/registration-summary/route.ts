@@ -115,6 +115,7 @@ export async function GET(request: NextRequest) {
         "lineAmount",
         "gstIncluded",
         "gstComponent",
+        "gstAmountCents",
         "associationId",
         "competitionId",
         "tournamentId",
@@ -133,22 +134,19 @@ export async function GET(request: NextRequest) {
               csvEscape(String(p.seasonYear ?? "")),
               csvEscape(String(p.status ?? "")),
               csvEscape(String(p.amount ?? "")),
-              "",
-              "",
-              "",
-              "",
-              "",
-              "",
-              "",
-              "",
+              // lineType, lineName, lineAmount, gstIncluded, gstComponent, gstAmountCents
+              "", "", "", "", "", "",
+              // associationId, competitionId, tournamentId
+              "", "", "",
             ].join(","),
           );
           continue;
         }
         for (const line of items) {
-          const amt = (line.amount as number) ?? 0;
-          const gi = (line.gstIncluded as boolean) ?? true;
-          const gst = gstComponentFromLine(amt, gi);
+          const amt            = (line.amount as number) ?? 0;
+          const gi             = (line.gstIncluded as boolean) ?? true;
+          const gst            = gstComponentFromLine(amt, gi);
+          const gstCentsCol    = Math.round(gst * 100);
           rows.push(
             [
               csvEscape(String(p.paymentId ?? "")),
@@ -162,6 +160,7 @@ export async function GET(request: NextRequest) {
               csvEscape(String(amt)),
               csvEscape(String(gi)),
               csvEscape(String(gst)),
+              csvEscape(String(gstCentsCol)),
               csvEscape(String(line.associationId ?? "")),
               csvEscape(String(line.competitionId ?? "")),
               csvEscape(String(line.tournamentId ?? "")),
