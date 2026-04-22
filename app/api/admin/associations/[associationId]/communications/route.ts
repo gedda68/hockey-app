@@ -101,6 +101,15 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     if (body.enabledPushTopics !== undefined) {
       $set.enabledPushTopics = body.enabledPushTopics;
     }
+    // R6 — seasonal re-registration reminders
+    if (body.seasonalReminderEnabled !== undefined) {
+      $set.seasonalReminderEnabled = body.seasonalReminderEnabled;
+    }
+    if (body.seasonalReminderCustomText !== undefined) {
+      $set.seasonalReminderCustomText = body.seasonalReminderCustomText !== null
+        ? stripAllTags(body.seasonalReminderCustomText)
+        : null;
+    }
 
     await db.collection("communication_hub_settings").updateOne(
       { scopeType: "association", scopeId: id },

@@ -36,6 +36,13 @@ export default function AssociationCommunicationHubClient({
   const [topics, setTopics] = useState<Set<CommunicationHubPushTopic>>(
     () => new Set(initial.enabledPushTopics),
   );
+  // R6 — seasonal re-registration reminders
+  const [seasonalReminderEnabled, setSeasonalReminderEnabled] = useState(
+    initial.seasonalReminderEnabled,
+  );
+  const [seasonalReminderCustomText, setSeasonalReminderCustomText] = useState(
+    initial.seasonalReminderCustomText ?? "",
+  );
 
   const toggleTopic = useCallback((t: CommunicationHubPushTopic) => {
     setTopics((prev) => {
@@ -59,6 +66,9 @@ export default function AssociationCommunicationHubClient({
             weeklyDigestEnabled,
             weeklyDigestIntroText: weeklyDigestIntro.trim() || null,
             enabledPushTopics: [...topics],
+            // R6
+            seasonalReminderEnabled,
+            seasonalReminderCustomText: seasonalReminderCustomText.trim() || null,
           }),
         },
       );
@@ -79,6 +89,8 @@ export default function AssociationCommunicationHubClient({
     weeklyDigestEnabled,
     weeklyDigestIntro,
     topics,
+    seasonalReminderEnabled,
+    seasonalReminderCustomText,
   ]);
 
   return (
@@ -159,6 +171,77 @@ export default function AssociationCommunicationHubClient({
           className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-900 shadow-inner disabled:bg-slate-100"
           placeholder="When digest is implemented, this can open each weekly email."
         />
+      </section>
+
+      {/* R6 — Seasonal re-registration reminders */}
+      <section className="space-y-4 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+        <div>
+          <h3 className="text-sm font-black text-[#06054e]">
+            Seasonal re-registration reminders
+          </h3>
+          <p className="mt-1 text-xs text-slate-500 leading-relaxed">
+            Automatically reminds members whose seasonal registrations (player, member,
+            coach, etc.) are about to expire when they haven't yet submitted a
+            role-request for the upcoming season. Two reminder waves are sent via
+            Resend — approximately <strong>6 weeks</strong> and{" "}
+            <strong>2 weeks</strong> before the association's configured season
+            start month.
+          </p>
+        </div>
+
+        {/* Enable toggle */}
+        <div className="flex items-center gap-3">
+          <input
+            id="seasonal-reminder-enabled"
+            type="checkbox"
+            checked={seasonalReminderEnabled}
+            onChange={(e) => setSeasonalReminderEnabled(e.target.checked)}
+            className="h-4 w-4 rounded border-slate-300 accent-[#06054e]"
+          />
+          <label
+            htmlFor="seasonal-reminder-enabled"
+            className="text-sm font-bold text-slate-800 cursor-pointer"
+          >
+            Enable seasonal re-registration reminders for{" "}
+            <span className="text-[#06054e]">{associationName}</span>
+          </label>
+        </div>
+
+        {/* Custom text field — only editable when enabled */}
+        <div className={seasonalReminderEnabled ? "" : "opacity-50 pointer-events-none"}>
+          <label className="block text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1.5">
+            Custom message (plain text, optional — 2 000 char max)
+          </label>
+          <textarea
+            value={seasonalReminderCustomText}
+            onChange={(e) => setSeasonalReminderCustomText(e.target.value)}
+            rows={4}
+            maxLength={2000}
+            disabled={!seasonalReminderEnabled}
+            className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-900 shadow-inner focus:border-[#06054e] focus:outline-none disabled:bg-slate-50"
+            placeholder={
+              "Optional message shown in the reminder email — e.g. registration deadlines, " +
+              "fee changes, or who to contact with questions."
+            }
+          />
+          <p className="text-xs text-slate-400 mt-0.5 text-right">
+            {seasonalReminderCustomText.length} / 2 000
+          </p>
+        </div>
+
+        {/* Info callout */}
+        <div className="rounded-lg border border-blue-100 bg-blue-50 px-4 py-3 text-xs text-blue-800 leading-relaxed">
+          <strong>Cron trigger</strong> — reminders are dispatched by calling{" "}
+          <code className="font-mono bg-blue-100 px-1 rounded">
+            GET /api/cron/seasonal-registration-reminder?weeks=6
+          </code>{" "}
+          and{" "}
+          <code className="font-mono bg-blue-100 px-1 rounded">?weeks=2</code>.
+          Schedule these endpoints weekly via Vercel Cron, GitHub Actions, or
+          cron-job.org — each run self-detects which associations are in the
+          reminder window based on their <strong>season start month</strong> (set
+          on the association record).
+        </div>
       </section>
 
       <button

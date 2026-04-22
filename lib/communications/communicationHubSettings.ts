@@ -14,6 +14,17 @@ export type CommunicationHubSettings = {
   weeklyDigestEnabled: boolean;
   weeklyDigestIntroText: string | null;
   enabledPushTopics: CommunicationHubPushTopic[];
+  /**
+   * R6 — Whether the seasonal re-registration reminder cron job should send
+   * reminders for this association's members.  Defaults to false (opt-in).
+   */
+  seasonalReminderEnabled: boolean;
+  /**
+   * R6 — Optional plain-text paragraph injected into seasonal reminder emails
+   * between the greeting and the registration details table.  Max 2000 chars.
+   * HTML is stripped server-side before storage.
+   */
+  seasonalReminderCustomText: string | null;
 };
 
 const DEFAULT_SETTINGS: CommunicationHubSettings = {
@@ -21,6 +32,8 @@ const DEFAULT_SETTINGS: CommunicationHubSettings = {
   weeklyDigestEnabled: false,
   weeklyDigestIntroText: null,
   enabledPushTopics: ["fixture_changes"],
+  seasonalReminderEnabled:    false,
+  seasonalReminderCustomText: null,
 };
 
 const TOPIC_SET = new Set<string>(COMMUNICATION_HUB_PUSH_TOPICS);
@@ -45,11 +58,19 @@ export function mergeCommunicationHubSettings(
     typeof row.weeklyDigestIntroText === "string"
       ? row.weeklyDigestIntroText.trim().slice(0, 4000) || null
       : null;
+  const reminderCustomText =
+    typeof row.seasonalReminderCustomText === "string"
+      ? row.seasonalReminderCustomText.trim().slice(0, 2000) || null
+      : null;
+
   return {
     fixtureChangeEmailSupplementText: supplement,
     weeklyDigestEnabled: Boolean(row.weeklyDigestEnabled),
     weeklyDigestIntroText: digestIntro,
     enabledPushTopics: normalizeTopics(row.enabledPushTopics),
+    // R6
+    seasonalReminderEnabled:    Boolean(row.seasonalReminderEnabled),
+    seasonalReminderCustomText: reminderCustomText,
   };
 }
 
@@ -74,6 +95,9 @@ export const PatchCommunicationHubSettingsSchema = z.object({
     .array(z.enum(COMMUNICATION_HUB_PUSH_TOPICS))
     .max(COMMUNICATION_HUB_PUSH_TOPICS.length)
     .optional(),
+  // R6 — seasonal re-registration reminders
+  seasonalReminderEnabled:    z.boolean().optional(),
+  seasonalReminderCustomText: z.string().max(2000).nullable().optional(),
 });
 
 export type PatchCommunicationHubSettings = z.infer<
