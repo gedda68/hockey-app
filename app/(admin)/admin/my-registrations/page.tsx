@@ -11,7 +11,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { toast } from "sonner";
-import { Plus, RefreshCw, ChevronDown } from "lucide-react";
+import { Plus, RefreshCw, ChevronDown, CreditCard, Loader2 } from "lucide-react";
 import type { RoleRequest, RoleRequestStatus } from "@/types/roleRequests";
 import type { EnrichedRoleAssignment } from "@/app/api/member/my-roles/route";
 
@@ -60,7 +60,17 @@ function StatusBadge({ status }: { status: RoleRequestStatus }) {
   );
 }
 
-function RequestCard({ req, onWithdraw }: { req: RoleRequest; onWithdraw: (id: string) => void }) {
+function RequestCard({
+  req,
+  onWithdraw,
+  onPayNow,
+  paying = false,
+}: {
+  req: RoleRequest;
+  onWithdraw: (id: string) => void;
+  onPayNow?: (id: string) => void;
+  paying?: boolean;
+}) {
   const canWithdraw = ["pending_payment", "awaiting_approval"].includes(req.status);
 
   return (
@@ -90,8 +100,31 @@ function RequestCard({ req, onWithdraw }: { req: RoleRequest; onWithdraw: (id: s
 
       {/* Status-specific guidance */}
       {req.status === "pending_payment" && (
-        <div className="bg-orange-50 border border-orange-200 rounded-lg p-3 mb-3 text-xs text-orange-800">
-          <strong>Action needed:</strong> Please pay the registration fee to proceed. Contact your club registrar or pay online if a payment link is available.
+        <div className="mb-3 space-y-2">
+          {/* Pay Now CTA — shown when a fee amount has been configured */}
+          {onPayNow && (req.feeAmountCents ?? 0) > 0 ? (
+            <button
+              onClick={() => onPayNow(req.requestId)}
+              disabled={paying}
+              className="w-full flex items-center justify-center gap-2 py-2.5 bg-amber-500 hover:bg-amber-600 disabled:opacity-60 disabled:cursor-not-allowed text-white rounded-lg text-sm font-bold transition-colors"
+            >
+              {paying ? (
+                <Loader2 size={15} className="animate-spin" />
+              ) : (
+                <CreditCard size={15} />
+              )}
+              {paying
+                ? "Redirecting to payment…"
+                : `Pay Registration Fee — $${((req.feeAmountCents ?? 0) / 100).toFixed(2)} AUD`}
+            </button>
+          ) : (
+            <div className="bg-orange-50 border border-orange-200 rounded-lg p-3 text-xs text-orange-800">
+              <strong>Action needed:</strong>{" "}
+              {(req.feeAmountCents ?? 0) === 0
+                ? "Fee amount has not been configured yet — contact your club registrar to pay manually or request a fee waiver."
+                : "Please pay the registration fee to proceed. Contact your club registrar or pay online if a payment link is available."}
+            </div>
+          )}
         </div>
       )}
 
@@ -402,6 +435,7 @@ export default function MyRegistrationsPage() {
   const [activeTab, setActiveTab] = useState<"active" | "history">("active");
   const [expiringSoon, setExpiringSoon] = useState<EnrichedRoleAssignment[]>([]);
   const [expiredRoles, setExpiredRoles] = useState<EnrichedRoleAssignment[]>([]);
+  const [payingRequestId, setPayingRequestId] = useState<string | null>(null);
 
   const memberId = user?.memberId ?? user?.userId ?? "";
   const accountType: "user" | "member" = user?.memberId ? "member" : "user";
@@ -429,6 +463,22 @@ export default function MyRegistrationsPage() {
     setShowSubmit(true);
     router.replace("/admin/my-registrations", { scroll: false });
   }, [memberId, router]);
+
+  // ── Payment-result URL param handler ────────────────────────────────────────
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const payment = params.get("payment");
+    if (!payment) return;
+    // Strip the param immediately so it doesn't re-fire on navigation
+    router.replace("/admin/my-registrations", { scroll: false });
+    if (payment === "success") {
+      toast.success("Payment received — your request is now awaiting approval.");
+    } else if (payment === "cancelled") {
+      toast.info("Payment cancelled — your request is still pending payment.");
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const load = useCallback(async () => {
     if (!memberId) return;
@@ -480,6 +530,33 @@ export default function MyRegistrationsPage() {
       }
     } catch {
       toast.error("Network error");
+    }
+  };
+
+  const handlePayNow = async (requestId: string) => {
+    setPayingRequestId(requestId);
+    try {
+      const res = await fetch("/api/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ requestId }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast.error(data.error ?? "Failed to initiate payment — please try again.");
+        return;
+      }
+      if (data.url) {
+        window.location.href = data.url;
+        // Don't clear payingRequestId — the spinner should persist until navigation
+        return;
+      }
+      toast.error("No payment URL returned — please contact your registrar.");
+    } catch {
+      toast.error("Network error — please try again.");
+    } finally {
+      // Only clear if we're staying on the page (error path)
+      setPayingRequestId(prev => prev === requestId ? null : prev);
     }
   };
 
@@ -635,7 +712,13 @@ export default function MyRegistrationsPage() {
       ) : (
         <div className="grid gap-4 sm:grid-cols-2">
           {displayRequests.map(req => (
-            <RequestCard key={req.requestId} req={req} onWithdraw={handleWithdraw} />
+            <RequestCard
+                key={req.requestId}
+                req={req}
+                onWithdraw={handleWithdraw}
+                onPayNow={handlePayNow}
+                paying={payingRequestId === req.requestId}
+              />
           ))}
         </div>
       )}
