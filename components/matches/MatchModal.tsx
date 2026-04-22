@@ -23,7 +23,8 @@ export default function MatchModal({
   isUpcoming?: boolean;
   umpires?: UmpireDetails[] | null;
 }) {
-  if (!match) return null;
+  // ⚠️ Hooks must run unconditionally — keep all useMemo/useCallback/useState
+  // calls BEFORE any conditional return.
 
   // Combine goals and cards into one timeline, using 'time' instead of 'minute'
   const timelineEvents = useMemo(() => {
@@ -49,6 +50,9 @@ export default function MatchModal({
 
     return [...goals, ...cards].sort((a, b) => a.time - b.time);
   }, [matchStats]);
+
+  // Guard placed after all hooks so the hook call order is always the same.
+  if (!match) return null;
 
   const getCardColor = (cardType: string) => {
     switch (cardType?.toLowerCase()) {

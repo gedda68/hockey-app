@@ -1,7 +1,15 @@
 name: CI
 
-# Run on every push and pull-request targeting the main branch.
-# The primary gate: Vitest unit/integration tests (including the S8 auth suite).
+# Run on every push and pull-request targeting the main / develop branches.
+#
+# Required checks (configure under Settings → Branches → Branch protection rules):
+#   • TypeScript   (job: typecheck)
+#   • Vitest       (job: test)
+#   • ESLint       (job: lint)          ← added X2
+#
+# All three jobs must pass before a PR can be merged.  The "gate" job depends
+# on all three, giving a single status-check name ("gate") that can be used as
+# the branch-protection required check if preferred.
 on:
   push:
     branches: ["main", "develop"]
@@ -70,6 +78,11 @@ jobs:
           retention-days: 7
 
   # ── ESLint ────────────────────────────────────────────────────────────────
+  # Fails on any ESLint *error* (exit code 1).
+  # Warnings are allowed (--max-warnings 9999) and tracked as tech debt.
+  # Rule severity is configured in eslint.config.mjs:
+  #   error  → must be zero to merge (CI gate)
+  #   warn   → tracked tech debt; visible in output, does not block merge
   lint:
     name: ESLint
     runs-on: ubuntu-latest
@@ -88,5 +101,26 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Lint
+      - name: Lint (errors block merge, warnings are tech-debt)
         run: pnpm lint
+
+      # Annotate PRs with lint warnings using the reviewdog action format.
+      # Runs on pull_request only so pushes to main don't upload twice.
+      - name: Lint (strict — warnings summary)
+        if: github.event_name == 'pull_request'
+        run: |
+          echo "## Lint warning summary" >> $GITHUB_STEP_SUMMARY
+          pnpm lint 2>&1 | grep "warning" | wc -l | \
+            xargs -I{} echo "{} lint warnings outstanding (track via pnpm lint:strict)" \
+            >> $GITHUB_STEP_SUMMARY || true
+
+  # ── Gate ─────────────────────────────────────────────────────────────────
+  # Single synthetic job that depends on all three checks.
+  # Add "gate" as the sole required status check in branch-protection rules
+  # so that adding new jobs to CI doesn't require updating branch settings.
+  gate:
+    name: Gate
+    runs-on: ubuntu-latest
+    needs: [typecheck, test, lint]
+    steps:
+      - run: echo "All required checks passed ✓"

@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
     // Super admin sees all users
     // Association admin sees users in their association
     // Club admin sees users in their club
-    let query: Record<string, unknown> = {};
+    const query: Record<string, unknown> = {};
 
     if (user.role === "association-admin" && user.associationId) {
       query.associationId = user.associationId;

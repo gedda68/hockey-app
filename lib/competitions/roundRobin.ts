@@ -48,7 +48,7 @@ export function generateRoundRobin(
   const unique = [...new Set(teamIds.map((t) => t.trim()).filter(Boolean))];
   if (unique.length < 2) return [];
 
-  let teams = [...unique];
+  const teams = [...unique];
   const isOdd = teams.length % 2 === 1;
   if (isOdd) teams.push(ROUND_ROBIN_BYE);
 

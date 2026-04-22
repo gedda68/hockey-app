@@ -135,9 +135,10 @@ export function useDragDrop(
       return;
 
     const roster = rosters.find((r) => r.ageGroup === ageGroup)!;
-    let { teams, shadowPlayers, withdrawn } = JSON.parse(
-      JSON.stringify(roster)
-    );
+    // shadowPlayers is mutated (push) not reassigned — extracted as const
+    const deepCopy1 = JSON.parse(JSON.stringify(roster)) as Pick<Roster, "teams" | "shadowPlayers" | "withdrawn">;
+    const { shadowPlayers } = deepCopy1;
+    let { teams, withdrawn } = deepCopy1;
 
     if (draggedPlayer.sourceType === "team") {
       teams = teams.map((t: Team) =>
@@ -179,9 +180,10 @@ export function useDragDrop(
 
     const reason = prompt("Reason for withdrawal:", "Injured") || "Withdrawn";
     const roster = rosters.find((r) => r.ageGroup === ageGroup)!;
-    let { teams, shadowPlayers, withdrawn } = JSON.parse(
-      JSON.stringify(roster)
-    );
+    // withdrawn is mutated (push) not reassigned — extracted as const
+    const deepCopy2 = JSON.parse(JSON.stringify(roster)) as Pick<Roster, "teams" | "shadowPlayers" | "withdrawn">;
+    const { withdrawn } = deepCopy2;
+    let { teams, shadowPlayers } = deepCopy2;
 
     if (draggedPlayer.sourceType === "team") {
       teams = teams.map((t: Team) =>

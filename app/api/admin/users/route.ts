@@ -61,7 +61,7 @@ export async function GET(request: NextRequest) {
     const client = await clientPromise;
     const db = client.db("hockey-app");
 
-    let query: Record<string, unknown> = {};
+    const query: Record<string, unknown> = {};
 
     // Filter based on role
     if (user.role === "association-admin" && user.associationId) {

@@ -49,7 +49,19 @@
       "Bash(grep -v \"^$\")",
       "Bash(ls /c/dev/nextjs-projects/hockey-app/app/api/admin/associations/*/communications/)",
       "Bash(grep -v \"//.*: any\")",
-      "Bash(grep -v \"node_modules\\\\|\\\\.next\\\\|//.*: any\")"
+      "Bash(grep -v \"node_modules\\\\|\\\\.next\\\\|//.*: any\")",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(json.dumps\\({k:d[k] for k in ['scripts','devDependencies','eslintConfig'] if k in d}, indent=2\\)\\)\")",
+      "Bash(ls *.json eslint* .eslint*)",
+      "Bash(npx eslint:*)",
+      "Bash(echo \"EXIT: $?\")",
+      "Bash(node -e \"const r = require\\('eslint-plugin-react'\\); console.log\\(typeof r.rules['no-unescaped-entities']\\)\")",
+      "Bash(echo \"EXIT:$?\")",
+      "Bash(echo \"---EXIT:$?\")",
+      "Read(//tmp/**)",
+      "Bash(echo \"EXIT_ESLINT:$?\")",
+      "Bash(grep -oE \"[a-z@/._-]{5,}\")",
+      "Bash(python3 -c ':*)",
+      "Bash(echo \"TSC exit: $?\")"
     ]
   }
 }

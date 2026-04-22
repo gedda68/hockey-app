@@ -11,6 +11,7 @@ import { usePublicTenant } from "@/lib/contexts/PublicTenantContext";
 import { getRoleDashboard, getRoleDisplayName } from "@/lib/auth/roleRedirects";
 import { pickTenantOriginForLogin } from "@/lib/auth/postLoginTenant";
 import { buildApexSiteOrigin } from "@/lib/tenant/subdomainUrls";
+import Link from "next/link";
 import { toast } from "sonner";
 import { Loader, Lock, User, Trophy, AlertCircle, CheckCircle } from "lucide-react";
 
@@ -220,20 +221,20 @@ function LoginFormInner() {
       <div className="w-full max-w-md">
         {/* Back to Home */}
         <div className="mb-6 flex items-center justify-between">
-          <a
+          <Link
             href="/"
             className="text-yellow-400 hover:text-yellow-300 font-bold text-sm flex items-center gap-2"
           >
             ← Back to Home
-          </a>
+          </Link>
           {!isPortalContext && (
-            <a
+            <Link
               href="/nominate"
               className="text-white/50 hover:text-yellow-400 font-bold text-xs flex items-center gap-1.5 transition-colors"
             >
               <Trophy size={13} />
               Rep Nominations →
-            </a>
+            </Link>
           )}
         </div>
 
