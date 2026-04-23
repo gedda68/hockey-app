@@ -12,6 +12,7 @@ import {
   AdminEditingScopeProvider,
   AdminScopeMismatchBanner,
 } from "@/components/admin/AdminEditingScopeProvider";
+import RenewalReminderBanner from "@/components/admin/RenewalReminderBanner";
 
 export default function AdminLayout({ children }: { children: ReactNode }) {
   return (
@@ -23,6 +24,8 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
 
           {/* pt-16 clears the fixed header (64 px tall); main gets extra top air below the bar */}
           <div className="flex flex-col pt-16 min-h-screen">
+            {/* Membership renewal reminder — shown to members with expiring memberships */}
+            <RenewalReminderBanner />
             <AdminScopeMismatchBanner />
             <div className="flex flex-1 min-h-0">
               <AdminSidebar />
