@@ -14,6 +14,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import { requirePermission, requireResourceAccess } from "@/lib/auth/middleware";
+import { sendBallotInvites } from "@/lib/ballots/sendBallotInvites";
 import type { NominationWindow, Ballot } from "@/types/nominations";
 
 // ── Helper: build voter id list ────────────────────────────────────────────────
@@ -213,6 +214,12 @@ export async function POST(req: NextRequest) {
   await db.collection("ballots").updateOne(
     { ballotId: ballot.ballotId },
     { $set: { createdBy: user.userId ?? user.email } },
+  );
+
+  // ── Fire-and-forget: notify eligible voters by email ──────────────────────
+  // Do not await — email dispatch must never block the API response.
+  sendBallotInvites(db, ballot, win).catch((err: unknown) =>
+    console.error("[ballots POST] sendBallotInvites error:", err),
   );
 
   return NextResponse.json({ ballot }, { status: 201 });

@@ -7,20 +7,27 @@
  *   winner   → one candidate has the most votes
  *              - that nomination becomes "elected"
  *              - all others become "unsuccessful"
+ *              - a role_request document is inserted (status: "approved") so the
+ *                election result has a full audit trail in the role-requests system
+ *              - the winner's linkedRoleRequestId is stamped on the nomination
+ *              - the winner's role is directly assigned to their user/member document
  *              - window moves to "completed"
  *
  *   deadlock → two or more candidates are tied at the top
  *              - if ballotNumber === 1: a second ballot is auto-created with only
- *                the tied candidates
+ *                the tied candidates; voter invitation emails are re-sent
  *              - if ballotNumber === 2: window moves to "completed" with outcome
  *                "deadlock" for super-admin resolution
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { v4 as uuidv4 } from "uuid";
 import clientPromise from "@/lib/mongodb";
 import { getSession } from "@/lib/auth/session";
 import { requirePermission } from "@/lib/auth/middleware";
+import { sendBallotInvites } from "@/lib/ballots/sendBallotInvites";
 import type { Ballot, NominationWindow } from "@/types/nominations";
+import type { UserRole } from "@/lib/types/roles";
 
 type Params = { params: Promise<{ ballotId: string }> };
 
@@ -59,6 +66,7 @@ export async function POST(req: NextRequest, { params }: Params) {
   for (const nominationId of ballot.candidateNominationIds) {
     tally[nominationId] = 0;
   }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   for (const v of allVotes as any[]) {
     if (tally[v.nominationId] !== undefined) {
       tally[v.nominationId]++;
@@ -94,13 +102,13 @@ export async function POST(req: NextRequest, { params }: Params) {
   if (outcome === "winner") {
     const winnerId = leaders[0];
 
-    // Elect winner
+    // Elect winner nomination
     await db.collection("rep_nominations").updateOne(
       { nominationId: winnerId },
       { $set: { status: "elected", updatedAt: now } }
     );
 
-    // Mark others unsuccessful
+    // Mark all other candidates unsuccessful
     const loserIds = ballot.candidateNominationIds.filter((id) => id !== winnerId);
     if (loserIds.length > 0) {
       await db.collection("rep_nominations").updateMany(
@@ -109,40 +117,87 @@ export async function POST(req: NextRequest, { params }: Params) {
       );
     }
 
-    // Auto-assign role if window has positionRole
+    // ── Auto-assign role + create role_request audit record ───────────────────
+    // Only applies to position-nomination windows (club-position / assoc-position)
+    // that have a positionRole mapped to a UserRole.
     if (win?.positionRole) {
       const winningNom = await db
         .collection("rep_nominations")
         .findOne({ nominationId: winnerId });
 
       if (winningNom) {
-        const targetCollection = (winningNom as any).nomineeType === "user" ? "users" : "members";
-        const idField          = (winningNom as any).nomineeType === "user" ? "userId" : "memberId";
-        const nomineeId        = (winningNom as any).nomineeId;
+        const nomineeType      = String((winningNom as { nomineeType?: string }).nomineeType ?? "member") as "user" | "member";
+        const nomineeId        = String((winningNom as { nomineeId?: string }).nomineeId ?? "");
+        const nomineeName      = String(
+          (winningNom as { nomineeName?: string; memberName?: string }).nomineeName ??
+          (winningNom as { memberName?: string }).memberName ?? "Unknown"
+        );
+        const targetCollection = nomineeType === "user" ? "users" : "members";
+        const idField          = nomineeType === "user" ? "userId" : "memberId";
 
         if (nomineeId) {
-          await db.collection(targetCollection).updateOne(
+          // 1. Create a role_request document (status: "approved") — the election
+          //    itself constitutes approval so no further admin action is needed.
+          //    This gives the result a full audit trail in the role-requests system.
+          const requestId = `rreq-${uuidv4()}`;
+          await db.collection("role_requests").insertOne({
+            requestId,
+            memberId:          nomineeId,       // userId for "user" accounts, memberId for "member"
+            accountType:       nomineeType,
+            memberName:        nomineeName,
+            requestedRole:     win.positionRole as UserRole,
+            scopeType:         win.scopeType,
+            scopeId:           win.scopeId,
+            scopeName:         win.scopeName,
+            seasonYear:        win.seasonYear,
+            notes:             `Elected via ballot ${ballotId} — ${win.title}`,
+            requestedBy:       session.userId,
+            requestedByName:   session.name,
+            requestedAt:       now,
+            requiresFee:       false,
+            feePaid:           false,
+            status:            "approved",
+            reviewedAt:        now,
+            reviewedBy:        session.userId,
+            reviewedByName:    session.name,
+            reviewerRole:      session.role,
+            reviewNotes:       `Elected by ballot (${ballot.totalVotesCast}/${ballot.totalEligibleVoters} votes cast)`,
+            roleAssignmentCreatedAt: now,
+            // Election-specific metadata
+            electedViaBallotId:       ballotId,
+            electionNominationId:     winnerId,
+            electionVoteCount:        tally[winnerId] ?? 0,
+            electionTotalVotes:       allVotes.length,
+            createdAt:        now,
+            updatedAt:        now,
+          });
+
+          // 2. Stamp the requestId onto the winning nomination for cross-reference
+          await db.collection("rep_nominations").updateOne(
+            { nominationId: winnerId },
+            { $set: { linkedRoleRequestId: requestId, roleAssignedAt: now, updatedAt: now } }
+          );
+
+          // 3. Directly assign the role to the user/member document so the
+          //    session system picks it up on next login.
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          await (db.collection(targetCollection) as any).updateOne(
             { [idField]: nomineeId },
             {
               $push: {
                 roles: {
-                  role:      win.positionRole,
-                  scopeType: win.scopeType,
-                  scopeId:   win.scopeId,
-                  scopeName: win.scopeName,
-                  grantedAt: now,
-                  grantedBy: session.userId,
+                  role:       win.positionRole,
+                  scopeType:  win.scopeType,
+                  scopeId:    win.scopeId,
+                  scopeName:  win.scopeName,
+                  grantedAt:  now,
+                  grantedBy:  session.userId,
                   seasonYear: win.seasonYear,
-                  notes:     `Elected via ballot ${ballotId}`,
-                  active:    true,
-                } as any,
+                  notes:      `Elected via ballot ${ballotId} — role_request ${requestId}`,
+                  active:     true,
+                },
               },
             }
-          );
-
-          await db.collection("rep_nominations").updateOne(
-            { nominationId: winnerId },
-            { $set: { roleAssignedAt: now } }
           );
         }
       }
@@ -158,7 +213,7 @@ export async function POST(req: NextRequest, { params }: Params) {
       outcome,
       winnerId,
       tally,
-      message: "Ballot closed — winner elected",
+      message: "Ballot closed — winner elected and role request created",
     });
   }
 
@@ -183,6 +238,11 @@ export async function POST(req: NextRequest, { params }: Params) {
     };
 
     await db.collection("ballots").insertOne(ballot2);
+
+    // Fire-and-forget: notify tied-candidate voters of the second ballot
+    sendBallotInvites(db, ballot2, win!).catch((err: unknown) =>
+      console.error("[ballots close] second ballot sendBallotInvites error:", err),
+    );
 
     return NextResponse.json({
       outcome: "deadlock",
