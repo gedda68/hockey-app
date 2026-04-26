@@ -3,8 +3,8 @@ import VolunteerDutyRosterClient from "@/components/admin/clubs/VolunteerDutyRos
 export default async function ClubVolunteerDutyRosterPage({
   params,
 }: {
-  params: Promise<{ id: string }>;
+  params: Promise<{ clubId: string }>;
 }) {
-  const { id } = await params;
-  return <VolunteerDutyRosterClient clubRef={id} />;
+  const { clubId } = await params;
+  return <VolunteerDutyRosterClient clubRef={clubId} />;
 }

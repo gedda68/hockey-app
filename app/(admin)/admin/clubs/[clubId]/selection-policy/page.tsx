@@ -3,10 +3,10 @@ import { notFound } from "next/navigation";
 import { headers } from "next/headers";
 import SelectionPolicyForm from "@/components/admin/selection/SelectionPolicyForm";
 
-async function getClub(id: string, cookie: string) {
+async function getClub(clubId: string, cookie: string) {
   try {
     const baseUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
-    const res = await fetch(`${baseUrl}/api/admin/clubs/${encodeURIComponent(id)}`, {
+    const res = await fetch(`${baseUrl}/api/admin/clubs/${encodeURIComponent(clubId)}`, {
       cache: "no-store",
       headers: cookie ? { cookie } : {},
     });
@@ -21,12 +21,12 @@ async function getClub(id: string, cookie: string) {
 export default async function ClubSelectionPolicyPage({
   params,
 }: {
-  params: Promise<{ id: string }>;
+  params: Promise<{ clubId: string }>;
 }) {
-  const { id } = await params;
+  const { clubId } = await params;
   const reqHeaders = await headers();
   const cookie = reqHeaders.get("cookie") || "";
-  const club = await getClub(id, cookie);
+  const club = await getClub(clubId, cookie);
   if (!club) notFound();
 
   const ref = club.slug || club.id;

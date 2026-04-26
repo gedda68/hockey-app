@@ -1,4 +1,4 @@
-// app/admin/clubs/[id]/fees/page.tsx
+// app/admin/clubs/[clubId]/fees/page.tsx
 
 import { notFound } from "next/navigation";
 import { headers } from "next/headers";
@@ -30,14 +30,14 @@ async function getClub(id: string, cookie: string) {
 export default async function ClubFeesPage({
   params,
 }: {
-  params: Promise<{ id: string }>;
+  params: Promise<{ clubId: string }>;
 }) {
-  const { id } = await params;
+  const { clubId } = await params;
 
   const reqHeaders = await headers();
   const cookie = reqHeaders.get("cookie") || "";
 
-  const club = await getClub(id, cookie);
+  const club = await getClub(clubId, cookie);
 
   if (!club) {
     notFound();
@@ -54,7 +54,7 @@ export default async function ClubFeesPage({
         </Link>
         <span className="text-slate-400">/</span>
         <Link
-          href={`/admin/clubs/${id}/edit`}
+          href={`/admin/clubs/${clubId}/edit`}
           className="font-bold text-slate-600 hover:text-[#06054e]"
         >
           {club.name}
@@ -65,7 +65,7 @@ export default async function ClubFeesPage({
 
       {/* Back link */}
       <Link
-        href={`/admin/clubs/${id}/edit`}
+        href={`/admin/clubs/${clubId}/edit`}
         className="inline-flex items-center gap-2 text-sm font-bold text-slate-500 hover:text-[#06054e] transition-colors"
       >
         <ArrowLeft size={16} />
@@ -74,7 +74,7 @@ export default async function ClubFeesPage({
 
       <FeeManager
         entityType="club"
-        entityId={id}
+        entityId={clubId}
         entityName={club.name}
         primaryColor={primaryColor}
       />
@@ -85,10 +85,10 @@ export default async function ClubFeesPage({
 export async function generateMetadata({
   params,
 }: {
-  params: Promise<{ id: string }>;
+  params: Promise<{ clubId: string }>;
 }) {
-  const { id } = await params;
+  const { clubId } = await params;
   return {
-    title: `Fee Management | Club ${id} | Hockey Admin`,
+    title: `Fee Management | Club ${clubId} | Hockey Admin`,
   };
 }

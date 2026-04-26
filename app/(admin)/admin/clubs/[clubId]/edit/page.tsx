@@ -51,17 +51,17 @@ async function getAssociationOptionsForClub(clubRef: string, cookie: string) {
 export default async function EditClubPage({
   params,
 }: {
-  params: Promise<{ id: string }>;
+  params: Promise<{ clubId: string }>;
 }) {
-  const { id } = await params;
+  const { clubId } = await params;
 
   // Forward the incoming request's session cookie to internal API calls
   const reqHeaders = await headers();
   const cookie = reqHeaders.get("cookie") || "";
 
   const [club, associations] = await Promise.all([
-    getClub(id, cookie),
-    getAssociationOptionsForClub(id, cookie),
+    getClub(clubId, cookie),
+    getAssociationOptionsForClub(clubId, cookie),
   ]);
 
   if (!club) {
@@ -69,6 +69,6 @@ export default async function EditClubPage({
   }
 
   return (
-    <ClubForm clubId={id} initialData={club} associations={associations} />
+    <ClubForm clubId={clubId} initialData={club} associations={associations} />
   );
 }

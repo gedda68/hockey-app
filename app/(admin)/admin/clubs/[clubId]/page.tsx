@@ -1,4 +1,4 @@
-// app/admin/clubs/[id]/page.tsx
+// app/admin/clubs/[clubId]/page.tsx
 // Club overview — redirects to the club's edit/management page.
 
 import { redirect } from "next/navigation";
@@ -6,8 +6,8 @@ import { redirect } from "next/navigation";
 export default async function ClubOverviewPage({
   params,
 }: {
-  params: Promise<{ id: string }>;
+  params: Promise<{ clubId: string }>;
 }) {
-  const { id } = await params;
-  redirect(`/admin/clubs/${id}/edit`);
+  const { clubId } = await params;
+  redirect(`/admin/clubs/${clubId}/edit`);
 }

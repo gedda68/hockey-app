@@ -1,10 +1,10 @@
-// app/(admin)/admin/clubs/[id]/events/page.tsx
+// app/(admin)/admin/clubs/[clubId]/events/page.tsx
 // Club-scoped events management page.
-"use client";
+\"use client\";
 
-import { useState, useEffect } from "react";
-import { useParams } from "next/navigation";
-import EventsAdminClient from "@/components/admin/events/EventsAdminClient";
+import { useState, useEffect } from \"react\";
+import { useParams } from \"next/navigation\";
+import EventsAdminClient from \"@/components/admin/events/EventsAdminClient\";
 
 interface ClubMeta {
   name?: string;
@@ -12,7 +12,7 @@ interface ClubMeta {
 }
 
 export default function ClubEventsPage() {
-  const { id: clubId } = useParams<{ id: string }>();
+  const { clubId } = useParams<{ clubId: string }>();
   const [meta, setMeta] = useState<ClubMeta>({});
 
   useEffect(() => {
