@@ -46,6 +46,51 @@ function buildMongoClientOptions(): MongoClientOptions {
   return opts;
 }
 
+function encodeMongoCredentialComponent(value: string): string {
+  try {
+    return encodeURIComponent(decodeURIComponent(value));
+  } catch {
+    return encodeURIComponent(value);
+  }
+}
+
+/**
+ * Atlas URIs copied from dashboards often include raw special characters in credentials.
+ * MongoDB's parser requires these to be percent-encoded.
+ */
+export function normalizeMongoUriCredentials(uri: string): string {
+  const match = uri.match(/^(mongodb(?:\+srv)?:\/\/)(.+)$/i);
+  if (!match) return uri;
+
+  const prefix = match[1];
+  const rest = match[2];
+
+  const atIndex = rest.lastIndexOf("@");
+  if (atIndex <= 0) return uri;
+
+  const credentials = rest.slice(0, atIndex);
+  const hostAndSuffix = rest.slice(atIndex + 1);
+  const hostEnd = hostAndSuffix.search(/[/?#]/);
+  const host = hostEnd === -1 ? hostAndSuffix : hostAndSuffix.slice(0, hostEnd);
+  const suffix = hostEnd === -1 ? "" : hostAndSuffix.slice(hostEnd);
+  if (!host) return uri;
+
+  const separatorIndex = credentials.indexOf(":");
+  if (separatorIndex < 0) return uri;
+
+  const rawUser = credentials.slice(0, separatorIndex);
+  const rawPassword = credentials.slice(separatorIndex + 1);
+
+  const encodedUser = encodeMongoCredentialComponent(rawUser);
+  const encodedPassword = encodeMongoCredentialComponent(rawPassword);
+
+  if (encodedUser === rawUser && encodedPassword === rawPassword) {
+    return uri;
+  }
+
+  return `${prefix}${encodedUser}:${encodedPassword}@${host}${suffix}`;
+}
+
 function getUri(): string {
   const uri = process.env.MONGODB_URI;
   if (!uri) {
@@ -53,7 +98,7 @@ function getUri(): string {
       "Missing MONGODB_URI. Add it to .env.local locally or to your Vercel project environment variables."
     );
   }
-  return uri;
+  return normalizeMongoUriCredentials(uri);
 }
 
 function connectMongo(uri: string, options: MongoClientOptions): Promise<MongoClient> {
