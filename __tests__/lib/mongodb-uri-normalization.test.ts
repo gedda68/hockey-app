@@ -29,4 +29,15 @@ describe("normalizeMongoUriCredentials", () => {
 
     expect(normalized).toBe(uri);
   });
+
+  it("trims surrounding quotes often copied into .env values", () => {
+    const uri =
+      "\"mongodb+srv://my.user:p@ss:w/rd@cluster0.example.mongodb.net/hockey-app\"";
+
+    const normalized = normalizeMongoUriCredentials(uri);
+
+    expect(normalized).toBe(
+      "mongodb+srv://my.user:p%40ss%3Aw%2Frd@cluster0.example.mongodb.net/hockey-app",
+    );
+  });
 });

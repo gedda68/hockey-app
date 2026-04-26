@@ -54,29 +54,42 @@ function encodeMongoCredentialComponent(value: string): string {
   }
 }
 
+function sanitizeMongoUriInput(uri: string): string {
+  const trimmed = uri.trim();
+  if (trimmed.length >= 2) {
+    const first = trimmed[0];
+    const last = trimmed[trimmed.length - 1];
+    if ((first === "\"" && last === "\"") || (first === "'" && last === "'")) {
+      return trimmed.slice(1, -1).trim();
+    }
+  }
+  return trimmed;
+}
+
 /**
  * Atlas URIs copied from dashboards often include raw special characters in credentials.
  * MongoDB's parser requires these to be percent-encoded.
  */
 export function normalizeMongoUriCredentials(uri: string): string {
-  const match = uri.match(/^(mongodb(?:\+srv)?:\/\/)(.+)$/i);
-  if (!match) return uri;
+  const sanitizedUri = sanitizeMongoUriInput(uri);
+  const match = sanitizedUri.match(/^(mongodb(?:\+srv)?:\/\/)(.+)$/i);
+  if (!match) return sanitizedUri;
 
   const prefix = match[1];
   const rest = match[2];
 
   const atIndex = rest.lastIndexOf("@");
-  if (atIndex <= 0) return uri;
+  if (atIndex <= 0) return sanitizedUri;
 
   const credentials = rest.slice(0, atIndex);
   const hostAndSuffix = rest.slice(atIndex + 1);
   const hostEnd = hostAndSuffix.search(/[/?#]/);
   const host = hostEnd === -1 ? hostAndSuffix : hostAndSuffix.slice(0, hostEnd);
   const suffix = hostEnd === -1 ? "" : hostAndSuffix.slice(hostEnd);
-  if (!host) return uri;
+  if (!host) return sanitizedUri;
 
   const separatorIndex = credentials.indexOf(":");
-  if (separatorIndex < 0) return uri;
+  if (separatorIndex < 0) return sanitizedUri;
 
   const rawUser = credentials.slice(0, separatorIndex);
   const rawPassword = credentials.slice(separatorIndex + 1);
@@ -85,14 +98,15 @@ export function normalizeMongoUriCredentials(uri: string): string {
   const encodedPassword = encodeMongoCredentialComponent(rawPassword);
 
   if (encodedUser === rawUser && encodedPassword === rawPassword) {
-    return uri;
+    return sanitizedUri;
   }
 
   return `${prefix}${encodedUser}:${encodedPassword}@${host}${suffix}`;
 }
 
 function getUri(): string {
-  const uri = process.env.MONGODB_URI;
+  const rawUri = process.env.MONGODB_URI;
+  const uri = typeof rawUri === "string" ? sanitizeMongoUriInput(rawUri) : rawUri;
   if (!uri) {
     throw new Error(
       "Missing MONGODB_URI. Add it to .env.local locally or to your Vercel project environment variables."
