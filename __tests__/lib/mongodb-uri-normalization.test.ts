@@ -1,8 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  deriveMongoUriCandidates,
-  normalizeMongoUriCredentials,
-} from "@/lib/mongodb";
+import { normalizeMongoUriCredentials } from "@/lib/mongodb";
 
 describe("normalizeMongoUriCredentials", () => {
   it("encodes unescaped special characters in credentials", () => {
@@ -44,25 +41,4 @@ describe("normalizeMongoUriCredentials", () => {
     );
   });
 
-  it("returns normalized primary + raw fallback when encoding changed URI", () => {
-    const uri = "mongodb+srv://my.user:p@ss:w/rd@cluster0.example.mongodb.net/hockey-app";
-
-    const { primary, fallback } = deriveMongoUriCandidates(uri);
-
-    expect(primary).toBe(
-      "mongodb+srv://my.user:p%40ss%3Aw%2Frd@cluster0.example.mongodb.net/hockey-app",
-    );
-    expect(fallback).toBe(
-      "mongodb+srv://my.user:p@ss:w/rd@cluster0.example.mongodb.net/hockey-app",
-    );
-  });
-
-  it("returns no fallback when URI does not change", () => {
-    const uri = "mongodb://127.0.0.1:27017/hockey-app";
-
-    const { primary, fallback } = deriveMongoUriCandidates(uri);
-
-    expect(primary).toBe(uri);
-    expect(fallback).toBeUndefined();
-  });
 });

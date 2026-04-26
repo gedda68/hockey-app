@@ -1,10 +1,6 @@
 import dns from "node:dns";
 import { MongoClient, Db, type MongoClientOptions } from "mongodb";
 
-// Force Node.js to use a public DNS resolver
-dns.setDefaultResultOrder('ipv4first')
-dns.setServers(['8.8.8.8', '1.1.1.1'])
-
 // Prefer IPv4 for mongodb+srv on Windows — dual-stack / IPv6 paths sometimes fail TLS to Atlas.
 // Set MONGODB_DNS_IPV4FIRST=false to skip (e.g. if you must prefer IPv6).
 if (
@@ -47,11 +43,30 @@ function buildMongoClientOptions(): MongoClientOptions {
 }
 
 function encodeMongoCredentialComponent(value: string): string {
-  try {
-    return encodeURIComponent(decodeURIComponent(value));
-  } catch {
-    return encodeURIComponent(value);
+  let out = "";
+
+  for (let i = 0; i < value.length; i += 1) {
+    const ch = value[i];
+    const h1 = value[i + 1];
+    const h2 = value[i + 2];
+
+    // Preserve existing percent-encoded octets as-is.
+    if (ch === "%" && /[0-9a-fA-F]/.test(h1 ?? "") && /[0-9a-fA-F]/.test(h2 ?? "")) {
+      out += `%${h1}${h2}`;
+      i += 2;
+      continue;
+    }
+
+    // RFC 3986 unreserved chars for URI userinfo.
+    if (/[A-Za-z0-9\-._~]/.test(ch)) {
+      out += ch;
+      continue;
+    }
+
+    out += encodeURIComponent(ch);
   }
+
+  return out;
 }
 
 function sanitizeMongoUriInput(uri: string): string {
@@ -106,17 +121,13 @@ export function normalizeMongoUriCredentials(uri: string): string {
 
 export function deriveMongoUriCandidates(uri: string): {
   primary: string;
-  fallback?: string;
 } {
   const sanitized = sanitizeMongoUriInput(uri);
   const normalized = normalizeMongoUriCredentials(sanitized);
-  if (normalized === sanitized) {
-    return { primary: normalized };
-  }
-  return { primary: normalized, fallback: sanitized };
+  return { primary: normalized };
 }
 
-function getUriCandidates(): { primary: string; fallback?: string } {
+function getUriCandidates(): { primary: string } {
   const rawUri = process.env.MONGODB_URI;
   const uri =
     typeof rawUri === "string" ? sanitizeMongoUriInput(rawUri) : rawUri;
@@ -157,20 +168,10 @@ function logMongoConnectError(err: unknown) {
 
 function connectMongo(
   primaryUri: string,
-  fallbackUri: string | undefined,
   options: MongoClientOptions,
 ): Promise<MongoClient> {
   return new MongoClient(primaryUri, options)
     .connect()
-    .catch((err: unknown) => {
-      if (fallbackUri && fallbackUri !== primaryUri && isMongoAuthError(err)) {
-        console.warn(
-          "[mongodb] Auth failed with normalized URI; retrying raw sanitized URI.",
-        );
-        return new MongoClient(fallbackUri, options).connect();
-      }
-      throw err;
-    })
     .catch((err: unknown) => {
       resetMongoCachesOnFailure();
       logMongoConnectError(err);
@@ -179,7 +180,7 @@ function connectMongo(
 }
 
 function createClientPromise(): Promise<MongoClient> {
-  const { primary, fallback } = getUriCandidates();
+  const { primary } = getUriCandidates();
   const options = buildMongoClientOptions();
 
   if (process.env.NODE_ENV === "development") {
@@ -188,16 +189,12 @@ function createClientPromise(): Promise<MongoClient> {
     };
 
     if (!globalWithMongo._mongoClientPromise) {
-      globalWithMongo._mongoClientPromise = connectMongo(
-        primary,
-        fallback,
-        options,
-      );
+      globalWithMongo._mongoClientPromise = connectMongo(primary, options);
     }
     return globalWithMongo._mongoClientPromise;
   }
 
-  return connectMongo(primary, fallback, options);
+  return connectMongo(primary, options);
 }
 
 let cachedPromise: Promise<MongoClient> | undefined;
