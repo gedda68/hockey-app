@@ -2,7 +2,11 @@
 // Login endpoint — checks users collection first, then members.
 
 import { NextRequest, NextResponse } from "next/server";
-import { getDatabase } from "@/lib/mongodb";
+import {
+  getDatabase,
+  isMongoAuthError,
+  isMongoConnectionError,
+} from "@/lib/mongodb";
 import { verifyPassword } from "@/lib/auth/username";
 import bcrypt from "bcryptjs";
 import { escapeRegex } from "@/lib/utils/regex";
@@ -109,6 +113,7 @@ export async function POST(request: NextRequest) {
       const res = NextResponse.json(resBody);
       // Host-only on this origin; cross-host tenants use `sessionJwt` + `/api/auth/consume-session`.
       const { domain: _domain, ...hostOnly } = parts.options;
+      void _domain;
       res.cookies.set(activeSessionCookieName(), parts.value, hostOnly);
       return res;
     }
@@ -155,6 +160,7 @@ export async function POST(request: NextRequest) {
       }
       const res = NextResponse.json(resBody);
       const { domain: _domain, ...hostOnly } = parts.options;
+      void _domain;
       res.cookies.set(activeSessionCookieName(), parts.value, hostOnly);
       return res;
     }
@@ -166,6 +172,18 @@ export async function POST(request: NextRequest) {
     );
   } catch (error: unknown) {
     console.error("💥 Login error:", error);
+    if (isMongoAuthError(error)) {
+      return NextResponse.json(
+        { error: "Database authentication failed. Check MongoDB username/password and auth source in MONGODB_URI." },
+        { status: 503 },
+      );
+    }
+    if (isMongoConnectionError(error)) {
+      return NextResponse.json(
+        { error: "Database is unreachable. Check MongoDB network access and URI host configuration." },
+        { status: 503 },
+      );
+    }
     return NextResponse.json(
       { error: "Authentication failed" },
       { status: 500 },

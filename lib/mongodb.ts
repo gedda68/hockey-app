@@ -220,3 +220,44 @@ export function isMongoConnectionError(e: unknown): boolean {
     )
   );
 }
+
+/** True when MongoDB rejects credentials (e.g. Atlas code 8000: bad auth). */
+export function isMongoAuthError(e: unknown): boolean {
+  const name =
+    e && typeof e === "object" && "name" in e
+      ? String((e as { name?: unknown }).name)
+      : "";
+  const msg = e instanceof Error ? e.message : String(e);
+  const codeName =
+    e && typeof e === "object" && "codeName" in e
+      ? String((e as { codeName?: unknown }).codeName)
+      : "";
+  const code =
+    e && typeof e === "object" && "code" in e
+      ? Number((e as { code?: unknown }).code)
+      : NaN;
+  const errorResponseCode =
+    e &&
+    typeof e === "object" &&
+    "errorResponse" in e &&
+    (e as { errorResponse?: unknown }).errorResponse &&
+    typeof (e as { errorResponse?: unknown }).errorResponse === "object" &&
+    "code" in ((e as { errorResponse?: Record<string, unknown> }).errorResponse ?? {})
+      ? Number(
+          (
+            (e as { errorResponse?: Record<string, unknown> }).errorResponse as Record<
+              string,
+              unknown
+            >
+          ).code,
+        )
+      : NaN;
+
+  return (
+    (name === "MongoServerError" || codeName === "AtlasError" || code === 8000 || errorResponseCode === 8000) &&
+    (code === 8000 ||
+      errorResponseCode === 8000 ||
+      codeName === "AtlasError" ||
+      /bad auth|authentication failed|auth failed/i.test(msg))
+  );
+}
