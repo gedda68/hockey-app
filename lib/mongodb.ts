@@ -104,41 +104,82 @@ export function normalizeMongoUriCredentials(uri: string): string {
   return `${prefix}${encodedUser}:${encodedPassword}@${host}${suffix}`;
 }
 
-function getUri(): string {
+export function deriveMongoUriCandidates(uri: string): {
+  primary: string;
+  fallback?: string;
+} {
+  const sanitized = sanitizeMongoUriInput(uri);
+  const normalized = normalizeMongoUriCredentials(sanitized);
+  if (normalized === sanitized) {
+    return { primary: normalized };
+  }
+  return { primary: normalized, fallback: sanitized };
+}
+
+function getUriCandidates(): { primary: string; fallback?: string } {
   const rawUri = process.env.MONGODB_URI;
-  const uri = typeof rawUri === "string" ? sanitizeMongoUriInput(rawUri) : rawUri;
+  const uri =
+    typeof rawUri === "string" ? sanitizeMongoUriInput(rawUri) : rawUri;
   if (!uri) {
     throw new Error(
       "Missing MONGODB_URI. Add it to .env.local locally or to your Vercel project environment variables."
     );
   }
-  return normalizeMongoUriCredentials(uri);
+  return deriveMongoUriCandidates(uri);
 }
 
-function connectMongo(uri: string, options: MongoClientOptions): Promise<MongoClient> {
-  return new MongoClient(uri, options).connect().catch((err: unknown) => {
-    if (process.env.NODE_ENV === "development") {
-      const globalWithMongo = global as typeof globalThis & {
-        _mongoClientPromise?: Promise<MongoClient>;
-      };
-      globalWithMongo._mongoClientPromise = undefined;
-    }
-    if (cachedPromise) {
-      cachedPromise = undefined;
-    }
-    const msg = err instanceof Error ? err.message : String(err);
-    if (/tls|ssl|TLS|SSL|MongoServerSelectionError/i.test(msg)) {
-      console.error(
-        "[mongodb] Connection failed (TLS/network). Check Atlas Network Access, VPN, and MONGODB_URI. " +
-          "For a local-only workaround see MONGODB_TLS_ALLOW_INVALID_CERTS in lib/mongodb.ts.",
-      );
-    }
-    throw err;
-  });
+function resetMongoCachesOnFailure() {
+  if (process.env.NODE_ENV === "development") {
+    const globalWithMongo = global as typeof globalThis & {
+      _mongoClientPromise?: Promise<MongoClient>;
+    };
+    globalWithMongo._mongoClientPromise = undefined;
+  }
+  if (cachedPromise) {
+    cachedPromise = undefined;
+  }
+}
+
+function logMongoConnectError(err: unknown) {
+  const msg = err instanceof Error ? err.message : String(err);
+  if (/tls|ssl|TLS|SSL|MongoServerSelectionError/i.test(msg)) {
+    console.error(
+      "[mongodb] Connection failed (TLS/network). Check Atlas Network Access, VPN, and MONGODB_URI. " +
+        "For a local-only workaround see MONGODB_TLS_ALLOW_INVALID_CERTS in lib/mongodb.ts.",
+    );
+  }
+  if (isMongoAuthError(err)) {
+    console.error(
+      "[mongodb] Authentication failed. Verify MongoDB username/password and auth source in MONGODB_URI.",
+    );
+  }
+}
+
+function connectMongo(
+  primaryUri: string,
+  fallbackUri: string | undefined,
+  options: MongoClientOptions,
+): Promise<MongoClient> {
+  return new MongoClient(primaryUri, options)
+    .connect()
+    .catch((err: unknown) => {
+      if (fallbackUri && fallbackUri !== primaryUri && isMongoAuthError(err)) {
+        console.warn(
+          "[mongodb] Auth failed with normalized URI; retrying raw sanitized URI.",
+        );
+        return new MongoClient(fallbackUri, options).connect();
+      }
+      throw err;
+    })
+    .catch((err: unknown) => {
+      resetMongoCachesOnFailure();
+      logMongoConnectError(err);
+      throw err;
+    });
 }
 
 function createClientPromise(): Promise<MongoClient> {
-  const uri = getUri();
+  const { primary, fallback } = getUriCandidates();
   const options = buildMongoClientOptions();
 
   if (process.env.NODE_ENV === "development") {
@@ -147,12 +188,16 @@ function createClientPromise(): Promise<MongoClient> {
     };
 
     if (!globalWithMongo._mongoClientPromise) {
-      globalWithMongo._mongoClientPromise = connectMongo(uri, options);
+      globalWithMongo._mongoClientPromise = connectMongo(
+        primary,
+        fallback,
+        options,
+      );
     }
     return globalWithMongo._mongoClientPromise;
   }
 
-  return connectMongo(uri, options);
+  return connectMongo(primary, fallback, options);
 }
 
 let cachedPromise: Promise<MongoClient> | undefined;
