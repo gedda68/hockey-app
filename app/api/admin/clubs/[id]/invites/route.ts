@@ -1,12 +1,12 @@
 /**
- * POST /api/admin/clubs/[clubId]/invites
+ * POST /api/admin/clubs/[id]/invites
  *   Registrar generates a tokenised invite link for a club.
  *   Optionally sends an invite email to a specific recipient.
  *
- * GET /api/admin/clubs/[clubId]/invites
+ * GET /api/admin/clubs/[id]/invites
  *   Lists all non-revoked invite tokens for the club (most-recent first).
  *
- * DELETE /api/admin/clubs/[clubId]/invites?tokenId=invite-xxx
+ * DELETE /api/admin/clubs/[id]/invites?tokenId=invite-xxx
  *   Revokes a specific invite token.
  *
  * Required permission: registration.manage
@@ -30,13 +30,13 @@ const DEFAULT_EXPIRES_DAYS = 30;
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ clubId: string }> },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const { response: authRes } = await requirePermission(request, "registration.manage");
     if (authRes) return authRes;
 
-    const { clubId: clubSlug } = await params;
+    const { id: clubSlug } = await params;
 
     const { response: scopeRes } = await requireResourceAccess(request, "club", clubSlug);
     if (scopeRes) return scopeRes;
@@ -120,13 +120,13 @@ export async function POST(
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ clubId: string }> },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const { response: authRes } = await requirePermission(request, "registration.manage");
     if (authRes) return authRes;
 
-    const { clubId: clubSlug } = await params;
+    const { id: clubSlug } = await params;
 
     const { response: scopeRes } = await requireResourceAccess(request, "club", clubSlug);
     if (scopeRes) return scopeRes;
@@ -178,13 +178,13 @@ export async function GET(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<{ clubId: string }> },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const { response: authRes } = await requirePermission(request, "registration.manage");
     if (authRes) return authRes;
 
-    const { clubId: clubSlug } = await params;
+    const { id: clubSlug } = await params;
 
     const { response: scopeRes } = await requireResourceAccess(request, "club", clubSlug);
     if (scopeRes) return scopeRes;
