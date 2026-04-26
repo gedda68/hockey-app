@@ -151,6 +151,27 @@ function resetMongoCachesOnFailure() {
   }
 }
 
+function isMongoSrvDnsError(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : String(err);
+  return /querySrv .*ECONNREFUSED|ECONNREFUSED .*_mongodb\._tcp\./i.test(msg);
+}
+
+function withPublicDnsResolver<T>(fn: () => Promise<T>): Promise<T> {
+  const previous = dns.getServers();
+  try {
+    dns.setServers(["1.1.1.1", "8.8.8.8"]);
+  } catch {
+    return fn();
+  }
+  return fn().finally(() => {
+    try {
+      dns.setServers(previous);
+    } catch {
+      /* ignore */
+    }
+  });
+}
+
 function logMongoConnectError(err: unknown) {
   const msg = err instanceof Error ? err.message : String(err);
   if (/tls|ssl|TLS|SSL|MongoServerSelectionError/i.test(msg)) {
@@ -172,6 +193,17 @@ function connectMongo(
 ): Promise<MongoClient> {
   return new MongoClient(primaryUri, options)
     .connect()
+    .catch((err: unknown) => {
+      if (isMongoSrvDnsError(err)) {
+        console.warn(
+          "[mongodb] SRV DNS lookup failed (querySrv ECONNREFUSED). Retrying with public DNS resolvers.",
+        );
+        return withPublicDnsResolver(() =>
+          new MongoClient(primaryUri, options).connect(),
+        );
+      }
+      throw err;
+    })
     .catch((err: unknown) => {
       resetMongoCachesOnFailure();
       logMongoConnectError(err);
@@ -253,11 +285,20 @@ export function isMongoConnectionError(e: unknown): boolean {
       ? String((e as { name?: unknown }).name)
       : "";
   const msg = e instanceof Error ? e.message : String(e);
+  const code =
+    e && typeof e === "object" && "code" in e
+      ? String((e as { code?: unknown }).code)
+      : "";
+  const syscall =
+    e && typeof e === "object" && "syscall" in e
+      ? String((e as { syscall?: unknown }).syscall)
+      : "";
   return (
     name === "MongoServerSelectionError" ||
     name === "MongoNetworkError" ||
     name === "MongoTimeoutError" ||
-    /MongoServerSelectionError|MongoNetworkError|tlsv1 alert|SSL alert|ECONNREFUSED|ETIMEDOUT|ENOTFOUND/i.test(
+    (code === "ECONNREFUSED" && syscall === "querySrv") ||
+    /MongoServerSelectionError|MongoNetworkError|tlsv1 alert|SSL alert|ECONNREFUSED|ETIMEDOUT|ENOTFOUND|querySrv/i.test(
       msg,
     )
   );
