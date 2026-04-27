@@ -78,6 +78,14 @@ export async function recordRoleRequestPayment(opts: {
 
   const paymentId = `PAY-${uuidv4().replace(/-/g, "").slice(0, 12).toUpperCase()}`;
 
+  // Load role-request for scope/category metadata (best-effort; don't fail payment recording)
+  const rr = await db.collection("role_requests").findOne(
+    { requestId: opts.requestId },
+    { projection: { scopeType: 1, scopeId: 1, feeDescription: 1, requestedRole: 1, seasonYear: 1 } },
+  );
+  const scopeType = String((rr as any)?.scopeType ?? "club");
+  const scopeId = String((rr as any)?.scopeId ?? "");
+
   // ── Insert payment record (mirrors simulate endpoint shape) ────────────────
   await db.collection("payments").insertOne({
     paymentId,
@@ -113,6 +121,50 @@ export async function recordRoleRequestPayment(opts: {
     createdAt: now,
     updatedAt: now,
   });
+
+  // ── Income ledger (F2) — insert one income event per payment ───────────────
+  try {
+    const nowIso = now.toISOString();
+    const ledgerScopeType = scopeType === "association" ? "association" : "club";
+    const ledgerScopeId = scopeId || (ledgerScopeType === "club" ? "unknown" : "unknown");
+    await db.collection("income_ledger").insertOne({
+      entryId: `inc-${uuidv4()}`,
+      scopeType: ledgerScopeType,
+      scopeId: ledgerScopeId,
+      date: nowIso,
+      amountCents: opts.amountCents,
+      gstIncluded: opts.gstIncluded ?? false,
+      gstAmountCents: opts.gstAmountCents ?? 0,
+      accountId: null,
+      costCentreId: null,
+      categoryName:
+        String(opts.feeDescription ?? (rr as any)?.feeDescription ?? "").trim() ||
+        `${String(opts.requestedRole ?? (rr as any)?.requestedRole ?? "Registration")} fee`,
+      description:
+        String(opts.feeDescription ?? (rr as any)?.feeDescription ?? "").trim() ||
+        `${String(opts.requestedRole ?? (rr as any)?.requestedRole ?? "Role")} registration fee`,
+      source:
+        opts.paymentMethod === "stripe"
+          ? "stripe"
+          : opts.paymentMethod === "simulated"
+            ? "simulated"
+            : "manual_other",
+      status: "paid",
+      referenceType: "payment",
+      referenceId: paymentId,
+      paymentId,
+      ...(opts.stripePaymentIntentId ? { stripePaymentIntentId: opts.stripePaymentIntentId } : {}),
+      ...(opts.stripeCheckoutSessionId ? { stripeCheckoutSessionId: opts.stripeCheckoutSessionId } : {}),
+      memberId: opts.memberId,
+      seasonYear: opts.seasonYear ?? (rr as any)?.seasonYear,
+      createdAt: nowIso,
+      updatedAt: nowIso,
+      createdBy: "system",
+      updatedBy: "system",
+    });
+  } catch (e) {
+    console.error("[checkout] failed to write income ledger entry:", e);
+  }
 
   // ── Advance the role request ───────────────────────────────────────────────
   await db.collection("role_requests").updateOne(

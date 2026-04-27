@@ -25,6 +25,15 @@ export default async function AssociationFinancialsIndexPage({
                 Configure codes and categories for future income/expense entries.
               </div>
             </Link>
+            <Link
+              href={`/admin/associations/${encodeURIComponent(associationId)}/financials/income-ledger`}
+              className="block bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-2xl p-5 transition-colors"
+            >
+              <div className="font-black text-slate-900">Income ledger</div>
+              <div className="text-sm text-slate-600 mt-1">
+                Record Stripe and manual income events with GST split.
+              </div>
+            </Link>
           </div>
         </div>
       </div>

@@ -191,6 +191,24 @@ async function handleChargeRefunded(
     },
   );
 
+  // ── Update income ledger status (F2) ───────────────────────────────────────
+  try {
+    await db.collection("income_ledger").updateOne(
+      { stripePaymentIntentId: paymentIntentId, status: { $ne: newStatus } },
+      {
+        $set: {
+          status: newStatus,
+          refundAmountCents: charge.amount_refunded,
+          refundedAt: now.toISOString(),
+          updatedAt: now.toISOString(),
+          updatedBy: "stripe-webhook",
+        },
+      },
+    );
+  } catch (e) {
+    console.error("[stripe-webhook] failed to update income_ledger on refund:", e);
+  }
+
   console.info(
     `[stripe-webhook] payment "${payment.paymentId}" marked ${newStatus} ` +
     `(refundAmountCents=${charge.amount_refunded})`,

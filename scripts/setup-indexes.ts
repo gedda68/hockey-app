@@ -247,6 +247,31 @@ async function main() {
       "unique index on scopeType + scopeId + code"
     );
 
+    // ── income_ledger ──────────────────────────────────────────────────────
+    const incomeLedger = db.collection("income_ledger");
+    console.log("\nincome_ledger:");
+
+    await idx(
+      incomeLedger,
+      { scopeType: 1, scopeId: 1, date: -1 },
+      {},
+      "compound index on scopeType + scopeId + date(desc)"
+    );
+
+    await idx(
+      incomeLedger,
+      { referenceType: 1, referenceId: 1 },
+      { unique: true, sparse: true },
+      "unique index on referenceType + referenceId"
+    );
+
+    await idx(
+      incomeLedger,
+      { stripePaymentIntentId: 1 },
+      { sparse: true },
+      "index on stripePaymentIntentId"
+    );
+
     await idx(
       members,
       {
