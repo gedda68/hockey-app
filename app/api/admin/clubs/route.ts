@@ -14,6 +14,53 @@ import { generateSlug } from "@/lib/utils/slug";
 import { escapeRegex } from "@/lib/utils/regex";
 import type { ClubDoc } from "@/types/api";
 
+type AssocKeyRow = {
+  associationId?: string;
+  portalSlug?: string;
+  code?: string;
+  acronym?: string;
+};
+
+async function resolveAssociationKeysToIds(
+  db: Db,
+  keys: string[],
+): Promise<Record<string, string>> {
+  const cleaned = [...new Set(keys.map((k) => String(k ?? "").trim()).filter(Boolean))];
+  if (cleaned.length === 0) return {};
+
+  const rows = (await db
+    .collection("associations")
+    .find({
+      $or: [
+        { associationId: { $in: cleaned } },
+        { portalSlug: { $in: cleaned } },
+        { code: { $in: cleaned } },
+        { acronym: { $in: cleaned } },
+      ],
+    })
+    .project({ associationId: 1, portalSlug: 1, code: 1, acronym: 1 })
+    .limit(400)
+    .toArray()) as AssocKeyRow[];
+
+  const map: Record<string, string> = {};
+  for (const r of rows) {
+    const id = String(r.associationId ?? "").trim();
+    if (!id) continue;
+    const keysForRow = [
+      r.associationId,
+      r.portalSlug,
+      r.code,
+      r.acronym,
+    ]
+      .map((v) => (typeof v === "string" ? v.trim() : ""))
+      .filter(Boolean);
+    for (const k of keysForRow) {
+      map[k] = id;
+    }
+  }
+  return map;
+}
+
 // --- HELPER: LOG CHANGES ---
 async function logClubChange(
   db: Db,
@@ -173,7 +220,7 @@ export async function GET(request: NextRequest) {
     }
 
     const client = await clientPromise;
-    const db = client.db("hockey-app");
+    const db = client.db();
 
     // Build query
     const query: Record<string, unknown> = {};
@@ -192,12 +239,13 @@ export async function GET(request: NextRequest) {
 
     const paramAssoc = associationId || parentAssociationId;
     if (paramAssoc) {
-      query.parentAssociationId = paramAssoc;
+      const assocMap = await resolveAssociationKeysToIds(db, [paramAssoc]);
+      query.parentAssociationId = assocMap[paramAssoc] ?? paramAssoc;
     } else if (listScope.kind === "associations") {
+      const assocMap = await resolveAssociationKeysToIds(db, listScope.associationIds);
+      const resolved = listScope.associationIds.map((k) => assocMap[k] ?? k);
       query.parentAssociationId =
-        listScope.associationIds.length === 1
-          ? listScope.associationIds[0]
-          : { $in: listScope.associationIds };
+        resolved.length === 1 ? resolved[0] : { $in: resolved };
     } else if (listScope.kind === "clubs" && !idsParam) {
       query.$or = [
         { id: { $in: listScope.clubRefs } },
@@ -347,7 +395,7 @@ export async function POST(request: NextRequest) {
     }
 
     const client = await clientPromise;
-    const db = client.db("hockey-app");
+    const db = client.db();
 
     const existing = await db.collection("clubs").findOne({ id: body.id });
 
@@ -413,7 +461,7 @@ export async function PUT(request: NextRequest) {
     if (scopeRes) return scopeRes;
 
     const client = await clientPromise;
-    const db = client.db("hockey-app");
+    const db = client.db();
 
     const oldData = await db.collection("clubs").findOne({ id });
 
@@ -491,7 +539,7 @@ export async function DELETE(request: NextRequest) {
     if (scopeRes) return scopeRes;
 
     const client = await clientPromise;
-    const db = client.db("hockey-app");
+    const db = client.db();
 
     const club = await db.collection("clubs").findOne({ id });
 

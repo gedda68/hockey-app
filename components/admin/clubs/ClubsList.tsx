@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { shouldDefaultClubListToAssociation } from "@/lib/auth/clubListScope";
+import { toast } from "sonner";
 import {
   Building2,
   Plus,
@@ -48,6 +49,7 @@ export default function ClubsList() {
   const [clubs, setClubs] = useState<Club[]>([]);
   const [associations, setAssociations] = useState<Association[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string>("");
   const [search, setSearch] = useState("");
   const [filterAssociation, setFilterAssociation] = useState("");
   const [filterStatus, setFilterStatus] = useState("active");
@@ -63,26 +65,49 @@ export default function ClubsList() {
     const fetchClubs = async () => {
       try {
         setLoading(true);
+        setLoadError("");
         const params = new URLSearchParams();
         if (filterAssociation) params.append("associationId", filterAssociation);
         if (filterStatus) params.append("status", filterStatus);
 
-        const res = await fetch(`/api/admin/clubs?${params}`);
-        const data = await res.json();
-        setClubs(data.clubs || []);
+        const res = await fetch(`/api/admin/clubs?${params}`, { cache: "no-store" });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          const msg =
+            typeof (data as any)?.error === "string"
+              ? (data as any).error
+              : `Failed to load clubs (HTTP ${res.status})`;
+          throw new Error(msg);
+        }
+        setClubs((data as any).clubs || []);
       } catch (error) {
         console.error("Error fetching clubs:", error);
+        const msg = error instanceof Error ? error.message : "Failed to load clubs";
+        toast.error(msg);
+        setLoadError(msg);
+        setClubs([]);
       } finally {
         setLoading(false);
       }
     };
     const fetchAssociations = async () => {
       try {
-        const res = await fetch("/api/admin/associations");
-        const data = await res.json();
-        setAssociations(data.associations || []);
+        const res = await fetch("/api/admin/associations", { cache: "no-store" });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          const msg =
+            typeof (data as any)?.error === "string"
+              ? (data as any).error
+              : `Failed to load associations (HTTP ${res.status})`;
+          throw new Error(msg);
+        }
+        setAssociations((data as any).associations || []);
       } catch (error) {
         console.error("Error fetching associations:", error);
+        const msg =
+          error instanceof Error ? error.message : "Failed to load associations";
+        toast.error(msg);
+        setLoadError((prev) => prev || msg);
       }
     };
     void fetchClubs();
@@ -113,15 +138,27 @@ export default function ClubsList() {
   const fetchClubs = async () => {
     try {
       setLoading(true);
+      setLoadError("");
       const params = new URLSearchParams();
       if (filterAssociation) params.append("associationId", filterAssociation);
       if (filterStatus) params.append("status", filterStatus);
 
-      const res = await fetch(`/api/admin/clubs?${params}`);
-      const data = await res.json();
-      setClubs(data.clubs || []);
+      const res = await fetch(`/api/admin/clubs?${params}`, { cache: "no-store" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const msg =
+          typeof (data as any)?.error === "string"
+            ? (data as any).error
+            : `Failed to load clubs (HTTP ${res.status})`;
+        throw new Error(msg);
+      }
+      setClubs((data as any).clubs || []);
     } catch (error) {
       console.error("Error fetching clubs:", error);
+      const msg = error instanceof Error ? error.message : "Failed to load clubs";
+      toast.error(msg);
+      setLoadError(msg);
+      setClubs([]);
     } finally {
       setLoading(false);
     }
@@ -140,6 +177,18 @@ export default function ClubsList() {
   return (
     <div className="min-h-screen bg-slate-50 p-6">
       <div className="max-w-7xl mx-auto space-y-6">
+        {loadError ? (
+          <div className="rounded-2xl border-2 border-red-200 bg-red-50 p-4 text-red-900 shadow-sm">
+            <p className="text-sm font-black">Failed to load clubs</p>
+            <p className="mt-1 text-xs font-semibold text-red-800/80">
+              {loadError}
+            </p>
+            <p className="mt-2 text-[11px] text-red-900/70">
+              Tip: open devtools Network → `GET /api/admin/clubs?...` and confirm
+              the response.
+            </p>
+          </div>
+        ) : null}
         {/* Header */}
         <div className="bg-white rounded-[2rem] shadow-xl border border-slate-100 p-8">
           <div className="flex items-center justify-between">
