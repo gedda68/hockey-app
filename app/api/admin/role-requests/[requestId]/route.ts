@@ -15,7 +15,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import clientPromise, { getDatabaseName } from "@/lib/mongodb";
+import clientPromise from "@/lib/mongodb";
 import { getSession } from "@/lib/auth/session";
 import { requirePermission } from "@/lib/auth/middleware";
 import { ROLE_DEFINITIONS } from "@/lib/types/roles";
@@ -137,7 +137,7 @@ export async function GET(
 
     const { requestId } = await params;
     const client = await clientPromise;
-    const db = client.db(getDatabaseName());
+    const db = client.db();
 
     const req = await db.collection("role_requests").findOne({ requestId }) as RoleRequest | null;
     if (!req) return NextResponse.json({ error: "Request not found" }, { status: 404 });
@@ -178,7 +178,7 @@ export async function PATCH(
     }
 
     const client = await clientPromise;
-    const db = client.db(getDatabaseName());
+    const db = client.db();
 
     const req = await db.collection("role_requests").findOne({ requestId }) as RoleRequest | null;
     if (!req) return NextResponse.json({ error: "Request not found" }, { status: 404 });

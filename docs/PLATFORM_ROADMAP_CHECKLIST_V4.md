@@ -159,11 +159,11 @@ Some admin API routes re-validate the acting user's scope against a DB lookup (`
 
 | # | File | Issue | Fix |
 |---|------|-------|-----|
-| **B1** | `app/api/admin/role-requests/[requestId]/route.ts` | Complex `await import` in function signature was invalid TypeScript; `db` param typed as `any` implicitly | Fixed: `import type { Db } from "mongodb"` + explicit `Db` param type (partially applied — verify build passes) |
+| ~~**B1**~~ | `app/api/admin/role-requests/[requestId]/route.ts` | Complex `await import` in function signature was invalid TypeScript; `db` param typed as `any` implicitly | ✅ **Fixed 2026-04-27** — Removed the invalid signature pattern, ensured `Db` typing, and normalised DB access to `client.db()` (no hardcoded DB name). |
 | ~~**B2**~~ | `app/api/admin/rosters/[ageGroup]/route.ts` | Orphaned `console.log` argument lines (lines 29, 59, 67, 89, etc.) — same pattern as fixed in `teams/rosters/route.ts` | ✅ **Fixed 2026-04-21** — All debug `console.log` blocks removed; chair validation added; `void _id` suppresses unused-var warning. |
 | ~~**B3**~~ | `app/api/admin/teams/players/eligible/route.ts:63` | `any` types throughout; `getLastSelection` untyped | ✅ **Fixed 2026-04-21** — `SelectionRecord` + `EligiblePlayer` interfaces added; all `any` replaced with typed casts. |
-| **B4** | `app/api/admin/teams/rosters/[rosterId]/teams/[teamIndex]/staff/[staffId]/route.ts:143` | Orphaned expression | Fix |
-| **B5** | `app/api/admin/teams/rosters/[rosterId]/teams/[teamIndex]/staff/route.ts:88` | Orphaned expression | Fix |
+| ~~**B4**~~ | `app/api/admin/teams/rosters/[rosterId]/teams/[teamIndex]/staff/[staffId]/route.ts:143` | Orphaned expression | ✅ **Fixed 2026-04-27** — Confirmed no orphaned expressions remain; normalised DB access to `client.db()` to prevent wrong-DB mutations. |
+| ~~**B5**~~ | `app/api/admin/teams/rosters/[rosterId]/teams/[teamIndex]/staff/route.ts:88` | Orphaned expression | ✅ **Fixed 2026-04-27** — Confirmed no orphaned expressions remain; normalised DB access to `client.db()` to prevent wrong-DB mutations. |
 | ~~**B6**~~ | `app/api/clubs/[clubId]/members/route.ts` | No auth on GET or POST — any caller could list/create members | ✅ **Fixed 2026-04-21** — `requirePermission`/`requireAnyPermission` + `requireResourceAccess` added to both methods. |
 | ~~**B7**~~ | `app/(admin)/admin/members/create/page.tsx` | `clubId` hardcoded as `"club-commercial-hc"` | ✅ **Fixed 2026-04-21** — Replaced with `useAuth()` + `useEffect` to sync once session resolves asynchronously. |
 | ~~**B8**~~ | `app/(website)/competitions/events/page.tsx` | "Create Event" / "Edit Event" buttons show dead `toast.info()` stubs; `currentUser` hardcoded | ✅ **Fixed 2026-04-21** — Handlers now `router.push` to `/admin/events/create` and `/admin/events/[id]/edit`; mock user replaced with `useAuth()`. |
