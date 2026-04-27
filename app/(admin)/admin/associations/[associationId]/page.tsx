@@ -220,6 +220,13 @@ export default async function AssociationDetailPage({
                   Partner analytics
                 </Link>
                 <Link
+                  href={`/admin/associations/${associationId}/financials`}
+                  className="inline-flex items-center gap-2 px-4 py-2 border-2 border-emerald-800 text-emerald-950 rounded-xl font-black hover:bg-emerald-50 transition-all text-sm"
+                >
+                  <DollarSign size={18} />
+                  Financials
+                </Link>
+                <Link
                   href={`/admin/associations/${associationId}/edit`}
                   className="inline-flex items-center gap-2 px-6 py-3 bg-[#06054e] text-white rounded-xl font-black hover:bg-yellow-400 hover:text-[#06054e] transition-all"
                 >

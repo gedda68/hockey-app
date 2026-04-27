@@ -218,6 +218,35 @@ async function main() {
     await idx(members, { "teamRegistrations.teamId": 1 }, {},
       "index on teamRegistrations.teamId");
 
+    // ── finance_accounts ──────────────────────────────────────────────────
+    const financeAccounts = db.collection("finance_accounts");
+    console.log("\nfinance_accounts:");
+
+    await idx(
+      financeAccounts,
+      { scopeType: 1, scopeId: 1, code: 1 },
+      { unique: true },
+      "unique index on scopeType + scopeId + code"
+    );
+
+    await idx(
+      financeAccounts,
+      { scopeType: 1, scopeId: 1, type: 1 },
+      {},
+      "compound index on scopeType + scopeId + type"
+    );
+
+    // ── finance_cost_centres ──────────────────────────────────────────────
+    const financeCostCentres = db.collection("finance_cost_centres");
+    console.log("\nfinance_cost_centres:");
+
+    await idx(
+      financeCostCentres,
+      { scopeType: 1, scopeId: 1, code: 1 },
+      { unique: true },
+      "unique index on scopeType + scopeId + code"
+    );
+
     await idx(
       members,
       {
