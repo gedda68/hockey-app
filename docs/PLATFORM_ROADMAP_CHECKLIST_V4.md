@@ -9,16 +9,16 @@ This document **supersedes `PLATFORM_ROADMAP_CHECKLIST_V3.md` for forward planni
 
 ## 0. What has shipped since V3 (V4 baseline)
 
-| Area | Delivered |
-|------|-----------|
-| **Role approval workflow** | `RoleRequest` lifecycle: `pending_payment → awaiting_approval → approved / rejected / withdrawn`; fee waiver audit trail (anti-nepotism); API: `POST/GET /api/role-requests`, admin `GET/PATCH /api/admin/role-requests/[id]` |
-| **Admin approval queue UI** | `/admin/role-requests` — tab filters, paginated `RequestCard` grid, `ApproveModal` (fee waiver), `RejectModal` (mandatory reason), `PaymentModal` |
-| **Member self-service portal** | `/admin/my-registrations` — submit role requests, view own history, withdraw; accessible to all authenticated roles |
-| **Multi-role session** | `ScopedRole[]` in JWT + `hasAccessViaScopedRoles()` in middleware; a player who is also an assoc-selector passes association admin routes without a primary-role upgrade |
-| **Member category types** | `MembershipCategory` (16 values), `PlayingCategory`, mutual-exclusion validation; `UmpireQualification` with level hierarchy |
-| **Forgot / Reset password** | `/login/forgot-password`, `/login/reset-password` (token pre-validation, strength meter, redirect on success) |
-| **MongoDB index setup script** | `scripts/setup-indexes.ts` (all collections; TTL on `password_reset_tokens`); run with `tsx --env-file=.env.local` |
-| **Build hardening** | Fixed orphaned `console.log` arguments in rosters route and other files flagged by the TypeScript compiler |
+| Area                           | Delivered                                                                                                                                                                                                                     |
+| ------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Role approval workflow**     | `RoleRequest` lifecycle: `pending_payment → awaiting_approval → approved / rejected / withdrawn`; fee waiver audit trail (anti-nepotism); API: `POST/GET /api/role-requests`, admin `GET/PATCH /api/admin/role-requests/[id]` |
+| **Admin approval queue UI**    | `/admin/role-requests` — tab filters, paginated `RequestCard` grid, `ApproveModal` (fee waiver), `RejectModal` (mandatory reason), `PaymentModal`                                                                             |
+| **Member self-service portal** | `/admin/my-registrations` — submit role requests, view own history, withdraw; accessible to all authenticated roles                                                                                                           |
+| **Multi-role session**         | `ScopedRole[]` in JWT + `hasAccessViaScopedRoles()` in middleware; a player who is also an assoc-selector passes association admin routes without a primary-role upgrade                                                      |
+| **Member category types**      | `MembershipCategory` (16 values), `PlayingCategory`, mutual-exclusion validation; `UmpireQualification` with level hierarchy                                                                                                  |
+| **Forgot / Reset password**    | `/login/forgot-password`, `/login/reset-password` (token pre-validation, strength meter, redirect on success)                                                                                                                 |
+| **MongoDB index setup script** | `scripts/setup-indexes.ts` (all collections; TTL on `password_reset_tokens`); run with `tsx --env-file=.env.local`                                                                                                            |
+| **Build hardening**            | Fixed orphaned `console.log` arguments in rosters route and other files flagged by the TypeScript compiler                                                                                                                    |
 
 ---
 
@@ -27,6 +27,7 @@ This document **supersedes `PLATFORM_ROADMAP_CHECKLIST_V3.md` for forward planni
 ### 1.1 Payment gateway not wired
 
 The fees data model, `requiresFee` flag on role definitions, and `feeAmountCents` fields exist in `role_requests` and `payments` collections, but Stripe is still in **"simulate" mode**. There is no:
+
 - Stripe Checkout or Elements integration for member-facing payment
 - Webhook handler to record payment arrival and advance role-request status
 - Refund flow
@@ -117,8 +118,8 @@ Some admin API routes re-validate the acting user's scope against a DB lookup (`
 
 > This is the **large commercial module** described in V3 Future Enhancements. Treat as a separate product stream, delivered incrementally.
 
-- [ ] **F1** **Chart of accounts / cost centres** — Each club and association gets a configurable chart of accounts with income/expense categories (player registrations, merchandise, tournament entry fees, venue hire income, uniform costs, council permits, etc.). Simple admin UI to add/rename categories.
-- [ ] **F2** **Income ledger** — Record all income events (role-request fees via Stripe, manual cash, merchandise sales, sponsorship). Each entry has: date, amount, GST component, category, description, reference (paymentId, orderId, or manual). Replaces the current flat `payments` collection.
+- [x] **F1** **Chart of accounts / cost centres** — **Shipped 2026-04-27.** Foundation COA module (association scope) with two collections: `finance_accounts` (typed: income/expense/asset/liability/equity) and `finance_cost_centres`, both scoped by `{ scopeType, scopeId }` with unique `(scopeType, scopeId, code)` indexes. Admin UI: `/admin/associations/[associationId]/financials/chart-of-accounts` (inline edit + deactivate). APIs: `GET/POST/PATCH/DELETE /api/admin/associations/[associationId]/finance/accounts*` and `.../finance/cost-centres*`. Sidebar: new **Financials** item under Finance.
+- [x] **F2** **Income ledger** — **Shipped 2026-04-27.** New `income_ledger` collection recording immutable income events in integer cents (`amountCents`, `gstAmountCents`) with references (`referenceType`, `referenceId`, `paymentId`, Stripe IDs) and refund status updates. Association-scoped admin UI: `/admin/associations/[associationId]/financials/income-ledger` with `GET/POST /api/admin/associations/[associationId]/finance/income-ledger`. Stripe role-request payments now _also_ insert a ledger row via `recordRoleRequestPayment()`; `charge.refunded` updates ledger status. Indexes: `(scopeType, scopeId, date desc)`, unique `(referenceType, referenceId)`, `stripePaymentIntentId`. **Note:** `payments` is still the read model for `/admin/my-fees` for now; ledger is the new reporting foundation.
 - [ ] **F3** **Expense ledger** — Record outgoings (umpire honoraria from existing ledger, venue hire, uniform purchase, tournament affiliation fees). Manual entry + future bulk import (CSV).
 - [ ] **F4** **Budget module** — Per cost-centre budget for the financial year. Dashboard shows budget vs actuals with traffic-light status. Alert when 80% of budget consumed.
 - [ ] **F5** **P&L report** — Automated profit & loss statement for any date range: income by category, expenses by category, gross profit, GST liability (10% component of taxable income/expense). Export PDF (`jsPDF`) and Excel (`xlsx`). Supports end-of-year financials requirement.
@@ -157,72 +158,72 @@ Some admin API routes re-validate the acting user's scope against a DB lookup (`
 
 ## Bug Fixes (immediate / before next release)
 
-| # | File | Issue | Fix |
-|---|------|-------|-----|
-| ~~**B1**~~ | `app/api/admin/role-requests/[requestId]/route.ts` | Complex `await import` in function signature was invalid TypeScript; `db` param typed as `any` implicitly | ✅ **Fixed 2026-04-27** — Removed the invalid signature pattern, ensured `Db` typing, and normalised DB access to `client.db()` (no hardcoded DB name). |
-| ~~**B2**~~ | `app/api/admin/rosters/[ageGroup]/route.ts` | Orphaned `console.log` argument lines (lines 29, 59, 67, 89, etc.) — same pattern as fixed in `teams/rosters/route.ts` | ✅ **Fixed 2026-04-21** — All debug `console.log` blocks removed; chair validation added; `void _id` suppresses unused-var warning. |
-| ~~**B3**~~ | `app/api/admin/teams/players/eligible/route.ts:63` | `any` types throughout; `getLastSelection` untyped | ✅ **Fixed 2026-04-21** — `SelectionRecord` + `EligiblePlayer` interfaces added; all `any` replaced with typed casts. |
-| ~~**B4**~~ | `app/api/admin/teams/rosters/[rosterId]/teams/[teamIndex]/staff/[staffId]/route.ts:143` | Orphaned expression | ✅ **Fixed 2026-04-27** — Confirmed no orphaned expressions remain; normalised DB access to `client.db()` to prevent wrong-DB mutations. |
-| ~~**B5**~~ | `app/api/admin/teams/rosters/[rosterId]/teams/[teamIndex]/staff/route.ts:88` | Orphaned expression | ✅ **Fixed 2026-04-27** — Confirmed no orphaned expressions remain; normalised DB access to `client.db()` to prevent wrong-DB mutations. |
-| ~~**B6**~~ | `app/api/clubs/[clubId]/members/route.ts` | No auth on GET or POST — any caller could list/create members | ✅ **Fixed 2026-04-21** — `requirePermission`/`requireAnyPermission` + `requireResourceAccess` added to both methods. |
-| ~~**B7**~~ | `app/(admin)/admin/members/create/page.tsx` | `clubId` hardcoded as `"club-commercial-hc"` | ✅ **Fixed 2026-04-21** — Replaced with `useAuth()` + `useEffect` to sync once session resolves asynchronously. |
-| ~~**B8**~~ | `app/(website)/competitions/events/page.tsx` | "Create Event" / "Edit Event" buttons show dead `toast.info()` stubs; `currentUser` hardcoded | ✅ **Fixed 2026-04-21** — Handlers now `router.push` to `/admin/events/create` and `/admin/events/[id]/edit`; mock user replaced with `useAuth()`. |
-| ~~**B9**~~ | `app/api/admin/players/next-registration-number/route.ts` | Returns stub `"0000000001"` always | ✅ **Fixed 2026-04-21** — Queries `members` collection for highest numeric suffix in `memberId`/`registrationNumber`; returns `(max + 1)` padded to 10 digits, scoped by optional `clubId`. |
-| ~~**B10**~~ | `app/api/admin/players/check-duplicate/route.ts` | Always returns `{ isDuplicate: false }` | ✅ **Fixed 2026-04-21** — Case-insensitive `firstName + lastName + dateOfBirth` MongoDB query; supports optional `clubId` scope and `excludeMemberId` for edit scenarios. |
+| #           | File                                                                                    | Issue                                                                                                                  | Fix                                                                                                                                                                                         |
+| ----------- | --------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ~~**B1**~~  | `app/api/admin/role-requests/[requestId]/route.ts`                                      | Complex `await import` in function signature was invalid TypeScript; `db` param typed as `any` implicitly              | ✅ **Fixed 2026-04-27** — Removed the invalid signature pattern, ensured `Db` typing, and normalised DB access to `client.db()` (no hardcoded DB name).                                     |
+| ~~**B2**~~  | `app/api/admin/rosters/[ageGroup]/route.ts`                                             | Orphaned `console.log` argument lines (lines 29, 59, 67, 89, etc.) — same pattern as fixed in `teams/rosters/route.ts` | ✅ **Fixed 2026-04-21** — All debug `console.log` blocks removed; chair validation added; `void _id` suppresses unused-var warning.                                                         |
+| ~~**B3**~~  | `app/api/admin/teams/players/eligible/route.ts:63`                                      | `any` types throughout; `getLastSelection` untyped                                                                     | ✅ **Fixed 2026-04-21** — `SelectionRecord` + `EligiblePlayer` interfaces added; all `any` replaced with typed casts.                                                                       |
+| ~~**B4**~~  | `app/api/admin/teams/rosters/[rosterId]/teams/[teamIndex]/staff/[staffId]/route.ts:143` | Orphaned expression                                                                                                    | ✅ **Fixed 2026-04-27** — Confirmed no orphaned expressions remain; normalised DB access to `client.db()` to prevent wrong-DB mutations.                                                    |
+| ~~**B5**~~  | `app/api/admin/teams/rosters/[rosterId]/teams/[teamIndex]/staff/route.ts:88`            | Orphaned expression                                                                                                    | ✅ **Fixed 2026-04-27** — Confirmed no orphaned expressions remain; normalised DB access to `client.db()` to prevent wrong-DB mutations.                                                    |
+| ~~**B6**~~  | `app/api/clubs/[clubId]/members/route.ts`                                               | No auth on GET or POST — any caller could list/create members                                                          | ✅ **Fixed 2026-04-21** — `requirePermission`/`requireAnyPermission` + `requireResourceAccess` added to both methods.                                                                       |
+| ~~**B7**~~  | `app/(admin)/admin/members/create/page.tsx`                                             | `clubId` hardcoded as `"club-commercial-hc"`                                                                           | ✅ **Fixed 2026-04-21** — Replaced with `useAuth()` + `useEffect` to sync once session resolves asynchronously.                                                                             |
+| ~~**B8**~~  | `app/(website)/competitions/events/page.tsx`                                            | "Create Event" / "Edit Event" buttons show dead `toast.info()` stubs; `currentUser` hardcoded                          | ✅ **Fixed 2026-04-21** — Handlers now `router.push` to `/admin/events/create` and `/admin/events/[id]/edit`; mock user replaced with `useAuth()`.                                          |
+| ~~**B9**~~  | `app/api/admin/players/next-registration-number/route.ts`                               | Returns stub `"0000000001"` always                                                                                     | ✅ **Fixed 2026-04-21** — Queries `members` collection for highest numeric suffix in `memberId`/`registrationNumber`; returns `(max + 1)` padded to 10 digits, scoped by optional `clubId`. |
+| ~~**B10**~~ | `app/api/admin/players/check-duplicate/route.ts`                                        | Always returns `{ isDuplicate: false }`                                                                                | ✅ **Fixed 2026-04-21** — Case-insensitive `firstName + lastName + dateOfBirth` MongoDB query; supports optional `clubId` scope and `excludeMemberId` for edit scenarios.                   |
 
 ---
 
 ## Suggested priority order (V4)
 
-| Order | Epic / Item | Why |
-|-------|-------------|-----|
-| **1** | **S1, S2, S3, S4** — Security gaps | Public data enumeration; fix before any marketing/demo |
-| **2** | **B2–B10** — Build bug fixes | TypeScript errors break the build pipeline; stub routes mislead users |
-| **3** | **S5, S6, S7** — Auth hardening | Rate limiting + cookie flags + XSS via rich-text |
-| **4** | **P1 + P2 + P3** — Stripe integration | Enables real registration seasons; current manual-record flow won't scale |
-| **5** | **R6 + R7** — Role expiry & reminders | Seasonal re-registration is the highest-volume admin workflow |
-| **6** | **X1 + X2 + X3 + X4** — TypeScript + lint + error boundaries | Developer velocity and runtime stability |
-| **7** | **X5 + X6 + X7** — Test coverage | Confidence for deploys; especially for the payment + role-request lifecycle |
-| **8** | **M2 + M3 + M5** — Member self-service | Reduces registrar workload; key for club adoption |
-| **9** | **W1** — Nominations → ballot → result | Completes the governance workflow loop |
-| **10** | **W3** — Umpire assignment close-out | Officiating report is live; underlying assignment must match |
-| **11** | **W2** — Events CRUD | Fills visible placeholder in the public-facing competition calendar |
-| **12** | **F1 + F2 + F3** — Financials (income/expense ledger) | Foundation for P&L; start simple before Xero or GST automation |
-| **13** | **R8 + R9** — Umpire cert upload + transfer workflow | Extends the role model; medium complexity |
-| **14** | **W4 + W5 + W6** — Bulk import, season rollover, digest | Operational efficiency at scale |
-| **15** | **M4 + M6** — Family accounts + digital card | Member delight; lower priority than stability |
-| **16** | **F4–F9** — Full financials, GST, Xero, shop | Large commercial module; own sprint/stream |
-| **17** | **X8 + X9 + X10** — Observability, indexes, audit trail | Ongoing quality; schedule as regular hardening sprints |
-| **18** | **V4** (from V3) — Field hire | Optional commercial ops; only if product commits |
+| Order  | Epic / Item                                                  | Why                                                                         |
+| ------ | ------------------------------------------------------------ | --------------------------------------------------------------------------- |
+| **1**  | **S1, S2, S3, S4** — Security gaps                           | Public data enumeration; fix before any marketing/demo                      |
+| **2**  | **B2–B10** — Build bug fixes                                 | TypeScript errors break the build pipeline; stub routes mislead users       |
+| **3**  | **S5, S6, S7** — Auth hardening                              | Rate limiting + cookie flags + XSS via rich-text                            |
+| **4**  | **P1 + P2 + P3** — Stripe integration                        | Enables real registration seasons; current manual-record flow won't scale   |
+| **5**  | **R6 + R7** — Role expiry & reminders                        | Seasonal re-registration is the highest-volume admin workflow               |
+| **6**  | **X1 + X2 + X3 + X4** — TypeScript + lint + error boundaries | Developer velocity and runtime stability                                    |
+| **7**  | **X5 + X6 + X7** — Test coverage                             | Confidence for deploys; especially for the payment + role-request lifecycle |
+| **8**  | **M2 + M3 + M5** — Member self-service                       | Reduces registrar workload; key for club adoption                           |
+| **9**  | **W1** — Nominations → ballot → result                       | Completes the governance workflow loop                                      |
+| **10** | **W3** — Umpire assignment close-out                         | Officiating report is live; underlying assignment must match                |
+| **11** | **W2** — Events CRUD                                         | Fills visible placeholder in the public-facing competition calendar         |
+| **12** | **F1 + F2 + F3** — Financials (income/expense ledger)        | Foundation for P&L; start simple before Xero or GST automation              |
+| **13** | **R8 + R9** — Umpire cert upload + transfer workflow         | Extends the role model; medium complexity                                   |
+| **14** | **W4 + W5 + W6** — Bulk import, season rollover, digest      | Operational efficiency at scale                                             |
+| **15** | **M4 + M6** — Family accounts + digital card                 | Member delight; lower priority than stability                               |
+| **16** | **F4–F9** — Full financials, GST, Xero, shop                 | Large commercial module; own sprint/stream                                  |
+| **17** | **X8 + X9 + X10** — Observability, indexes, audit trail      | Ongoing quality; schedule as regular hardening sprints                      |
+| **18** | **V4** (from V3) — Field hire                                | Optional commercial ops; only if product commits                            |
 
 ---
 
 ## Carry-forward from V3
 
-| Source | Item |
-|--------|------|
-| V3 **V4** | Field hire / commercial pitch booking — still optional |
-| V3 **B8** | Official app / deep links — long-term |
-| V3 **D4** | Knockout bracket, declared champion, rep `resultApprovalRequired` |
-| V3 **P1/P2** | Richer pathways CMS, club "fixtures for visitors" |
-| V3 **B2** | oEmbed + per-tenant video playlists |
+| Source              | Item                                                                         |
+| ------------------- | ---------------------------------------------------------------------------- |
+| V3 **V4**           | Field hire / commercial pitch booking — still optional                       |
+| V3 **B8**           | Official app / deep links — long-term                                        |
+| V3 **D4**           | Knockout bracket, declared champion, rep `resultApprovalRequired`            |
+| V3 **P1/P2**        | Richer pathways CMS, club "fixtures for visitors"                            |
+| V3 **B2**           | oEmbed + per-tenant video playlists                                          |
 | V3 **O2** follow-up | Club-scope comms hub, weekly digest cron, richer templates (now also **W6**) |
-| V3 **O3** follow-up | Fixture-linked volunteer shifts, member merge, association-wide duty rollup |
-| V3 **O4** follow-up | Optional IP hash rate cap on partner click analytics; CSV export |
-| V3 **O5** follow-up | Optional PDF programme; "my team only" iCal filter |
+| V3 **O3** follow-up | Fixture-linked volunteer shifts, member merge, association-wide duty rollup  |
+| V3 **O4** follow-up | Optional IP hash rate cap on partner click analytics; CSV export             |
+| V3 **O5** follow-up | Optional PDF programme; "my team only" iCal filter                           |
 
 ---
 
 ## Traceability
 
-| Prior doc | V4 relationship |
-|-----------|----------------|
-| **V1** A–K | Still the feature-shipped checklist; not re-marked in V4 |
-| **V2** L–T | Tenancy + benchmark work largely complete |
-| **V3** N, V, O, Q | League operations, venues, live scores, sponsor analytics — complete; V4 does not re-mark |
-| **`docs/domain/CANONICAL_GRAPH.md`** | Hierarchy rules still govern competition ownership checks |
-| **`docs/platform/PAYMENTS.md`** | Stripe wiring (P2/P3) must align with gateway mode config described there |
-| **`docs/platform/NOTIFICATIONS.md`** | Email triggers (R6, M5, W1, W6) use Resend as documented |
+| Prior doc                            | V4 relationship                                                                           |
+| ------------------------------------ | ----------------------------------------------------------------------------------------- |
+| **V1** A–K                           | Still the feature-shipped checklist; not re-marked in V4                                  |
+| **V2** L–T                           | Tenancy + benchmark work largely complete                                                 |
+| **V3** N, V, O, Q                    | League operations, venues, live scores, sponsor analytics — complete; V4 does not re-mark |
+| **`docs/domain/CANONICAL_GRAPH.md`** | Hierarchy rules still govern competition ownership checks                                 |
+| **`docs/platform/PAYMENTS.md`**      | Stripe wiring (P2/P3) must align with gateway mode config described there                 |
+| **`docs/platform/NOTIFICATIONS.md`** | Email triggers (R6, M5, W1, W6) use Resend as documented                                  |
 
 ---
 
@@ -232,27 +233,27 @@ Some admin API routes re-validate the acting user's scope against a DB lookup (`
 
 The codebase is substantially built and well-architected across all core areas:
 
-| Area | Status |
-|------|--------|
-| **League engine** | Competitions, fixtures, results, ladders, round-robin generation — production-ready |
-| **RBAC** | 24 roles, 40+ permissions, multi-scope `ScopedRole[]` session, middleware enforcement |
-| **Role workflow** | Full approval lifecycle with fee-waiver audit trail; admin queue + member self-service portal |
-| **Venue / pitch** | Registry, conflict detection (overlapping published fixtures), week/month calendar |
-| **Officiating** | Umpire register, officiating reports, honoraria ledger, communications hub |
-| **Fan features** | Live scores (polling), iCal exports, push notifications, tenant news/gallery, partner analytics |
-| **Volunteer & sponsors** | Duty roster CRM, partner strip click tracking |
-| **Data model** | Rich typed schemas for members, teams, competitions; validation helpers; audit collections |
+| Area                     | Status                                                                                          |
+| ------------------------ | ----------------------------------------------------------------------------------------------- |
+| **League engine**        | Competitions, fixtures, results, ladders, round-robin generation — production-ready             |
+| **RBAC**                 | 24 roles, 40+ permissions, multi-scope `ScopedRole[]` session, middleware enforcement           |
+| **Role workflow**        | Full approval lifecycle with fee-waiver audit trail; admin queue + member self-service portal   |
+| **Venue / pitch**        | Registry, conflict detection (overlapping published fixtures), week/month calendar              |
+| **Officiating**          | Umpire register, officiating reports, honoraria ledger, communications hub                      |
+| **Fan features**         | Live scores (polling), iCal exports, push notifications, tenant news/gallery, partner analytics |
+| **Volunteer & sponsors** | Duty roster CRM, partner strip click tracking                                                   |
+| **Data model**           | Rich typed schemas for members, teams, competitions; validation helpers; audit collections      |
 
 ### Where attention is needed
 
-| Category | Key gaps |
-|----------|----------|
-| **Security** | ~~`/api/clubs` and `/api/payments` unauthenticated; dev test routes exposed~~ ✅ Fixed (S1–S4). ~~No login rate limiting~~ ✅ Fixed (S5). ~~Cookie flag audit~~ ✅ Fixed — `__Host-` prefix (S6). ~~Rich-text XSS~~ ✅ Fixed — server-side `sanitize-html` on all write paths (S7). ~~API auth test suite~~ ✅ Fixed — Vitest suite + GitHub Actions CI gate (S8). All S1–S8 complete. |
-| **Build stability** | Remaining risk is mostly stubbed/placeholder flows rather than TypeScript build breaks. The staff/umpire routes were also normalised to use `client.db()` (avoids wrong-DB reads/writes when `DB_NAME` differs). |
-| **Payments** | ~~No per-club fee schedule~~ ✅ Fixed (P1). Stripe still in "simulate" mode — no Checkout session, no webhook (P2–P3 pending). |
-| **Tests** | ~~~5 unit tests~~ Now 468 tests across 58 files (S8 + P1 + X5 + X6 suites added). ~~Role-request lifecycle~~ ✅ Fixed (X5). ~~Member registration + category validation~~ ✅ Fixed (X6 — 21 tests). Stripe webhook and API auth-guard coverage still pending (X7). |
-| **TypeScript** | ~100+ violations; `strict` mode not enabled; JSX-in-try-catch anti-patterns in several pages |
-| **Workflows** | ✅ Nominations → ballot → result closed (W1). ✅ Events CRUD shipped (W2). ✅ Umpire assignment now operational end-to-end (W3). ✅ Bulk import member registration operational (W4). ✅ Season rollover operational (W5). ✅ Weekly digest operational (W6). |
+| Category            | Key gaps                                                                                                                                                                                                                                                                                                                                                                               |
+| ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Security**        | ~~`/api/clubs` and `/api/payments` unauthenticated; dev test routes exposed~~ ✅ Fixed (S1–S4). ~~No login rate limiting~~ ✅ Fixed (S5). ~~Cookie flag audit~~ ✅ Fixed — `__Host-` prefix (S6). ~~Rich-text XSS~~ ✅ Fixed — server-side `sanitize-html` on all write paths (S7). ~~API auth test suite~~ ✅ Fixed — Vitest suite + GitHub Actions CI gate (S8). All S1–S8 complete. |
+| **Build stability** | Remaining risk is mostly stubbed/placeholder flows rather than TypeScript build breaks. The staff/umpire routes were also normalised to use `client.db()` (avoids wrong-DB reads/writes when `DB_NAME` differs).                                                                                                                                                                       |
+| **Payments**        | ~~No per-club fee schedule~~ ✅ Fixed (P1). Stripe still in "simulate" mode — no Checkout session, no webhook (P2–P3 pending).                                                                                                                                                                                                                                                         |
+| **Tests**           | ~~~5 unit tests~~ Now 468 tests across 58 files (S8 + P1 + X5 + X6 suites added). ~~Role-request lifecycle~~ ✅ Fixed (X5). ~~Member registration + category validation~~ ✅ Fixed (X6 — 21 tests). Stripe webhook and API auth-guard coverage still pending (X7).                                                                                                                     |
+| **TypeScript**      | ~100+ violations; `strict` mode not enabled; JSX-in-try-catch anti-patterns in several pages                                                                                                                                                                                                                                                                                           |
+| **Workflows**       | ✅ Nominations → ballot → result closed (W1). ✅ Events CRUD shipped (W2). ✅ Umpire assignment now operational end-to-end (W3). ✅ Bulk import member registration operational (W4). ✅ Season rollover operational (W5). ✅ Weekly digest operational (W6).                                                                                                                          |
 
 ---
 
@@ -260,39 +261,39 @@ The codebase is substantially built and well-architected across all core areas:
 
 ### 🔴 Immediate — before any public-facing release
 
-| Priority | Epic | Description |
-|----------|------|-------------|
-| ~~1~~ | ~~**S1–S4**~~ | ~~**Security gaps**~~ — ✅ **Shipped 2026-04-21.** `/api/clubs` protected (all methods); `/api/public/clubs` created for safe public directory reads; `/api/payments` and `[paymentId]` fully scope-guarded; `lib/auth/scopeGuard.ts` helper created; `/api/test-level` returns 404 in production. |
-| ~~2~~ | ~~**B2–B10**~~ | ~~**Build bugs**~~ — ✅ **Shipped 2026-04-21.** Debug `console.log` blocks removed from `rosters/[ageGroup]` (B2) and `teams/players/eligible` (B3); `any` types replaced with typed interfaces (B3); missing auth added to `clubs/[clubId]/members` (B6); hardcoded `clubId` replaced with `useAuth()` + async `useEffect` sync in members create wizard (B7); `handleCreateEvent`/`handleEditEvent` stubs replaced with `router.push` to admin events routes and mock user replaced with real `useAuth()` (B8); `next-registration-number` now queries `members` collection for real max (B9); `check-duplicate` now does case-insensitive `firstName + lastName + dateOfBirth` match in DB (B10). |
-| ~~3~~ | ~~**S5–S7**~~ | ~~**Auth hardening + input sanitisation**~~ — ✅ **Shipped 2026-04-22.** Rate limiter (S5); `__Host-session` prefix + full cookie audit (S6); `sanitize-html` server-side on all rich-text writes — news content, event fullDescription, comms supplement fields (S7). |
+| Priority | Epic           | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| -------- | -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ~~1~~    | ~~**S1–S4**~~  | ~~**Security gaps**~~ — ✅ **Shipped 2026-04-21.** `/api/clubs` protected (all methods); `/api/public/clubs` created for safe public directory reads; `/api/payments` and `[paymentId]` fully scope-guarded; `lib/auth/scopeGuard.ts` helper created; `/api/test-level` returns 404 in production.                                                                                                                                                                                                                                                                                                                                                                                                   |
+| ~~2~~    | ~~**B2–B10**~~ | ~~**Build bugs**~~ — ✅ **Shipped 2026-04-21.** Debug `console.log` blocks removed from `rosters/[ageGroup]` (B2) and `teams/players/eligible` (B3); `any` types replaced with typed interfaces (B3); missing auth added to `clubs/[clubId]/members` (B6); hardcoded `clubId` replaced with `useAuth()` + async `useEffect` sync in members create wizard (B7); `handleCreateEvent`/`handleEditEvent` stubs replaced with `router.push` to admin events routes and mock user replaced with real `useAuth()` (B8); `next-registration-number` now queries `members` collection for real max (B9); `check-duplicate` now does case-insensitive `firstName + lastName + dateOfBirth` match in DB (B10). |
+| ~~3~~    | ~~**S5–S7**~~  | ~~**Auth hardening + input sanitisation**~~ — ✅ **Shipped 2026-04-22.** Rate limiter (S5); `__Host-session` prefix + full cookie audit (S6); `sanitize-html` server-side on all rich-text writes — news content, event fullDescription, comms supplement fields (S7).                                                                                                                                                                                                                                                                                                                                                                                                                               |
 
 ### 🟠 High priority — before registration season opens
 
-| Priority | Epic | Description |
-|----------|------|-------------|
-| 4 | ~~**P1**~~ ✅ **P2–P3** | **Stripe integration** — ~~Per-club fee schedule~~ done (P1). Checkout session creation (P2) and webhook handler (P3) to auto-advance role-requests from `pending_payment → awaiting_approval` still needed. Without this, all fee collection is manual registrar entry. |
-| 5 | **R6–R7** | **Seasonal re-registration** — Roles marked `seasonalRegistration: true` expire at season end. Email reminders 6 weeks and 2 weeks out via Resend; role-expiry dashboard page (route exists, body is stub). |
-| 6 | **X1–X4** | **TypeScript strict + ESLint CI gate + error boundaries** — Enabling lint as a CI gate stops regressions; fixing `strict` mode flushes hidden runtime bugs; replacing JSX-in-try-catch with proper `<ErrorBoundary>` components fixes concurrent rendering issues. |
+| Priority | Epic                    | Description                                                                                                                                                                                                                                                              |
+| -------- | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 4        | ~~**P1**~~ ✅ **P2–P3** | **Stripe integration** — ~~Per-club fee schedule~~ done (P1). Checkout session creation (P2) and webhook handler (P3) to auto-advance role-requests from `pending_payment → awaiting_approval` still needed. Without this, all fee collection is manual registrar entry. |
+| 5        | **R6–R7**               | **Seasonal re-registration** — Roles marked `seasonalRegistration: true` expire at season end. Email reminders 6 weeks and 2 weeks out via Resend; role-expiry dashboard page (route exists, body is stub).                                                              |
+| 6        | **X1–X4**               | **TypeScript strict + ESLint CI gate + error boundaries** — Enabling lint as a CI gate stops regressions; fixing `strict` mode flushes hidden runtime bugs; replacing JSX-in-try-catch with proper `<ErrorBoundary>` components fixes concurrent rendering issues.       |
 
 ### 🟡 Medium priority — next quarter
 
-| Priority | Epic | Description |
-|----------|------|-------------|
-| 7 | **X5–X7** | **Test coverage** — Role-request lifecycle, member registration, and all admin API auth guards have zero automated tests. A single bad deploy can silently break fee collection or approval. |
-| 8 | **M2–M5** | **Member self-service** — Editable profile page, tokenised invitation onboarding wizard (replacing hardcoded clubId placeholders), family account linking, automated renewal reminders. |
-| 9 | **W1** | **Nominations → ballot → result** — Window and submission exist; ballot voting UI is sketched; the result-to-role-request link is missing. Closes the governance loop. |
-| ~~10~~ | ~~**W3**~~ | ~~**Umpire assignment close-out**~~ — ✅ **Shipped 2026-04-27.** COI/availability listing + assignment + token response links implemented; officiating report now has real assignment lifecycle data to pull from fixtures and `umpire_assignments`. |
-| ~~11~~ | ~~**W2**~~ | ~~**Events CRUD**~~ — ✅ **Shipped 2026-04-22.** Full admin events system: 7-tab create/edit form, document upload + inline viewer, association/club/global scoped pages, calendar propagation, public detail page with visibility enforcement. Sidebar wired. Remaining: recurring events, RSVP toggle, iCal per-event export. |
+| Priority | Epic       | Description                                                                                                                                                                                                                                                                                                                     |
+| -------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 7        | **X5–X7**  | **Test coverage** — Role-request lifecycle, member registration, and all admin API auth guards have zero automated tests. A single bad deploy can silently break fee collection or approval.                                                                                                                                    |
+| 8        | **M2–M5**  | **Member self-service** — Editable profile page, tokenised invitation onboarding wizard (replacing hardcoded clubId placeholders), family account linking, automated renewal reminders.                                                                                                                                         |
+| 9        | **W1**     | **Nominations → ballot → result** — Window and submission exist; ballot voting UI is sketched; the result-to-role-request link is missing. Closes the governance loop.                                                                                                                                                          |
+| ~~10~~   | ~~**W3**~~ | ~~**Umpire assignment close-out**~~ — ✅ **Shipped 2026-04-27.** COI/availability listing + assignment + token response links implemented; officiating report now has real assignment lifecycle data to pull from fixtures and `umpire_assignments`.                                                                            |
+| ~~11~~   | ~~**W2**~~ | ~~**Events CRUD**~~ — ✅ **Shipped 2026-04-22.** Full admin events system: 7-tab create/edit form, document upload + inline viewer, association/club/global scoped pages, calendar propagation, public detail page with visibility enforcement. Sidebar wired. Remaining: recurring events, RSVP toggle, iCal per-event export. |
 
 ### 🟢 Longer term — own sprint or product stream
 
-| Priority | Epic | Description |
-|----------|------|-------------|
-| 12–14 | **F1–F3** | Financials foundation: chart of accounts per club/association, income ledger (replacing flat `payments` collection), expense ledger. |
-| 15–16 | **W4–W6** | Bulk member CSV import for club onboarding; automated season rollover (archive → copy forward → generate renewals); weekly digest email (reserved fields in communications hub). |
-| 17 | **M6** | Digital membership card — QR-coded PDF via `jsPDF` (already in deps), generated on role approval and emailed via Resend. |
-| 18 | **F4–F9** | Full P&L report, quarterly GST/BAS helper, Xero OAuth2 integration, merchandise/uniform shop with Stripe. Large commercial module — treat as a separate product stream. |
+| Priority | Epic      | Description                                                                                                                                                                      |
+| -------- | --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 12–14    | **F1–F3** | Financials foundation: chart of accounts per club/association, income ledger (replacing flat `payments` collection), expense ledger.                                             |
+| 15–16    | **W4–W6** | Bulk member CSV import for club onboarding; automated season rollover (archive → copy forward → generate renewals); weekly digest email (reserved fields in communications hub). |
+| 17       | **M6**    | Digital membership card — QR-coded PDF via `jsPDF` (already in deps), generated on role approval and emailed via Resend.                                                         |
+| 18       | **F4–F9** | Full P&L report, quarterly GST/BAS helper, Xero OAuth2 integration, merchandise/uniform shop with Stripe. Large commercial module — treat as a separate product stream.          |
 
 ---
 
-_Last updated: 2026-04-27 — V4 baseline plus ongoing April 2026 hardening. Latest: B1/B4/B5 confirmed fixed (role-requests + staff routes), association/DB access normalisation, and W3 umpire assignment close-out shipped (available list, assign, token accept/decline, `umpire_assignments` indexes)._
+_Last updated: 2026-04-27 — Latest: **F1** chart of accounts + cost centres shipped (association scope), **F2** income ledger shipped (Stripe + manual, refund status sync), admin sidebar now includes **Financials**, plus prior W3/W4/W5/W6/M4/M6 work._
