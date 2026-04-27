@@ -38,7 +38,7 @@ export async function POST(req: NextRequest, ctx: Ctx) {
     const scopedRows = applyRowScope(entity, rows, runtime);
 
     const client = await clientPromise;
-    const db = client.db(process.env.DB_NAME || "hockey-app");
+    const db = client.db();
 
     const result = await runBulkImport(db, entity, scopedRows, runtime);
     return NextResponse.json(result);

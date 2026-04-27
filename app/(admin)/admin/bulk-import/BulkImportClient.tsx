@@ -36,7 +36,7 @@ const ENTITIES: EntityDef[] = [
     label: "Members",
     icon: "📝",
     color: "from-cyan-500 to-cyan-600",
-    description: "Club members — nested schema matching the database. Matched by primaryEmail, then firstName+lastName+DOB.",
+    description: "Club members — nested schema matching the database. Matched by primaryEmail, then firstName+lastName+DOB. Optional: include requestedRole/scope fields to create registration role-requests (W4).",
     fields: [
       // ── Personal (→ personalInfo) ────────────────────────────────────────────
       { key: "firstName",    label: "First Name",    required: true,  example: "Jane" },
@@ -108,6 +108,13 @@ const ENTITIES: EntityDef[] = [
       { key: "emergencyContactEmail",        label: "Emergency Contact Email",        required: false, example: "lee@example.com" },
       // ── Notes ────────────────────────────────────────────────────────────────
       { key: "notes", label: "Notes", required: false, example: "Transferred from Sunshine Club 2024" },
+
+      // ── Optional: W4 registration role-request creation ─────────────────────
+      { key: "requestedRole", label: "Requested Role", required: false, example: "player", note: "If provided, creates a role-request for this member (pending_payment/awaiting_approval depending on fee rules)" },
+      { key: "scopeType",     label: "Scope Type",     required: false, example: "club",   note: "club or association (defaults to club when clubId present)" },
+      { key: "scopeId",       label: "Scope ID",       required: false, example: "club-demo-1", note: "Defaults to clubId when scopeType=club and scopeId is blank" },
+      { key: "seasonYear",    label: "Season Year",    required: false, example: "2026",  note: "Defaults to current year" },
+      { key: "requestNotes",  label: "Request Notes",  required: false, example: "Imported from legacy system", note: "Optional notes stored on the role-request (separate from member notes)" },
     ],
   },
   {

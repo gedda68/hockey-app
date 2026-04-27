@@ -1,12 +1,20 @@
 import type { Db } from "mongodb";
 import bcrypt from "bcryptjs";
 import { generateSlug } from "@/lib/utils/slug";
+import { v4 as uuidv4 } from "uuid";
+import { ROLE_DEFINITIONS, type ScopeType, type UserRole } from "@/lib/types/roles";
+import { resolveFeeWithFallback, buildFeeDescription } from "@/lib/fees/feeSchedule";
+import { calculateGST } from "@/lib/fees/gst";
+import type { FeeScheduleEntry } from "@/types/feeSchedule";
 import type { ImportResult, ImportRow } from "@/lib/bulk-import/types";
 import { norm, uid, toDate, toBool } from "@/lib/bulk-import/helpers";
 import type { ImportRuntimeContext } from "@/lib/bulk-import/helpers";
 
 export async function importMembers(db: Db, rows: ImportRow[]): Promise<ImportResult> {
   const result: ImportResult = { imported: 0, updated: 0, skipped: 0, errors: [] };
+
+  const clubCache = new Map<string, { id: string; name?: string; feeSchedule?: FeeScheduleEntry[] | null; parentAssociationId?: string | null } | null>();
+  const assocCache = new Map<string, { associationId: string; name?: string; fullName?: string; feeSchedule?: FeeScheduleEntry[] | null } | null>();
 
   for (let i = 0; i < rows.length; i++) {
     const r = rows[i];
@@ -25,9 +33,10 @@ export async function importMembers(db: Db, rows: ImportRow[]): Promise<ImportRe
     const clubIdRaw = norm(r["clubId"] || r["Club ID"]);
     let clubId: string | null = clubIdRaw || null;
     if (!clubId && clubName) {
-      const club = await db.collection("clubs").findOne({
-        $or: [{ name: clubName }, { shortName: clubName }, { slug: generateSlug(clubName) }],
-      });
+      const club = await db.collection("clubs").findOne(
+        { $or: [{ name: clubName }, { shortName: clubName }, { slug: generateSlug(clubName) }] },
+        { projection: { id: 1 } },
+      );
       clubId = (club?.id as string | undefined) ?? null;
     }
 
@@ -184,6 +193,214 @@ export async function importMembers(db: Db, rows: ImportRow[]): Promise<ImportRe
       });
       result.imported++;
     }
+
+    // ── Optional: create a registration role-request (W4) ───────────────────
+    //
+    // If requestedRole is provided, we create a `role_requests` record in the
+    // normal workflow states (pending_payment / awaiting_approval) so clubs can
+    // immediately use the approval queue.
+    const requestedRoleRaw = norm(
+      r["requestedRole"] ||
+        r["Requested Role"] ||
+        r["role"] ||
+        r["Role Request Role"],
+    );
+    if (!requestedRoleRaw) continue;
+
+    const requestedRole = requestedRoleRaw as UserRole;
+    const roleDef = ROLE_DEFINITIONS[requestedRole];
+    if (!roleDef) {
+      result.errors.push({ row: i + 2, message: `Unknown requestedRole: ${requestedRoleRaw}` });
+      continue;
+    }
+    if (!roleDef.requiresApproval) {
+      result.errors.push({ row: i + 2, message: `Role "${requestedRoleRaw}" does not use role-requests` });
+      continue;
+    }
+
+    const seasonYear = norm(r["seasonYear"] || r["Season Year"]) || String(new Date().getFullYear());
+    const notes = norm(r["requestNotes"] || r["Request Notes"] || r["notes"] || r["Notes"]) || undefined;
+
+    // scopeType/scopeId may be provided; otherwise default to club if clubId exists.
+    const scopeTypeRaw = norm(r["scopeType"] || r["Scope Type"]);
+    const scopeIdRaw = norm(r["scopeId"] || r["Scope ID"]);
+    const scopeType: ScopeType = (scopeTypeRaw || (clubId ? "club" : "association")) as ScopeType;
+    const scopeId: string | undefined =
+      (scopeIdRaw || (scopeType === "club" ? clubId : "")) || undefined;
+
+    if (!roleDef.scopeTypes.includes(scopeType)) {
+      result.errors.push({
+        row: i + 2,
+        message: `Role "${requestedRoleRaw}" cannot be scoped to "${scopeType}"`,
+      });
+      continue;
+    }
+    if (scopeType !== "global" && !scopeId) {
+      result.errors.push({
+        row: i + 2,
+        message: `scopeId is required for scopeType "${scopeType}"`,
+      });
+      continue;
+    }
+
+    const memberName = `${firstName} ${lastName}`.trim();
+
+    // Deduplicate open requests
+    const dup = await db.collection("role_requests").findOne({
+      memberId,
+      accountType: "member",
+      requestedRole,
+      scopeType,
+      ...(scopeId ? { scopeId } : {}),
+      ...(seasonYear ? { seasonYear } : {}),
+      status: { $in: ["pending_payment", "awaiting_approval"] },
+    });
+    if (dup) {
+      result.skipped++;
+      continue;
+    }
+
+    // Resolve scopeName + fee schedule for better admin UX.
+    let scopeName: string | undefined;
+    let resolvedFeeAmountCents: number | undefined;
+    let resolvedFeeDescription: string | undefined;
+    let resolvedGstIncluded: boolean | undefined;
+    let resolvedGstAmountCents: number | undefined;
+
+    try {
+      if (scopeType === "club" && scopeId) {
+        let club = clubCache.get(scopeId);
+        if (club === undefined) {
+          const row = await db.collection("clubs").findOne(
+            { $or: [{ id: scopeId }, { slug: scopeId }] },
+            { projection: { id: 1, name: 1, feeSchedule: 1, parentAssociationId: 1 } },
+          );
+          club = row
+            ? {
+                id: String(row.id ?? ""),
+                name: String(row.name ?? ""),
+                feeSchedule: (row as any).feeSchedule ?? null,
+                parentAssociationId: (row as any).parentAssociationId ?? null,
+              }
+            : null;
+          clubCache.set(scopeId, club);
+        }
+        scopeName = club?.name || undefined;
+
+        let assocSchedule: FeeScheduleEntry[] | null = null;
+        const parentAssociationId = club?.parentAssociationId ? String(club.parentAssociationId) : "";
+        if (parentAssociationId) {
+          let assoc = assocCache.get(parentAssociationId);
+          if (assoc === undefined) {
+            const row = await db.collection("associations").findOne(
+              { associationId: parentAssociationId },
+              { projection: { associationId: 1, name: 1, fullName: 1, feeSchedule: 1 } },
+            );
+            assoc = row
+              ? {
+                  associationId: String((row as any).associationId ?? ""),
+                  name: String((row as any).name ?? ""),
+                  fullName: String((row as any).fullName ?? ""),
+                  feeSchedule: (row as any).feeSchedule ?? null,
+                }
+              : null;
+            assocCache.set(parentAssociationId, assoc);
+          }
+          assocSchedule = assoc?.feeSchedule ?? null;
+        }
+
+        const entry = resolveFeeWithFallback(
+          club?.feeSchedule ?? null,
+          assocSchedule,
+          requestedRole,
+          seasonYear,
+        );
+        if (entry) {
+          resolvedFeeAmountCents = entry.amountCents;
+          resolvedFeeDescription = buildFeeDescription(
+            entry,
+            roleDef.label,
+            scopeName ?? scopeId,
+          );
+          resolvedGstIncluded = entry.gstIncluded;
+          resolvedGstAmountCents = calculateGST(
+            entry.amountCents,
+            entry.gstIncluded ?? true,
+          ).gst;
+        }
+      }
+
+      if (scopeType === "association" && scopeId) {
+        let assoc = assocCache.get(scopeId);
+        if (assoc === undefined) {
+          const row = await db.collection("associations").findOne(
+            { associationId: scopeId },
+            { projection: { associationId: 1, name: 1, fullName: 1, feeSchedule: 1 } },
+          );
+          assoc = row
+            ? {
+                associationId: String((row as any).associationId ?? ""),
+                name: String((row as any).name ?? ""),
+                fullName: String((row as any).fullName ?? ""),
+                feeSchedule: (row as any).feeSchedule ?? null,
+              }
+            : null;
+          assocCache.set(scopeId, assoc);
+        }
+        scopeName = assoc?.fullName || assoc?.name || undefined;
+
+        const entry = resolveFeeWithFallback(
+          assoc?.feeSchedule ?? null,
+          null,
+          requestedRole,
+          seasonYear,
+        );
+        if (entry) {
+          resolvedFeeAmountCents = entry.amountCents;
+          resolvedFeeDescription = buildFeeDescription(
+            entry,
+            roleDef.label,
+            scopeName ?? scopeId,
+          );
+          resolvedGstIncluded = entry.gstIncluded;
+          resolvedGstAmountCents = calculateGST(
+            entry.amountCents,
+            entry.gstIncluded ?? true,
+          ).gst;
+        }
+      }
+    } catch {
+      // Non-fatal: fee + scopeName are best-effort for bulk imports.
+    }
+
+    const now = new Date().toISOString();
+    const requiresFee = roleDef.requiresFee;
+    const status = requiresFee ? "pending_payment" : "awaiting_approval";
+
+    await db.collection("role_requests").insertOne({
+      requestId: `rreq-${uuidv4()}`,
+      memberId,
+      accountType: "member",
+      memberName,
+      requestedRole,
+      scopeType,
+      ...(scopeId ? { scopeId } : {}),
+      ...(scopeName ? { scopeName } : {}),
+      ...(seasonYear ? { seasonYear } : {}),
+      ...(notes ? { notes } : {}),
+      requestedBy: "bulk-import",
+      requestedByName: "Bulk import",
+      requestedAt: now,
+      requiresFee,
+      ...(resolvedFeeAmountCents !== undefined ? { feeAmountCents: resolvedFeeAmountCents } : {}),
+      ...(resolvedFeeDescription ? { feeDescription: resolvedFeeDescription } : {}),
+      ...(resolvedGstIncluded !== undefined ? { gstIncluded: resolvedGstIncluded } : {}),
+      ...(resolvedGstAmountCents !== undefined ? { gstAmountCents: resolvedGstAmountCents } : {}),
+      feePaid: false,
+      status,
+      createdAt: now,
+      updatedAt: now,
+    });
   }
 
   return result;
