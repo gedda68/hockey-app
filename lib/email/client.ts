@@ -38,6 +38,11 @@ export async function sendEmail(options: {
   subject: string;
   html: string;
   text?: string;
+  attachments?: Array<{
+    filename: string;
+    content: Uint8Array | Buffer;
+    contentType?: string;
+  }>;
 }): Promise<{ success: boolean; error?: string }> {
   if (!resend) {
     console.warn("Email not sent — RESEND_API_KEY is not configured.");
@@ -45,13 +50,24 @@ export async function sendEmail(options: {
   }
 
   try {
+    // Resend's TS types are a bit strict across union overloads; we keep this wrapper
+    // simple and cast the final options to avoid type-noise across our codebase.
     const { error } = await resend.emails.send({
       from: EMAIL_FROM,
       to: options.to,
       subject: options.subject,
       html: options.html,
-      text: options.text,
-    });
+      ...(typeof options.text === "string" ? { text: options.text } : {}),
+      ...(options.attachments?.length
+        ? {
+            attachments: options.attachments.map((a) => ({
+              filename: a.filename,
+              content: a.content,
+              contentType: a.contentType,
+            })),
+          }
+        : {}),
+    } as any);
 
     if (error) {
       console.error("Resend error:", error);

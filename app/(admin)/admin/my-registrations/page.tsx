@@ -72,6 +72,8 @@ function RequestCard({
   paying?: boolean;
 }) {
   const canWithdraw = ["pending_payment", "awaiting_approval"].includes(req.status);
+  const seasonYear = (req.seasonYear ?? "").trim();
+  const canDownloadCard = req.status === "approved" && !!seasonYear;
 
   return (
     <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm hover:shadow-md transition-shadow">
@@ -144,6 +146,20 @@ function RequestCard({
         <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-3 text-xs text-green-800">
           Role approved and assigned.
           {req.reviewedByName && <span className="ml-1">Approved by {req.reviewedByName}.</span>}
+          {canDownloadCard && (
+            <div className="mt-2">
+              <a
+                href={`/api/member/membership-card?memberId=${encodeURIComponent(
+                  req.memberId,
+                )}&seasonYear=${encodeURIComponent(seasonYear)}&role=${encodeURIComponent(req.requestedRole)}`}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-2 px-3 py-1.5 bg-white border border-green-300 rounded-md text-green-800 font-semibold hover:bg-green-50"
+              >
+                Download membership card (PDF)
+              </a>
+            </div>
+          )}
         </div>
       )}
 

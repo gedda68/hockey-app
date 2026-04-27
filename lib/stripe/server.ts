@@ -24,7 +24,7 @@
 
 import Stripe from "stripe";
 
-const STRIPE_API_VERSION = "2026-03-25.dahlia" as const;
+const STRIPE_API_VERSION = "2026-04-22.dahlia" as const;
 
 // globalThis key keeps the instance alive across Next.js hot-reloads
 const GLOBAL_KEY = "__stripe_server_instance__";

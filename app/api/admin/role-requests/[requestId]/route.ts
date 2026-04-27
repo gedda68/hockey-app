@@ -30,6 +30,7 @@ import type {
 import type { Db } from "mongodb";
 import { sendEmail } from "@/lib/email/client";
 import { buildRoleRequestDecisionEmail } from "@/lib/email/templates/roleRequestDecision";
+import { generateMembershipCardPdf } from "@/lib/member/membershipCardPdf";
 import {
   canApproveRoleRequestPrivilege,
   collectGrantorRolesForRoleRequest,
@@ -411,9 +412,53 @@ export async function PATCH(
           reviewNotes: reviewNotes,
           feeWaived:   !!feeWaiver,
         });
-        sendEmail({ to: email, subject, html, text }).catch((err) =>
-          console.error("Approval email failed:", err)
-        );
+        (async () => {
+          const attachments: Array<{ filename: string; content: Uint8Array; contentType: string }> = [];
+          try {
+            if (req.accountType === "member" && req.seasonYear) {
+              const member = await db.collection("members").findOne(
+                { memberId: req.memberId },
+                { projection: { memberId: 1, clubId: 1, personalInfo: 1 } },
+              );
+
+              if (member) {
+                const clubId = String((member as any).clubId ?? "").trim();
+                const club = clubId
+                  ? await db.collection("clubs").findOne({ id: clubId }, { projection: { name: 1, shortName: 1 } })
+                  : null;
+                const clubName = club ? String((club as any).shortName ?? (club as any).name ?? "").trim() : "";
+
+                const pi = (member as any).personalInfo ?? {};
+                const displayName =
+                  String(pi.displayName ?? "").trim() ||
+                  `${String(pi.firstName ?? "").trim()} ${String(pi.lastName ?? "").trim()}`.trim() ||
+                  String((member as any).memberId ?? "");
+                const photoUrl = (pi.photoUrl != null ? String(pi.photoUrl) : "").trim() || null;
+
+                const pdf = await generateMembershipCardPdf({
+                  memberId: String((member as any).memberId ?? req.memberId),
+                  displayName,
+                  clubName,
+                  roleLabel,
+                  seasonYear: req.seasonYear,
+                  photoUrl,
+                });
+
+                attachments.push({
+                  filename: pdf.filename,
+                  content: pdf.bytes,
+                  contentType: "application/pdf",
+                });
+              }
+            }
+          } catch (e) {
+            console.error("Membership card PDF generation failed:", e);
+          }
+
+          await sendEmail({ to: email, subject, html, text, attachments }).catch((err) =>
+            console.error("Approval email failed:", err),
+          );
+        })().catch((err) => console.error("Approval email task failed:", err));
       }).catch((err) => console.error("Recipient lookup failed:", err));
 
       return NextResponse.json({
