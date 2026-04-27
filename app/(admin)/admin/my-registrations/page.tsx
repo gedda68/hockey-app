@@ -436,9 +436,43 @@ export default function MyRegistrationsPage() {
   const [expiringSoon, setExpiringSoon] = useState<EnrichedRoleAssignment[]>([]);
   const [expiredRoles, setExpiredRoles] = useState<EnrichedRoleAssignment[]>([]);
   const [payingRequestId, setPayingRequestId] = useState<string | null>(null);
+  const [managedMembers, setManagedMembers] = useState<Array<{ memberId: string; displayName: string }>>([]);
+  const [viewingMemberId, setViewingMemberId] = useState<string>("");
 
   const memberId = user?.memberId ?? user?.userId ?? "";
   const accountType: "user" | "member" = user?.memberId ? "member" : "user";
+
+  useEffect(() => {
+    if (!memberId) return;
+    if (!viewingMemberId) setViewingMemberId(memberId);
+  }, [memberId, viewingMemberId]);
+
+  // Load family-managed members (parents/guardians)
+  useEffect(() => {
+    if (!user?.memberId) return;
+    (async () => {
+      try {
+        const res = await fetch("/api/member/my-family");
+        const data = await res.json();
+        if (!res.ok) return;
+        const members = Array.isArray(data.members) ? data.members : [];
+        const mine = { memberId: user.memberId, displayName: "Me" };
+        const children = members
+          .filter((m: any) => String(m.memberId ?? "") && String(m.memberId ?? "") !== user.memberId)
+          .map((m: any) => ({
+            memberId: String(m.memberId),
+            displayName: String(m.displayName ?? m.memberId),
+          }));
+        if (children.length) {
+          setManagedMembers([mine, ...children]);
+        } else {
+          setManagedMembers([]);
+        }
+      } catch {
+        /* ignore */
+      }
+    })();
+  }, [user?.memberId]);
 
   useEffect(() => {
     if (pathwayOnce.current || !memberId || typeof window === "undefined") return;
@@ -481,11 +515,11 @@ export default function MyRegistrationsPage() {
   }, []);
 
   const load = useCallback(async () => {
-    if (!memberId) return;
+    if (!viewingMemberId) return;
     setLoading(true);
     try {
       const [reqRes, rolesRes] = await Promise.all([
-        fetch(`/api/role-requests?memberId=${encodeURIComponent(memberId)}`),
+        fetch(`/api/role-requests?memberId=${encodeURIComponent(viewingMemberId)}`),
         fetch("/api/member/my-roles"),
       ]);
       const reqData = await reqRes.json();
@@ -500,7 +534,7 @@ export default function MyRegistrationsPage() {
     } finally {
       setLoading(false);
     }
-  }, [memberId]);
+  }, [viewingMemberId]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -585,6 +619,38 @@ export default function MyRegistrationsPage() {
             New Request
           </button>
         </div>
+
+        {/* Family selector (parents/guardians) */}
+        {managedMembers.length > 0 && (
+          <div className="mt-4">
+            <label className="block text-xs font-black text-amber-100 uppercase tracking-wide mb-1">
+              Viewing registrations for
+            </label>
+            <div className="flex items-center gap-2">
+              <select
+                value={viewingMemberId}
+                onChange={(e) => setViewingMemberId(e.target.value)}
+                className="w-full max-w-sm rounded-xl border border-white/30 bg-white/15 text-white px-3 py-2 text-sm font-bold outline-none"
+              >
+                {managedMembers.map((m) => (
+                  <option key={m.memberId} value={m.memberId} className="text-slate-900">
+                    {m.displayName}
+                  </option>
+                ))}
+              </select>
+              <button
+                onClick={load}
+                className="shrink-0 inline-flex items-center justify-center w-10 h-10 rounded-xl bg-white/20 hover:bg-white/30 transition"
+                title="Refresh"
+              >
+                <RefreshCw size={16} />
+              </button>
+            </div>
+            <p className="mt-1 text-xs text-amber-100/90">
+              Parents/guardians can submit requests for linked family members.
+            </p>
+          </div>
+        )}
 
         {/* Stats */}
         <div className="grid grid-cols-3 gap-3 mt-5">
@@ -726,7 +792,7 @@ export default function MyRegistrationsPage() {
       {/* Submit modal */}
       {showSubmit && memberId && (
         <SubmitModal
-          memberId={memberId}
+          memberId={viewingMemberId || memberId}
           accountType={accountType}
           onClose={() => { setShowSubmit(false); setRenewalPreFill(null); }}
           onSuccess={() => { load(); setRenewalPreFill(null); }}

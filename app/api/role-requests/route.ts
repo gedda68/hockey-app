@@ -25,6 +25,28 @@ import { calculateGST } from "@/lib/fees/gst";
 import type { SubmitRoleRequestBody, RoleRequest } from "@/types/roleRequests";
 import type { FeeScheduleEntry } from "@/types/feeSchedule";
 
+async function isFamilyPrimaryForTarget(
+  db: ReturnType<Awaited<typeof clientPromise>["db"]>,
+  sessionMemberId: string,
+  targetMemberId: string,
+): Promise<boolean> {
+  const [me, target] = await Promise.all([
+    db.collection("members").findOne(
+      { memberId: sessionMemberId },
+      { projection: { family: 1 } },
+    ),
+    db.collection("members").findOne(
+      { memberId: targetMemberId },
+      { projection: { family: 1 } },
+    ),
+  ]);
+
+  const myFamilyId = String((me as any)?.family?.familyId ?? "").trim();
+  const isPrimary = Boolean((me as any)?.family?.isPrimaryContact);
+  const targetFamilyId = String((target as any)?.family?.familyId ?? "").trim();
+  return !!(myFamilyId && isPrimary && targetFamilyId && myFamilyId === targetFamilyId);
+}
+
 // ── POST — submit a request ───────────────────────────────────────────────────
 
 export async function POST(request: NextRequest) {
@@ -66,7 +88,23 @@ export async function POST(request: NextRequest) {
     }
 
     const client = await clientPromise;
-    const db = client.db("hockey-app");
+    const db = client.db();
+
+    // Authorization: members can submit their own requests.
+    // Parents/guardians (family primary contact) may submit on behalf of linked members.
+    const adminRoles = ["super-admin", "association-admin", "club-admin", "assoc-registrar", "registrar"];
+    const isAdmin =
+      adminRoles.includes(session.role) ||
+      (session.scopedRoles ?? []).some((sr) => adminRoles.includes(sr.role));
+    const isSelf = session.userId === memberId || session.memberId === memberId;
+    if (!isAdmin && !isSelf) {
+      const smid = session.memberId?.trim() || "";
+      if (!smid) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
+      const ok = await isFamilyPrimaryForTarget(db, smid, memberId);
+      if (!ok) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
 
     // ── Verify the member/user exists ─────────────────────────────────────────
     const collection = accountType === "user" ? "users" : "members";
@@ -251,6 +289,9 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Authentication required" }, { status: 401 });
     }
 
+    const client = await clientPromise;
+    const db = client.db();
+
     const { searchParams } = new URL(request.url);
     const memberId = searchParams.get("memberId");
 
@@ -264,11 +305,11 @@ export async function GET(request: NextRequest) {
       (session.scopedRoles ?? []).some((sr) => adminRoles.includes(sr.role));
 
     if (!isAdmin && session.userId !== memberId && session.memberId !== memberId) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      const smid = session.memberId?.trim() || "";
+      if (!smid) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      const ok = await isFamilyPrimaryForTarget(db, smid, memberId);
+      if (!ok) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
-
-    const client = await clientPromise;
-    const db = client.db("hockey-app");
 
     const requests = await db
       .collection("role_requests")
