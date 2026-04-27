@@ -272,6 +272,24 @@ async function main() {
       "index on stripePaymentIntentId"
     );
 
+    // ── expense_ledger ─────────────────────────────────────────────────────
+    const expenseLedger = db.collection("expense_ledger");
+    console.log("\nexpense_ledger:");
+
+    await idx(
+      expenseLedger,
+      { scopeType: 1, scopeId: 1, date: -1 },
+      {},
+      "compound index on scopeType + scopeId + date(desc)"
+    );
+
+    await idx(
+      expenseLedger,
+      { referenceType: 1, referenceId: 1 },
+      { unique: true, sparse: true },
+      "unique index on referenceType + referenceId"
+    );
+
     await idx(
       members,
       {

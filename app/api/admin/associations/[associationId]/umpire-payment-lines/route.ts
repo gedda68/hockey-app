@@ -13,6 +13,7 @@ import { resolveUmpireDisplayMap } from "@/lib/officiating/resolveUmpireDisplay"
 import { logPlatformAudit } from "@/lib/audit/platformAuditLog";
 import type { UmpirePaymentLineStatus } from "@/lib/db/schemas/umpireMatchPayment.schema";
 import { toCsvRow } from "@/lib/utils/csvEscape";
+import { recordExpenseLedgerForPaidUmpireLine } from "@/lib/finance/expenseLedgerFromUmpireLine";
 
 type Params = { params: Promise<{ associationId: string }> };
 
@@ -49,7 +50,7 @@ export async function GET(request: NextRequest, { params }: Params) {
     const limit = format === "csv" ? csvLimit : jsonLimit;
 
     const client = await clientPromise;
-    const db = client.db("hockey-app");
+    const db = client.db();
 
     const q: Record<string, unknown> = { associationId };
     if (
@@ -157,7 +158,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     const body = PatchUmpirePaymentLinesBodySchema.parse(await request.json());
 
     const client = await clientPromise;
-    const db = client.db("hockey-app");
+    const db = client.db();
     const nowIso = new Date().toISOString();
 
     const updatedStatus: string[] = [];
@@ -230,6 +231,24 @@ export async function PATCH(request: NextRequest, { params }: Params) {
           { $set },
         );
         updatedStatus.push(item.paymentLineId);
+
+        if (to === "paid") {
+          try {
+            await recordExpenseLedgerForPaidUmpireLine({
+              db,
+              associationId,
+              paymentLineId: String(doc.paymentLineId ?? item.paymentLineId),
+              amountCents: doc.amountCents as number | null | undefined,
+              fixtureId: String(doc.fixtureId ?? ""),
+              seasonCompetitionId: String(doc.seasonCompetitionId ?? ""),
+              umpireId: String(doc.umpireId ?? ""),
+              paidAtIso: nowIso,
+              createdBy: user.userId,
+            });
+          } catch (e) {
+            console.error("[umpire-payment-lines] expense ledger mirror failed:", e);
+          }
+        }
       }
     }
 
@@ -290,7 +309,7 @@ export async function DELETE(request: NextRequest, { params }: Params) {
     }
 
     const client = await clientPromise;
-    const db = client.db("hockey-app");
+    const db = client.db();
 
     const doc = await db.collection(LINES_COL).findOne({
       paymentLineId,
