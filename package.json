@@ -19,6 +19,7 @@
     "altius:harvest": "tsx scripts/altius-bhl-seed/cli-harvest.ts",
     "altius:seed": "tsx scripts/altius-bhl-seed/cli-seed.ts",
     "reconcile:association-levels": "tsx scripts/reconcile-association-levels.ts",
+    "migrate:association-refs": "tsx scripts/migrate-association-refs.ts",
     "backfill:news-scope": "tsx scripts/backfill-news-portal-scope.ts",
     "migrate:home-gallery-platform": "tsx scripts/migrate-home-gallery-to-platform-subfolder.ts",
     "bulk-import": "tsx scripts/bulk-import-cli.ts",

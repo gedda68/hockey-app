@@ -28,37 +28,69 @@ async function resolveAssociationKeysToIds(
   const cleaned = [...new Set(keys.map((k) => String(k ?? "").trim()).filter(Boolean))];
   if (cleaned.length === 0) return {};
 
-  const rows = (await db
+  // Future-proofing: we treat `associationId` (canonical) and `portalSlug` as valid identifiers.
+  // `code` / `acronym` are display fields and may collide across associations (e.g. multiple "BHA").
+  // For backwards-compat only, we map `code` / `acronym` keys *only when they uniquely resolve*.
+  const primaryRows = (await db
     .collection("associations")
     .find({
-      $or: [
-        { associationId: { $in: cleaned } },
-        { portalSlug: { $in: cleaned } },
-        { code: { $in: cleaned } },
-        { acronym: { $in: cleaned } },
-      ],
+      $or: [{ associationId: { $in: cleaned } }, { portalSlug: { $in: cleaned } }],
     })
-    .project({ associationId: 1, portalSlug: 1, code: 1, acronym: 1 })
+    .project({ associationId: 1, portalSlug: 1 })
     .limit(400)
     .toArray()) as AssocKeyRow[];
 
   const map: Record<string, string> = {};
-  for (const r of rows) {
+  for (const r of primaryRows) {
     const id = String(r.associationId ?? "").trim();
     if (!id) continue;
-    const keysForRow = [
-      r.associationId,
-      r.portalSlug,
-      r.code,
-      r.acronym,
-    ]
+    const keysForRow = [r.associationId, r.portalSlug]
       .map((v) => (typeof v === "string" ? v.trim() : ""))
       .filter(Boolean);
     for (const k of keysForRow) {
       map[k] = id;
     }
   }
+
+  const unresolved = cleaned.filter((k) => !map[k]);
+  if (unresolved.length > 0) {
+    const legacyRows = (await db
+      .collection("associations")
+      .find({ $or: [{ code: { $in: unresolved } }, { acronym: { $in: unresolved } }] })
+      .project({ associationId: 1, code: 1, acronym: 1 })
+      .limit(400)
+      .toArray()) as AssocKeyRow[];
+
+    const bucket: Record<string, string[]> = {};
+    for (const r of legacyRows) {
+      const id = String(r.associationId ?? "").trim();
+      if (!id) continue;
+      for (const k of [r.code, r.acronym]) {
+        const kk = typeof k === "string" ? k.trim() : "";
+        if (!kk) continue;
+        (bucket[kk] ||= []).push(id);
+      }
+    }
+
+    for (const key of unresolved) {
+      const candidates = bucket[key] ?? [];
+      if (candidates.length === 1) {
+        map[key] = candidates[0];
+      }
+    }
+  }
+
   return map;
+}
+
+async function requireCanonicalAssociationId(db: Db, raw: unknown): Promise<string> {
+  const key = typeof raw === "string" ? raw.trim() : "";
+  if (!key) throw new Error("parentAssociationId is required");
+
+  const assocMap = await resolveAssociationKeysToIds(db, [key]);
+  const canonical = assocMap[key] ?? "";
+  if (!canonical) throw new Error("Invalid parentAssociationId (association not found)");
+  return canonical;
 }
 
 // --- HELPER: LOG CHANGES ---
@@ -376,17 +408,6 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
 
-    const parentAssoc =
-      body.parentAssociationId ?? body.associationId ?? body.association;
-    if (parentAssoc && typeof parentAssoc === "string") {
-      const { response: scopeRes } = await requireResourceAccess(
-        request,
-        "association",
-        parentAssoc,
-      );
-      if (scopeRes) return scopeRes;
-    }
-
     if (!body.name || !body.id) {
       return NextResponse.json(
         { error: "Name and ID are required" },
@@ -396,6 +417,17 @@ export async function POST(request: NextRequest) {
 
     const client = await clientPromise;
     const db = client.db();
+
+    const canonicalParentAssociationId = await requireCanonicalAssociationId(
+      db,
+      body.parentAssociationId ?? body.associationId ?? body.association,
+    );
+    const { response: scopeRes } = await requireResourceAccess(
+      request,
+      "association",
+      canonicalParentAssociationId,
+    );
+    if (scopeRes) return scopeRes;
 
     const existing = await db.collection("clubs").findOne({ id: body.id });
 
@@ -408,12 +440,15 @@ export async function POST(request: NextRequest) {
 
     const clubData = {
       ...body,
+      parentAssociationId: canonicalParentAssociationId,
       slug: body.slug || generateSlug(body.name),
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       active: body.active !== undefined ? body.active : true,
       memberSequence: body.memberSequence || 0, // Initialize member sequence
     };
+    delete (clubData as any).associationId;
+    delete (clubData as any).association;
 
     await db.collection("clubs").insertOne(clubData);
 
@@ -477,6 +512,24 @@ export async function PUT(request: NextRequest) {
 
     // Cleanup internal MongoDB _id if present in body
     delete (newData as any)._id;
+    delete (newData as any).associationId;
+    delete (newData as any).association;
+
+    const incomingParent =
+      body.parentAssociationId ?? body.associationId ?? body.association;
+    if (incomingParent !== undefined) {
+      const canonicalParentAssociationId = await requireCanonicalAssociationId(
+        db,
+        incomingParent,
+      );
+      const { response: scopeRes } = await requireResourceAccess(
+        request,
+        "association",
+        canonicalParentAssociationId,
+      );
+      if (scopeRes) return scopeRes;
+      (newData as any).parentAssociationId = canonicalParentAssociationId;
+    }
 
     // Deep-merge branding so partial updates (e.g. admin header banner only) do not wipe other keys
     const bodyBranding = (body as { branding?: Record<string, unknown> }).branding;

@@ -55,7 +55,7 @@ export default async function TopNavbarWrapper() {
 
   try {
     const client = await clientPromise;
-    const db = client.db(process.env.DB_NAME || "hockey-app");
+    const db = client.db();
     const tenant =
       slug && slug.length > 0
         ? await resolveTenantByPortalSlug(db, slug)

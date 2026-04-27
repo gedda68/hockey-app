@@ -25,7 +25,7 @@ export async function PATCH(
     const body = PatchTeamStaffBodySchema.parse(await request.json());
 
     const client = await clientPromise;
-    const db = client.db("hockey-app");
+    const db = client.db();
 
     const roster = await db.collection("teamRosters").findOne({ id: rosterId });
     if (!roster) {
@@ -124,7 +124,7 @@ export async function DELETE(
     const teamIndex = parseInt(teamIndexStr, 10);
 
     const client = await clientPromise;
-    const db = client.db("hockey-app");
+    const db = client.db();
 
     const roster = await db.collection("teamRosters").findOne({ id: rosterId });
     if (!roster) {

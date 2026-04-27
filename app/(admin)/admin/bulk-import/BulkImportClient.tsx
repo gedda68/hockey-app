@@ -185,7 +185,7 @@ const ENTITIES: EntityDef[] = [
       { key: "clubName",        label: "Club Name",        required: false, example: "Commercial Hockey Club", note: "Or use clubId" },
       { key: "clubId",          label: "Club ID",          required: false, example: "abc123" },
       { key: "associationName", label: "Association Name", required: false, example: "Brisbane Hockey Association" },
-      { key: "associationId",   label: "Association ID",   required: false, example: "bha" },
+      { key: "associationId",   label: "Association ID",   required: false, example: "brisbane-hockey" },
       { key: "initialPassword", label: "Initial password", required: false, example: "", note: "Super-admin only; min 8 chars uses this instead of a random temp password" },
     ],
   },
@@ -262,7 +262,7 @@ const ENTITIES: EntityDef[] = [
       { key: "gender",        label: "Gender",           required: false, example: "Male" },
       { key: "coach",         label: "Coach",            required: false, example: "Kim Lee" },
       { key: "manager",       label: "Manager",          required: false, example: "Pat Green" },
-      { key: "associationId", label: "Association ID",   required: false, example: "bha" },
+      { key: "associationId", label: "Association ID",   required: false, example: "brisbane-hockey" },
     ],
   },
   {

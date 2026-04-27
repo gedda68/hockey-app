@@ -168,6 +168,31 @@ async function main() {
     await idx(payments, { clubId: 1, seasonYear: 1 }, {},
       "compound index on clubId + seasonYear");
 
+    // ── umpire_assignments ─────────────────────────────────────────────────
+    const umpireAssignments = db.collection("umpire_assignments");
+    console.log("\numpire_assignments:");
+
+    await idx(
+      umpireAssignments,
+      { responseToken: 1 },
+      { unique: true },
+      "unique index on responseToken"
+    );
+
+    await idx(
+      umpireAssignments,
+      { fixtureId: 1, seasonCompetitionId: 1, slotIndex: 1 },
+      { unique: true },
+      "unique index on fixtureId + seasonCompetitionId + slotIndex"
+    );
+
+    await idx(
+      umpireAssignments,
+      { associationId: 1, allocationStatus: 1 },
+      {},
+      "compound index on associationId + allocationStatus"
+    );
+
     // ── teams ─────────────────────────────────────────────────────────────
     const teams = db.collection("teams");
     console.log("\nteams:");

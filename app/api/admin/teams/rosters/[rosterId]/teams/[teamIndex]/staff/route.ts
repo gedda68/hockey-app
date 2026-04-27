@@ -23,7 +23,7 @@ export async function POST(
     const body = PostTeamStaffBodySchema.parse(await request.json());
 
     const client = await clientPromise;
-    const db = client.db("hockey-app");
+    const db = client.db();
 
     const roster = await db.collection("teamRosters").findOne({ id: rosterId });
     if (!roster) {

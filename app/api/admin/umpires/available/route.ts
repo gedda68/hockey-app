@@ -73,7 +73,7 @@ export async function GET(request: NextRequest) {
   }
 
   const client = await clientPromise;
-  const db = client.db("hockey-app");
+  const db = client.db();
 
   // ── Load fixture ────────────────────────────────────────────────────────────
   const fixture = await db.collection("league_fixtures").findOne({

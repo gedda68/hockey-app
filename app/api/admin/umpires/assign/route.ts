@@ -128,7 +128,7 @@ export async function POST(request: NextRequest) {
   }
 
   const client = await clientPromise;
-  const db = client.db("hockey-app");
+  const db = client.db();
 
   // ── Load fixture ──────────────────────────────────────────────────────────
   const fixture = await db.collection(FIXTURES_COL).findOne({

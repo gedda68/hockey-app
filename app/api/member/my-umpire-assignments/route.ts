@@ -23,6 +23,7 @@ import {
 
 const REGISTER_COL = "association_official_register";
 const FIXTURES_COL = "league_fixtures";
+const ASSIGNMENTS_COL = "umpire_assignments";
 
 async function umpireIdKeysForMember(
   db: Db,
@@ -50,7 +51,7 @@ export async function GET() {
   }
 
   const client = await clientPromise;
-  const db = client.db("hockey-app");
+  const db = client.db();
   const idSet = await umpireIdKeysForMember(db, memberId);
   const idList = [...idSet];
 
@@ -106,7 +107,7 @@ export async function PATCH(request: NextRequest) {
   }
 
   const client = await clientPromise;
-  const db = client.db("hockey-app");
+  const db = client.db();
   const idSet = await umpireIdKeysForMember(db, memberId);
 
   const fixture = await db.collection(FIXTURES_COL).findOne({
@@ -145,6 +146,29 @@ export async function PATCH(request: NextRequest) {
       },
     },
   );
+
+  // Best-effort sync to `umpire_assignments` so token + admin views stay consistent.
+  const updatedUmpireId = String((umpires[body.slotIndex] as any)?.umpireId ?? "");
+  if (
+    updatedUmpireId &&
+    (body.allocationStatus === "accepted" || body.allocationStatus === "declined")
+  ) {
+    const set: Record<string, unknown> = {
+      allocationStatus: body.allocationStatus,
+      updatedAt: nowIso,
+    };
+    if (body.allocationStatus === "accepted") set.dateAccepted = nowIso;
+    if (body.allocationStatus === "declined") set.dateDeclined = nowIso;
+    await db.collection(ASSIGNMENTS_COL).updateMany(
+      {
+        fixtureId: body.fixtureId,
+        seasonCompetitionId: body.seasonCompetitionId,
+        slotIndex: body.slotIndex,
+        umpireId: updatedUmpireId,
+      },
+      { $set: set },
+    );
+  }
 
   return NextResponse.json({ ok: true, allocationStatus: body.allocationStatus });
 }

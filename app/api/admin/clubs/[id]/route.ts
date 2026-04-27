@@ -20,6 +20,19 @@ async function findClub(db: Db, idOrSlug: string) {
   });
 }
 
+async function canonicalAssociationIdFromKey(db: Db, raw: unknown): Promise<string | null> {
+  const key = typeof raw === "string" ? raw.trim() : "";
+  if (!key) return null;
+  const assoc = await db
+    .collection("associations")
+    .findOne(
+      { $or: [{ associationId: key }, { portalSlug: key }] },
+      { projection: { associationId: 1 } },
+    );
+  const canonical = String((assoc as any)?.associationId ?? "").trim();
+  return canonical || null;
+}
+
 export async function GET(req: NextRequest, ctx: Ctx) {
   try {
     const { id } = await ctx.params;
@@ -80,6 +93,27 @@ export async function PUT(req: NextRequest, ctx: Ctx) {
     const existing = await findClub(db, id);
     if (!existing) {
       return NextResponse.json({ error: "Club not found" }, { status: 404 });
+    }
+
+    const incomingParent =
+      payload.parentAssociationId ?? payload.associationId ?? payload.association;
+    if (incomingParent !== undefined) {
+      const canonical = await canonicalAssociationIdFromKey(db, incomingParent);
+      if (!canonical) {
+        return NextResponse.json(
+          { error: "Invalid parentAssociationId (association not found)" },
+          { status: 400 },
+        );
+      }
+      const { response: assocScopeRes } = await requireResourceAccess(
+        req,
+        "association",
+        canonical,
+      );
+      if (assocScopeRes) return assocScopeRes;
+      payload.parentAssociationId = canonical;
+      delete payload.associationId;
+      delete payload.association;
     }
 
     // If name changed, regenerate slug
