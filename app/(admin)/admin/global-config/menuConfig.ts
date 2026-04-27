@@ -442,6 +442,20 @@ export const menuConfig: MenuItem[] = [
     allowedRoles: FINANCE_ROLES,
   },
   {
+    label: "Financials",
+    href: "/admin/associations",
+    icon: "🧾",
+    description: "Chart of accounts and income/expense ledgers",
+    color: "from-emerald-600 to-emerald-700",
+    section: "finance",
+    allowedRoles: [
+      "super-admin",
+      "association-admin",
+      "assoc-committee",
+      "assoc-registrar",
+    ],
+  },
+  {
     label: "Team Tournament Fees",
     href: "/admin/team-tournaments",
     icon: "🏆",

@@ -171,6 +171,22 @@ function resolvedLeagueSetupHref(user: User): string {
   return "/admin/associations";
 }
 
+/** Financials — association-scoped roles go to their org; super-admin to directory. */
+const FINANCIALS_ROLES = [
+  "association-admin",
+  "assoc-committee",
+  "assoc-registrar",
+];
+
+function resolvedFinancialsHref(user: User): string {
+  const roles = getUserRoles(user);
+  if (roles.includes("super-admin")) return "/admin/associations";
+  if (roles.some((r) => FINANCIALS_ROLES.includes(r)) && user.associationId) {
+    return `/admin/associations/${user.associationId}/financials`;
+  }
+  return "/admin/associations";
+}
+
 /**
  * Builds the full visible menu for a user:
  *   1. Start from menuConfig (role-filtered).
@@ -192,6 +208,7 @@ function buildMenuForUser(user: User | null): MenuItem[] {
   const fees = resolvedFeesItem(role, clubRef, assocId);
   const selectionPolicyHref = resolvedSelectionPolicyHref(user);
   const leagueSetupHref = resolvedLeagueSetupHref(user);
+  const financialsHref = resolvedFinancialsHref(user);
 
   // Events: scope-aware hrefs
   const eventsHref = SIDEBAR_CLUB_ROLES.includes(role) && clubRef
@@ -208,6 +225,7 @@ function buildMenuForUser(user: User | null): MenuItem[] {
 
   items = items.map((item) => {
     if (item.label === "Fees") return { ...item, href: fees.href };
+    if (item.label === "Financials") return { ...item, href: financialsHref };
     if (item.label === "Team selection policy") {
       return { ...item, href: selectionPolicyHref };
     }
