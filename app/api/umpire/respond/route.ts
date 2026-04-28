@@ -138,13 +138,18 @@ export async function GET(request: NextRequest) {
     seasonCompetitionId,
   })) as Record<string, unknown> | null;
 
-  if (fixture && Array.isArray((fixture as any).umpires)) {
-    const umpires = [...((fixture as any).umpires as unknown[])];
+  const fixtureUmpires = (fixture as { umpires?: unknown[] } | null)?.umpires;
+  if (fixture && Array.isArray(fixtureUmpires)) {
+    const umpires = [...fixtureUmpires];
     if (slotIndex < umpires.length) {
       const slot = umpires[slotIndex] as Record<string, unknown>;
       const uid = slot?.umpireId != null ? String(slot.umpireId) : "";
       if (uid === umpireId) {
-        umpires[slotIndex] = mergeUmpireSlotAllocationStatus(slot, newStatus as any, nowIso);
+        umpires[slotIndex] = mergeUmpireSlotAllocationStatus(
+          slot,
+          newStatus as "accepted" | "declined",
+          nowIso,
+        );
         await db.collection(FIXTURES_COL).updateOne(
           { fixtureId, seasonCompetitionId },
           { $set: { umpires, updatedAt: nowIso, updatedBy: "umpire-token" } },
