@@ -32,6 +32,11 @@ import { sendEmail } from "@/lib/email/client";
 import { buildRoleRequestDecisionEmail } from "@/lib/email/templates/roleRequestDecision";
 import { generateMembershipCardPdf } from "@/lib/member/membershipCardPdf";
 import {
+  generateTraceId,
+  logAdminTelemetry,
+  logAdminError,
+} from "@/lib/observability/adminTelemetry";
+import {
   canApproveRoleRequestPrivilege,
   collectGrantorRolesForRoleRequest,
 } from "@/lib/domain/roleGrantWorkflow";
@@ -129,6 +134,7 @@ export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ requestId: string }> }
 ) {
+  const traceId = generateTraceId();
   try {
     const { response } = await requirePermission(_request, "registration.manage");
     if (response) return response;
@@ -152,7 +158,7 @@ export async function GET(
 
     return NextResponse.json({ request: req });
   } catch (error: unknown) {
-    console.error("💥 role-requests GET error:", error);
+    logAdminError("admin.role_request.get.error", traceId, error);
     return NextResponse.json({ error: "Failed to fetch request" }, { status: 500 });
   }
 }
@@ -163,6 +169,7 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ requestId: string }> }
 ) {
+  const traceId = generateTraceId();
   try {
     const { response } = await requirePermission(request, "registration.manage");
     if (response) return response;
@@ -204,6 +211,15 @@ export async function PATCH(
         { requestId },
         { $set: { status: "withdrawn", updatedAt: now } }
       );
+      logAdminTelemetry("admin.role_request.withdraw", {
+        traceId,
+        requestId,
+        memberId:      req.memberId,
+        requestedRole: req.requestedRole,
+        actorId:       session.userId,
+        actorRole:     session.role,
+        byself:        isSelf,
+      });
       return NextResponse.json({ message: "Request withdrawn" });
     }
 
@@ -241,6 +257,16 @@ export async function PATCH(
         }
       );
 
+      logAdminTelemetry("admin.role_request.record_payment", {
+        traceId,
+        requestId,
+        memberId:      req.memberId,
+        requestedRole: req.requestedRole,
+        paymentId,
+        amountCents,
+        recordedBy:    session.userId,
+        actorRole:     session.role,
+      });
       return NextResponse.json({
         message: "Payment recorded. Request is now awaiting admin approval.",
         status: "awaiting_approval",
@@ -286,10 +312,18 @@ export async function PATCH(
           reviewNotes: reviewNotes.trim(),
         });
         sendEmail({ to: email, subject, html, text }).catch((err) =>
-          console.error("Rejection email failed:", err)
+          logAdminError("admin.role_request.reject.email_error", traceId, err, { requestId })
         );
-      }).catch((err) => console.error("Recipient lookup failed:", err));
+      }).catch((err) => logAdminError("admin.role_request.reject.recipient_lookup_error", traceId, err, { requestId }));
 
+      logAdminTelemetry("admin.role_request.reject", {
+        traceId,
+        requestId,
+        memberId:      req.memberId,
+        requestedRole: req.requestedRole,
+        reviewedBy:    session.userId,
+        actorRole:     session.role,
+      });
       return NextResponse.json({ message: "Request rejected", status: "rejected" });
     }
 
@@ -452,15 +486,27 @@ export async function PATCH(
               }
             }
           } catch (e) {
-            console.error("Membership card PDF generation failed:", e);
+            logAdminError("admin.role_request.approve.pdf_error", traceId, e, { requestId });
           }
 
           await sendEmail({ to: email, subject, html, text, attachments }).catch((err) =>
-            console.error("Approval email failed:", err),
+            logAdminError("admin.role_request.approve.email_error", traceId, err, { requestId }),
           );
-        })().catch((err) => console.error("Approval email task failed:", err));
-      }).catch((err) => console.error("Recipient lookup failed:", err));
+        })().catch((err) => logAdminError("admin.role_request.approve.email_task_error", traceId, err, { requestId }));
+      }).catch((err) => logAdminError("admin.role_request.approve.recipient_lookup_error", traceId, err, { requestId }));
 
+      logAdminTelemetry("admin.role_request.approve", {
+        traceId,
+        requestId,
+        memberId:      req.memberId,
+        requestedRole: req.requestedRole,
+        scopeType:     req.scopeType,
+        scopeId:       req.scopeId ?? null,
+        seasonYear:    req.seasonYear ?? null,
+        reviewedBy:    session.userId,
+        actorRole:     session.role,
+        feeWaived:     !!feeWaiver,
+      });
       return NextResponse.json({
         message: `Role "${req.requestedRole}" approved and assigned to ${req.memberName}.`,
         status: "approved",
@@ -470,7 +516,7 @@ export async function PATCH(
 
     return NextResponse.json({ error: "Unhandled action" }, { status: 400 });
   } catch (error: unknown) {
-    console.error("💥 role-requests PATCH error:", error);
+    logAdminError("admin.role_request.patch.error", traceId, error);
     return NextResponse.json({ error: "Failed to process request" }, { status: 500 });
   }
 }

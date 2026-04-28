@@ -9,6 +9,11 @@ import {
   assertMemberInSessionScope,
   type MemberScopeDoc,
 } from "@/lib/auth/memberRouteScope";
+import {
+  generateTraceId,
+  logAdminTelemetry,
+  logAdminError,
+} from "@/lib/observability/adminTelemetry";
 
 // GET - Get single member by ID
 export async function GET(
@@ -20,8 +25,6 @@ export async function GET(
     if (authRes) return authRes;
 
     const { id } = await context.params;
-
-    console.log("🔍 GET member:", id);
 
     const client = await clientPromise;
     const db = client.db("hockey-app");
@@ -35,11 +38,9 @@ export async function GET(
     const scope = await assertMemberInSessionScope(request, member as MemberScopeDoc);
     if (scope) return scope;
 
-    console.log("✅ Found member:", member.personalInfo.displayName);
-
     return NextResponse.json({ member });
   } catch (error: unknown) {
-    console.error("💥 Error fetching member:", error);
+    logAdminError("admin.member.get.error", "no-trace", error);
     return NextResponse.json({ error: error instanceof Error ? error.message : String(error) }, { status: 500 });
   }
 }
@@ -49,6 +50,7 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const traceId = generateTraceId();
   try {
     const { response: authRes } = await requirePermission(request, "member.edit");
     if (authRes) return authRes;
@@ -102,12 +104,20 @@ export async function PUT(
     // Fetch updated member
     const updatedMember = await db.collection("members").findOne({ memberId });
 
+    logAdminTelemetry("admin.member.update", {
+      traceId,
+      memberId,
+      updatedBy:   session?.userId ?? null,
+      updaterRole: session?.role   ?? null,
+      hasChangeLog: changeLog ? Object.keys(changeLog.changes).length > 0 : false,
+    });
+
     return NextResponse.json({
       success: true,
       member: updatedMember,
     });
   } catch (error: unknown) {
-    console.error("Error updating member:", error);
+    logAdminError("admin.member.update.error", traceId, error);
     return NextResponse.json(
       {
         error:
@@ -123,14 +133,13 @@ export async function DELETE(
   request: NextRequest,
   context: { params: Promise<{ id: string }> },
 ) {
+  const traceId = generateTraceId();
   try {
     const { response: authRes } = await requirePermission(request, "member.delete");
     if (authRes) return authRes;
 
     const session = await getSession();
     const { id } = await context.params;
-
-    console.log("🗑️ Deactivating member:", id);
 
     const client = await clientPromise;
     const db = client.db("hockey-app");
@@ -157,13 +166,18 @@ export async function DELETE(
       },
     );
 
-    console.log("✅ Deactivated member:", id);
+    logAdminTelemetry("admin.member.deactivate", {
+      traceId,
+      memberId: id,
+      deactivatedBy:   session?.userId ?? null,
+      deactivatorRole: session?.role   ?? null,
+    });
 
     return NextResponse.json({
       message: "Member deactivated successfully",
     });
   } catch (error: unknown) {
-    console.error("💥 Error deactivating member:", error);
+    logAdminError("admin.member.deactivate.error", traceId, error);
     return NextResponse.json({ error: error instanceof Error ? error.message : String(error) }, { status: 500 });
   }
 }

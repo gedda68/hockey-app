@@ -7,6 +7,11 @@ import {
   requirePermission,
   requireResourceAccess,
 } from "@/lib/auth/middleware";
+import {
+  generateTraceId,
+  logAdminTelemetry,
+  logAdminError,
+} from "@/lib/observability/adminTelemetry";
 
 // UPDATE player details (number, position, leadership)
 export async function PATCH(
@@ -15,6 +20,7 @@ export async function PATCH(
     params: Promise<{ rosterId: string; teamIndex: string; playerId: string }>;
   },
 ) {
+  const traceId = generateTraceId();
   try {
     const {
       rosterId,
@@ -32,7 +38,7 @@ export async function PATCH(
     // Get roster
     const roster = await db.collection("teamRosters").findOne({ id: rosterId });
     if (!roster) {
-      console.error("❌ Roster not found");
+      logAdminError("admin.roster.update_player.not_found", traceId, new Error("Roster not found"));
       return NextResponse.json({ error: "Roster not found" }, { status: 404 });
     }
 
@@ -49,7 +55,7 @@ export async function PATCH(
 
 
     if (!roster.teams || !roster.teams[teamIndex]) {
-      console.error("❌ Team not found at index:", teamIndex);
+      logAdminError("admin.roster.update_player.not_found", traceId, new Error(`Team not found at index ${teamIndex}`));
       return NextResponse.json({ error: "Team not found" }, { status: 404 });
     }
 
@@ -60,7 +66,7 @@ export async function PATCH(
     );
 
     if (playerIndex === -1) {
-      console.error("❌ Player not found:", playerId);
+      logAdminError("admin.roster.update_player.not_found", traceId, new Error(`Player not found: ${playerId}`));
       return NextResponse.json(
         { error: "Player not found in team" },
         { status: 404 },
@@ -105,18 +111,22 @@ export async function PATCH(
 
 
     if (result.modifiedCount === 0) {
-      console.error("❌ Player not updated - no changes made");
       return NextResponse.json({ error: "No changes made" }, { status: 500 });
     }
 
+    logAdminTelemetry("admin.roster.update_player", {
+      traceId,
+      rosterId,
+      teamIndex,
+      playerId,
+    });
 
     return NextResponse.json({
       success: true,
       modified: true,
     });
   } catch (error: unknown) {
-    console.error("❌ Error updating player:", error);
-    if (error instanceof Error) console.error("Stack:", error.stack);
+    logAdminError("admin.roster.update_player.error", traceId, error, { rosterId: "unknown" });
     return NextResponse.json(
       {
         error: "Failed to update player",
@@ -134,6 +144,7 @@ export async function DELETE(
     params: Promise<{ rosterId: string; teamIndex: string; playerId: string }>;
   },
 ) {
+  const traceId = generateTraceId();
   try {
     const {
       rosterId,
@@ -190,20 +201,25 @@ export async function DELETE(
 
 
     if (result.modifiedCount === 0) {
-      console.error("❌ Player not removed");
       return NextResponse.json(
         { error: "Failed to remove player" },
         { status: 500 },
       );
     }
 
+    logAdminTelemetry("admin.roster.remove_player", {
+      traceId,
+      rosterId,
+      teamIndex,
+      playerId,
+    });
 
     return NextResponse.json({
       success: true,
       removed: true,
     });
   } catch (error: unknown) {
-    console.error("❌ Error deleting player:", error);
+    logAdminError("admin.roster.remove_player.error", traceId, error);
     return NextResponse.json(
       {
         error: "Failed to delete player",

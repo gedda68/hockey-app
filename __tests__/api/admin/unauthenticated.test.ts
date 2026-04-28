@@ -87,8 +87,10 @@ vi.mock("@/lib/audit/platformAuditLog", () => ({
   logPlatformAudit: vi.fn().mockResolvedValue(undefined),
 }));
 vi.mock("@/lib/observability/adminTelemetry", () => ({
+  generateTraceId:               vi.fn().mockReturnValue("test-trace-id"),
   adminTelemetryFromRequestLike: vi.fn().mockReturnValue({}),
   logAdminTelemetry:             vi.fn(),
+  logAdminError:                 vi.fn(),
 }));
 vi.mock("@/lib/auth/resourceAccessDb", () => ({
   userCanAccessClubResource:        vi.fn().mockResolvedValue(false),

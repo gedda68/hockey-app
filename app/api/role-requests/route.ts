@@ -24,6 +24,11 @@ import { resolveFeeWithFallback, buildFeeDescription } from "@/lib/fees/feeSched
 import { calculateGST } from "@/lib/fees/gst";
 import type { SubmitRoleRequestBody, RoleRequest } from "@/types/roleRequests";
 import type { FeeScheduleEntry } from "@/types/feeSchedule";
+import {
+  generateTraceId,
+  logAdminTelemetry,
+  logAdminError,
+} from "@/lib/observability/adminTelemetry";
 
 async function isFamilyPrimaryForTarget(
   db: ReturnType<Awaited<typeof clientPromise>["db"]>,
@@ -50,6 +55,7 @@ async function isFamilyPrimaryForTarget(
 // ── POST — submit a request ───────────────────────────────────────────────────
 
 export async function POST(request: NextRequest) {
+  const traceId = generateTraceId();
   try {
     const session = await getSession();
     if (!session) {
@@ -263,6 +269,20 @@ export async function POST(request: NextRequest) {
 
     await db.collection("role_requests").insertOne(roleRequest);
 
+    logAdminTelemetry("admin.role_request.submit", {
+      traceId,
+      requestId:     roleRequest.requestId,
+      memberId:      roleRequest.memberId,
+      requestedRole: roleRequest.requestedRole,
+      scopeType:     roleRequest.scopeType,
+      scopeId:       roleRequest.scopeId ?? null,
+      seasonYear:    roleRequest.seasonYear ?? null,
+      status,
+      requiresFee,
+      submittedBy:   session.userId,
+      submitterRole: session.role,
+    });
+
     return NextResponse.json(
       {
         requestId: roleRequest.requestId,
@@ -275,7 +295,7 @@ export async function POST(request: NextRequest) {
       { status: 201 }
     );
   } catch (error: unknown) {
-    console.error("💥 role-requests POST error:", error);
+    logAdminError("admin.role_request.submit.error", traceId, error);
     return NextResponse.json({ error: "Failed to submit request" }, { status: 500 });
   }
 }

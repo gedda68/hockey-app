@@ -9,6 +9,11 @@ import {
   requireResourceAccess,
 } from "@/lib/auth/middleware";
 import {
+  generateTraceId,
+  logAdminTelemetry,
+  logAdminError,
+} from "@/lib/observability/adminTelemetry";
+import {
   ACTIVE_MEMBERSHIP_STATUSES,
   memberBelongsToClubFilter,
 } from "@/lib/rosters/memberClubQuery";
@@ -18,6 +23,7 @@ export async function POST(
   request: NextRequest,
   context: { params: Promise<{ rosterId: string; teamIndex: string }> },
 ) {
+  const traceId = generateTraceId();
   try {
     const { rosterId, teamIndex: teamIndexStr } = await context.params;
     const teamIndex = parseInt(teamIndexStr);
@@ -195,6 +201,15 @@ export async function POST(
       }).catch(() => {});
     }
 
+    logAdminTelemetry("admin.roster.add_player", {
+      traceId,
+      rosterId,
+      teamIndex,
+      playerId:  String(member.memberId ?? playerId),
+      clubId:    roster.clubId != null ? String(roster.clubId) : null,
+      season:    String(roster.season ?? ""),
+    });
+
     return NextResponse.json({
       success: true,
       player: rosterPlayer,
@@ -204,7 +219,7 @@ export async function POST(
       },
     });
   } catch (error: unknown) {
-    console.error("❌ Error adding player to team:", error);
+    logAdminError("admin.roster.add_player.error", traceId, error);
     return NextResponse.json(
       {
         error:   "Failed to add player",

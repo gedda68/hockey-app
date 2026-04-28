@@ -71,7 +71,11 @@
       "Bash(mkdir -p \"C:\\\\dev\\\\nextjs-projects\\\\hockey-app\\\\app\\\\api\\\\clubs\\\\[clubId]\\\\register\")",
       "Bash(xargs ls *)",
       "Bash(dir app\\\\api\\\\admin /s /b)",
-      "Bash(findstr \"route.ts\")"
+      "Bash(findstr \"route.ts\")",
+      "Bash(sed -n '48,120p' C:/dev/nextjs-projects/hockey-app/app/api/admin/members/[id]/route.ts)",
+      "Bash(sed -n '122,170p' C:/dev/nextjs-projects/hockey-app/app/api/admin/members/[id]/route.ts)",
+      "Bash(sed -n '52,80p' C:/dev/nextjs-projects/hockey-app/app/api/role-requests/route.ts)",
+      "Bash(sed -n '260,280p' C:/dev/nextjs-projects/hockey-app/app/api/role-requests/route.ts)"
     ]
   }
 }

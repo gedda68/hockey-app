@@ -8,6 +8,11 @@ import { escapeRegex } from "@/lib/utils/regex";
 import { getSession } from "@/lib/auth/session";
 import { requirePermission, requireResourceAccess } from "@/lib/auth/middleware";
 import { userCanAccessClubResource } from "@/lib/auth/resourceAccessDb";
+import {
+  generateTraceId,
+  logAdminTelemetry,
+  logAdminError,
+} from "@/lib/observability/adminTelemetry";
 
 const MEMBERS_PER_PAGE = 20;
 
@@ -205,13 +210,14 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error: unknown) {
-    console.error("💥 Error fetching members:", error);
+    logAdminError("admin.member.list.error", "no-trace", error);
     return NextResponse.json({ error: error instanceof Error ? error.message : String(error) }, { status: 500 });
   }
 }
 
 // POST - Create new member
 export async function POST(request: NextRequest) {
+  const traceId = generateTraceId();
   try {
     const { response: authResponse } = await requirePermission(
       request,
@@ -348,6 +354,14 @@ export async function POST(request: NextRequest) {
     // Insert member
     await db.collection("members").insertOne(newMember);
 
+    logAdminTelemetry("admin.member.create", {
+      traceId,
+      memberId:      newMember.memberId,
+      clubId:        newMember.clubId,
+      associationId: newMember.associationId ?? null,
+      createdBy:     session?.userId ?? null,
+      creatorRole:   session?.role ?? null,
+    });
 
     return NextResponse.json(
       {
@@ -357,7 +371,7 @@ export async function POST(request: NextRequest) {
       { status: 201 },
     );
   } catch (error: unknown) {
-    console.error("💥 Error creating member:", error);
+    logAdminError("admin.member.create.error", traceId, error);
     return NextResponse.json({ error: error instanceof Error ? error.message : String(error) }, { status: 500 });
   }
 }

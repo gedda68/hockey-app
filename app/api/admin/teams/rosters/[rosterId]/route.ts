@@ -7,11 +7,17 @@ import {
   requirePermission,
   requireResourceAccess,
 } from "@/lib/auth/middleware";
+import {
+  generateTraceId,
+  logAdminTelemetry,
+  logAdminError,
+} from "@/lib/observability/adminTelemetry";
 
 export async function PUT(
   request: NextRequest,
   context: { params: Promise<{ rosterId: string }> },
 ) {
+  const traceId = generateTraceId();
   try {
     // Await params in Next.js 15
     const { rosterId } = await context.params;
@@ -162,12 +168,13 @@ export async function PUT(
       return NextResponse.json({ error: "Roster not found" }, { status: 404 });
     }
 
-    console.log(`✅ Updated roster: ${rosterId}`);
-    if (historyEntry) {
-      console.log(
-        `📝 History: ${historyEntry.action} - ${historyEntry.details.playerName}`,
-      );
-    }
+    logAdminTelemetry("admin.roster.update", {
+      traceId,
+      rosterId,
+      hasMove:    historyEntry != null,
+      moveAction: historyEntry ? String(historyEntry.action ?? "") : null,
+      playerId:   historyEntry ? String(historyEntry.details?.playerId ?? historyEntry.details?.playerName ?? "") : null,
+    });
 
     return NextResponse.json({
       success: true,
@@ -175,7 +182,7 @@ export async function PUT(
       history: historyEntry,
     });
   } catch (error: unknown) {
-    console.error("❌ Error updating roster:", error);
+    logAdminError("admin.roster.update.error", traceId, error);
     return NextResponse.json(
       {
         error: "Failed to update roster",
@@ -225,7 +232,7 @@ export async function GET(
       historyCount: roster.changeHistory?.length || 0,
     });
   } catch (error: unknown) {
-    console.error("❌ Error fetching roster:", error);
+    logAdminError("admin.roster.get.error", "no-trace", error);
     return NextResponse.json(
       {
         error: "Failed to fetch roster",

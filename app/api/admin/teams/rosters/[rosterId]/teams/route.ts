@@ -13,6 +13,7 @@ import {
   getAssociationSeasonRosterDoc,
   maxTeamsAllowedForClubInSlot,
 } from "@/lib/rosters/associationRosterDivisions";
+import { logAdminError } from "@/lib/observability/adminTelemetry";
 
 export async function POST(
   request: NextRequest,
@@ -130,7 +131,7 @@ export async function POST(
       addedIndex: teams.length - 1,
     });
   } catch (e: unknown) {
-    console.error("POST roster team:", e);
+    logAdminError("admin.roster.add_team.error", "no-trace", e);
     return NextResponse.json(
       { error: "Failed to add team" },
       { status: 500 },
