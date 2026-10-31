@@ -12,6 +12,7 @@
     "lint:strict": "eslint . --max-warnings 0",
     "migrate:clubs": "tsx scripts/migrate-clubs.ts --replace",
     "setup:indexes": "tsx scripts/setup-indexes.ts",
+    "setup:schema": "tsx scripts/setup-schema.ts",
     "reset:passwords": "tsx scripts/reset-passwords.ts",
     "backfill:tte-canonical": "tsx scripts/backfill-team-tournament-entry-canonical.ts",
     "seed:public-demo": "tsx scripts/seed-public-demo.ts",
