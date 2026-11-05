@@ -6,7 +6,7 @@ import { v4 as uuidv4 } from "uuid";
 
 const uri =
   process.env.MONGODB_URI ||
-  "mongodb+srv://gedda:Mitch2009!@cluster0.6bk7t7n.mongodb.net/hockey-app?retryWrites=true&w=majority";
+  "mongodb://127.0.0.1:27017/hockey-app";
 
 const sampleEvents = [
   {

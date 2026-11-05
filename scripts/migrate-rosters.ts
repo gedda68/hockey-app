@@ -3,7 +3,7 @@ import fs from "fs";
 import path from "path";
 
 const MONGODB_URI =
-  "mongodb+srv://gedda:Mitch2009!@cluster0.6bk7t7n.mongodb.net/";
+  process.env.MONGODB_URI || "mongodb://127.0.0.1:27017/hockey-app";
 
 async function migrateRostersToMongo() {
   console.log("Starting migration to MongoDB...");

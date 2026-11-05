@@ -7,7 +7,7 @@ import path from "path";
 
 const MONGODB_URI =
   process.env.MONGODB_URI ||
-  "mongodb+srv://gedda:Mitch2009!@cluster0.6bk7t7n.mongodb.net/hockey-app?retryWrites=true&w=majority";
+  "mongodb://127.0.0.1:27017/hockey-app";
 const DB_NAME = process.env.DB_NAME || "hockey-app";
 
 interface JsonClub {

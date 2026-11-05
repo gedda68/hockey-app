@@ -5,7 +5,7 @@ import { MongoClient } from "mongodb";
 
 const MONGODB_URI =
   process.env.MONGODB_URI ||
-  "mongodb+srv://gedda:Mitch2009!@cluster0.6bk7t7n.mongodb.net/hockey-app?retryWrites=true&w=majority";
+  "mongodb://127.0.0.1:27017/hockey-app";
 const DB_NAME = "hockey-app"; // Replace with your database name
 
 const configData = [
@@ -245,11 +245,9 @@ async function seedConfig() {
     const result = await collection.insertMany(configWithTimestamps);
     console.log(`Inserted ${result.insertedCount} config items`);
 
-    // Create indexes for better query performance
-    await collection.createIndex(
-      { configType: 1, configKey: 1 },
-      { unique: true },
-    );
+    // Documents are keyed by id. configKey is not populated by this seed,
+    // so a unique index on configType+configKey rejects every role row.
+    await collection.createIndex({ id: 1 }, { unique: true });
     await collection.createIndex({ configType: 1, displayOrder: 1 });
     await collection.createIndex({ isActive: 1 });
     console.log("Created indexes");
