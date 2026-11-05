@@ -2,7 +2,7 @@ import { MongoClient } from "mongodb";
 import matchesData from "../data/matches/matches.json";
 
 const uri =
-  "mongodb+srv://gedda:Mitch2009!@cluster0.6bk7t7n.mongodb.net/hockey-app?retryWrites=true&w=majority";
+  process.env.MONGODB_URI || "mongodb://127.0.0.1:27017/hockey-app";
 
 async function migrate() {
   const client = new MongoClient(uri);
