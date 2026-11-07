@@ -1,9 +1,10 @@
 // scripts/fix-missing-colors.ts
 // Add default colors to clubs that are missing them
 
+import "./load-env";
 import { MongoClient } from "mongodb";
 
-const MONGODB_URI = process.env.MONGODB_URI || "mongodb://localhost:27017";
+const MONGODB_URI = process.env.MONGODB_URI!;
 const DB_NAME = process.env.DB_NAME || "hockey-app";
 
 const DEFAULT_COLORS = {

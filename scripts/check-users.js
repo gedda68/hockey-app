@@ -1,11 +1,11 @@
 // scripts/check-users.js
 // Check what users exist in the database
 
+require("./load-env.cjs");
 const { MongoClient } = require("mongodb");
 
 const MONGODB_URI =
-  process.env.MONGODB_URI ||
-  "mongodb+srv://gedda:Mitch2009!@cluster0.6bk7t7n.mongodb.net/hockey-app?retryWrites=true&w=majority";
+  process.env.MONGODB_URI;
 
 async function checkUsers() {
   const client = new MongoClient(MONGODB_URI);

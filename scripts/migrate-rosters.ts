@@ -1,9 +1,10 @@
+import "./load-env";
 import { MongoClient } from "mongodb";
 import fs from "fs";
 import path from "path";
 
 const MONGODB_URI =
-  "mongodb+srv://gedda:Mitch2009!@cluster0.6bk7t7n.mongodb.net/";
+  process.env.MONGODB_URI!;
 
 async function migrateRostersToMongo() {
   console.log("Starting migration to MongoDB...");

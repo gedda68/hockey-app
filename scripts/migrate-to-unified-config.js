@@ -2,12 +2,12 @@
 // Migration script: Multiple collections → Single config collection
 // Run with: node scripts/migrate-to-unified-config.js
 
+require("./load-env.cjs");
 const { MongoClient } = require("mongodb");
 
 // MongoDB connection
 const MONGODB_URI =
-  process.env.MONGODB_URI ||
-  "mongodb+srv://gedda:Mitch2009!@cluster0.6bk7t7n.mongodb.net/hockey-app?retryWrites=true&w=majority";
+  process.env.MONGODB_URI;
 const DATABASE_NAME = process.env.MONGODB_DB || "hockey-app";
 
 // Single collection name

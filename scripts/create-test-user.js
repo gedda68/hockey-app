@@ -1,9 +1,10 @@
+require("./load-env.cjs");
 const bcrypt = require("bcryptjs");
 const { MongoClient } = require("mongodb");
 
 async function createUser() {
   const client = new MongoClient(
-    "mongodb+srv://gedda:Mitch2009!@cluster0.6bk7t7n.mongodb.net/hockey-app?retryWrites=true&w=majority",
+    process.env.MONGODB_URI,
   );
 
   try {

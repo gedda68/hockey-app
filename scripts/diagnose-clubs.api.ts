@@ -1,9 +1,10 @@
 // scripts/diagnose-clubs-api.ts
 // Diagnostic script to check clubs API and database
 
+import "./load-env";
 import { MongoClient } from "mongodb";
 
-const MONGODB_URI = process.env.MONGODB_URI || "mongodb://localhost:27017";
+const MONGODB_URI = process.env.MONGODB_URI!;
 const DB_NAME = process.env.DB_NAME || "hockey-app";
 
 async function diagnoseClubsAPI() {

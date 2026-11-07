@@ -1,11 +1,11 @@
 // scripts/fix-super-user.js
 // Fix the super admin user with undefined userId
 
+require("./load-env.cjs");
 const { MongoClient } = require("mongodb");
 
 const MONGODB_URI =
-  process.env.MONGODB_URI ||
-  "mongodb+srv://gedda:Mitch2009!@cluster0.6bk7t7n.mongodb.net/hockey-app?retryWrites=true&w=majority";
+  process.env.MONGODB_URI;
 
 async function fixSuperUser() {
   const client = new MongoClient(MONGODB_URI);

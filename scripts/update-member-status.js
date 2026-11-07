@@ -1,8 +1,8 @@
+require("./load-env.cjs");
 const { MongoClient } = require("mongodb");
 
 const uri =
-  process.env.MONGODB_URI ||
-  "mongodb+srv://gedda:Mitch2009!@cluster0.6bk7t7n.mongodb.net/hockey-app?retryWrites=true&w=majority";
+  process.env.MONGODB_URI;
 
 const dbName = process.env.DB_NAME || "hockey-app";
 

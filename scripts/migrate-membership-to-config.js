@@ -1,11 +1,11 @@
 // scripts/migrate-membership-to-config.js
 // Migrate member_roles and membership_types to unified config collection
 
+require("./load-env.cjs");
 const { MongoClient } = require("mongodb");
 
 const MONGODB_URI =
-  process.env.MONGODB_URI ||
-  "mongodb+srv://gedda:Mitch2009!@cluster0.6bk7t7n.mongodb.net/hockey-app?retryWrites=true&w=majority";
+  process.env.MONGODB_URI;
 const DB_NAME = process.env.MONGODB_DB || "hockey-app";
 
 async function migrateMembershipToConfig() {

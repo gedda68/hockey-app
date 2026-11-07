@@ -2,11 +2,11 @@
 // Migration script to add membership period dates to existing members
 // Run with: node scripts/migrate-add-membership-dates.js
 
+require("./load-env.cjs");
 const { MongoClient } = require("mongodb");
 
 const MONGODB_URI =
-  process.env.MONGODB_URI ||
-  "mongodb://localhost:27017mongodb+srv://gedda:Mitch2009!@cluster0.6bk7t7n.mongodb.net/hockey-app?retryWrites=true&w=majority";
+  process.env.MONGODB_URI;
 const DB_NAME = "hockey-app"; // Change to your database name
 
 async function migrate() {

@@ -1,11 +1,11 @@
 // scripts/seed-club-membership-types.ts
 // Seed club membership types
 
+import "./load-env";
 import { MongoClient } from "mongodb";
 
 const MONGODB_URI =
-  process.env.MONGODB_URI ||
-  "mongodb+srv://gedda:Mitch2009!@cluster0.6bk7t7n.mongodb.net/hockey-app?retryWrites=true&w=majority";
+  process.env.MONGODB_URI!;
 const DB_NAME = process.env.DB_NAME || "hockey-app";
 
 const membershipTypes = [

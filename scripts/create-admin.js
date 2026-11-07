@@ -2,12 +2,12 @@
 // Create initial super admin user
 // Run: node scripts/create-admin.js
 
+require("./load-env.cjs");
 const { MongoClient } = require("mongodb");
 const bcrypt = require("bcryptjs");
 
 const MONGODB_URI =
-  process.env.MONGODB_URI ||
-  "mongodb+srv://gedda:Mitch2009!@cluster0.6bk7t7n.mongodb.net/hockey-app?retryWrites=true&w=majority";
+  process.env.MONGODB_URI;
 
 async function createAdmin() {
   const client = new MongoClient(MONGODB_URI);

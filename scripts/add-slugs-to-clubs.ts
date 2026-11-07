@@ -1,9 +1,10 @@
 // scripts/add-slugs-to-clubs.ts
 // Script to add slug field to existing clubs in database
 
+import "./load-env";
 import { MongoClient } from "mongodb";
 
-const MONGODB_URI = process.env.MONGODB_URI || "mongodb://localhost:27017";
+const MONGODB_URI = process.env.MONGODB_URI!;
 const DB_NAME = process.env.DB_NAME || "hockey-app";
 
 function generateSlug(name: string): string {

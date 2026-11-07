@@ -1,12 +1,12 @@
 // scripts/seed-events.ts
 // Run with: npx ts-node scripts/seed-events.ts
 
+import "./load-env";
 import { MongoClient } from "mongodb";
 import { v4 as uuidv4 } from "uuid";
 
 const uri =
-  process.env.MONGODB_URI ||
-  "mongodb+srv://gedda:Mitch2009!@cluster0.6bk7t7n.mongodb.net/hockey-app?retryWrites=true&w=majority";
+  process.env.MONGODB_URI!;
 
 const sampleEvents = [
   {

@@ -1,11 +1,11 @@
 // scripts/seed-config.ts
 // Script to seed initial configuration data into MongoDB
 
+import "./load-env";
 import { MongoClient } from "mongodb";
 
 const MONGODB_URI =
-  process.env.MONGODB_URI ||
-  "mongodb+srv://gedda:Mitch2009!@cluster0.6bk7t7n.mongodb.net/hockey-app?retryWrites=true&w=majority";
+  process.env.MONGODB_URI!;
 const DB_NAME = "hockey-app"; // Replace with your database name
 
 const configData = [

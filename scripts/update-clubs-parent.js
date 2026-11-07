@@ -1,9 +1,10 @@
+require("./load-env.cjs");
 const { MongoClient } = require("mongodb");
 
 async function runMigration() {
   // Update this connection string to your actual MongoDB URI
   const uri =
-    "mongodb+srv://gedda:Mitch2009!@cluster0.6bk7t7n.mongodb.net/hockey-app?retryWrites=true&w=majority";
+    process.env.MONGODB_URI;
   const client = new MongoClient(uri);
 
   try {
