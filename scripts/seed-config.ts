@@ -235,21 +235,25 @@ async function seedConfig() {
     // await collection.deleteMany({});
     // console.log("Cleared existing config data");
 
-    // Insert config data with timestamps
-    const configWithTimestamps = configData.map((config) => ({
-      ...config,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    }));
-
-    const result = await collection.insertMany(configWithTimestamps);
-    console.log(`Inserted ${result.insertedCount} config items`);
-
-    // Create indexes for better query performance
-    await collection.createIndex(
-      { configType: 1, configKey: 1 },
-      { unique: true },
+    // Upsert by configType + id so re-running never duplicates or overwrites
+    // items that already exist (including ones edited in the admin UI).
+    const now = new Date();
+    const result = await collection.bulkWrite(
+      configData.map((config) => ({
+        updateOne: {
+          filter: { configType: config.configType, id: config.id },
+          update: { $setOnInsert: { ...config, createdAt: now, updatedAt: now } },
+          upsert: true,
+        },
+      })),
     );
+    console.log(
+      `Inserted ${result.upsertedCount} config items (${configData.length - result.upsertedCount} already present)`,
+    );
+
+    // Create indexes for better query performance. Items are identified by
+    // configType + id (see app/api/admin/config/[type]/route.ts).
+    await collection.createIndex({ configType: 1, id: 1 }, { unique: true });
     await collection.createIndex({ configType: 1, displayOrder: 1 });
     await collection.createIndex({ isActive: 1 });
     console.log("Created indexes");

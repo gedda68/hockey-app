@@ -63,11 +63,16 @@ import { UserSchema } from "../lib/db/schemas/user";
 import { VolunteerDutyLeadDocSchema } from "../lib/db/schemas/volunteerDutyRoster.schema";
 
 // ── Mongoose models (legacy) ─────────────────────────────────────────────────
-import { Role, Gender, RelationshipType } from "../models/Config";
 import Registration from "../models/Registration";
 import Tournament from "../models/Tournament";
 import Training from "../models/Training";
 import Trial from "../models/Trial";
+// models/Config.ts (Role, Gender, RelationshipType) is intentionally NOT used:
+// its `id`/`label` shape and unique `id` index don't match what the app and
+// seed scripts write (config_relationships uses relationshipId; gender and
+// roles moved to the unified `config` collection). Its unique index on a
+// field nobody sets made every second insert fail with a duplicate null key.
+//
 // models/User.ts is intentionally NOT used: it targets the same `users`
 // collection as lib/db/schemas/user.ts but has a different, unused shape
 // (personal.firstName, contact.emails[] …). The Zod schema matches what
@@ -410,7 +415,7 @@ const zodEntries: [string, z.ZodType, string, IndexSpec[]?][] = [
 ];
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const mongooseModels: any[] = [Role, Gender, RelationshipType, Registration, Tournament, Training, Trial];
+const mongooseModels: any[] = [Registration, Tournament, Training, Trial];
 
 function buildRegistry(): Entry[] {
   const entries: Entry[] = [];
