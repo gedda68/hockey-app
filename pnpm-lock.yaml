@@ -17,9 +17,21 @@ importers:
       '@dnd-kit/utilities':
         specifier: ^3.2.2
         version: 3.2.2(react@19.2.3)
+      '@lexical/html':
+        specifier: ^0.39.0
+        version: 0.39.0
+      '@lexical/link':
+        specifier: ^0.39.0
+        version: 0.39.0
+      '@lexical/list':
+        specifier: ^0.39.0
+        version: 0.39.0
       '@lexical/react':
         specifier: ^0.39.0
         version: 0.39.0(react-dom@19.2.3(react@19.2.3))(react@19.2.3)(yjs@13.6.30)
+      '@lexical/rich-text':
+        specifier: ^0.39.0
+        version: 0.39.0
       '@types/sanitize-html':
         specifier: ^2.16.1
         version: 2.16.1
