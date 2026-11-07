@@ -218,6 +218,17 @@ async function main() {
     await idx(members, { "teamRegistrations.teamId": 1 }, {},
       "index on teamRegistrations.teamId");
 
+    await idx(
+      members,
+      {
+        "teamRegistrations.clubId": 1,
+        "teamRegistrations.ageCategory": 1,
+        "teamRegistrations.status": 1,
+      },
+      {},
+      "compound index on teamRegistrations.clubId + ageCategory + status"
+    );
+
     // ── finance_accounts ──────────────────────────────────────────────────
     const financeAccounts = db.collection("finance_accounts");
     console.log("\nfinance_accounts:");
@@ -288,17 +299,6 @@ async function main() {
       { referenceType: 1, referenceId: 1 },
       { unique: true, sparse: true },
       "unique index on referenceType + referenceId"
-    );
-
-    await idx(
-      members,
-      {
-        "teamRegistrations.clubId": 1,
-        "teamRegistrations.ageCategory": 1,
-        "teamRegistrations.status": 1,
-      },
-      {},
-      "compound index on teamRegistrations.clubId + ageCategory + status"
     );
 
     // ── competitions ──────────────────────────────────────────────────────
