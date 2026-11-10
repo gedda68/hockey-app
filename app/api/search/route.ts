@@ -4,11 +4,12 @@ import { escapeRegex } from "@/lib/utils/regex";
 import { getPublicTenantFromRequest } from "@/lib/tenant/requestTenant";
 import { publicNewsMongoFilter } from "@/lib/portal/newsScope";
 import type { PublicTenantPayload } from "@/lib/tenant/portalHost";
+import { searchPublicPlayers } from "@/lib/search/playerSearch";
 
 export const dynamic = "force-dynamic";
 
 type SearchResult = {
-  kind: "news" | "club" | "team";
+  kind: "news" | "club" | "team" | "player";
   id: string;
   title: string;
   subtitle?: string;
@@ -59,7 +60,7 @@ export async function GET(request: NextRequest) {
     const re = new RegExp(escapeRegex(q), "i");
     const now = new Date();
 
-    const [newsRows, clubRows, teamRows] = await Promise.all([
+    const [newsRows, clubRows, teamRows, playerHits] = await Promise.all([
       db
         .collection("news")
         .find({
@@ -105,6 +106,11 @@ export async function GET(request: NextRequest) {
         .sort({ displayName: 1, name: 1 })
         .limit(20)
         .toArray(),
+      // A failure in player search must not take down news/club/team results.
+      searchPublicPlayers(db, q, { allowedClubIds }).catch((err) => {
+        console.error("Player search error:", err);
+        return [];
+      }),
     ]);
 
     const clubIdSet = new Set<string>();
@@ -173,6 +179,20 @@ export async function GET(request: NextRequest) {
         title,
         subtitle: [club.name, age].filter(Boolean).join(" · ") || undefined,
         href: `/clubs/${encodeURIComponent(club.slug)}/teams`,
+      });
+    }
+
+    for (const p of playerHits) {
+      const seasons =
+        p.seasonCount > 0
+          ? `${p.seasonCount} season${p.seasonCount === 1 ? "" : "s"}`
+          : "";
+      results.push({
+        kind: "player",
+        id: p.memberId,
+        title: p.displayName,
+        subtitle: [p.teamNames.join(" / "), seasons].filter(Boolean).join(" · ") || undefined,
+        href: `/competitions/players/${encodeURIComponent(p.memberId)}`,
       });
     }
 
