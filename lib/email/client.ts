@@ -11,6 +11,7 @@
  */
 
 import { Resend } from "resend";
+import { alignLocalOriginPort, localDevOrigin } from "@/lib/utils/devServerOrigin";
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
 
@@ -26,8 +27,10 @@ export const resend = RESEND_API_KEY ? new Resend(RESEND_API_KEY) : null;
 export const EMAIL_FROM =
   process.env.EMAIL_FROM ?? "Hockey App <noreply@yourdomain.com>";
 
-export const APP_URL =
-  process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+/** In dev, a localhost value follows the port `next dev` actually bound (PORT is set before render workers load). */
+export const APP_URL: string = alignLocalOriginPort(
+  process.env.NEXT_PUBLIC_APP_URL ?? localDevOrigin(),
+);
 
 /**
  * Send an email via Resend.

@@ -40,6 +40,7 @@ import {
 import { resolveTenantFaviconUrl } from "@/lib/tenant/resolveTenantFavicon";
 import { getPublicTenantForServerPage } from "@/lib/tenant/serverTenant";
 import { requestMetadataBase } from "@/lib/tenant/requestMetadataBase";
+import { alignLocalOriginPort, localDevOrigin } from "@/lib/utils/devServerOrigin";
 
 export const dynamic = "force-dynamic";
 
@@ -170,7 +171,7 @@ export default async function HomePage({
       }
 
       if (tenant?.kind === "club" && tenant.pathSlug) {
-        const base = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
+        const base = alignLocalOriginPort(process.env.NEXT_PUBLIC_BASE_URL || localDevOrigin());
         const res = await fetch(
           `${base}/api/clubs/${encodeURIComponent(tenant.pathSlug)}`,
           { cache: "no-store" },

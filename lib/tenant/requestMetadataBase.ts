@@ -1,4 +1,5 @@
 import { headers } from "next/headers";
+import { localDevHost } from "@/lib/utils/devServerOrigin";
 
 /**
  * Request-scoped base URL for metadata (Open Graph, icons, etc.).
@@ -10,7 +11,7 @@ export async function requestMetadataBase(): Promise<URL> {
   const host =
     headersList.get("x-forwarded-host")?.split(",")[0]?.trim() ||
     headersList.get("host") ||
-    "localhost:3000";
+    localDevHost();
   const forwarded = headersList
     .get("x-forwarded-proto")
     ?.split(",")[0]

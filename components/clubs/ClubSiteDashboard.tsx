@@ -5,12 +5,13 @@ import {
   TrendingUp,
   UserRoundPlus,
 } from "lucide-react";
+import { alignLocalOriginPort, localDevOrigin } from "@/lib/utils/devServerOrigin";
 
 async function getClubStats(clubId: string) {
   try {
     const res = await fetch(
       `${
-        process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000"
+        alignLocalOriginPort(process.env.NEXT_PUBLIC_BASE_URL || localDevOrigin())
       }/api/clubs/${clubId}/members`,
       { cache: "no-store" },
     );

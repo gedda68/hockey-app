@@ -3,10 +3,11 @@
 
 import ClubsGrid from "@/components/clubs/ClubsGrid";
 import type { Club } from "@/app/(admin)/admin/types/clubs";
+import { alignLocalOriginPort, localDevOrigin } from "@/lib/utils/devServerOrigin";
 
 async function getClubsFromDB(): Promise<Club[]> {
   try {
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
+    const baseUrl = alignLocalOriginPort(process.env.NEXT_PUBLIC_BASE_URL || localDevOrigin());
     const res = await fetch(`${baseUrl}/api/clubs`, {
       cache: "no-store", // Always get fresh data
     });
