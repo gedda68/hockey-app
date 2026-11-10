@@ -74,6 +74,9 @@ export interface Match {
 export interface Team {
   pos?: number;
   club: string;
+  /** Team + owning club ids — used to link a ladder row to /clubs/[clubId]/teams/[teamId] */
+  teamId?: string;
+  clubId?: string;
   icon?: string;
   /** Club brand colours — enriched from the clubs collection at load time */
   primaryColor?: string;

@@ -1,9 +1,14 @@
+"use client";
+
 import Image from "next/image";
+import Link from "next/link";
 import { cva } from "class-variance-authority";
 import { cn } from "../../lib/utils";
 import Text from "../ui/Text";
 import type { Team } from "../../types";
 import EntityColorBar from "@/components/ui/EntityColorBar";
+import FavouriteStar from "@/components/favourites/FavouriteStar";
+import { useLocalFavourites } from "@/lib/favourites/useLocalFavourites";
 
 const rowVariants = cva(
   "grid grid-cols-12 items-center bg-white/5 hover:bg-white/10 p-2 rounded-lg text-xs transition-colors cursor-pointer"
@@ -50,6 +55,14 @@ export default function StandingsRow({
   relegationZone = 2,
   totalTeams = 10,
 }: StandingsRowProps) {
+  const { isTeamFavourite, toggleFavouriteTeam } = useLocalFavourites();
+
+  // Link to the team page only when we know both ids.
+  const teamHref =
+    team.clubId && team.teamId
+      ? `/clubs/${encodeURIComponent(team.clubId)}/teams/${encodeURIComponent(team.teamId)}`
+      : null;
+
   // Use 'gd' from JSON (goal difference)
   const goalDiff = team.gd || team.goalDifference || 0;
   // Use 'p' from JSON (played)
@@ -98,9 +111,33 @@ export default function StandingsRow({
             className="shrink-0"
           />
         )}
-        <Text className="font-bold uppercase text-[10px] truncate text-white">
-          {team.club}
-        </Text>
+        {teamHref ? (
+          <Link
+            href={teamHref}
+            className="min-w-0 truncate hover:underline focus-visible:underline"
+          >
+            <Text className="font-bold uppercase text-[10px] truncate text-white">
+              {team.club}
+            </Text>
+          </Link>
+        ) : (
+          <Text className="font-bold uppercase text-[10px] truncate text-white">
+            {team.club}
+          </Text>
+        )}
+        {team.teamId && (
+          <FavouriteStar
+            label={team.club}
+            active={isTeamFavourite(team.teamId)}
+            onToggle={() =>
+              toggleFavouriteTeam({
+                teamId: team.teamId as string,
+                clubId: team.clubId,
+                name: team.club,
+              })
+            }
+          />
+        )}
       </div>
 
       {/* Played */}

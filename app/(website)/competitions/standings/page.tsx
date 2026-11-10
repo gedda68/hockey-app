@@ -2,7 +2,7 @@ import React from "react";
 import Link from "next/link";
 import StandingsTableFull from "../../../../components/standings/StandingsTableFull";
 import PageHeader from "../../../../components/shared/PageHeader";
-import FilterButton from "../../../../components/shared/FilterButton";
+import SeasonSelect from "../../../../components/standings/SeasonSelect";
 
 import {
   getLiveStandingsDivision,
@@ -57,21 +57,21 @@ export default async function StandingsPage({
         <div className="flex flex-wrap gap-x-12 gap-y-6">
           {/* Season competition filter */}
           <div className="flex flex-col gap-2">
-            <span className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em]">
+            <label
+              htmlFor="standings-season-select"
+              className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em]"
+            >
               Competition
-            </span>
-            <div className="flex gap-2 flex-wrap">
-              {seasonCompetitions.map((sc) => (
-                <FilterButton
-                  key={sc.seasonCompetitionId}
-                  href={`/competitions/standings?seasonCompetitionId=${sc.seasonCompetitionId}`}
-                  isActive={selectedId === sc.seasonCompetitionId}
-                  variant="primary"
-                >
-                  {sc.competitionName ?? sc.competitionId} {sc.season}
-                </FilterButton>
-              ))}
-            </div>
+            </label>
+            <SeasonSelect
+              options={seasonCompetitions.map((sc) => ({
+                seasonCompetitionId: sc.seasonCompetitionId,
+                season: sc.season,
+                competitionId: sc.competitionId,
+                competitionName: sc.competitionName,
+              }))}
+              selectedId={selectedId}
+            />
           </div>
         </div>
       </div>

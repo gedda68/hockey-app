@@ -109,11 +109,29 @@ export async function getLiveStandingsDivision(
 
   const colorMap = await getClubColorMap();
 
+  // Resolve the owning club for each team so ladder rows can link to the team page.
+  const teamIds = standings.map((r) => r.teamId).filter(Boolean);
+  const clubIdByTeamId = new Map<string, string>();
+  if (teamIds.length > 0) {
+    const teamDocs = await db
+      .collection("teams")
+      .find({ teamId: { $in: teamIds } })
+      .project({ teamId: 1, clubId: 1 })
+      .toArray();
+    for (const t of teamDocs) {
+      if (t.teamId && t.clubId) {
+        clubIdByTeamId.set(String(t.teamId), String(t.clubId));
+      }
+    }
+  }
+
   const teams: Team[] = standings.map((r) => {
     const club = r.teamName ?? r.teamId;
     return {
       pos: r.pos,
       club,
+      teamId: r.teamId,
+      clubId: clubIdByTeamId.get(r.teamId),
       pts: r.pts,
       p: r.p,
       w: r.w,
