@@ -21,6 +21,10 @@ import {
   X,
 } from "lucide-react";
 import { getErrorMessage } from "@/lib/utils/errors";
+import LoadMore from "@/components/shared/LoadMore";
+import { useIncrementalList } from "@/lib/pagination/useIncrementalList";
+
+const TEAMS_PAGE_SIZE = 12;
 
 interface Team {
   _id: string;
@@ -80,6 +84,17 @@ export default function TeamsList({ clubId }: TeamsListProps) {
 
   // Available filters
   const [seasons, setSeasons] = useState<string[]>([]);
+
+  const {
+    visible: visibleTeams,
+    shown,
+    total,
+    showMore,
+  } = useIncrementalList(
+    filteredTeams,
+    TEAMS_PAGE_SIZE,
+    `${searchQuery}|${selectedCategory}|${selectedSeason}|${statusFilter}`,
+  );
 
   useEffect(() => {
     const fetchTeams = async () => {
@@ -377,8 +392,9 @@ export default function TeamsList({ clubId }: TeamsListProps) {
           )}
         </div>
       ) : (
+        <>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredTeams.map((team) => (
+          {visibleTeams.map((team) => (
             <Link
               key={team.teamId}
               href={`/clubs/${clubId}/teams/${team.teamId}`}
@@ -499,6 +515,8 @@ export default function TeamsList({ clubId }: TeamsListProps) {
             </Link>
           ))}
         </div>
+        <LoadMore shown={shown} total={total} onLoadMore={showMore} noun="teams" />
+        </>
       )}
     </div>
   );
