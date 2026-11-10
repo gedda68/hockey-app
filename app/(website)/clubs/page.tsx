@@ -1,29 +1,21 @@
 // app/clubs/page.tsx
-// Server component that fetches data and passes to ClubsGrid client component
+// Server component: reads active clubs from MongoDB and passes them to ClubsGrid
 
 import ClubsGrid from "@/components/clubs/ClubsGrid";
 import type { Club } from "@/app/(admin)/admin/types/clubs";
-import { alignLocalOriginPort, localDevOrigin } from "@/lib/utils/devServerOrigin";
+import { getDatabase } from "@/lib/mongodb";
+import { getPublicClubs } from "@/lib/clubs/publicClubDirectory";
 
 async function getClubsFromDB(): Promise<Club[]> {
   try {
-    const baseUrl = alignLocalOriginPort(process.env.NEXT_PUBLIC_BASE_URL || localDevOrigin());
-    const res = await fetch(`${baseUrl}/api/clubs`, {
-      cache: "no-store", // Always get fresh data
-    });
-
-    if (!res.ok) {
-      console.error("Failed to fetch clubs");
-      return [];
-    }
-
-    const data = await res.json();
-    return data.clubs || [];
+    return await getPublicClubs(await getDatabase());
   } catch (error) {
     console.error("Error fetching clubs:", error);
     return [];
   }
 }
+
+export const dynamic = "force-dynamic";
 
 export default async function ClubsPage() {
   // Fetch clubs from database
