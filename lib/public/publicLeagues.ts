@@ -11,7 +11,37 @@ export type PublicLeagueRow = {
   competitionName: string | null;
   owningAssociationId: string;
   status: string;
+  /** From the competition definition; null when not set. Used by the leagues filters. */
+  sport: string | null;
+  country: string | null;
+  state: string | null;
+  region: string | null;
 };
+
+type CompetitionMeta = {
+  name: string | null;
+  sport: string | null;
+  country: string | null;
+  state: string | null;
+  region: string | null;
+};
+
+function cleanStr(v: unknown): string | null {
+  if (typeof v !== "string") return null;
+  const t = v.trim();
+  return t ? t : null;
+}
+
+function competitionMeta(c: Record<string, unknown> | null | undefined): CompetitionMeta {
+  const geo = (c?.geographyScope ?? {}) as Record<string, unknown>;
+  return {
+    name: cleanStr(c?.name),
+    sport: cleanStr(c?.sport),
+    country: cleanStr(geo.country),
+    state: cleanStr(geo.state),
+    region: cleanStr(geo.region),
+  };
+}
 
 export async function listPublicLeagues(opts?: {
   season?: string;
@@ -49,24 +79,31 @@ export async function listPublicLeagues(opts?: {
       ? await db
           .collection("competitions")
           .find({ competitionId: { $in: competitionIds } })
-          .project({ competitionId: 1, name: 1 })
+          .project({ competitionId: 1, name: 1, sport: 1, geographyScope: 1 })
           .toArray()
       : [];
 
-  const compNameById = new Map<string, string>();
+  const compMetaById = new Map<string, CompetitionMeta>();
   for (const c of comps) {
-    if (c.competitionId && c.name)
-      compNameById.set(String(c.competitionId), String(c.name));
+    if (c.competitionId) compMetaById.set(String(c.competitionId), competitionMeta(c));
   }
+  const noMeta = competitionMeta(null);
 
-  return scs.map((s) => ({
-    seasonCompetitionId: String(s.seasonCompetitionId),
-    season: String(s.season ?? ""),
-    competitionId: String(s.competitionId ?? ""),
-    competitionName: compNameById.get(String(s.competitionId)) ?? null,
-    owningAssociationId: String(s.owningAssociationId ?? ""),
-    status: String(s.status ?? ""),
-  }));
+  return scs.map((s) => {
+    const meta = compMetaById.get(String(s.competitionId)) ?? noMeta;
+    return {
+      seasonCompetitionId: String(s.seasonCompetitionId),
+      season: String(s.season ?? ""),
+      competitionId: String(s.competitionId ?? ""),
+      competitionName: meta.name,
+      owningAssociationId: String(s.owningAssociationId ?? ""),
+      status: String(s.status ?? ""),
+      sport: meta.sport,
+      country: meta.country,
+      state: meta.state,
+      region: meta.region,
+    };
+  });
 }
 
 export type PublicLeagueDivision = { divisionId?: string; name?: string };
@@ -84,22 +121,26 @@ export async function getPublicLeagueById(
   if (!sc) return null;
 
   const competitionId = String(sc.competitionId ?? "");
-  let competitionName: string | null = null;
+  let meta = competitionMeta(null);
   if (competitionId) {
     const c = await db.collection("competitions").findOne(
       { competitionId },
-      { projection: { name: 1 } },
+      { projection: { name: 1, sport: 1, geographyScope: 1 } },
     );
-    competitionName = c?.name ? String(c.name) : null;
+    meta = competitionMeta(c);
   }
 
   return {
     seasonCompetitionId: String(sc.seasonCompetitionId),
     season: String(sc.season ?? ""),
     competitionId,
-    competitionName,
+    competitionName: meta.name,
     owningAssociationId: String(sc.owningAssociationId ?? ""),
     status: String(sc.status ?? ""),
+    sport: meta.sport,
+    country: meta.country,
+    state: meta.state,
+    region: meta.region,
     divisions: Array.isArray(sc.divisions)
       ? (sc.divisions as PublicLeagueDivision[])
       : [],

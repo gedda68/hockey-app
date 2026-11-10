@@ -81,3 +81,88 @@ body,
     animation: none !important;
   }
 }
+
+/* ==========================================================================
+   Dark theme (public site)
+   --------------------------------------------------------------------------
+   Most pages use hard-coded light Tailwind colours, so rather than rewriting
+   thousands of classes, the light *surface* utilities are remapped here when
+   <html data-theme="dark">. Only routes verified in dark mode ever receive that
+   attribute (see DARK_SUPPORTED_PATHS in lib/theme/theme.ts); everything else
+   stays light.
+
+   Known limits of this approach: it can't tell a "dark text on a pale tint" use of
+   text-slate-* from "dark text on white", so pale coloured boxes (bg-blue-50 etc.)
+   containing text-slate-* need an explicit fix before their route is enabled.
+
+   This block is deliberately outside any @layer so it beats Tailwind's utilities.
+   ========================================================================== */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --dm-page: #0b1220;
+  --dm-surface: #151f33;
+  --dm-surface-2: #1c2740;
+  --dm-surface-3: #26324d;
+  --dm-border: #2a3650;
+  --dm-border-strong: #3b4a68;
+  --dm-text-1: #f1f5f9;
+  --dm-text-2: #e2e8f0;
+  --dm-text-3: #cbd5e1;
+  --dm-text-4: #b4c0d4;
+  --dm-text-5: #94a3b8;
+}
+
+/* surfaces */
+:root[data-theme="dark"] .bg-slate-50 { background-color: var(--dm-page); }
+:root[data-theme="dark"] .bg-white { background-color: var(--dm-surface); }
+:root[data-theme="dark"] .bg-white\/70 { background-color: color-mix(in oklab, var(--dm-surface) 70%, transparent); }
+:root[data-theme="dark"] .bg-white\/95 { background-color: color-mix(in oklab, var(--dm-surface) 95%, transparent); }
+:root[data-theme="dark"] .bg-slate-100 { background-color: var(--dm-surface-2); }
+:root[data-theme="dark"] .hover\:bg-white:hover { background-color: var(--dm-surface-2); }
+:root[data-theme="dark"] .hover\:bg-slate-50:hover { background-color: var(--dm-surface-2); }
+:root[data-theme="dark"] .hover\:bg-slate-100:hover { background-color: var(--dm-surface-2); }
+:root[data-theme="dark"] .hover\:bg-slate-200:hover { background-color: var(--dm-surface-3); }
+:root[data-theme="dark"] .hover\:bg-slate-300:hover { background-color: var(--dm-border-strong); }
+
+/* gradient stops (e.g. bg-gradient-to-b from-slate-50 to-white) */
+:root[data-theme="dark"] .from-slate-50 { --tw-gradient-from: var(--dm-page); }
+:root[data-theme="dark"] .from-slate-100 { --tw-gradient-from: var(--dm-surface-2); }
+:root[data-theme="dark"] .from-white { --tw-gradient-from: var(--dm-surface); }
+:root[data-theme="dark"] .via-white { --tw-gradient-via: var(--dm-surface); }
+:root[data-theme="dark"] .to-white { --tw-gradient-to: var(--dm-surface); }
+:root[data-theme="dark"] .to-slate-100 { --tw-gradient-to: var(--dm-surface-2); }
+
+/* borders */
+:root[data-theme="dark"] .border-slate-100,
+:root[data-theme="dark"] .border-slate-200 { border-color: var(--dm-border); }
+:root[data-theme="dark"] .border-slate-300,
+:root[data-theme="dark"] .hover\:border-slate-300:hover { border-color: var(--dm-border-strong); }
+
+/* text that sits on those surfaces */
+:root[data-theme="dark"] .text-slate-900 { color: var(--dm-text-1); }
+:root[data-theme="dark"] .text-slate-800 { color: var(--dm-text-2); }
+:root[data-theme="dark"] .text-slate-700 { color: var(--dm-text-3); }
+:root[data-theme="dark"] .text-slate-600 { color: var(--dm-text-4); }
+:root[data-theme="dark"] .text-slate-500 { color: var(--dm-text-5); }
+:root[data-theme="dark"] .hover\:text-slate-900:hover,
+:root[data-theme="dark"] .hover\:text-slate-800:hover { color: var(--dm-text-1); }
+:root[data-theme="dark"] .hover\:text-slate-700:hover,
+:root[data-theme="dark"] .hover\:text-slate-600:hover { color: var(--dm-text-2); }
+
+/* opacity variants of the light surfaces above */
+:root[data-theme="dark"] .bg-slate-50\/80 { background-color: color-mix(in oklab, var(--dm-surface-2) 80%, transparent); }
+:root[data-theme="dark"] .border-slate-200\/80 { border-color: var(--dm-border); }
+
+/* Brand navy text (#06054e) is unreadable on dark surfaces, so it flips to light...
+   ...except navy-on-yellow, the brand button, which must stay navy (same element, or
+   a descendant of the yellow element). */
+:root[data-theme="dark"] .text-\[\#06054e\],
+:root[data-theme="dark"] .hover\:text-\[\#06054e\]:hover { color: var(--dm-text-1); }
+:root[data-theme="dark"] :is(.bg-yellow-200, .bg-yellow-300, .bg-yellow-400, .bg-amber-300, .bg-amber-400).text-\[\#06054e\],
+:root[data-theme="dark"] :is(.bg-yellow-200, .bg-yellow-300, .bg-yellow-400, .bg-amber-300, .bg-amber-400) .text-\[\#06054e\],
+:root[data-theme="dark"] .hover\:bg-yellow-50.hover\:text-\[\#06054e\]:hover { color: #06054e; }
+
+/* Dark hover text on a yellow hover background (e.g. the Login button) must stay dark. */
+:root[data-theme="dark"] .hover\:bg-yellow-300.hover\:text-slate-800:hover { color: #1e293b; }
