@@ -16,6 +16,8 @@ import {
   resolveTenantFaviconUrl,
 } from "@/lib/tenant/resolveTenantFavicon";
 import { requestMetadataBase } from "@/lib/tenant/requestMetadataBase";
+import ThemeScript from "@/components/theme/ThemeScript";
+import ThemeController from "@/components/theme/ThemeController";
 
 const inter = Inter({ subsets: ["latin"] });
 //console.log('MONGO URI:', process.env.MONGODB_URI)
@@ -97,8 +99,14 @@ export default async function RootLayout({
   const initialTenant = await loadPublicTenantFromIncomingHost();
 
   return (
-    <html lang="en">
+    // data-theme is pinned to "light" on the server and corrected before first paint by
+    // ThemeScript (which may set "dark"), hence suppressHydrationWarning on <html>.
+    <html lang="en" data-theme="light" suppressHydrationWarning>
+      <head>
+        <ThemeScript />
+      </head>
       <body className={inter.className}>
+        <ThemeController />
         <AuthProvider>
           <PublicTenantProvider initialTenant={initialTenant}>
             {/* Public header — hidden automatically on /admin routes */}

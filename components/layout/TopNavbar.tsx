@@ -24,6 +24,7 @@ import { usePublicTenant } from "@/lib/contexts/PublicTenantContext";
 import { toast } from "sonner";
 import { LinkButton } from "@/components/ui/LinkButton";
 import ClubsDrawer from "@/components/ui/ClubsDrawer";
+import ThemeToggle from "@/components/theme/ThemeToggle";
 import { useFocusTrap } from "@/lib/a11y/useFocusTrap";
 import HomeResultsTicker, {
   type TickerLine,
@@ -298,6 +299,8 @@ export default function TopNavbar({ clubs, tickerLines = [] }: TopNavbarProps) {
                   Clubs
                 </button>
 
+                <ThemeToggle className="ml-1" />
+
                 {/* My umpiring / Logout */}
                 {isAuthenticated ? (
                   <>
@@ -452,6 +455,14 @@ export default function TopNavbar({ clubs, tickerLines = [] }: TopNavbarProps) {
               Clubs
             </span>
           </button>
+
+          {/* Mobile colour theme */}
+          <div className="mt-2 flex items-center justify-between px-6 py-3">
+            <span className="uppercase text-[11px] font-bold tracking-widest text-slate-200">
+              Theme
+            </span>
+            <ThemeToggle />
+          </div>
 
           {/* Mobile My umpiring / Login / Logout */}
           <div className="mt-4 px-2 space-y-2">
