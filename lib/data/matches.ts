@@ -748,7 +748,7 @@ export type SeasonCompetitionOption = {
 /** Public options for filtering matches by season competition (competition + season). */
 export async function getSeasonCompetitionOptions(): Promise<SeasonCompetitionOption[]> {
   const client = await clientPromise;
-  const db = client.db("hockey-app");
+  const db = client.db(process.env.DB_NAME || "hockey-app");
 
   const scs = await db
     .collection("season_competitions")
