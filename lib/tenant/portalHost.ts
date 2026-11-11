@@ -4,7 +4,8 @@
  *
  * Env:
  *   NEXT_PUBLIC_PORTAL_ROOT_DOMAIN — e.g. sportsolutions.com.au or localhost:3000 (no scheme).
- *     When unset, development defaults to localhost:3000 so tenant links resolve correctly.
+ *     When unset, development uses localhost:<port the dev server is on> (3000, 3001, …).
+ *     A localhost value here is also aligned to the running port in development.
  *   NEXT_PUBLIC_DEV_PORTAL_SLUG — optional; on plain localhost / 127.0.0.1, use this
  *     slug so you get portal theming without subdomain DNS (e.g. bha).
  *
@@ -25,6 +26,7 @@ import {
   normalizePublicPartners,
   type PublicSitePartner,
 } from "@/lib/tenant/tenantPartners";
+import { alignLocalHostPort, localDevHost } from "@/lib/utils/devServerOrigin";
 
 export type PublicTenantPayload = {
   kind: "association" | "club";
@@ -60,8 +62,8 @@ const DEFAULT_ACCENT = "#facc15";
 
 export function getPortalRootDomain(): string {
   const explicit = process.env.NEXT_PUBLIC_PORTAL_ROOT_DOMAIN?.trim();
-  if (explicit) return explicit.toLowerCase();
-  if (process.env.NODE_ENV === "development") return "localhost:3000";
+  if (explicit) return alignLocalHostPort(explicit.toLowerCase());
+  if (process.env.NODE_ENV === "development") return localDevHost();
   return "sportsolutions.com.au";
 }
 
