@@ -2,6 +2,7 @@
 import { describe, expect, it } from "vitest";
 import {
   getClubActiveCoaches,
+  getClubActivePlayers,
   getClubMemberLinks,
   getClubMemberStats,
   getClubTeamsOverview,
@@ -104,5 +105,12 @@ describe("club portal data", () => {
     const { teams } = await getClubTeamsOverview(db, club, { teamId: "t2" });
     expect(teams.map((t) => t.teamId)).toEqual(["t2"]);
     expect((await getClubTeamsOverview(db, club, { teamId: "t9" })).teams).toEqual([]); // other club's team
+  });
+
+  it("lists active players with the teams they're selected in", async () => {
+    const players = await getClubActivePlayers(db, club);
+    expect(players.map((p) => p.memberId)).toEqual(["x1", "p1"]); // Away, Zee; inactive p2 excluded
+    expect(players.find((p) => p.memberId === "x1")!.teams.map((t) => [t.teamId, t.games])).toEqual([["t1", 1], ["t2", 0]]); // more than one team
+    expect(players.find((p) => p.memberId === "p1")!.teams).toEqual([{ teamId: "t1", name: "X BHL 1", season: "2026", role: "Player", games: 1 }]);
   });
 });

@@ -53,7 +53,7 @@ export default async function ClubSiteDashboard({
           icon={<Shield className="text-purple-600" size={32} />}
           bgColor="bg-purple-50"
           subtitle={`${stats.activePlayers} active`}
-          href={`/clubs/${clubId}/teams`}
+          href={`/clubs/${clubId}/players`}
         />
         <StatCard
           title="Coaches"

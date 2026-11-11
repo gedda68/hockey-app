@@ -79,11 +79,18 @@ export async function getClubMemberStats(db: Db, club: Doc): Promise<ClubMemberS
       rosterRoles.set(String(r.memberId), set);
     }
   }
-  // Coaches named on team sheets (staff) count too
+  // People named on team sheets count too
   const lineups = teams.length
-    ? await db.collection(FIXTURE_LINEUPS_COLLECTION).find({ teamId: { $in: teams.map((t) => String(t.teamId)) } }, { projection: { staff: 1 } }).toArray()
+    ? await db.collection(FIXTURE_LINEUPS_COLLECTION).find({ teamId: { $in: teams.map((t) => String(t.teamId)) } }, { projection: { players: 1, staff: 1 } }).toArray()
     : [];
   for (const l of lineups) {
+    // Players selected on a team sheet (who took the field) count as players
+    for (const p of (l.players as Doc[]) ?? []) {
+      if (!p?.memberId || p.didNotPlay) continue;
+      const set = rosterRoles.get(String(p.memberId)) ?? new Set<string>();
+      set.add("role-player");
+      rosterRoles.set(String(p.memberId), set);
+    }
     for (const s of (l.staff as Doc[]) ?? []) {
       if (!s?.memberId || !/coach/i.test(String(s.role ?? ""))) continue;
       const set = rosterRoles.get(String(s.memberId)) ?? new Set<string>();
@@ -481,33 +488,35 @@ export async function getClubUpcomingFixtures(db: Db, club: Doc, now = new Date(
   return out;
 }
 
-// ── Coaches ─────────────────────────────────────────────────────────────────
+// ── Coaches & players ───────────────────────────────────────────────────────
 
-export interface ClubCoachTeam {
+export interface ClubPersonTeam {
   teamId: string;
   name: string;
   season: string | null;
-  /** e.g. "Coach", "Assistant Coach" */
+  /** e.g. "Coach", "Assistant Coach", "Player", "Goalkeeper" */
   role: string;
+  /** Matches on the team's team sheets (players: games played). */
+  games: number;
 }
 
-export interface ClubCoach {
+export interface ClubPerson {
   memberId: string;
   name: string;
   firstName: string;
   lastName: string;
   photoUrl: string | null;
-  /** Coaching roles held, e.g. ["Coach", "Assistant Coach"] */
+  /** Roles held of this kind, e.g. ["Coach", "Assistant Coach"] or ["Player"] */
   roles: string[];
-  teams: ClubCoachTeam[];
+  teams: ClubPersonTeam[];
 }
 
 /**
- * Active members of the club who coach — a coach role on their member record or
- * in one of the club's team rosters (the same rule as the dashboard count) —
- * with the club teams they coach (roster or team-sheet staff with a coach role).
+ * Active members of the club who coach / play — the same rule as the dashboard
+ * counts: a matching role on their member record, in one of the club's team
+ * rosters, or on a team sheet — with the club teams they coach / are selected in.
  */
-export async function getClubActiveCoaches(db: Db, club: Doc): Promise<ClubCoach[]> {
+async function getClubActivePeople(db: Db, club: Doc, kind: "coach" | "player"): Promise<ClubPerson[]> {
   const clubId = String(club.id);
   const [members, teams] = await Promise.all([
     db.collection("members").find(clubMemberFilter(clubId), { projection: { memberId: 1, roles: 1, membership: 1, status: 1, personalInfo: 1, consents: 1, preferences: 1 } }).toArray(),
@@ -515,51 +524,67 @@ export async function getClubActiveCoaches(db: Db, club: Doc): Promise<ClubCoach
   ]);
   const teamById = new Map(teams.map((t) => [String(t.teamId), t]));
   const lineups = teams.length
-    ? await db.collection(FIXTURE_LINEUPS_COLLECTION).find({ teamId: { $in: [...teamById.keys()] } }, { projection: { teamId: 1, staff: 1 } }).toArray()
+    ? await db.collection(FIXTURE_LINEUPS_COLLECTION).find({ teamId: { $in: [...teamById.keys()] } }, { projection: { teamId: 1, players: 1, staff: 1 } }).toArray()
     : [];
 
-  // memberId → teamId → role
-  const coaching = new Map<string, Map<string, string>>();
-  const addTeam = (memberId: string, teamId: string, role: string) => {
-    const m = coaching.get(memberId) ?? new Map<string, string>();
-    if (!m.has(teamId)) m.set(teamId, role);
-    coaching.set(memberId, m);
+  // memberId → teamId → { role, games }
+  const links = new Map<string, Map<string, { role: string; games: number }>>();
+  const addTeam = (memberId: string, teamId: string, role: string, games = 0) => {
+    const m = links.get(memberId) ?? new Map<string, { role: string; games: number }>();
+    const cur = m.get(teamId);
+    m.set(teamId, { role: cur?.role ?? role, games: (cur?.games ?? 0) + games });
+    links.set(memberId, m);
   };
+  const memberRoleMatches = kind === "coach" ? isCoachRole : isPlayerRole;
   for (const t of teams) {
     for (const r of (t.roster as Doc[]) ?? []) {
-      if (r?.memberId && isCoachRole(String(r.roleId ?? ""))) addTeam(String(r.memberId), String(t.teamId), roleLabel(String(r.roleId)));
+      if (!r?.memberId) continue;
+      const isPlayer = r.roleCategory === "Participant" || isPlayerRole(String(r.roleId ?? ""));
+      if (kind === "player" && isPlayer) addTeam(String(r.memberId), String(t.teamId), r.position === "Goalkeeper" ? "Goalkeeper" : "Player");
+      if (kind === "coach" && !isPlayer && isCoachRole(String(r.roleId ?? ""))) addTeam(String(r.memberId), String(t.teamId), roleLabel(String(r.roleId)));
     }
   }
   for (const l of lineups) {
-    for (const s of (l.staff as Doc[]) ?? []) {
-      if (s?.memberId && /coach/i.test(String(s.role ?? ""))) addTeam(String(s.memberId), String(l.teamId), String(s.role));
+    if (kind === "player") {
+      for (const p of (l.players as Doc[]) ?? []) {
+        if (p?.memberId && !p.didNotPlay) addTeam(String(p.memberId), String(l.teamId), p.isGoalkeeper ? "Goalkeeper" : "Player", 1);
+      }
+    } else {
+      for (const s of (l.staff as Doc[]) ?? []) {
+        if (s?.memberId && /coach/i.test(String(s.role ?? ""))) addTeam(String(s.memberId), String(l.teamId), String(s.role), 1);
+      }
     }
   }
 
-  const out: ClubCoach[] = [];
+  const out: ClubPerson[] = [];
   for (const m of members) {
     if (!isActiveMember(m)) continue;
     const id = String(m.memberId);
-    const memberCoachRoles = ((m.roles as string[]) ?? []).filter(isCoachRole).map(roleLabel);
-    const teamRoles = coaching.get(id);
-    if (!memberCoachRoles.length && !teamRoles?.size) continue;
+    const memberRoles = ((m.roles as string[]) ?? []).filter(memberRoleMatches).map(roleLabel);
+    const teamLinks = links.get(id);
+    if (!memberRoles.length && !teamLinks?.size) continue;
     const pi = m.personalInfo ?? {};
     const photoOk = m.consents?.photoConsent === true || m.preferences?.photoConsent === true;
-    const coachTeams: ClubCoachTeam[] = [...(teamRoles ?? new Map()).entries()]
-      .map(([teamId, role]) => {
+    const personTeams: ClubPersonTeam[] = [...(teamLinks ?? new Map()).entries()]
+      .map(([teamId, { role, games }]) => {
         const t = teamById.get(teamId)!;
-        return { teamId, name: String(t.displayName || t.name), season: t.season ? String(t.season) : null, role };
+        return { teamId, name: String(t.displayName || t.name), season: t.season ? String(t.season) : null, role, games };
       })
-      .sort((a, b) => String(b.season).localeCompare(String(a.season)) || a.name.localeCompare(b.name, "en", { numeric: true }));
+      .sort((a, b) => String(b.season).localeCompare(String(a.season)) || b.games - a.games || a.name.localeCompare(b.name, "en", { numeric: true }));
     out.push({
       memberId: id,
       name: nameOf(m, id),
       firstName: String(pi.firstName ?? ""),
       lastName: String(pi.lastName ?? ""),
       photoUrl: photoOk && pi.photoUrl ? String(pi.photoUrl) : null,
-      roles: [...new Set([...memberCoachRoles, ...coachTeams.map((t) => t.role)])],
-      teams: coachTeams,
+      roles: [...new Set([...memberRoles, ...personTeams.map((t) => t.role)])],
+      teams: personTeams,
     });
   }
   return out.sort((a, b) => a.lastName.localeCompare(b.lastName) || a.firstName.localeCompare(b.firstName) || a.name.localeCompare(b.name));
 }
+
+/** Active coaches and the teams they coach. */
+export const getClubActiveCoaches = (db: Db, club: Doc) => getClubActivePeople(db, club, "coach");
+/** Active players and the teams they're selected in (roster or team sheets). */
+export const getClubActivePlayers = (db: Db, club: Doc) => getClubActivePeople(db, club, "player");
