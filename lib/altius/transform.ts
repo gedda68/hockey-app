@@ -237,6 +237,8 @@ export interface TransformResult {
   venues: Doc[];
   awards: Doc[];
   newClubs: Doc[];
+  /** `fixture_lineups`: one per fixture + team, with match-day shirt numbers */
+  lineups: Doc[];
   warnings: string[];
   unmappedTeams: { code: string; name: string; competition: string }[];
 }
@@ -264,7 +266,7 @@ export function transformHarvest(h: AltiusHarvest, opts: TransformOptions): Tran
 
   const out: TransformResult = {
     competitions: [], seasonCompetitions: [], teams: [], fixtures: [], members: [],
-    associationRegistrations: [], clubRegistrations: [], venues: [], awards: [], newClubs: [], warnings, unmappedTeams,
+    associationRegistrations: [], clubRegistrations: [], venues: [], awards: [], newClubs: [], lineups: [], warnings, unmappedTeams,
   };
 
   const comps = Object.values(h.comps).sort((a, b) => Number(a.altiusCompetitionId) - Number(b.altiusCompetitionId));
@@ -514,11 +516,28 @@ export function transformHarvest(h: AltiusHarvest, opts: TransformOptions): Tran
         if (!teamId) return;
         const ctx = teamCtx.get(idFromTeamId(teamId));
         if (!ctx) return;
+        const lineup: Doc = {
+          lineupId: `lu-altius-${m.altiusMatchId}-${idFromTeamId(teamId)}`,
+          fixtureId,
+          seasonCompetitionId,
+          teamId,
+          players: [] as Doc[],
+          staff: [] as Doc[],
+          source: "altius",
+          updatedAt: now,
+        };
         for (const p of lu.players) {
           if (!p.altiusPlayerId) continue;
           const rec = playerApps.get(p.altiusPlayerId) ?? { name: p.name, apps: [] };
           rec.apps.push({ teamId, clubId: ctx.clubId, league, date: isoDay(start), shirt: p.shirt, gk: p.gk, captain: p.captain });
           playerApps.set(p.altiusPlayerId, rec);
+          const shirt = Number.parseInt(p.shirt, 10);
+          lineup.players.push({
+            memberId: memberIdForPlayer(p.altiusPlayerId),
+            shirtNumber: Number.isFinite(shirt) ? shirt : null,
+            isGoalkeeper: p.gk,
+            isCaptain: p.captain,
+          });
         }
         for (const s of lu.staff) {
           if (!s.name) continue;
@@ -527,7 +546,9 @@ export function transformHarvest(h: AltiusHarvest, opts: TransformOptions): Tran
           const rec = staffApps.get(id) ?? { name: s.name, roleId, clubId: ctx.clubId, teams: new Set<string>() };
           rec.teams.add(teamId);
           staffApps.set(id, rec);
+          lineup.staff.push({ memberId: id, role: titleCase(s.role) });
         }
+        if (lineup.players.length || lineup.staff.length) out.lineups.push(lineup);
       });
 
       // Match events
@@ -645,6 +666,7 @@ export function transformHarvest(h: AltiusHarvest, opts: TransformOptions): Tran
     for (const e of (fx.matchEvents as Doc[] | null) ?? []) e.memberId = canon(e.memberId);
   }
   for (const a of out.awards) a.memberId = canon(a.memberId);
+  for (const lu of out.lineups) for (const p of lu.players as Doc[]) p.memberId = canon(p.memberId);
 
   // ── Members: players ────────────────────────────────────────────────────────
   for (const g of people.values()) {
@@ -832,6 +854,8 @@ export function transformHarvest(h: AltiusHarvest, opts: TransformOptions): Tran
 }
 
 // ── internals ─────────────────────────────────────────────────────────────────
+
+const titleCase = (s: string) => s.toLowerCase().replace(/\b[a-z]/g, (c) => c.toUpperCase());
 
 /** Minimal club for an Altius organisation that isn't in the clubs collection (e.g. visiting Gold Coast clubs). */
 function ensureImportedClub(

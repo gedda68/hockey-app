@@ -118,6 +118,8 @@ export default function PublicMatchCentreClient({
             teamNameById={centre.teamNameById}
             venue={centre.venue}
             umpires={centre.umpires}
+            players={centre.players}
+            teamColorById={centre.teamColorById}
           />
         </div>
       </div>

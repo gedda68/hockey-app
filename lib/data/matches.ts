@@ -12,6 +12,7 @@ import type {
   ViewType,
 } from "@/types";
 import clientPromise from "@/lib/mongodb";
+import { loadMatchPlayers, type PublicMatchPlayer } from "@/lib/data/matchPlayers";
 import type { PublicTenantPayload } from "@/lib/tenant/portalHost";
 import { seasonCompetitionVisibleForPortalTenant } from "@/lib/tenant/seasonCompetitionTenantGate";
 
@@ -483,6 +484,10 @@ export type PublicMatchCentre = {
   teamNameById: Record<string, string>;
   venue: { name: string | null; addressLine: string | null };
   umpires: FixtureUmpireSlot[] | null;
+  /** Players referenced by the timeline / lineups (name, shirt number, photo, link). */
+  players: Record<string, PublicMatchPlayer>;
+  /** Club colours per team, for player badges without a photo. */
+  teamColorById: Record<string, { primary: string; secondary: string }>;
 };
 
 export async function getPublicMatchCentreById(
@@ -541,9 +546,16 @@ export async function getPublicMatchCentreById(
       ? await db
           .collection("clubs")
           .find({ id: { $in: clubIds } })
-          .project({ id: 1, logo: 1, iconSrc: 1, icon: 1 })
+          .project({ id: 1, logo: 1, iconSrc: 1, icon: 1, colors: 1 })
           .toArray()
       : [];
+
+  const teamColorById: Record<string, { primary: string; secondary: string }> = {};
+  for (const [teamId, clubId] of teamClubIdById) {
+    const c = clubs.find((x) => String(x.id) === clubId);
+    const primary = c?.colors?.primary || c?.colors?.primaryColor;
+    if (primary) teamColorById[teamId] = { primary, secondary: c?.colors?.secondary || c?.colors?.secondaryColor || primary };
+  }
 
   const clubLogoById = new Map<string, string>();
   for (const c of clubs) {
@@ -596,10 +608,12 @@ export async function getPublicMatchCentreById(
     legacyMatchId: fx.legacyMatchId ? String(fx.legacyMatchId) : null,
     fixtureUmpires: fixtureUmpires ?? null,
     homeTeam: {
+      id: homeTeamId || undefined,
       name: teamNameById.get(homeTeamId) ?? "Home",
       icon: clubLogoById.get(teamClubIdById.get(homeTeamId) ?? "") || undefined,
     },
     awayTeam: {
+      id: awayTeamId || undefined,
       name: teamNameById.get(awayTeamId) ?? "Away",
       icon: clubLogoById.get(teamClubIdById.get(awayTeamId) ?? "") || undefined,
     },
@@ -611,11 +625,20 @@ export async function getPublicMatchCentreById(
 
   const match = mapStoredMatchToPublic(m);
 
+  const players = await loadMatchPlayers(
+    db,
+    String(fx.fixtureId ?? id),
+    teamIds,
+    (matchEvents ?? []).flatMap((e) => [e.memberId, e.assistMemberId ?? ""]).filter(Boolean),
+  );
+
   return {
     match,
     teamNameById: Object.fromEntries(teamNameById.entries()),
     venue: { name: venueName, addressLine },
     umpires: fixtureUmpires,
+    players,
+    teamColorById,
   };
 }
 

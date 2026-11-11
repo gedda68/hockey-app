@@ -28,6 +28,7 @@ the `hockey-app` MongoDB.
 | `association-registrations` | 1,932 | One per player: BHA, 2026, `status: active`, `source: altius` |
 | `club-registrations` | 1,932 | Player's club for 2026 |
 | `association_venues` | 10 | Addresses from bha.org.au playing venues; pitches from Altius |
+| `fixture_lineups` | 2,392 | **New collection.** One per fixture + team: who played, match-day shirt number, goalkeeper/captain, coach/manager. Feeds the match-centre timeline and player pages |
 | `competition_awards` | 4 | The BHL 1 tournament awards (only grade with awards in Altius) |
 | `clubs` | 1 | Mudgeeraba (Gold Coast) plays MHL 2 but isn't a BHA club — a minimal club record is created |
 

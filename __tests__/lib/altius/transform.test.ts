@@ -166,6 +166,13 @@ describe("transformHarvest", () => {
     expect(bul.roster.some((r: { roleCategory: string }) => r.roleCategory === "Official")).toBe(true); // coach
   });
 
+  it("writes fixture lineups with match-day shirt numbers, one person per club", () => {
+    const lu = t.lineups.find((l) => l.fixtureId === "fx-altius-4" && l.teamId === "team-altius-502")!;
+    expect(lu.players).toEqual([{ memberId: "MBR-ALT-101", shirtNumber: 5, isGoalkeeper: false, isCaptain: true }]);
+    expect(lu.staff).toEqual([{ memberId: expect.stringMatching(/^MBR-ALT-STAFF-BUL-/), role: "Coach" }]);
+    expect(t.lineups).toHaveLength(4);
+  });
+
   it("links competition awards to the player", () => {
     expect(t.awards).toEqual([expect.objectContaining({ awardType: "top_goal_scorer", memberId: "MBR-ALT-200", teamId: "team-altius-507" })]);
   });

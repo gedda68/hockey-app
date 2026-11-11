@@ -102,6 +102,7 @@ function printSummary(t: TransformResult, problems: string[]) {
     ["association-registrations", t.associationRegistrations.length],
     ["club-registrations", t.clubRegistrations.length],
     ["association_venues", t.venues.length],
+    ["fixture_lineups", t.lineups.length],
     ["competition_awards", t.awards.length],
   ];
   for (const [k, n] of rows) console.log(`  ${k.padEnd(28)} ${n}`);
@@ -188,6 +189,9 @@ async function write(db: Db, t: TransformResult) {
     }
     await bulk(db, "members", memberOps, "members (registration links)");
 
+    await db.collection("fixture_lineups").createIndex({ fixtureId: 1, teamId: 1 }, { unique: true });
+    await db.collection("fixture_lineups").createIndex({ "players.memberId": 1 });
+    await bulk(db, "fixture_lineups", t.lineups.map((l) => set({ lineupId: l.lineupId }, l, now)));
     await bulk(db, "competition_awards", t.awards.map((a) => set({ awardRecordId: a.awardRecordId }, a, now)));
   }
 

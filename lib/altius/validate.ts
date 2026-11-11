@@ -6,6 +6,7 @@ import { CompetitionSchema, SeasonCompetitionSchema } from "@/lib/db/schemas/com
 import { TeamSchema, MemberTeamRegistrationSchema } from "@/lib/db/schemas/team.schema";
 import { LeagueFixtureSchema, FixtureMatchEventSchema } from "@/lib/db/schemas/leagueFixture.schema";
 import { AssociationVenueSchema } from "@/lib/db/schemas/associationVenue.schema";
+import { FixtureLineupSchema } from "@/lib/db/schemas/fixtureLineup.schema";
 import type { TransformResult } from "./transform";
 
 type Doc = Record<string, any>;
@@ -52,6 +53,15 @@ export function validateTransform(t: TransformResult): string[] {
   }
   for (const team of t.teams) {
     for (const r of team.roster as Doc[]) if (!memberIds.has(r.memberId)) problems.push(`team ${team.teamId}: roster member ${r.memberId} not in batch`);
+  }
+  const fixtureIds = new Set(t.fixtures.map((f) => f.fixtureId));
+  for (const lu of t.lineups) {
+    check(`lineup ${lu.lineupId}`, FixtureLineupSchema, lu);
+    if (!fixtureIds.has(lu.fixtureId)) problems.push(`lineup ${lu.lineupId}: unknown fixture`);
+    if (!teamIds.has(lu.teamId)) problems.push(`lineup ${lu.lineupId}: unknown team`);
+    for (const p of [...(lu.players as Doc[]), ...(lu.staff as Doc[])]) {
+      if (!memberIds.has(p.memberId)) problems.push(`lineup ${lu.lineupId}: member ${p.memberId} not in batch`);
+    }
   }
   return problems;
 }
