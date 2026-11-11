@@ -61,7 +61,7 @@ export default async function ClubSiteDashboard({
           icon={<Users className="text-orange-600" size={32} />}
           bgColor="bg-orange-50"
           subtitle={`${stats.activeCoaches} active`}
-          href={`/clubs/${clubId}/teams`}
+          href={`/clubs/${clubId}/coaches`}
         />
       </div>
 

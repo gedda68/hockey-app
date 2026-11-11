@@ -1,6 +1,7 @@
 // @vitest-environment node
 import { describe, expect, it } from "vitest";
 import {
+  getClubActiveCoaches,
   getClubMemberLinks,
   getClubMemberStats,
   getClubTeamsOverview,
@@ -19,6 +20,9 @@ const db = memoryDb({
     m("p1", "Ana", "Zee", ["role-player"]),
     m("p2", "Ben", "Ode", ["role-junior-player"], "Inactive"),
     m("c1", "Cal", "Pym", ["role-coach"]),
+    m("c2", "Old", "Coach", ["role-coach"], "Inactive"),
+    m("c3", "Ash", "Bee", []),
+    m("c4", "Zed", "Aaa", ["role-coach"]),
     m("u1", "Dee", "Ump", ["role-umpire", "role-volunteer"]),
     m("x1", "Eve", "Away", [], "Active", { clubId: "club-Y", clubRegistrations: [{ clubId: "club-X" }] }), // plays here too
     m("o1", "Out", "Sider", ["role-player"], "Active", { clubId: "club-Y" }),
@@ -27,11 +31,11 @@ const db = memoryDb({
     { teamId: "t1", clubId: "club-X", name: "X BHL 1", grade: "BHL 1", season: "2026", ageCategory: "senior", gender: "mixed", seasonCompetitionId: "sc1",
       roster: [{ memberId: "p1", roleCategory: "Participant", registrationType: "registered", jerseyNumber: 7 }, { memberId: "c1", roleId: "role-coach", roleCategory: "Official" }],
       leadership: { captain: "p1" } },
-    { teamId: "t2", clubId: "club-X", name: "X JHL U14A", season: "2026", ageCategory: "junior", gender: "mixed", roster: [{ memberId: "x1", roleCategory: "Participant", registrationType: "registered" }] },
+    { teamId: "t2", clubId: "club-X", name: "X JHL U14A", season: "2026", ageCategory: "junior", gender: "mixed", roster: [{ memberId: "x1", roleCategory: "Participant", registrationType: "registered" }, { memberId: "c1", roleId: "role-coach", roleCategory: "Official" }] },
     { teamId: "t9", clubId: "club-Y", name: "Y BHL 1", season: "2026", ageCategory: "senior" },
   ],
   fixture_lineups: [
-    { fixtureId: "f1", teamId: "t1", players: [{ memberId: "p1", shirtNumber: 7, isCaptain: true }, { memberId: "x1", shirtNumber: 21 }, { memberId: "p2", didNotPlay: true }], staff: [{ memberId: "c1", role: "Coach" }] },
+    { fixtureId: "f1", teamId: "t1", players: [{ memberId: "p1", shirtNumber: 7, isCaptain: true }, { memberId: "x1", shirtNumber: 21 }, { memberId: "p2", didNotPlay: true }], staff: [{ memberId: "c1", role: "Coach" }, { memberId: "c3", role: "Assistant Coach" }] },
   ],
   league_fixtures: [
     { fixtureId: "f1", scheduledStart: "2026-03-01T01:00:00.000Z", published: true, status: "completed", homeTeamId: "t1", awayTeamId: "t9" },
@@ -52,7 +56,7 @@ describe("club portal data", () => {
 
   it("counts members incl. registered-elsewhere, active, unique players and coaches", async () => {
     expect(await getClubMemberStats(db, club)).toEqual({
-      total: 5, active: 4, inactive: 1, players: 3, activePlayers: 2, coaches: 1, activeCoaches: 1,
+      total: 8, active: 6, inactive: 2, players: 3, activePlayers: 2, coaches: 4, activeCoaches: 3,
     });
   });
 
@@ -77,7 +81,7 @@ describe("club portal data", () => {
       ["Ana Zee", true, true, true],
       ["Eve Away", true, false, false],
     ]);
-    expect(t1.staff.map((s) => [s.name, s.role])).toEqual([["Cal Pym", "Coach"]]);
+    expect(t1.staff.map((s) => [s.name, s.role])).toEqual([["Cal Pym", "Coach"], ["Ash Bee", "Assistant Coach"]]);
     expect(teams.map((t) => t.category)).toEqual(["mens", "junior-boys"]);
   });
 
@@ -86,5 +90,19 @@ describe("club portal data", () => {
     expect(f).toEqual([
       expect.objectContaining({ fixtureId: "f2", teamId: "t1", opponent: "Y BHL 1", isHome: false, competition: "2030 BHL 1", venue: "SHC", category: "mens", round: 3 }),
     ]);
+  });
+
+  it("lists active coaches (sorted by surname) with the teams they coach", async () => {
+    const coaches = await getClubActiveCoaches(db, club);
+    expect(coaches.map((c) => c.memberId)).toEqual(["c4", "c3", "c1"]); // Aaa, Bee, Pym; inactive c2 excluded
+    expect(coaches.find((c) => c.memberId === "c1")!.teams.map((t) => [t.teamId, t.role])).toEqual([["t1", "Coach"], ["t2", "Coach"]]);
+    expect(coaches.find((c) => c.memberId === "c3")).toMatchObject({ roles: ["Assistant Coach"], teams: [{ teamId: "t1", role: "Assistant Coach" }] });
+    expect(coaches.find((c) => c.memberId === "c4")!.teams).toEqual([]);
+  });
+
+  it("builds a single team's overview by id", async () => {
+    const { teams } = await getClubTeamsOverview(db, club, { teamId: "t2" });
+    expect(teams.map((t) => t.teamId)).toEqual(["t2"]);
+    expect((await getClubTeamsOverview(db, club, { teamId: "t9" })).teams).toEqual([]); // other club's team
   });
 });

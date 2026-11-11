@@ -79,6 +79,18 @@ export async function getClubMemberStats(db: Db, club: Doc): Promise<ClubMemberS
       rosterRoles.set(String(r.memberId), set);
     }
   }
+  // Coaches named on team sheets (staff) count too
+  const lineups = teams.length
+    ? await db.collection(FIXTURE_LINEUPS_COLLECTION).find({ teamId: { $in: teams.map((t) => String(t.teamId)) } }, { projection: { staff: 1 } }).toArray()
+    : [];
+  for (const l of lineups) {
+    for (const s of (l.staff as Doc[]) ?? []) {
+      if (!s?.memberId || !/coach/i.test(String(s.role ?? ""))) continue;
+      const set = rosterRoles.get(String(s.memberId)) ?? new Set<string>();
+      set.add("role-coach");
+      rosterRoles.set(String(s.memberId), set);
+    }
+  }
 
   const players = new Set<string>();
   const coaches = new Set<string>();
@@ -164,15 +176,21 @@ const nameOf = (m: Doc | undefined, fallback: string) => {
   return String(pi.displayName || [pi.firstName, pi.lastName].filter(Boolean).join(" ") || fallback);
 };
 
-export async function getClubTeamsOverview(db: Db, club: Doc, opts: { season?: string } = {}): Promise<{ seasons: string[]; season: string | null; teams: ClubTeamOverview[] }> {
+export async function getClubTeamsOverview(
+  db: Db,
+  club: Doc,
+  opts: { season?: string; /** Just this team (its own season). */ teamId?: string } = {},
+): Promise<{ seasons: string[]; season: string | null; teams: ClubTeamOverview[] }> {
   const clubId = String(club.id);
   const allTeams = await db
     .collection("teams")
     .find({ clubId, status: { $ne: "archived" } }, { projection: { teamId: 1, name: 1, displayName: 1, grade: 1, season: 1, seasonCompetitionId: 1, ageCategory: 1, gender: 1, division: 1, roster: 1, leadership: 1 } })
     .toArray();
   const seasons = [...new Set(allTeams.map((t) => String(t.season ?? "")).filter(Boolean))].sort().reverse();
-  const season = opts.season && seasons.includes(opts.season) ? opts.season : seasons[0] ?? null;
-  const teams = allTeams.filter((t) => !season || String(t.season ?? "") === season);
+  const only = opts.teamId ? allTeams.find((t) => String(t.teamId) === opts.teamId) : undefined;
+  if (opts.teamId && !only) return { seasons, season: null, teams: [] };
+  const season = only ? (only.season ? String(only.season) : null) : opts.season && seasons.includes(opts.season) ? opts.season : seasons[0] ?? null;
+  const teams = only ? [only] : allTeams.filter((t) => !season || String(t.season ?? "") === season);
   const teamIds = teams.map((t) => String(t.teamId));
 
   // Lineups (week-to-week team sheets) for these teams
@@ -279,7 +297,7 @@ export async function getClubTeamsOverview(db: Db, club: Doc, opts: { season?: s
   });
 
   // Hide empty placeholder teams from BYE competitions
-  const visible = out.filter((t) => !(/\bbye\b/i.test(`${t.name} ${t.grade ?? ""}`) && t.players.length + t.staff.length === 0));
+  const visible = opts.teamId ? out : out.filter((t) => !(/\bbye\b/i.test(`${t.name} ${t.grade ?? ""}`) && t.players.length + t.staff.length === 0));
   visible.sort(
     (a, b) =>
       TEAM_CATEGORY_ORDER.indexOf(a.category) - TEAM_CATEGORY_ORDER.indexOf(b.category) ||
@@ -461,4 +479,87 @@ export async function getClubUpcomingFixtures(db: Db, club: Doc, now = new Date(
     }
   }
   return out;
+}
+
+// ── Coaches ─────────────────────────────────────────────────────────────────
+
+export interface ClubCoachTeam {
+  teamId: string;
+  name: string;
+  season: string | null;
+  /** e.g. "Coach", "Assistant Coach" */
+  role: string;
+}
+
+export interface ClubCoach {
+  memberId: string;
+  name: string;
+  firstName: string;
+  lastName: string;
+  photoUrl: string | null;
+  /** Coaching roles held, e.g. ["Coach", "Assistant Coach"] */
+  roles: string[];
+  teams: ClubCoachTeam[];
+}
+
+/**
+ * Active members of the club who coach — a coach role on their member record or
+ * in one of the club's team rosters (the same rule as the dashboard count) —
+ * with the club teams they coach (roster or team-sheet staff with a coach role).
+ */
+export async function getClubActiveCoaches(db: Db, club: Doc): Promise<ClubCoach[]> {
+  const clubId = String(club.id);
+  const [members, teams] = await Promise.all([
+    db.collection("members").find(clubMemberFilter(clubId), { projection: { memberId: 1, roles: 1, membership: 1, status: 1, personalInfo: 1, consents: 1, preferences: 1 } }).toArray(),
+    db.collection("teams").find({ clubId }, { projection: { teamId: 1, name: 1, displayName: 1, season: 1, roster: 1 } }).toArray(),
+  ]);
+  const teamById = new Map(teams.map((t) => [String(t.teamId), t]));
+  const lineups = teams.length
+    ? await db.collection(FIXTURE_LINEUPS_COLLECTION).find({ teamId: { $in: [...teamById.keys()] } }, { projection: { teamId: 1, staff: 1 } }).toArray()
+    : [];
+
+  // memberId → teamId → role
+  const coaching = new Map<string, Map<string, string>>();
+  const addTeam = (memberId: string, teamId: string, role: string) => {
+    const m = coaching.get(memberId) ?? new Map<string, string>();
+    if (!m.has(teamId)) m.set(teamId, role);
+    coaching.set(memberId, m);
+  };
+  for (const t of teams) {
+    for (const r of (t.roster as Doc[]) ?? []) {
+      if (r?.memberId && isCoachRole(String(r.roleId ?? ""))) addTeam(String(r.memberId), String(t.teamId), roleLabel(String(r.roleId)));
+    }
+  }
+  for (const l of lineups) {
+    for (const s of (l.staff as Doc[]) ?? []) {
+      if (s?.memberId && /coach/i.test(String(s.role ?? ""))) addTeam(String(s.memberId), String(l.teamId), String(s.role));
+    }
+  }
+
+  const out: ClubCoach[] = [];
+  for (const m of members) {
+    if (!isActiveMember(m)) continue;
+    const id = String(m.memberId);
+    const memberCoachRoles = ((m.roles as string[]) ?? []).filter(isCoachRole).map(roleLabel);
+    const teamRoles = coaching.get(id);
+    if (!memberCoachRoles.length && !teamRoles?.size) continue;
+    const pi = m.personalInfo ?? {};
+    const photoOk = m.consents?.photoConsent === true || m.preferences?.photoConsent === true;
+    const coachTeams: ClubCoachTeam[] = [...(teamRoles ?? new Map()).entries()]
+      .map(([teamId, role]) => {
+        const t = teamById.get(teamId)!;
+        return { teamId, name: String(t.displayName || t.name), season: t.season ? String(t.season) : null, role };
+      })
+      .sort((a, b) => String(b.season).localeCompare(String(a.season)) || a.name.localeCompare(b.name, "en", { numeric: true }));
+    out.push({
+      memberId: id,
+      name: nameOf(m, id),
+      firstName: String(pi.firstName ?? ""),
+      lastName: String(pi.lastName ?? ""),
+      photoUrl: photoOk && pi.photoUrl ? String(pi.photoUrl) : null,
+      roles: [...new Set([...memberCoachRoles, ...coachTeams.map((t) => t.role)])],
+      teams: coachTeams,
+    });
+  }
+  return out.sort((a, b) => a.lastName.localeCompare(b.lastName) || a.firstName.localeCompare(b.firstName) || a.name.localeCompare(b.name));
 }
