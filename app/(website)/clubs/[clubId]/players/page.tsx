@@ -11,6 +11,7 @@ export const dynamic = "force-dynamic";
 
 interface PageProps {
   params: Promise<{ clubId: string }>;
+  searchParams: Promise<{ page?: string }>;
 }
 
 export async function generateMetadata({ params }: PageProps) {
@@ -18,11 +19,12 @@ export async function generateMetadata({ params }: PageProps) {
   return { title: `Players | ${clubId}` };
 }
 
-export default async function ClubPlayersPage({ params }: PageProps) {
+export default async function ClubPlayersPage({ params, searchParams }: PageProps) {
   const { clubId } = await params;
+  const { page } = await searchParams;
   const db = (await clientPromise).db(process.env.DB_NAME?.trim() || "hockey-app");
   const club = await resolveClub(db, clubId);
   if (!club) notFound();
 
-  return <ClubPeopleList clubId={clubId} kind="player" people={await getClubActivePlayers(db, club)} />;
+  return <ClubPeopleList clubId={clubId} kind="player" page={Number(page) || 1} people={await getClubActivePlayers(db, club)} />;
 }

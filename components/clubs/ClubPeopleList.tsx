@@ -14,15 +14,25 @@ const initials = (name: string) =>
     .map((w) => w[0]!.toUpperCase())
     .join("");
 
+export const PEOPLE_PAGE_SIZE = 25;
+
 export default function ClubPeopleList({
   clubId,
   kind,
   people,
+  page: requestedPage = 1,
 }: {
   clubId: string;
   kind: "coach" | "player";
   people: ClubPerson[];
+  /** 1-based page number (25 rows per page). */
+  page?: number;
 }) {
+  const pageCount = Math.max(1, Math.ceil(people.length / PEOPLE_PAGE_SIZE));
+  const page = Math.min(Math.max(1, Math.floor(requestedPage) || 1), pageCount);
+  const first = (page - 1) * PEOPLE_PAGE_SIZE;
+  const rows = people.slice(first, first + PEOPLE_PAGE_SIZE);
+  const basePath = `/clubs/${clubId}/${kind === "coach" ? "coaches" : "players"}`;
   const teamCount = new Set(people.flatMap((p) => p.teams.map((t) => t.teamId))).size;
   const noun = kind === "coach" ? ["coach", "coaches"] : ["player", "players"];
   const avatar = kind === "coach" ? "bg-orange-100 text-orange-700" : "bg-purple-100 text-purple-700";
@@ -45,7 +55,7 @@ export default function ClubPeopleList({
         <p className="rounded-3xl bg-white p-10 text-center text-lg text-slate-500 shadow">No active {noun[1]}.</p>
       ) : (
         <ul className="divide-y divide-slate-100 overflow-hidden rounded-3xl bg-white shadow-xl ring-1 ring-slate-100">
-          {people.map((p) => (
+          {rows.map((p) => (
             <li key={p.memberId} className="flex flex-col gap-3 px-6 py-4 sm:flex-row sm:items-center">
               <div className="flex min-w-0 items-center gap-3 sm:w-72 sm:shrink-0">
                 {p.photoUrl ? (
@@ -99,6 +109,68 @@ export default function ClubPeopleList({
           ))}
         </ul>
       )}
+
+      {pageCount > 1 && (
+        <Pagination basePath={basePath} page={page} pageCount={pageCount} first={first + 1} last={first + rows.length} total={people.length} />
+      )}
     </div>
+  );
+}
+
+/** Page numbers to show: first, last and a window around the current page. */
+export function pageWindow(page: number, pageCount: number): (number | "…")[] {
+  const keep = new Set([1, pageCount, page - 1, page, page + 1].filter((n) => n >= 1 && n <= pageCount));
+  const out: (number | "…")[] = [];
+  let prev = 0;
+  for (const n of [...keep].sort((a, b) => a - b)) {
+    if (n - prev > 1) out.push("…");
+    out.push(n);
+    prev = n;
+  }
+  return out;
+}
+
+function Pagination({ basePath, page, pageCount, first, last, total }: { basePath: string; page: number; pageCount: number; first: number; last: number; total: number }) {
+  const href = (n: number) => (n === 1 ? basePath : `${basePath}?page=${n}`);
+  const btn = "flex h-10 min-w-10 items-center justify-center rounded-full px-3 text-sm font-bold";
+  return (
+    <nav aria-label="Pagination" className="flex flex-col items-center justify-between gap-3 sm:flex-row">
+      <p className="text-sm font-semibold text-slate-500">
+        Showing {first}–{last} of {total}
+      </p>
+      <ul className="flex flex-wrap items-center gap-1">
+        <li>
+          {page > 1 ? (
+            <Link href={href(page - 1)} className={`${btn} bg-white text-[#06054e] ring-1 ring-slate-200 hover:bg-slate-50`}>
+              ‹ Prev
+            </Link>
+          ) : (
+            <span className={`${btn} bg-slate-100 text-slate-400`} aria-disabled="true">‹ Prev</span>
+          )}
+        </li>
+        {pageWindow(page, pageCount).map((n, i) => (
+          <li key={`${n}-${i}`}>
+            {n === "…" ? (
+              <span className="px-1 text-slate-400">…</span>
+            ) : n === page ? (
+              <span aria-current="page" className={`${btn} bg-[#06054e] text-white`}>{n}</span>
+            ) : (
+              <Link href={href(n)} className={`${btn} bg-white text-[#06054e] ring-1 ring-slate-200 hover:bg-slate-50`}>
+                {n}
+              </Link>
+            )}
+          </li>
+        ))}
+        <li>
+          {page < pageCount ? (
+            <Link href={href(page + 1)} className={`${btn} bg-white text-[#06054e] ring-1 ring-slate-200 hover:bg-slate-50`}>
+              Next ›
+            </Link>
+          ) : (
+            <span className={`${btn} bg-slate-100 text-slate-400`} aria-disabled="true">Next ›</span>
+          )}
+        </li>
+      </ul>
+    </nav>
   );
 }
