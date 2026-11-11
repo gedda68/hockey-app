@@ -72,4 +72,12 @@ describe("transformTeamStats", () => {
     });
     expect(teamStats[1]!.penaltyCornersAwarded).toEqual({ total: 2, byPeriod: [0, 1, 0, 1] });
   });
+
+  it("treats 0–0 corners as not recorded", () => {
+    const { teamStats } = transformTeamStats(
+      { data: { "1": { qEnds: [30, 60], stats: { "Penalty Corners": { home: [0, null, 0, null], homeTotal: 0, away: [0, null, 0, null], awayTotal: 0 } } } } },
+      [{ fixtureId: "fx-altius-1", legacyMatchId: "1", seasonCompetitionId: "sc", homeTeamId: "h", awayTeamId: "a", matchEvents: [] }],
+    );
+    expect(teamStats.map((d) => [d.penaltyCornersAwarded, d.periodEndMinutes])).toEqual([[null, [30, 60]], [null, [30, 60]]]);
+  });
 });

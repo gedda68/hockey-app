@@ -338,6 +338,7 @@ function SetPieces({
             ["Goals", pcGoals.home, pcGoals.away],
             ["Conversion", pct(pcGoals.home, pcAwarded.home), pct(pcGoals.away, pcAwarded.away)],
           ]}
+          note={recordedPc ? undefined : "Corners awarded weren't recorded for this match — only corners scored."}
         />
         <SetPieceCard
           title="Penalty strokes"

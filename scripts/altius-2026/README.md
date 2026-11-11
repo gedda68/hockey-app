@@ -29,6 +29,7 @@ the `hockey-app` MongoDB.
 | `club-registrations` | 1,932 | Player's club for 2026 |
 | `association_venues` | 10 | Addresses from bha.org.au playing venues; pitches from Altius |
 | `fixture_lineups` | 2,392 | **New collection.** One per fixture + team: who played, match-day shirt number, goalkeeper/captain, coach/manager. Feeds the match-centre timeline and player pages |
+| `fixture_team_stats` | 2,394 | **New collection.** One per fixture + team: penalty corners awarded per quarter/half and the period end minutes (from each match's Altius statistics report). Corners show as "not recorded" for the ~145 matches where Altius has 0–0. Strokes awarded, shots, circle entries and possession aren't recorded in Altius |
 | `competition_awards` | 4 | The BHL 1 tournament awards (only grade with awards in Altius) |
 | `clubs` | 1 | Mudgeeraba (Gold Coast) plays MHL 2 but isn't a BHA club — a minimal club record is created |
 
@@ -46,9 +47,10 @@ Checks done on the 2026 data:
 Prerequisites: `.env.local` with `MONGODB_URI` (and `DB_NAME` if not `hockey-app`), the `bha` association, and the BHA clubs (`scripts/seed-bha-clubs.ts`), because teams are matched to clubs by `shortName`.
 
 ```bash
-# 1. Put the harvest file in place
+# 1. Put the harvest files in place (the stats file is optional)
 mkdir -p data/altius/2026
 cp ~/Downloads/bha-2026-altius.json data/altius/2026/
+cp ~/Downloads/bha-2026-altius-stats.json data/altius/2026/
 
 # 2. Dry run: validates everything and prints counts, writes nothing
 npx tsx scripts/altius-2026/seed.ts
@@ -64,6 +66,7 @@ Options:
 | `--only=BHL` (or `BHL,MHL`) | Seed only some leagues |
 | `--skip-people` | Competitions, teams and fixtures only. Fixture events/umpires still reference member IDs, so seed people later |
 | `--file=path.json` | Use a different harvest file |
+| `--stats-file=path.json` | Statistics harvest (default `data/altius/2026/bha-2026-altius-stats.json`; skipped if missing) |
 | `--association=bha` | Owning association id |
 
 If `mongodb+srv` DNS fails (`querySrv ECONNREFUSED`), the script already uses public DNS; set `DNS_SERVERS=system` to turn that off or `DNS_SERVERS=ip1,ip2` to use others.

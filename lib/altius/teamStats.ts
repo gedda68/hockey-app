@@ -62,15 +62,17 @@ export function transformTeamStats(
       return anyRecorded ? count(b[side], side === "home" ? b.homeTotal : b.awayTotal) : null;
     };
     const poss = s["Possession %"];
+    // Altius shows 0–0 when corners weren't entered for a match: treat as "not recorded"
+    const pcRecorded = (pc.homeTotal ?? 0) + (pc.awayTotal ?? 0) > 0;
 
     for (const side of ["home", "away"] as const) {
       const teamId = side === "home" ? fx.homeTeamId : fx.awayTeamId;
-      const pcCount = count(pc[side], side === "home" ? pc.homeTotal : pc.awayTotal);
+      const pcCount = pcRecorded ? count(pc[side], side === "home" ? pc.homeTotal : pc.awayTotal) : null;
       const pcGoals = ((fx.matchEvents as Doc[]) ?? []).filter(
         (e) => e.teamId === teamId && e.kind === "goal" && /penalty corner/i.test(e.notes ?? ""),
       ).length;
-      if (pcGoals > pcCount.total) {
-        warnings.push(`${fx.fixtureId}: ${pcGoals} PC goals but ${pcCount.total} PCs recorded for ${teamId}`);
+      if (pcCount && pcGoals > pcCount.total) {
+        warnings.push(`${fx.fixtureId}: ${pcGoals} PC goals but ${pcCount!.total} PCs recorded for ${teamId}`);
       }
       teamStats.push({
         statsId: `fts-altius-${matchId}-${String(teamId).replace(/^team-altius-/, "")}`,
