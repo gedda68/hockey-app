@@ -187,6 +187,17 @@ export default function MatchCentreTabs({
 
 // ── Timeline row ──────────────────────────────────────────────────────────────
 
+/** "#0a04a6" + 0.8 → "rgba(10, 4, 166, 0.8)"; non-hex colours use color-mix. */
+function withAlpha(colour: string, alpha: number): string {
+  const hex = colour.trim().replace(/^#/, "");
+  const full = hex.length === 3 ? hex.split("").map((c) => c + c).join("") : hex;
+  if (/^[0-9a-f]{6}$/i.test(full)) {
+    const n = Number.parseInt(full, 16);
+    return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${alpha})`;
+  }
+  return `color-mix(in srgb, ${colour} ${Math.round(alpha * 100)}%, transparent)`;
+}
+
 const EVENT_LABEL: Record<string, string> = {
   goal: "Goal",
   penalty_stroke_goal: "Penalty stroke goal",
@@ -241,18 +252,18 @@ function PlayerAvatar({ player, colour }: { player?: PublicMatchPlayer; colour?:
     <span className="relative shrink-0">
       {player?.photoUrl ? (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={player.photoUrl} alt="" className="h-12 w-12 rounded-full object-cover ring-2 ring-white/20" />
+        <img src={player.photoUrl} alt="" className="h-12 w-12 rounded-full object-cover ring-2 ring-white/60" />
       ) : (
         <span
-          className="flex h-12 w-12 items-center justify-center rounded-full text-sm font-black text-white ring-2 ring-white/20"
-          style={{ background: colour ? `linear-gradient(135deg, ${colour.primary}, ${colour.secondary})` : "#334155" }}
+          className="flex h-12 w-12 items-center justify-center rounded-full bg-white text-sm font-black ring-2 ring-white/60 [text-shadow:none]"
+          style={{ color: colour?.primary ?? "#334155" }}
           aria-hidden
         >
           {initials}
         </span>
       )}
       {player?.shirtNumber != null && (
-        <span className="absolute -bottom-1 -right-1 flex h-6 min-w-6 items-center justify-center rounded-full bg-yellow-300 px-1 text-[11px] font-black tabular-nums text-slate-900 ring-2 ring-slate-900">
+        <span className="absolute -bottom-1 -right-1 flex h-6 min-w-6 items-center justify-center rounded-full bg-yellow-300 px-1 text-[11px] font-black tabular-nums text-slate-900 ring-2 ring-slate-900 [text-shadow:none]">
           {player.shirtNumber}
         </span>
       )}
@@ -276,12 +287,17 @@ export function TimelineEvent({
   const label = EVENT_LABEL[e.kind] ?? String(e.kind).replace(/_/g, " ");
   const detail = eventDetail(e);
   const isGoal = e.kind.includes("goal") && !e.kind.includes("miss");
+  const primary = teamColor?.primary ?? (isHome ? "#0369a1" : "#be185d");
+  const secondary = teamColor?.secondary ?? primary;
   return (
     <li
-      className={`flex items-center gap-4 rounded-2xl border px-4 py-3 text-white ${
-        isGoal ? "border-yellow-300/30 bg-yellow-300/10" : "border-white/10 bg-white/5"
+      className={`flex items-center gap-4 rounded-2xl border px-4 py-3 text-white shadow-lg [text-shadow:0_1px_2px_rgba(0,0,0,0.6)] ${
+        isGoal ? "border-yellow-300/70 ring-1 ring-yellow-300/40" : "border-white/10"
       }`}
-      style={{ borderLeftWidth: 4, borderLeftColor: teamColor?.primary ?? (isHome ? "#38bdf8" : "#f472b6") }}
+      style={{
+        // club colours fading into the dark card; dark base keeps text readable on light club colours
+        background: `linear-gradient(100deg, ${withAlpha(primary, 0.9)} 0%, ${withAlpha(secondary, 0.65)} 45%, rgba(15, 23, 42, 0.85) 100%), #0f172a`,
+      }}
     >
       <span className="w-12 shrink-0 text-center text-lg font-black tabular-nums text-white/90">
         {typeof e.minute === "number" ? `${e.minute}'` : "–"}
@@ -302,14 +318,14 @@ export function TimelineEvent({
         ) : (
           <span className="block truncate text-base font-bold text-white/80">Unknown player</span>
         )}
-        <span className="block truncate text-sm text-white/60">{teamName}</span>
+        <span className="block truncate text-sm text-white/80">{teamName}</span>
       </div>
 
       <div className="flex shrink-0 items-center gap-2 text-right">
         <EventIcon kind={e.kind} />
         <div>
           <p className={`text-sm font-bold ${isGoal ? "text-yellow-200" : "text-white"}`}>{label}</p>
-          {detail ? <p className="text-xs text-white/60">{detail}</p> : null}
+          {detail ? <p className="text-xs text-white/80">{detail}</p> : null}
         </div>
       </div>
     </li>
