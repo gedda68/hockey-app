@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { Match } from "@/types";
 import type { PublicMatchPlayer, PublicMatchStaff } from "@/lib/data/matchPlayers";
-import { computeMatchStats, goalType, type MatchLineupEntry, type MatchScorer } from "@/lib/competitions/matchStats";
+import { computeMatchStats, goalType, roleTag, type MatchScorer } from "@/lib/competitions/matchStats";
 import type { PublicTeamStats } from "@/lib/data/matches";
 import { periodLabel } from "@/lib/competitions/matchTimeline";
 
@@ -11,7 +11,8 @@ interface MatchStatsProps {
   match: Match;
   players: Record<string, PublicMatchPlayer>;
   teamColorById: Record<string, Colour>;
-  staffByTeam: Record<string, PublicMatchStaff[]>;
+  /** @deprecated team sheets moved to their own tab */
+  staffByTeam?: Record<string, PublicMatchStaff[]>;
   teamStats?: Record<string, PublicTeamStats>;
   periodEndMinutes?: number[];
 }
@@ -21,7 +22,7 @@ const FALLBACK: Record<"home" | "away", Colour> = {
   away: { primary: "#f472b6", secondary: "#db2777" },
 };
 
-export default function MatchStats({ match, players, teamColorById, staffByTeam, teamStats = {}, periodEndMinutes = [] }: MatchStatsProps) {
+export default function MatchStats({ match, players, teamColorById, teamStats = {}, periodEndMinutes = [] }: MatchStatsProps) {
   const stats = computeMatchStats(match.matchEvents ?? [], match.homeTeamId, match.awayTeamId, players);
   const homeColour = (match.homeTeamId && teamColorById[match.homeTeamId]) || FALLBACK.home;
   const awayColour = (match.awayTeamId && teamColorById[match.awayTeamId]) || FALLBACK.away;
@@ -38,7 +39,7 @@ export default function MatchStats({ match, players, teamColorById, staffByTeam,
     ] as [string, number | null | undefined, number | null | undefined][]
   ).filter(([, h, a]) => h != null && a != null) as [string, number, number][];
 
-  if (!stats.hasEvents && !stats.hasLineups && !homeTs && !awayTs) {
+  if (!stats.hasEvents && !homeTs && !awayTs) {
     return <p className="mt-4 text-base text-white/70">Stats will appear once the result and team sheets are published.</p>;
   }
 
@@ -92,26 +93,6 @@ export default function MatchStats({ match, players, teamColorById, staffByTeam,
         </section>
       )}
 
-      {/* Team sheets */}
-      {stats.hasLineups && (
-        <section aria-labelledby="stats-lineups">
-          <SectionTitle id="stats-lineups">Team sheets</SectionTitle>
-          <div className="grid gap-4 md:grid-cols-2">
-            <Lineup
-              team={match.homeTeam}
-              colour={homeColour}
-              entries={stats.lineups.home}
-              staff={(match.homeTeamId && staffByTeam[match.homeTeamId]) || []}
-            />
-            <Lineup
-              team={match.awayTeam}
-              colour={awayColour}
-              entries={stats.lineups.away}
-              staff={(match.awayTeamId && staffByTeam[match.awayTeamId]) || []}
-            />
-          </div>
-        </section>
-      )}
     </div>
   );
 }
@@ -179,12 +160,8 @@ function CompareRow({
 }
 
 function PlayerName({ p }: { p: { name: string; href: string | null; isCaptain: boolean; isGoalkeeper: boolean } }) {
-  const extras = (
-    <>
-      {p.isCaptain && <span className="ml-1 text-xs font-semibold text-white/60">(C)</span>}
-      {p.isGoalkeeper && <span className="ml-1 text-xs font-semibold text-white/60">(GK)</span>}
-    </>
-  );
+  const tag = roleTag(p);
+  const extras = tag ? <span className="ml-1.5 text-xs font-bold text-yellow-200">{tag}</span> : null;
   return p.href ? (
     <Link href={p.href} className="truncate font-semibold text-white underline-offset-4 hover:underline focus-visible:underline">
       {p.name}
@@ -231,58 +208,6 @@ function ScorerList({ scorers, team, colour }: { scorers: MatchScorer[]; team: s
             </li>
           ))}
         </ul>
-      )}
-    </div>
-  );
-}
-
-function Lineup({
-  team,
-  colour,
-  entries,
-  staff,
-}: {
-  team: string;
-  colour: Colour;
-  entries: MatchLineupEntry[];
-  staff: PublicMatchStaff[];
-}) {
-  return (
-    <div className="overflow-hidden rounded-2xl border border-white/10 bg-black/20">
-      <p
-        className="px-4 py-3 text-sm font-black text-white [text-shadow:0_1px_2px_rgba(0,0,0,0.6)]"
-        style={{ background: `linear-gradient(100deg, ${colour.primary}, ${colour.secondary} 60%, rgba(15,23,42,0.9))` }}
-      >
-        {team} <span className="font-semibold text-white/80">· {entries.length} players</span>
-      </p>
-      <ul className="divide-y divide-white/5">
-        {entries.map((p) => (
-          <li key={p.memberId} className="flex items-center gap-3 px-4 py-2 text-base">
-            <ShirtBadge n={p.shirtNumber} colour={colour} />
-            <span className="min-w-0 flex-1">
-              <PlayerName p={p} />
-            </span>
-            <span className="flex shrink-0 items-center gap-1.5">
-              {Array.from({ length: p.goals }).map((_, i) => (
-                <span key={`g${i}`} className="flex h-4 w-4 items-center justify-center rounded-full bg-white text-[8px] text-slate-900" title="Goal">
-                  ●
-                </span>
-              ))}
-              {p.cards.map((c, i) => (
-                <span
-                  key={`c${i}`}
-                  className={`inline-block h-4 w-3 rounded-[3px] ${c === "red" ? "bg-red-500" : c === "yellow" ? "bg-yellow-400" : "bg-emerald-500"}`}
-                  title={`${c} card`}
-                />
-              ))}
-            </span>
-          </li>
-        ))}
-      </ul>
-      {staff.length > 0 && (
-        <p className="border-t border-white/10 px-4 py-3 text-sm text-white/70">
-          {staff.map((s) => `${s.role}: ${s.name}`).join(" · ")}
-        </p>
       )}
     </div>
   );

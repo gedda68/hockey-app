@@ -1,6 +1,8 @@
 // @vitest-environment node
 import { describe, expect, it } from "vitest";
 import {
+  parseEntry,
+  playerFlags,
   clubShortNameForTeam,
   divisionLevelFromGrade,
   isFinalsPhase,
@@ -86,6 +88,16 @@ describe("altius helpers", () => {
     expect(splitAltiusName("MCALLISTER Rory").lastName).toBe("McAllister");
     expect(splitAltiusName("ODELL OWEN")).toMatchObject({ firstName: "Owen", lastName: "Odell" });
   });
+  it("reads line-up entry minutes and captain/keeper tags", () => {
+    expect(parseEntry("X")).toEqual({ started: true, minuteEntered: null, didNotPlay: false });
+    expect(parseEntry("12")).toEqual({ started: false, minuteEntered: 12, didNotPlay: false });
+    expect(parseEntry("15+")).toEqual({ started: false, minuteEntered: 15, didNotPlay: false });
+    expect(parseEntry(null)).toEqual({ started: false, minuteEntered: null, didNotPlay: true });
+    expect(parseEntry("DNP")).toMatchObject({ didNotPlay: true });
+    expect(playerFlags("BLAKE Jo (C, GK)", false, false)).toEqual({ gk: true, captain: true });
+    expect(splitAltiusName("BLAKE Jo (C, GK)").displayName).toBe("Jo Blake");
+  });
+
   it("maps team codes and names to clubs", () => {
     expect(clubShortNameForTeam("STA BHL 1", "St Andrews BHL 1")).toBe("STS");
     expect(clubShortNameForTeam("RHC BHL 2", "Redcliffe BHL 2")).toBe("RDC");
@@ -168,7 +180,9 @@ describe("transformHarvest", () => {
 
   it("writes fixture lineups with match-day shirt numbers, one person per club", () => {
     const lu = t.lineups.find((l) => l.fixtureId === "fx-altius-4" && l.teamId === "team-altius-502")!;
-    expect(lu.players).toEqual([{ memberId: "MBR-ALT-101", shirtNumber: 5, isGoalkeeper: false, isCaptain: true }]);
+    expect(lu.players).toEqual([
+      { memberId: "MBR-ALT-101", shirtNumber: 5, isGoalkeeper: false, isCaptain: true, started: true, minuteEntered: null, didNotPlay: false },
+    ]);
     expect(lu.staff).toEqual([{ memberId: expect.stringMatching(/^MBR-ALT-STAFF-BUL-/), role: "Coach" }]);
     expect(t.lineups).toHaveLength(4);
   });

@@ -27,6 +27,9 @@ export interface MatchScorer extends MatchStatPlayer {
 export interface MatchLineupEntry extends MatchStatPlayer {
   goals: number;
   cards: ("green" | "yellow" | "red")[];
+  started: boolean;
+  minuteEntered: number | null;
+  didNotPlay: boolean;
 }
 
 export interface MatchStats {
@@ -37,7 +40,12 @@ export interface MatchStats {
   hasLineups: boolean;
 }
 
-type PlayerLike = Partial<MatchStatPlayer> & { teamId?: string | null };
+type PlayerLike = Partial<MatchStatPlayer> & {
+  teamId?: string | null;
+  started?: boolean;
+  minuteEntered?: number | null;
+  didNotPlay?: boolean;
+};
 
 export function goalType(e: Pick<FixtureMatchEventPublic, "kind" | "notes">): "field" | "corner" | "stroke" | "shootout" | null {
   if (e.kind === "penalty_stroke_goal") return "stroke";
@@ -109,6 +117,9 @@ export function computeMatchStats(
     const mine = events.filter((e) => e.memberId === memberId);
     lineups[s].push({
       ...base(memberId),
+      started: p.started ?? false,
+      minuteEntered: p.minuteEntered ?? null,
+      didNotPlay: p.didNotPlay ?? false,
       goals: mine.filter((e) => {
         const t = goalType(e);
         return t !== null && t !== "shootout";
@@ -118,8 +129,13 @@ export function computeMatchStats(
         .map((e) => (e.kind === "red_card" ? "red" : e.kind === "yellow_card" ? "yellow" : "green")),
     });
   }
+  // Starters by shirt, then substitutes by minute entered, then DNP
+  const group = (p: MatchLineupEntry) => (p.started ? 0 : p.didNotPlay ? 2 : 1);
   const byShirt = (a: MatchLineupEntry, b: MatchLineupEntry) =>
-    (a.shirtNumber ?? 999) - (b.shirtNumber ?? 999) || a.name.localeCompare(b.name);
+    group(a) - group(b) ||
+    (group(a) === 1 ? (a.minuteEntered ?? 999) - (b.minuteEntered ?? 999) : 0) ||
+    (a.shirtNumber ?? 999) - (b.shirtNumber ?? 999) ||
+    a.name.localeCompare(b.name);
   lineups.home.sort(byShirt);
   lineups.away.sort(byShirt);
 
@@ -130,4 +146,20 @@ export function computeMatchStats(
     hasEvents: events.length > 0,
     hasLineups: lineups.home.length + lineups.away.length > 0,
   };
+}
+
+/** "(C)", "(GK)" or "(GK, C)" — empty when neither. */
+export function roleTag(p: { isCaptain: boolean; isGoalkeeper: boolean }): string {
+  if (p.isGoalkeeper && p.isCaptain) return "(GK, C)";
+  if (p.isGoalkeeper) return "(GK)";
+  if (p.isCaptain) return "(C)";
+  return "";
+}
+
+/** "Started", "On 12'" or "DNP" (null when nothing recorded). */
+export function entryLabel(p: { started: boolean; minuteEntered: number | null; didNotPlay: boolean }): string | null {
+  if (p.started) return "Started";
+  if (p.didNotPlay) return "DNP";
+  if (p.minuteEntered != null) return `On ${p.minuteEntered}'`;
+  return "Sub";
 }

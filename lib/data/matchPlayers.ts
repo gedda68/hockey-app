@@ -12,6 +12,12 @@ export interface PublicMatchPlayer {
   shirtNumber: number | null;
   isGoalkeeper: boolean;
   isCaptain: boolean;
+  /** From the fixture lineup: in the starting XI. */
+  started: boolean;
+  /** Minute the player first came on (substitutes). */
+  minuteEntered: number | null;
+  /** Named in the squad but never entered the game. */
+  didNotPlay: boolean;
   /** Only set when the member has given photo consent. */
   photoUrl: string | null;
   href: string;
@@ -52,7 +58,10 @@ export async function loadMatchPlayers(
     .find({ fixtureId }, { projection: { teamId: 1, players: 1 } })
     .toArray();
 
-  const fromLineup = new Map<string, { teamId: string; shirt: number | null; gk: boolean; captain: boolean }>();
+  const fromLineup = new Map<
+    string,
+    { teamId: string; shirt: number | null; gk: boolean; captain: boolean; started: boolean; minuteEntered: number | null; didNotPlay: boolean }
+  >();
   for (const lu of lineups) {
     for (const p of (lu.players as Doc[]) ?? []) {
       if (!p?.memberId) continue;
@@ -61,6 +70,9 @@ export async function loadMatchPlayers(
         shirt: typeof p.shirtNumber === "number" ? p.shirtNumber : null,
         gk: p.isGoalkeeper === true,
         captain: p.isCaptain === true,
+        started: p.started === true,
+        minuteEntered: typeof p.minuteEntered === "number" ? p.minuteEntered : null,
+        didNotPlay: p.didNotPlay === true,
       });
     }
   }
@@ -108,6 +120,9 @@ export async function loadMatchPlayers(
       shirtNumber: lu?.shirt ?? ro?.shirt ?? null,
       isGoalkeeper: lu?.gk ?? false,
       isCaptain: lu?.captain ?? false,
+      started: lu?.started ?? false,
+      minuteEntered: lu?.minuteEntered ?? null,
+      didNotPlay: lu?.didNotPlay ?? false,
       photoUrl: memberPhotoIfConsented(m),
       href: publicPlayerHref(id),
     };

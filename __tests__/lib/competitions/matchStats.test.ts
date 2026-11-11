@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it } from "vitest";
-import { computeMatchStats, goalType } from "@/lib/competitions/matchStats";
+import { computeMatchStats, entryLabel, goalType, roleTag } from "@/lib/competitions/matchStats";
 import type { FixtureMatchEventPublic } from "@/types";
 
 const ev = (kind: string, teamId: string, memberId: string, minute: number | null, notes: string | null = null) =>
@@ -46,5 +46,28 @@ describe("computeMatchStats", () => {
       [7, "Ana Zee", 2, []],
     ]);
     expect(goalType({ kind: "shootout_goal", notes: null } as FixtureMatchEventPublic)).toBe("shootout");
+  });
+});
+
+describe("team sheet helpers", () => {
+  it("formats role tags and entry status", () => {
+    expect(roleTag({ isCaptain: true, isGoalkeeper: true })).toBe("(GK, C)");
+    expect(roleTag({ isCaptain: true, isGoalkeeper: false })).toBe("(C)");
+    expect(roleTag({ isCaptain: false, isGoalkeeper: true })).toBe("(GK)");
+    expect(roleTag({ isCaptain: false, isGoalkeeper: false })).toBe("");
+    expect(entryLabel({ started: true, minuteEntered: null, didNotPlay: false })).toBe("Started");
+    expect(entryLabel({ started: false, minuteEntered: 23, didNotPlay: false })).toBe("On 23'");
+    expect(entryLabel({ started: false, minuteEntered: null, didNotPlay: true })).toBe("DNP");
+  });
+
+  it("orders starters by shirt, subs by minute entered, then DNP", () => {
+    const s = computeMatchStats([], "H", "A", {
+      s9: { name: "S Nine", teamId: "H", shirtNumber: 9, started: true },
+      s2: { name: "S Two", teamId: "H", shirtNumber: 2, started: true },
+      b14: { name: "B Late", teamId: "H", shirtNumber: 14, minuteEntered: 40 },
+      b12: { name: "B Early", teamId: "H", shirtNumber: 12, minuteEntered: 6 },
+      d1: { name: "D Bench", teamId: "H", shirtNumber: 1, didNotPlay: true },
+    });
+    expect(s.lineups.home.map((p) => p.memberId)).toEqual(["s2", "s9", "b12", "b14", "d1"]);
   });
 });

@@ -15,6 +15,12 @@ export const FixtureLineupPlayerSchema = z
     shirtNumber: z.number().int().min(0).max(999).nullable(),
     isGoalkeeper: z.boolean().default(false),
     isCaptain: z.boolean().default(false),
+    /** In the starting line-up. */
+    started: z.boolean().default(false),
+    /** Minute the player first came on (substitutes); null for starters or when unknown. */
+    minuteEntered: z.number().int().min(0).max(200).nullable().default(null),
+    /** Named in the squad but never entered the game. */
+    didNotPlay: z.boolean().default(false),
   })
   .strict();
 

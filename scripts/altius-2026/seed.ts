@@ -194,6 +194,20 @@ async function write(db: Db, t: TransformResult, teamStats: Document[]) {
   if (!SKIP_PEOPLE) {
     await bulk(db, "members", t.members.map((m) =>
       insertOnly({ memberId: m.memberId }, m, { altius: m.altius, teams: m.teams, roles: m.roles, updatedAt: now }, now)));
+    // Repair names imported with role tags, e.g. "Joshua (c, Gk) Blakey" (only touches names containing "(")
+    const nameFixes = t.members
+      .filter((m) => m.altius?.playerId)
+      .map((m) => ({
+        updateOne: {
+          filter: { memberId: m.memberId, "personalInfo.displayName": { $regex: /\(/ } },
+          update: { $set: {
+            "personalInfo.firstName": m.personalInfo.firstName,
+            "personalInfo.lastName": m.personalInfo.lastName,
+            "personalInfo.displayName": m.personalInfo.displayName,
+          } },
+        },
+      }));
+    await bulk(db, "members", nameFixes, "members (name repairs)");
     await bulk(db, "association-registrations", t.associationRegistrations.map((r) =>
       insertOnly({ registrationId: r.registrationId }, r, { updatedAt: now }, now)));
     await bulk(db, "club-registrations", t.clubRegistrations.map((r) =>

@@ -5,10 +5,12 @@ import { useMemo, useState } from "react";
 import type { Match, FixtureMatchEventPublic, FixtureUmpireSlot } from "@/types";
 import type { PublicMatchPlayer, PublicMatchStaff } from "@/lib/data/matchPlayers";
 import MatchStats from "@/components/matches/MatchStats";
+import TeamSheets from "@/components/matches/TeamSheets";
 import type { PublicTeamStats } from "@/lib/data/matches";
 import { buildMatchTimeline } from "@/lib/competitions/matchTimeline";
+import { roleTag } from "@/lib/competitions/matchStats";
 
-type TabKey = "summary" | "timeline" | "umpires" | "stats";
+type TabKey = "summary" | "timeline" | "umpires" | "teamsheets" | "stats";
 
 function TabButton({
   active,
@@ -96,6 +98,9 @@ export default function MatchCentreTabs({
           onClick={() => setTab("umpires")}
         >
           Umpires
+        </TabButton>
+        <TabButton active={tab === "teamsheets"} onClick={() => setTab("teamsheets")}>
+          Team Sheets
         </TabButton>
         <TabButton active={tab === "stats"} onClick={() => setTab("stats")}>
           Stats
@@ -216,6 +221,15 @@ export default function MatchCentreTabs({
           ) : (
             <p className="mt-3 text-sm text-white/60">No umpires listed yet.</p>
           )}
+        </section>
+      ) : null}
+
+      {tab === "teamsheets" ? (
+        <section className="mt-6">
+          <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-yellow-200">
+            Team sheets
+          </h2>
+          <TeamSheets match={match} players={players} teamColorById={teamColorById} staffByTeam={staffByTeam} />
         </section>
       ) : null}
 
@@ -367,8 +381,7 @@ export function TimelineEvent({
             className="block truncate text-base font-bold text-white underline-offset-4 hover:underline focus-visible:underline"
           >
             {player.name}
-            {player.isCaptain ? <span className="ml-1 text-xs font-semibold text-white/60">(C)</span> : null}
-            {player.isGoalkeeper ? <span className="ml-1 text-xs font-semibold text-white/60">(GK)</span> : null}
+            {roleTag(player) ? <span className="ml-1.5 text-xs font-bold text-yellow-200">{roleTag(player)}</span> : null}
           </Link>
         ) : (
           <span className="block truncate text-base font-bold text-white/80">Unknown player</span>

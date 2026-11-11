@@ -99,7 +99,7 @@ const titleWord = (w: string) =>
 
 /** "PEMBERTON Nicola" → {first:"Nicola", last:"Pemberton"}; "VAN DER ZEE Ana" → {first:"Ana", last:"Van Der Zee"}. */
 export function splitAltiusName(raw: string): { firstName: string; lastName: string; displayName: string } {
-  const clean = raw.replace(/\((GK|C|AUS|[A-Z]{3})\)/g, "").replace(/\s+/g, " ").trim();
+  const clean = raw.replace(/\([^)]*\)/g, "").replace(/\s+/g, " ").trim();
   const parts = clean.split(" ").filter(Boolean);
   const isUpper = (w: string) => w === w.toUpperCase() && /[A-Z]/.test(w);
   let i = 0;
@@ -529,14 +529,17 @@ export function transformHarvest(h: AltiusHarvest, opts: TransformOptions): Tran
         for (const p of lu.players) {
           if (!p.altiusPlayerId) continue;
           const rec = playerApps.get(p.altiusPlayerId) ?? { name: p.name, apps: [] };
-          rec.apps.push({ teamId, clubId: ctx.clubId, league, date: isoDay(start), shirt: p.shirt, gk: p.gk, captain: p.captain });
+          const f0 = playerFlags(p.name, p.gk, p.captain);
+          rec.apps.push({ teamId, clubId: ctx.clubId, league, date: isoDay(start), shirt: p.shirt, gk: f0.gk, captain: f0.captain });
           playerApps.set(p.altiusPlayerId, rec);
           const shirt = Number.parseInt(p.shirt, 10);
+          const flags = playerFlags(p.name, p.gk, p.captain);
           lineup.players.push({
             memberId: memberIdForPlayer(p.altiusPlayerId),
             shirtNumber: Number.isFinite(shirt) ? shirt : null,
-            isGoalkeeper: p.gk,
-            isCaptain: p.captain,
+            isGoalkeeper: flags.gk,
+            isCaptain: flags.captain,
+            ...parseEntry(p.played),
           });
         }
         for (const s of lu.staff) {
@@ -854,6 +857,25 @@ export function transformHarvest(h: AltiusHarvest, opts: TransformOptions): Tran
 }
 
 // ── internals ─────────────────────────────────────────────────────────────────
+
+/** Altius marks captain/keeper in the name: "(C)", "(GK)" or "(C, GK)". */
+export function playerFlags(name: string, gk: boolean, captain: boolean): { gk: boolean; captain: boolean } {
+  const tags = [...name.matchAll(/\(([^)]*)\)/g)].flatMap((m) => m[1]!.split(/[,\s]+/).map((t) => t.toUpperCase()));
+  return { gk: gk || tags.includes("GK"), captain: captain || tags.includes("C") };
+}
+
+/**
+ * Altius line-up "Min" column: "X" = started; "12" = came on in the 12th minute;
+ * "15+" = came on at the start of the period ending at 15'; blank / "DNP" = did not play.
+ */
+export function parseEntry(raw: string | null | undefined): { started: boolean; minuteEntered: number | null; didNotPlay: boolean } {
+  const v = (raw ?? "").trim().toUpperCase();
+  if (v === "X") return { started: true, minuteEntered: null, didNotPlay: false };
+  const n = v.match(/^(\d{1,3})\+?$/);
+  if (n) return { started: false, minuteEntered: Math.min(200, Number(n[1])), didNotPlay: false };
+  if (v === "S") return { started: false, minuteEntered: null, didNotPlay: false };
+  return { started: false, minuteEntered: null, didNotPlay: true };
+}
 
 const titleCase = (s: string) => s.toLowerCase().replace(/\b[a-z]/g, (c) => c.toUpperCase());
 
