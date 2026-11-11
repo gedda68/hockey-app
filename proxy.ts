@@ -19,9 +19,17 @@ import {
 } from "@/lib/tenant/portalHost";
 import { activeSessionCookieName } from "@/lib/auth/cookieName";
 
-const SECRET_KEY = process.env.JWT_SECRET;
-if (!SECRET_KEY) throw new Error("JWT_SECRET environment variable is not set");
-const key = new TextEncoder().encode(SECRET_KEY);
+// Read lazily: a missing secret fails the request that needs it (never signs
+// or accepts tokens), but doesn't break `next build`, which imports this
+// module while collecting page data.
+let cachedKey: Uint8Array | null = null;
+function getKey(): Uint8Array {
+  if (cachedKey) return cachedKey;
+  const secret = process.env.JWT_SECRET;
+  if (!secret) throw new Error("JWT_SECRET environment variable is not set");
+  cachedKey = new TextEncoder().encode(secret);
+  return cachedKey;
+}
 
 function nextWithResolvedPortalSlug(request: NextRequest): NextResponse {
   const headers = new Headers(request.headers);
@@ -55,7 +63,7 @@ async function getSession(req: NextRequest): Promise<SessionData | null> {
   const token = req.cookies.get(activeSessionCookieName())?.value;
   if (!token) return null;
   try {
-    const { payload } = await jwtVerify(token, key, { algorithms: ["HS256"] });
+    const { payload } = await jwtVerify(token, getKey(), { algorithms: ["HS256"] });
     return payload as unknown as SessionData;
   } catch {
     return null;
