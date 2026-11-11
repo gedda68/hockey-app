@@ -49,13 +49,13 @@ export default function StandingsTableFull({ division, currentYear }: StandingsT
   return (
     <section className="overflow-hidden rounded-3xl bg-white shadow-2xl ring-1 ring-black/5">
       {/* Header */}
-      <header className="flex flex-wrap items-end justify-between gap-4 bg-[#06054e] px-6 py-6 text-white md:px-8">
+      <header className="flex flex-wrap items-end justify-between gap-4 bg-gradient-to-r from-blue-700 to-blue-500 px-6 py-6 text-white md:px-8">
         <div>
-          <p className="text-sm font-semibold uppercase tracking-widest text-white/60">{currentYear} Season</p>
+          <p className="text-sm font-semibold uppercase tracking-widest text-white/80">{currentYear} Season</p>
           <h2 className="mt-1 text-2xl font-black md:text-3xl">{division?.divisionName ?? "Standings"}</h2>
         </div>
         {finalsPlaces > 0 && teams.length > 0 && (
-          <p className="flex items-center gap-2 text-sm text-white/80">
+          <p className="flex items-center gap-2 text-sm font-medium text-white">
             <span className="inline-block h-3 w-3 rounded-sm bg-emerald-400" aria-hidden />
             Top {finalsPlaces} qualify for finals
           </p>
