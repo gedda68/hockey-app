@@ -13,8 +13,6 @@ import {
   Plus,
   Edit,
   Trash2,
-  Mail,
-  Phone,
   ChevronLeft,
   ChevronRight,
   ChevronsLeft,
@@ -74,7 +72,7 @@ interface SortConfig {
   direction: SortDirection;
 }
 
-const MEMBERS_PER_PAGE = 15;
+const PAGE_SIZES = [25, 50, 100, 0] as const; // 0 = all
 
 // Role category colors
 const ROLE_CATEGORY_COLORS: Record<string, string> = {
@@ -171,6 +169,8 @@ export default function MembersList({ clubId }: MembersListProps) {
     return s === "active" || s === "inactive" ? s : "all";
   });
   const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState<number>(0); // show all members by default
+  const MEMBERS_PER_PAGE = pageSize || Number.MAX_SAFE_INTEGER;
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
   const [sortConfigs, setSortConfigs] = useState<SortConfig[]>([
@@ -231,7 +231,9 @@ export default function MembersList({ clubId }: MembersListProps) {
       try {
         // Fetch members
         const membersRes = await fetch(`/api/clubs/${clubId}/members`);
-        if (!membersRes.ok) throw new Error("Failed to fetch members");
+        if (membersRes.status === 401) throw new Error("Please log in to see this club's members.");
+        if (membersRes.status === 403) throw new Error("Your login doesn't have access to this club's members (needs club access with the club.members permission).");
+        if (!membersRes.ok) throw new Error(`Couldn't load members (HTTP ${membersRes.status}).`);
         const membersData = await membersRes.json();
 
         setMembers(membersData);
@@ -543,12 +545,32 @@ export default function MembersList({ clubId }: MembersListProps) {
 
         {/* Stats Row */}
         <div className="mt-3 pt-3 border-t border-slate-100 flex items-center gap-3 text-xs font-bold text-slate-600">
-          <span>Total: {members.length}</span>
-          {searchQuery && filteredMembers.length !== members.length && (
+          <span>
+            {members.length} members · {members.filter((m) => /^active$/i.test(m.membership?.status ?? "")).length} active ·{" "}
+            {members.filter((m) => !/^active$/i.test(m.membership?.status ?? "")).length} inactive
+          </span>
+          {filteredMembers.length !== members.length && (
             <span className="text-yellow-600">
               • Showing: {filteredMembers.length}
             </span>
           )}
+          <label className="ml-auto flex items-center gap-2">
+            <span>Show</span>
+            <select
+              value={pageSize}
+              onChange={(e) => {
+                setPageSize(Number(e.target.value));
+                setCurrentPage(1);
+              }}
+              className="rounded-lg border-2 border-slate-200 bg-slate-50 px-2 py-1 font-bold"
+            >
+              {PAGE_SIZES.map((n) => (
+                <option key={n} value={n}>
+                  {n === 0 ? "All" : n}
+                </option>
+              ))}
+            </select>
+          </label>
           {totalPages > 1 && (
             <span className="text-slate-500">
               • Page {currentPage} of {totalPages}
@@ -588,177 +610,126 @@ export default function MembersList({ clubId }: MembersListProps) {
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {currentMembers.map((member) => (
-              <div
-                key={member.memberId}
-                className="bg-white rounded-[2rem] shadow-xl border border-slate-100 p-6 hover:shadow-2xl transition-all"
-              >
-                {/* Member Photo & Name */}
-                <div className="flex items-start gap-4 mb-4">
-                  {member.personalInfo.photoUrl ? (
-                    <img
-                      src={member.personalInfo.photoUrl}
-                      alt={
-                        member.personalInfo.displayName ||
-                        `${member.personalInfo.firstName} ${member.personalInfo.lastName}`
-                      }
-                      className="w-16 h-16 rounded-xl object-cover border-2 border-slate-200"
-                    />
-                  ) : (
-                    <div className="w-16 h-16 rounded-xl bg-slate-100 flex items-center justify-center border-2 border-slate-200">
-                      <User size={32} className="text-slate-400" />
-                    </div>
-                  )}
-
-                  <div className="flex-1 min-w-0">
-                    <h3 className="text-lg font-black text-[#06054e] truncate">
-                      {member.personalInfo.displayName ||
-                        `${member.personalInfo.firstName} ${member.personalInfo.lastName}`}
-                    </h3>
-                    <p className="text-sm font-bold text-slate-500">
-                      {member.memberId}
-                    </p>
-                    <div className="flex flex-wrap gap-1 mt-1">
-                      <span
-                        className={`inline-block px-2 py-1 rounded-lg text-xs font-black ${
-                          member.membership.status === "Active"
-                            ? "bg-green-100 text-green-700"
-                            : "bg-slate-100 text-slate-600"
-                        }`}
-                      >
-                        {member.membership.status}
-                      </span>
-                      {member.membership.membershipType && (
-                        <span className="inline-block px-2 py-1 rounded-lg text-xs font-black bg-blue-100 text-blue-700">
-                          {getConfigDisplayName(
-                            member.membership.membershipType,
-                            "membershipType",
-                            configItems,
-                          )}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Contact Info */}
-                <div className="space-y-2 mb-4">
-                  {member.contact.primaryEmail && (
-                    <div className="flex items-center gap-2 text-sm">
-                      <Mail
-                        size={16}
-                        className="text-slate-400 flex-shrink-0"
-                      />
-                      <span className="font-bold text-slate-600 truncate">
-                        {member.contact.primaryEmail}
-                      </span>
-                    </div>
-                  )}
-                  {member.contact.mobile && (
-                    <div className="flex items-center gap-2 text-sm">
-                      <Phone
-                        size={16}
-                        className="text-slate-400 flex-shrink-0"
-                      />
-                      <span className="font-bold text-slate-600">
-                        {member.contact.mobile}
-                      </span>
-                    </div>
-                  )}
-                </div>
-
-                {/* Roles - Display names with category colors from config */}
-                {member.roles && member.roles.length > 0 && (
-                  <div className="flex flex-wrap gap-2 mb-4">
-                    {member.roles.slice(0, 3).map((roleId, idx) => {
-                      const displayName = getConfigDisplayName(
-                        roleId,
-                        "role",
-                        configItems,
-                      );
-                      const colorClass = getConfigColor(
-                        roleId,
-                        "role",
-                        configItems,
-                      );
-
-                      return (
-                        <span
-                          key={idx}
-                          className={`px-2 py-1 rounded-lg text-xs font-bold ${colorClass}`}
-                        >
-                          {displayName}
-                        </span>
-                      );
-                    })}
-                    {member.roles.length > 3 && (
-                      <span className="px-2 py-1 bg-slate-100 text-slate-600 rounded-lg text-xs font-bold">
-                        +{member.roles.length - 3}
-                      </span>
-                    )}
-                  </div>
-                )}
-
-                {/* Positions held */}
-                {member.positions && member.positions.length > 0 && (
-                  <div className="mb-3">
-                    <p className="mb-1 text-[11px] font-black uppercase tracking-widest text-slate-400">Positions</p>
-                    <ul className="flex flex-wrap gap-1.5">
-                      {member.positions.map((p) => (
-                        <li key={p} className="rounded-lg bg-amber-100 px-2 py-1 text-xs font-bold text-amber-800">
-                          {p}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-
-                {/* Teams (linked) */}
-                {member.clubTeams && member.clubTeams.length > 0 && (
-                  <div className="mb-4">
-                    <p className="mb-1 text-[11px] font-black uppercase tracking-widest text-slate-400">Teams</p>
-                    <ul className="flex flex-wrap gap-1.5">
-                      {member.clubTeams.map((t) => (
-                        <li key={t.teamId}>
-                          <Link
-                            href={`/clubs/${clubId}/teams/${encodeURIComponent(t.teamId)}`}
-                            className="inline-flex items-center gap-1 rounded-full bg-[#06054e] px-2.5 py-1 text-xs font-bold text-white hover:bg-[#1a1870]"
-                            title={`${t.name}${t.season ? ` (${t.season})` : ""} · ${t.role}`}
+          <div className="overflow-hidden rounded-[2rem] border border-slate-100 bg-white shadow-xl">
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[900px] text-left text-base text-slate-800">
+                <thead>
+                  <tr className="border-b border-slate-200 bg-slate-50 text-xs font-black uppercase tracking-wider text-slate-500">
+                    <th scope="col" className="py-3 pl-6 pr-3">Member</th>
+                    <th scope="col" className="px-3 py-3">Status</th>
+                    <th scope="col" className="px-3 py-3">Roles &amp; positions</th>
+                    <th scope="col" className="px-3 py-3">Teams</th>
+                    <th scope="col" className="py-3 pl-3 pr-6 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {currentMembers.map((member) => {
+                    const active = /^active$/i.test(member.membership?.status ?? "");
+                    const positions = member.positions?.length
+                      ? member.positions
+                      : member.roles.map((r) => getConfigDisplayName(r, "role", configItems));
+                    return (
+                      <tr key={member.memberId} className="border-b border-slate-100 align-top hover:bg-slate-50/70">
+                        <td className="py-3 pl-6 pr-3">
+                          <div className="flex items-center gap-3">
+                            {member.personalInfo.photoUrl ? (
+                              <img
+                                src={member.personalInfo.photoUrl}
+                                alt=""
+                                className="h-10 w-10 shrink-0 rounded-xl border border-slate-200 object-cover"
+                              />
+                            ) : (
+                              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-100">
+                                <User size={20} className="text-slate-400" />
+                              </span>
+                            )}
+                            <div className="min-w-0">
+                              <Link
+                                href={`/clubs/${clubId}/members/${member.memberId}`}
+                                className="block truncate font-black text-[#06054e] hover:underline"
+                              >
+                                {member.personalInfo.lastName}, {member.personalInfo.firstName}
+                              </Link>
+                              <span className="block text-xs font-bold text-slate-400">{member.memberId}</span>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-3 py-3">
+                          <span
+                            className={`inline-block rounded-lg px-2 py-1 text-xs font-black ${
+                              active ? "bg-green-100 text-green-700" : "bg-slate-100 text-slate-600"
+                            }`}
                           >
-                            {t.name}
-                            {t.role !== "Player" ? <span className="text-yellow-300">· {t.role}</span> : null}
-                          </Link>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-
-                {/* Action Buttons */}
-                <div className="flex gap-2 pt-4 border-t border-slate-100">
-                  <Link
-                    href={`/clubs/${clubId}/members/${member.memberId}`}
-                    className="flex-1 px-4 py-2 bg-slate-100 text-slate-700 rounded-xl font-bold hover:bg-slate-200 transition-all text-center text-sm"
-                  >
-                    View
-                  </Link>
-                  <Link
-                    href={`/clubs/${clubId}/members/${member.memberId}/edit`}
-                    className="flex items-center justify-center gap-2 px-4 py-2 bg-yellow-400 text-[#06054e] rounded-xl font-bold hover:bg-yellow-500 transition-all text-sm"
-                  >
-                    <Edit size={16} />
-                    Edit
-                  </Link>
-                  <button
-                    onClick={() => handleDelete(member.memberId)}
-                    className="flex items-center justify-center gap-2 px-4 py-2 bg-red-500 text-white rounded-xl font-bold hover:bg-red-600 transition-all text-sm"
-                  >
-                    <Trash2 size={16} />
-                  </button>
-                </div>
-              </div>
-            ))}
+                            {member.membership?.status || "Unknown"}
+                          </span>
+                          {member.membership?.membershipType && (
+                            <span className="mt-1 block text-xs font-semibold text-slate-500">
+                              {getConfigDisplayName(member.membership.membershipType, "membershipType", configItems)}
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-3 py-3">
+                          {positions.length ? (
+                            <ul className="flex max-w-xs flex-wrap gap-1.5">
+                              {positions.map((p) => (
+                                <li key={p} className="rounded-lg bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-900">
+                                  {p}
+                                </li>
+                              ))}
+                            </ul>
+                          ) : (
+                            <span className="text-sm text-slate-400">—</span>
+                          )}
+                        </td>
+                        <td className="px-3 py-3">
+                          {member.clubTeams?.length ? (
+                            <ul className="flex max-w-md flex-wrap gap-1.5">
+                              {member.clubTeams.map((t) => (
+                                <li key={t.teamId}>
+                                  <Link
+                                    href={`/clubs/${clubId}/teams/${encodeURIComponent(t.teamId)}`}
+                                    className="inline-flex items-center gap-1 rounded-full bg-[#06054e] px-2.5 py-1 text-xs font-bold text-white hover:bg-[#1a1870]"
+                                    title={`${t.name}${t.season ? ` (${t.season})` : ""} · ${t.role}`}
+                                  >
+                                    {t.name}
+                                    {t.role !== "Player" ? <span className="text-yellow-300">· {t.role}</span> : null}
+                                  </Link>
+                                </li>
+                              ))}
+                            </ul>
+                          ) : (
+                            <span className="text-sm text-slate-400">No team</span>
+                          )}
+                        </td>
+                        <td className="py-3 pl-3 pr-6">
+                          <div className="flex justify-end gap-2">
+                            <Link
+                              href={`/clubs/${clubId}/members/${member.memberId}`}
+                              className="rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-200"
+                            >
+                              View
+                            </Link>
+                            <Link
+                              href={`/clubs/${clubId}/members/${member.memberId}/edit`}
+                              className="inline-flex items-center gap-1 rounded-lg bg-yellow-400 px-3 py-1.5 text-xs font-bold text-[#06054e] hover:bg-yellow-500"
+                            >
+                              <Edit size={14} /> Edit
+                            </Link>
+                            <button
+                              onClick={() => handleDelete(member.memberId)}
+                              className="rounded-lg bg-red-500 px-2.5 py-1.5 text-white hover:bg-red-600"
+                              aria-label={`Delete ${member.personalInfo.firstName} ${member.personalInfo.lastName}`}
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
 
           {/* Pagination */}

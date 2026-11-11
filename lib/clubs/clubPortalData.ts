@@ -20,6 +20,7 @@ const ROLE_LABEL: Record<string, string> = {
   "role-social-player": "Social Player",
   "role-coach": "Coach",
   "role-team-manager": "Team Manager",
+  "role-manager": "Team Manager",
   "role-umpire": "Umpire",
   "role-committee-member": "Committee Member",
   "role-president": "President",
@@ -289,6 +290,7 @@ export async function getClubTeamsOverview(db: Db, club: Doc, opts: { season?: s
 
 // ── Members: teams + positions ───────────────────────────────────────────────
 
+/** A member's teams at this club and the roles/positions they hold. */
 export interface MemberTeamLink {
   teamId: string;
   name: string;
@@ -304,7 +306,7 @@ export async function getClubMemberLinks(
   db: Db,
   club: Doc,
   members: Doc[],
-): Promise<Record<string, { teams: MemberTeamLink[]; positions: string[] }>> {
+): Promise<Record<string, { teams: MemberTeamLink[]; /** e.g. ["President", "Player", "Coach", "Umpire"] */ positions: string[] }>> {
   const clubId = String(club.id);
   const ids = members.map((m) => String(m.memberId));
   const teams = await db
@@ -335,7 +337,6 @@ export async function getClubMemberLinks(
       if (!idSet.has(id)) continue;
       const staff = r.roleCategory !== "Participant" && !isPlayerRole(String(r.roleId));
       link(id, String(t.teamId), staff ? roleLabel(String(r.roleId ?? "")) : "Player");
-      if (staff) get(id).positions.add(`${roleLabel(String(r.roleId ?? ""))} · ${String(t.displayName || t.name)}`);
     }
   }
   for (const l of lineups) {
@@ -343,24 +344,33 @@ export async function getClubMemberLinks(
     for (const s of (l.staff as Doc[]) ?? []) {
       if (!idSet.has(String(s.memberId))) continue;
       link(String(s.memberId), String(l.teamId), String(s.role ?? "Staff"));
-      get(String(s.memberId)).positions.add(`${String(s.role ?? "Staff")} · ${String(teamById.get(String(l.teamId))?.name ?? "")}`);
     }
   }
 
-  // Club committee (by memberId, else by name) + administrative / official roles
+  // Roles & positions: committee positions, then every role the member holds
+  // (from their member record and from this club's teams: Player, Coach,
+  // Team Manager…), then Umpire / Volunteer / admin roles.
   const committee = (club.committee as Doc[]) ?? [];
   const norm = (s: string) => s.toLowerCase().replace(/[^a-z]/g, "");
+  const ordered = new Map<string, string[]>();
   for (const m of members) {
     const id = String(m.memberId);
     const full = norm(`${m.personalInfo?.firstName ?? ""}${m.personalInfo?.lastName ?? ""}`);
+    const list: string[] = [];
+    const add = (label: string) => {
+      if (label && !list.includes(label)) list.push(label);
+    };
     for (const c of committee) {
       if ((c.memberId && String(c.memberId) === id) || (c.name && full && norm(String(c.name)) === full)) {
-        if (c.position) get(id).positions.add(String(c.position));
+        if (c.position) add(String(c.position));
       }
     }
-    for (const r of (m.roles as string[]) ?? []) {
-      if (!isPlayerRole(r) && !isCoachRole(r) && r !== "role-team-manager") get(id).positions.add(roleLabel(r));
-    }
+    const teamRoles = [...(out[id]?.teams.values() ?? [])].map((t) => t.role);
+    const roleLabels = [...((m.roles as string[]) ?? []).map(roleLabel), ...teamRoles];
+    // Players / coaches / managers first, then everything else
+    const rank = (l: string) => (/player|goalkeeper/i.test(l) ? 0 : /coach/i.test(l) ? 1 : /manager/i.test(l) ? 2 : /umpire|official|judge/i.test(l) ? 3 : 4);
+    for (const l of [...new Set(roleLabels)].sort((a, b) => rank(a) - rank(b) || a.localeCompare(b))) add(l);
+    ordered.set(id, list);
   }
 
   return Object.fromEntries(
@@ -368,7 +378,7 @@ export async function getClubMemberLinks(
       id,
       {
         teams: [...(out[id]?.teams.values() ?? [])].sort((a, b) => String(b.season).localeCompare(String(a.season)) || a.name.localeCompare(b.name, "en", { numeric: true })),
-        positions: [...(out[id]?.positions ?? [])].sort(),
+        positions: ordered.get(id) ?? [],
       },
     ]),
   );

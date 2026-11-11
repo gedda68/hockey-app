@@ -59,11 +59,13 @@ describe("club portal data", () => {
   it("links members to teams and positions", async () => {
     const members = (await db.collection("members").find({ $or: [{ clubId: "club-X" }, { "clubRegistrations.clubId": "club-X" }] }).toArray());
     const links = await getClubMemberLinks(db, club, members);
-    expect(links.p1).toEqual({ teams: [{ teamId: "t1", name: "X BHL 1", season: "2026", role: "Player" }], positions: ["President"] });
+    expect(links.p1).toEqual({ teams: [{ teamId: "t1", name: "X BHL 1", season: "2026", role: "Player" }], positions: ["President", "Player"] });
     expect(links.x1!.teams.map((t) => t.teamId).sort()).toEqual(["t1", "t2"]); // more than one team
-    expect(links.c1!.positions).toEqual(["Coach · X BHL 1"]);
+    expect(links.c1!.positions).toEqual(["Coach"]);
     expect(links.u1!.positions).toEqual(["Umpire", "Volunteer"]);
+    expect(links.x1!.positions).toEqual(["Player"]); // from team sheets, no member role
     expect(links.p2!.teams).toEqual([]); // DNP only
+    expect(links.p2!.positions).toEqual(["Junior Player"]);
   });
 
   it("builds team overviews with latest team sheet and staff", async () => {
