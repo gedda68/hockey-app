@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import type { Match, FixtureMatchEventPublic, FixtureUmpireSlot } from "@/types";
-import type { PublicMatchPlayer } from "@/lib/data/matchPlayers";
+import type { PublicMatchPlayer, PublicMatchStaff } from "@/lib/data/matchPlayers";
+import MatchStats from "@/components/matches/MatchStats";
 
 type TabKey = "summary" | "timeline" | "umpires" | "stats";
 
@@ -38,6 +39,7 @@ export default function MatchCentreTabs({
   umpires,
   players = {},
   teamColorById = {},
+  staffByTeam = {},
 }: {
   match: Match;
   teamNameById: Record<string, string>;
@@ -45,6 +47,7 @@ export default function MatchCentreTabs({
   umpires: FixtureUmpireSlot[] | null;
   players?: Record<string, PublicMatchPlayer>;
   teamColorById?: Record<string, { primary: string; secondary: string }>;
+  staffByTeam?: Record<string, PublicMatchStaff[]>;
 }) {
   const [tab, setTab] = useState<TabKey>("summary");
 
@@ -174,9 +177,7 @@ export default function MatchCentreTabs({
           <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-yellow-200">
             Stats
           </h2>
-          <p className="mt-3 text-sm text-white/60">
-            Coming next: team stats, scorers, cards, and player summaries.
-          </p>
+          <MatchStats match={match} players={players} teamColorById={teamColorById} staffByTeam={staffByTeam} />
         </section>
       ) : null}
     </div>

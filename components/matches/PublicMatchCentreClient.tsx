@@ -120,6 +120,7 @@ export default function PublicMatchCentreClient({
             umpires={centre.umpires}
             players={centre.players}
             teamColorById={centre.teamColorById}
+            staffByTeam={centre.staffByTeam}
           />
         </div>
       </div>

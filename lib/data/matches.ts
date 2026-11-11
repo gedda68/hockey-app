@@ -12,7 +12,7 @@ import type {
   ViewType,
 } from "@/types";
 import clientPromise from "@/lib/mongodb";
-import { loadMatchPlayers, type PublicMatchPlayer } from "@/lib/data/matchPlayers";
+import { loadMatchPlayers, loadMatchStaff, type PublicMatchPlayer, type PublicMatchStaff } from "@/lib/data/matchPlayers";
 import type { PublicTenantPayload } from "@/lib/tenant/portalHost";
 import { seasonCompetitionVisibleForPortalTenant } from "@/lib/tenant/seasonCompetitionTenantGate";
 
@@ -488,6 +488,8 @@ export type PublicMatchCentre = {
   players: Record<string, PublicMatchPlayer>;
   /** Club colours per team, for player badges without a photo. */
   teamColorById: Record<string, { primary: string; secondary: string }>;
+  /** Coaches / managers from the fixture lineups, by team id. */
+  staffByTeam: Record<string, PublicMatchStaff[]>;
 };
 
 export async function getPublicMatchCentreById(
@@ -639,6 +641,7 @@ export async function getPublicMatchCentreById(
     umpires: fixtureUmpires,
     players,
     teamColorById,
+    staffByTeam: await loadMatchStaff(db, String(fx.fixtureId ?? id)),
   };
 }
 

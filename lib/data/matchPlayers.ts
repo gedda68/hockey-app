@@ -114,3 +114,32 @@ export async function loadMatchPlayers(
   }
   return out;
 }
+
+export interface PublicMatchStaff {
+  name: string;
+  role: string;
+}
+
+/** Coaches / managers recorded on the fixture's lineups, by team. */
+export async function loadMatchStaff(db: Db, fixtureId: string): Promise<Record<string, PublicMatchStaff[]>> {
+  const lineups = await db
+    .collection(FIXTURE_LINEUPS_COLLECTION)
+    .find({ fixtureId }, { projection: { teamId: 1, staff: 1 } })
+    .toArray();
+  const ids = [...new Set(lineups.flatMap((l) => ((l.staff as Doc[]) ?? []).map((s) => String(s.memberId))))];
+  if (ids.length === 0) return {};
+  const members = await db
+    .collection("members")
+    .find({ memberId: { $in: ids } }, { projection: { memberId: 1, personalInfo: 1 } })
+    .toArray();
+  const byId = new Map(members.map((m) => [String(m.memberId), m]));
+  const out: Record<string, PublicMatchStaff[]> = {};
+  for (const l of lineups) {
+    const staff = ((l.staff as Doc[]) ?? []).map((s) => ({
+      name: memberPublicName(byId.get(String(s.memberId)), "—"),
+      role: String(s.role ?? "Staff"),
+    }));
+    if (staff.length) out[String(l.teamId)] = staff;
+  }
+  return out;
+}
