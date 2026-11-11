@@ -4,6 +4,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import { getErrorMessage } from "@/lib/utils/errors";
 import { toast } from "sonner";
 import {
@@ -55,6 +56,10 @@ interface Member {
     status: string;
     membershipType: string;
   };
+  /** Club teams the member is associated with (roster, staff or team sheets). */
+  clubTeams?: { teamId: string; name: string; season: string | null; role: string }[];
+  /** Positions held (committee, team staff, official roles). */
+  positions?: string[];
 }
 
 interface MembersListProps {
@@ -160,6 +165,11 @@ export default function MembersList({ clubId }: MembersListProps) {
   const [configItems, setConfigItems] = useState<ConfigItem[]>([]);
   const [filteredMembers, setFilteredMembers] = useState<Member[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
+  const searchParams = useSearchParams();
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive">(() => {
+    const s = searchParams?.get("status");
+    return s === "active" || s === "inactive" ? s : "all";
+  });
   const [currentPage, setCurrentPage] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
@@ -255,14 +265,19 @@ export default function MembersList({ clubId }: MembersListProps) {
 
   // Filter members with role search
   useEffect(() => {
+    const byStatus = members.filter((m) => {
+      if (statusFilter === "all") return true;
+      const active = /^active$/i.test(m.membership?.status ?? "");
+      return statusFilter === "active" ? active : !active;
+    });
     if (!searchQuery.trim()) {
-      setFilteredMembers(members);
+      setFilteredMembers(byStatus);
       setCurrentPage(1);
       return;
     }
 
     const query = searchQuery.toLowerCase();
-    const filtered = members.filter((member) => {
+    const filtered = byStatus.filter((member) => {
       const firstName = member.personalInfo.firstName?.toLowerCase() || "";
       const lastName = member.personalInfo.lastName?.toLowerCase() || "";
       const displayName = member.personalInfo.displayName?.toLowerCase() || "";
@@ -278,7 +293,12 @@ export default function MembersList({ clubId }: MembersListProps) {
         )
         .join(" ");
 
+      const teamNames = (member.clubTeams ?? []).map((t) => t.name.toLowerCase()).join(" ");
+      const positions = (member.positions ?? []).join(" ").toLowerCase();
+
       return (
+        teamNames.includes(query) ||
+        positions.includes(query) ||
         firstName.includes(query) ||
         lastName.includes(query) ||
         displayName.includes(query) ||
@@ -291,7 +311,7 @@ export default function MembersList({ clubId }: MembersListProps) {
 
     setFilteredMembers(filtered);
     setCurrentPage(1);
-  }, [searchQuery, members, configItems]);
+  }, [searchQuery, members, configItems, statusFilter]);
 
   const handleDelete = async (memberId: string) => {
     if (!confirm("Are you sure you want to delete this member?")) {
@@ -417,7 +437,7 @@ export default function MembersList({ clubId }: MembersListProps) {
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search members..."
+                placeholder="Search name, team, position..."
                 className="w-full pl-9 pr-9 py-2 text-sm bg-slate-50 border-2 border-slate-200 rounded-xl outline-none font-bold focus:ring-2 ring-yellow-400 focus:border-yellow-400 transition-all"
               />
               {searchQuery && (
@@ -429,6 +449,23 @@ export default function MembersList({ clubId }: MembersListProps) {
                 </button>
               )}
             </div>
+          </div>
+
+          {/* Status filter */}
+          <div className="flex rounded-xl border-2 border-slate-200 bg-slate-50 p-0.5 text-xs font-bold" role="group" aria-label="Membership status">
+            {(["all", "active", "inactive"] as const).map((s) => (
+              <button
+                key={s}
+                type="button"
+                onClick={() => setStatusFilter(s)}
+                aria-pressed={statusFilter === s}
+                className={`rounded-lg px-3 py-1.5 capitalize transition ${
+                  statusFilter === s ? "bg-[#06054e] text-white" : "text-slate-600 hover:bg-slate-200"
+                }`}
+              >
+                {s}
+              </button>
+            ))}
           </div>
 
           {/* Sort Buttons - Beside Search */}
@@ -660,6 +697,41 @@ export default function MembersList({ clubId }: MembersListProps) {
                         +{member.roles.length - 3}
                       </span>
                     )}
+                  </div>
+                )}
+
+                {/* Positions held */}
+                {member.positions && member.positions.length > 0 && (
+                  <div className="mb-3">
+                    <p className="mb-1 text-[11px] font-black uppercase tracking-widest text-slate-400">Positions</p>
+                    <ul className="flex flex-wrap gap-1.5">
+                      {member.positions.map((p) => (
+                        <li key={p} className="rounded-lg bg-amber-100 px-2 py-1 text-xs font-bold text-amber-800">
+                          {p}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {/* Teams (linked) */}
+                {member.clubTeams && member.clubTeams.length > 0 && (
+                  <div className="mb-4">
+                    <p className="mb-1 text-[11px] font-black uppercase tracking-widest text-slate-400">Teams</p>
+                    <ul className="flex flex-wrap gap-1.5">
+                      {member.clubTeams.map((t) => (
+                        <li key={t.teamId}>
+                          <Link
+                            href={`/clubs/${clubId}/teams/${encodeURIComponent(t.teamId)}`}
+                            className="inline-flex items-center gap-1 rounded-full bg-[#06054e] px-2.5 py-1 text-xs font-bold text-white hover:bg-[#1a1870]"
+                            title={`${t.name}${t.season ? ` (${t.season})` : ""} · ${t.role}`}
+                          >
+                            {t.name}
+                            {t.role !== "Player" ? <span className="text-yellow-300">· {t.role}</span> : null}
+                          </Link>
+                        </li>
+                      ))}
+                    </ul>
                   </div>
                 )}
 

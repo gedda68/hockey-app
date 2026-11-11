@@ -1,6 +1,7 @@
 // app/(website)/clubs/[clubId]/members/page.tsx
 // Members list page
 
+import { Suspense } from "react";
 import MembersList from "./MembersListClient";
 
 interface PageProps {
@@ -17,11 +18,13 @@ export default async function MembersPage({ params }: PageProps) {
       <div className="mb-8">
         <h1 className="text-4xl font-black text-[#06054e] mb-2">Members</h1>
         <p className="text-lg text-slate-600 font-bold">
-          Manage your club members
+          Everyone in the club — players, coaches, umpires, committee and volunteers — with their teams and positions
         </p>
       </div>
 
-      <MembersList clubId={clubId} />
+      <Suspense fallback={<p className="text-slate-500">Loading members…</p>}>
+        <MembersList clubId={clubId} />
+      </Suspense>
     </div>
   );
 }

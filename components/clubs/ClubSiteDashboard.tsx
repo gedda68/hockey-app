@@ -5,32 +5,17 @@ import {
   TrendingUp,
   UserRoundPlus,
 } from "lucide-react";
-import { alignLocalOriginPort, localDevOrigin } from "@/lib/utils/devServerOrigin";
+import clientPromise from "@/lib/mongodb";
+import { getClubMemberStats, resolveClub, type ClubMemberStats } from "@/lib/clubs/clubPortalData";
 
-async function getClubStats(clubId: string) {
+async function getClubStats(clubIdOrSlug: string): Promise<ClubMemberStats | null> {
   try {
-    const res = await fetch(
-      `${
-        alignLocalOriginPort(process.env.NEXT_PUBLIC_BASE_URL || localDevOrigin())
-      }/api/clubs/${clubId}/members`,
-      { cache: "no-store" },
-    );
-
-    if (!res.ok) return { total: 0, active: 0, players: 0, coaches: 0 };
-
-    const members = await res.json();
-
-    return {
-      total: members.length,
-      active: members.filter((m: { membership: { status: string } }) => m.membership.status === "Active")
-        .length,
-      players: members.filter((m: { roles: string[] }) => m.roles.includes("role-player"))
-        .length,
-      coaches: members.filter((m: { roles: string[] }) => m.roles.includes("role-coach"))
-        .length,
-    };
-  } catch {
-    return { total: 0, active: 0, players: 0, coaches: 0 };
+    const db = (await clientPromise).db(process.env.DB_NAME || "hockey-app");
+    const club = await resolveClub(db, clubIdOrSlug);
+    return club ? await getClubMemberStats(db, club) : null;
+  } catch (e) {
+    console.error("Club dashboard stats:", e);
+    return null;
   }
 }
 
@@ -39,7 +24,9 @@ export default async function ClubSiteDashboard({
 }: {
   clubId: string;
 }) {
-  const stats = await getClubStats(clubId);
+  const stats = (await getClubStats(clubId)) ?? {
+    total: 0, active: 0, inactive: 0, players: 0, activePlayers: 0, coaches: 0, activeCoaches: 0,
+  };
 
   return (
     <div className="max-w-7xl mx-auto p-8 space-y-8">
@@ -49,24 +36,32 @@ export default async function ClubSiteDashboard({
           value={stats.total}
           icon={<Users className="text-blue-600" size={32} />}
           bgColor="bg-blue-50"
+          subtitle={`${stats.active} active · ${stats.inactive} inactive`}
+          href={`/clubs/${clubId}/members`}
         />
         <StatCard
           title="Active Members"
           value={stats.active}
           icon={<TrendingUp className="text-green-600" size={32} />}
           bgColor="bg-green-50"
+          subtitle={stats.total ? `${Math.round((stats.active / stats.total) * 100)}% of members` : undefined}
+          href={`/clubs/${clubId}/members?status=active`}
         />
         <StatCard
           title="Players"
           value={stats.players}
           icon={<Shield className="text-purple-600" size={32} />}
           bgColor="bg-purple-50"
+          subtitle={`${stats.activePlayers} active`}
+          href={`/clubs/${clubId}/teams`}
         />
         <StatCard
           title="Coaches"
           value={stats.coaches}
           icon={<Users className="text-orange-600" size={32} />}
           bgColor="bg-orange-50"
+          subtitle={`${stats.activeCoaches} active`}
+          href={`/clubs/${clubId}/teams`}
         />
       </div>
 
@@ -122,22 +117,33 @@ function StatCard({
   value,
   icon,
   bgColor,
+  subtitle,
+  href,
 }: {
   title: string;
   value: number;
   icon: React.ReactNode;
   bgColor: string;
+  subtitle?: string;
+  href?: string;
 }) {
-  return (
-    <div className="bg-white rounded-[2rem] shadow-xl border border-slate-100 p-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-sm font-bold text-slate-500 uppercase">{title}</p>
-          <p className="text-4xl font-black text-[#06054e] mt-2">{value}</p>
-        </div>
-        <div className={`${bgColor} p-4 rounded-2xl`}>{icon}</div>
+  const body = (
+    <div className="flex items-center justify-between">
+      <div>
+        <p className="text-sm font-bold text-slate-500 uppercase">{title}</p>
+        <p className="text-4xl font-black text-[#06054e] mt-2 tabular-nums">{value.toLocaleString("en-AU")}</p>
+        {subtitle ? <p className="mt-1 text-sm font-semibold text-slate-500">{subtitle}</p> : null}
       </div>
+      <div className={`${bgColor} p-4 rounded-2xl`}>{icon}</div>
     </div>
+  );
+  const cls = "block bg-white rounded-[2rem] shadow-xl border border-slate-100 p-6";
+  return href ? (
+    <Link href={href} className={`${cls} transition hover:-translate-y-0.5 hover:border-yellow-400`}>
+      {body}
+    </Link>
+  ) : (
+    <div className={cls}>{body}</div>
   );
 }
 
