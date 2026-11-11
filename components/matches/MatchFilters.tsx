@@ -1,4 +1,6 @@
 import FilterButton from "../shared/FilterButton";
+import CompetitionPicker from "../shared/CompetitionPicker";
+import { buildCompetitionPicker } from "@/lib/competitions/competitionPickerOptions";
 import type { ViewType } from "../../types";
 import type { SeasonCompetitionOption } from "@/lib/data/matches";
 
@@ -39,24 +41,19 @@ export default function MatchFilters({
 
   return (
     <div className="flex flex-wrap gap-x-12 gap-y-6">
-      {/* Competition + Season (seasonCompetition) Filter */}
+      {/* Competition + Season (seasonCompetition) picker */}
       {seasonCompetitions.length > 0 && (
-        <div className="flex flex-col gap-2">
-          <span className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em]">
-            Competition
-          </span>
-          <div className="flex gap-2">
-            {seasonCompetitions.map((sc) => (
-              <FilterButton
-                key={sc.seasonCompetitionId}
-                href={buildUrl({ seasonCompetitionId: sc.seasonCompetitionId })}
-                isActive={selectedSeasonCompetitionId === sc.seasonCompetitionId}
-                variant="primary"
-              >
-                {sc.label}
-              </FilterButton>
-            ))}
-          </div>
+        <div className="w-full">
+          <CompetitionPicker
+            selectedId={selectedSeasonCompetitionId}
+            seasons={buildCompetitionPicker(
+              seasonCompetitions.map((sc) => ({
+                ...sc,
+                // a new competition resets round + team
+                href: buildUrl({ seasonCompetitionId: sc.seasonCompetitionId, round: "All" }),
+              })),
+            )}
+          />
         </div>
       )}
 
