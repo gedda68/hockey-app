@@ -35,6 +35,7 @@ export default async function MatchCentrePage({
       sidebar={
         seasons.length > 0 && scId ? (
           <MatchQuickLinks
+            key={`quick-links-${scId}`}
             seasons={seasons}
             currentFixtureId={centre.match.matchId || matchId}
             currentSeasonCompetitionId={scId}
