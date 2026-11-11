@@ -53,3 +53,5 @@ next-env.d.ts
 *Copy*.ts
 # Exceptions — production source files that legitimately contain "Copy" in the name
 !lib/website/associationHubCopy.ts
+# member de-duplication plans/backups (contain personal data)
+/dedupe-output/
