@@ -1,5 +1,7 @@
 // @vitest-environment node
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 import { renderToStaticMarkup } from "react-dom/server";
 import ClubPeopleList, { pageWindow } from "@/components/clubs/ClubPeopleList";
 
@@ -23,5 +25,34 @@ describe("ClubPeopleList pagination", () => {
   it("windows page numbers", () => {
     expect(pageWindow(5, 10)).toEqual([1, "…", 4, 5, 6, "…", 10]);
     expect(pageWindow(1, 3)).toEqual([1, 2, 3]);
+  });
+});
+
+import { filterPeople, matchPeople } from "@/lib/clubs/peopleSearch";
+
+describe("people search", () => {
+  const opts = [
+    { memberId: "a", name: "Zoë Adams", teams: ["CHC BHL 1"] },
+    { memberId: "b", name: "Adam Brown", teams: ["CHC JHL U14A"] },
+    { memberId: "c", name: "Carla Madam", teams: ["CHC Masters"] },
+  ];
+  it("suggests name prefix matches first, then contains, then team", () => {
+    expect(matchPeople(opts, "adam").map((o) => o.memberId)).toEqual(["b", "a", "c"]);
+    expect(matchPeople(opts, "zoe").map((o) => o.memberId)).toEqual(["a"]); // accent-insensitive
+    expect(matchPeople(opts, "u14").map((o) => o.memberId)).toEqual(["b"]);
+    expect(matchPeople(opts, "adams bhl").map((o) => o.memberId)).toEqual(["a"]);
+    expect(matchPeople(opts, "  ")).toEqual([]);
+  });
+  it("filters the list by name or team words", () => {
+    const people = opts.map((o) => ({ ...o, teams: o.teams.map((name) => ({ name })) }));
+    expect(filterPeople(people, "masters").map((p) => p.memberId)).toEqual(["c"]);
+    expect(filterPeople(people, "").length).toBe(3);
+  });
+  it("renders the search box and keeps the query in page links", () => {
+    const many = Array.from({ length: 30 }, (_, i) => ({ memberId: `m${i}`, name: `Sam ${i}`, firstName: "Sam", lastName: String(i), photoUrl: null, roles: ["Player"], teams: [] }));
+    const html = renderToStaticMarkup(<ClubPeopleList clubId="c" kind="player" people={many} query="sam" />);
+    expect(html).toContain('role="combobox"');
+    expect(html).toContain("30 matches for");
+    expect(html).toContain('href="/clubs/c/players?q=sam&amp;page=2"');
   });
 });
