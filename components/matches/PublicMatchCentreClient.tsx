@@ -121,6 +121,8 @@ export default function PublicMatchCentreClient({
             players={centre.players}
             teamColorById={centre.teamColorById}
             staffByTeam={centre.staffByTeam}
+            teamStats={centre.teamStats}
+            periodEndMinutes={centre.periodEndMinutes}
           />
         </div>
       </div>

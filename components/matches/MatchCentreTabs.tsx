@@ -5,6 +5,8 @@ import { useMemo, useState } from "react";
 import type { Match, FixtureMatchEventPublic, FixtureUmpireSlot } from "@/types";
 import type { PublicMatchPlayer, PublicMatchStaff } from "@/lib/data/matchPlayers";
 import MatchStats from "@/components/matches/MatchStats";
+import type { PublicTeamStats } from "@/lib/data/matches";
+import { buildMatchTimeline } from "@/lib/competitions/matchTimeline";
 
 type TabKey = "summary" | "timeline" | "umpires" | "stats";
 
@@ -40,6 +42,8 @@ export default function MatchCentreTabs({
   players = {},
   teamColorById = {},
   staffByTeam = {},
+  teamStats = {},
+  periodEndMinutes = [],
 }: {
   match: Match;
   teamNameById: Record<string, string>;
@@ -48,6 +52,8 @@ export default function MatchCentreTabs({
   players?: Record<string, PublicMatchPlayer>;
   teamColorById?: Record<string, { primary: string; secondary: string }>;
   staffByTeam?: Record<string, PublicMatchStaff[]>;
+  teamStats?: Record<string, PublicTeamStats>;
+  periodEndMinutes?: number[];
 }) {
   const [tab, setTab] = useState<TabKey>("summary");
 
@@ -55,6 +61,17 @@ export default function MatchCentreTabs({
     const raw = (match.matchEvents ?? []) as FixtureMatchEventPublic[];
     return [...raw].sort((a, b) => (a.minute ?? 0) - (b.minute ?? 0));
   }, [match.matchEvents]);
+
+  const timeline = useMemo(
+    () =>
+      buildMatchTimeline(
+        events,
+        periodEndMinutes,
+        teamStats,
+        [match.homeTeamId, match.awayTeamId].filter((x): x is string => Boolean(x)),
+      ),
+    [events, periodEndMinutes, teamStats, match.homeTeamId, match.awayTeamId],
+  );
 
   const mapHref = useMemo(() => {
     const parts = [venue.name, venue.addressLine].filter(Boolean).join(" ");
@@ -122,21 +139,51 @@ export default function MatchCentreTabs({
           <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-yellow-200">
             Timeline
           </h2>
-          {events.length === 0 ? (
+          {timeline.length === 0 ? (
             <p className="mt-3 text-sm text-white/60">No match events available yet.</p>
           ) : (
-            <ol className="mt-4 space-y-2">
-              {events.map((e, i) => (
-                <TimelineEvent
-                  key={`${e.eventId ?? "evt"}-${e.kind ?? ""}-${i}`}
-                  event={e}
-                  player={players[e.memberId]}
-                  teamName={teamNameById[String(e.teamId ?? "")] ?? String(e.teamId ?? "Team")}
-                  teamColor={teamColorById[String(e.teamId ?? "")]}
-                  isHome={e.teamId === match.homeTeamId}
-                />
+            <div className="mt-4 space-y-6">
+              {timeline.map((g) => (
+                <section key={g.key} aria-label={g.label}>
+                  {timeline.length > 1 || g.range ? (
+                    <h3 className="mb-2 flex items-center gap-3 text-sm font-bold text-white">
+                      <span>{g.label}</span>
+                      {g.range ? <span className="text-xs font-semibold text-white/50">{g.range}</span> : null}
+                      <span className="h-px flex-1 bg-white/15" aria-hidden />
+                    </h3>
+                  ) : null}
+                  {g.items.length === 0 ? (
+                    <p className="pl-1 text-sm text-white/50">No goals, cards or set pieces.</p>
+                  ) : (
+                    <ol className="space-y-2">
+                      {g.items.map((item, i) =>
+                        item.type === "event" ? (
+                          <TimelineEvent
+                            key={`${item.event.eventId ?? "evt"}-${i}`}
+                            event={item.event}
+                            player={players[item.event.memberId]}
+                            teamName={teamNameById[String(item.event.teamId ?? "")] ?? String(item.event.teamId ?? "Team")}
+                            teamColor={teamColorById[String(item.event.teamId ?? "")]}
+                            isHome={item.event.teamId === match.homeTeamId}
+                          />
+                        ) : (
+                          <TimelineClubEvent
+                            key={`club-${item.teamId}-${item.kind}-${i}`}
+                            teamName={teamNameById[item.teamId] ?? item.teamId}
+                            teamIcon={item.teamId === match.homeTeamId ? match.homeTeamIcon : match.awayTeamIcon}
+                            teamColor={teamColorById[item.teamId]}
+                            isHome={item.teamId === match.homeTeamId}
+                            kind={item.kind}
+                            awarded={item.awarded}
+                            scored={item.scored}
+                          />
+                        ),
+                      )}
+                    </ol>
+                  )}
+                </section>
               ))}
-            </ol>
+            </div>
           )}
         </section>
       ) : null}
@@ -177,7 +224,14 @@ export default function MatchCentreTabs({
           <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-yellow-200">
             Stats
           </h2>
-          <MatchStats match={match} players={players} teamColorById={teamColorById} staffByTeam={staffByTeam} />
+          <MatchStats
+            match={match}
+            players={players}
+            teamColorById={teamColorById}
+            staffByTeam={staffByTeam}
+            teamStats={teamStats}
+            periodEndMinutes={periodEndMinutes}
+          />
         </section>
       ) : null}
     </div>
@@ -327,6 +381,63 @@ export function TimelineEvent({
         <div>
           <p className={`text-sm font-bold ${isGoal ? "text-yellow-200" : "text-white"}`}>{label}</p>
           {detail ? <p className="text-xs text-white/80">{detail}</p> : null}
+        </div>
+      </div>
+    </li>
+  );
+}
+
+/** A set piece credited to the club (no player): e.g. penalty corners awarded in a quarter. */
+export function TimelineClubEvent({
+  teamName,
+  teamIcon,
+  teamColor,
+  isHome,
+  kind,
+  awarded,
+  scored,
+}: {
+  teamName: string;
+  teamIcon?: string;
+  teamColor?: { primary: string; secondary: string };
+  isHome: boolean;
+  kind: "penalty_corners" | "penalty_strokes";
+  awarded: number;
+  scored: number;
+}) {
+  const primary = teamColor?.primary ?? (isHome ? "#0369a1" : "#be185d");
+  const secondary = teamColor?.secondary ?? primary;
+  const noun = kind === "penalty_corners" ? "penalty corner" : "penalty stroke";
+  return (
+    <li
+      className="flex items-center gap-4 rounded-2xl border border-white/10 px-4 py-3 text-white shadow-lg [text-shadow:0_1px_2px_rgba(0,0,0,0.6)]"
+      style={{
+        background: `linear-gradient(100deg, ${withAlpha(primary, 0.9)} 0%, ${withAlpha(secondary, 0.65)} 45%, rgba(15, 23, 42, 0.85) 100%), #0f172a`,
+      }}
+    >
+      <span className="w-12 shrink-0 text-center text-xs font-bold uppercase leading-tight text-white/80">
+        {kind === "penalty_corners" ? "PC" : "PS"}
+      </span>
+      {teamIcon ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={teamIcon} alt="" className="h-12 w-12 shrink-0 rounded-full bg-white object-contain p-1 ring-2 ring-white/60" />
+      ) : (
+        <span className="h-12 w-12 shrink-0 rounded-full bg-white ring-2 ring-white/60" aria-hidden />
+      )}
+      <div className="min-w-0 flex-1">
+        <span className="block truncate text-base font-bold">{teamName}</span>
+        <span className="block truncate text-sm text-white/80">
+          {awarded} {noun}
+          {awarded === 1 ? "" : "s"} awarded
+        </span>
+      </div>
+      <div className="flex shrink-0 items-center gap-2 text-right">
+        <span className="flex h-6 min-w-6 items-center justify-center rounded-md bg-white/90 px-1.5 text-xs font-black text-slate-900 [text-shadow:none]">
+          {awarded}
+        </span>
+        <div>
+          <p className="text-sm font-bold">{kind === "penalty_corners" ? "Penalty corners" : "Penalty strokes"}</p>
+          <p className="text-xs text-white/80">{scored > 0 ? `${scored} scored` : "None scored"}</p>
         </div>
       </div>
     </li>

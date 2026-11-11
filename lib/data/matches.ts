@@ -11,8 +11,20 @@ import type {
   Season,
   ViewType,
 } from "@/types";
+import type { Db } from "mongodb";
 import clientPromise from "@/lib/mongodb";
 import { loadMatchPlayers, loadMatchStaff, type PublicMatchPlayer, type PublicMatchStaff } from "@/lib/data/matchPlayers";
+import { FIXTURE_TEAM_STATS_COLLECTION } from "@/lib/db/schemas/fixtureTeamStats.schema";
+
+/** Team-level numbers for one fixture (penalty corners awarded per period, etc.). */
+export type PublicTeamStats = {
+  penaltyCornersAwarded: { total: number; byPeriod: (number | null)[] } | null;
+  penaltyStrokesAwarded: { total: number; byPeriod: (number | null)[] } | null;
+  circleEntries: { total: number; byPeriod: (number | null)[] } | null;
+  shots: { total: number; byPeriod: (number | null)[] } | null;
+  shotsOnTarget: { total: number; byPeriod: (number | null)[] } | null;
+  possessionPct: number | null;
+};
 import type { PublicTenantPayload } from "@/lib/tenant/portalHost";
 import { seasonCompetitionVisibleForPortalTenant } from "@/lib/tenant/seasonCompetitionTenantGate";
 
@@ -490,6 +502,10 @@ export type PublicMatchCentre = {
   teamColorById: Record<string, { primary: string; secondary: string }>;
   /** Coaches / managers from the fixture lineups, by team id. */
   staffByTeam: Record<string, PublicMatchStaff[]>;
+  /** Team stats by team id (only once the result is public). */
+  teamStats: Record<string, PublicTeamStats>;
+  /** Minute each period ends, e.g. [17, 34, 51, 68]; empty when unknown. */
+  periodEndMinutes: number[];
 };
 
 export async function getPublicMatchCentreById(
@@ -642,6 +658,7 @@ export async function getPublicMatchCentreById(
     players,
     teamColorById,
     staffByTeam: await loadMatchStaff(db, String(fx.fixtureId ?? id)),
+    ...(await loadTeamStats(db, String(fx.fixtureId ?? id), showEvents)),
   };
 }
 
@@ -939,4 +956,31 @@ export async function getMatchStatsData(): Promise<any> {
     topAssists: [],
     teamStats: [],
   };
+}
+
+async function loadTeamStats(
+  db: Db,
+  fixtureId: string,
+  visible: boolean,
+): Promise<{ teamStats: Record<string, PublicTeamStats>; periodEndMinutes: number[] }> {
+  if (!visible) return { teamStats: {}, periodEndMinutes: [] };
+  const docs = await db
+    .collection(FIXTURE_TEAM_STATS_COLLECTION)
+    .find({ fixtureId })
+    .project({ _id: 0, teamId: 1, periodEndMinutes: 1, penaltyCornersAwarded: 1, penaltyStrokesAwarded: 1, circleEntries: 1, shots: 1, shotsOnTarget: 1, possessionPct: 1 })
+    .toArray();
+  const teamStats: Record<string, PublicTeamStats> = {};
+  let periodEndMinutes: number[] = [];
+  for (const d of docs) {
+    teamStats[String(d.teamId)] = {
+      penaltyCornersAwarded: d.penaltyCornersAwarded ?? null,
+      penaltyStrokesAwarded: d.penaltyStrokesAwarded ?? null,
+      circleEntries: d.circleEntries ?? null,
+      shots: d.shots ?? null,
+      shotsOnTarget: d.shotsOnTarget ?? null,
+      possessionPct: typeof d.possessionPct === "number" ? d.possessionPct : null,
+    };
+    if (!periodEndMinutes.length && Array.isArray(d.periodEndMinutes)) periodEndMinutes = d.periodEndMinutes.filter((n: unknown) => typeof n === "number");
+  }
+  return { teamStats, periodEndMinutes };
 }

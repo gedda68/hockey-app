@@ -1,7 +1,9 @@
 import Link from "next/link";
 import type { Match } from "@/types";
 import type { PublicMatchPlayer, PublicMatchStaff } from "@/lib/data/matchPlayers";
-import { computeMatchStats, type MatchLineupEntry, type MatchScorer } from "@/lib/competitions/matchStats";
+import { computeMatchStats, goalType, type MatchLineupEntry, type MatchScorer } from "@/lib/competitions/matchStats";
+import type { PublicTeamStats } from "@/lib/data/matches";
+import { periodLabel } from "@/lib/competitions/matchTimeline";
 
 type Colour = { primary: string; secondary: string };
 
@@ -10,6 +12,8 @@ interface MatchStatsProps {
   players: Record<string, PublicMatchPlayer>;
   teamColorById: Record<string, Colour>;
   staffByTeam: Record<string, PublicMatchStaff[]>;
+  teamStats?: Record<string, PublicTeamStats>;
+  periodEndMinutes?: number[];
 }
 
 const FALLBACK: Record<"home" | "away", Colour> = {
@@ -17,13 +21,24 @@ const FALLBACK: Record<"home" | "away", Colour> = {
   away: { primary: "#f472b6", secondary: "#db2777" },
 };
 
-export default function MatchStats({ match, players, teamColorById, staffByTeam }: MatchStatsProps) {
+export default function MatchStats({ match, players, teamColorById, staffByTeam, teamStats = {}, periodEndMinutes = [] }: MatchStatsProps) {
   const stats = computeMatchStats(match.matchEvents ?? [], match.homeTeamId, match.awayTeamId, players);
   const homeColour = (match.homeTeamId && teamColorById[match.homeTeamId]) || FALLBACK.home;
   const awayColour = (match.awayTeamId && teamColorById[match.awayTeamId]) || FALLBACK.away;
   const hasShootout = match.homeShootOutScore != null && match.awayShootOutScore != null;
 
-  if (!stats.hasEvents && !stats.hasLineups) {
+  const homeTs = match.homeTeamId ? teamStats[match.homeTeamId] : undefined;
+  const awayTs = match.awayTeamId ? teamStats[match.awayTeamId] : undefined;
+  const extraRows = (
+    [
+      ["Circle entries", homeTs?.circleEntries?.total, awayTs?.circleEntries?.total],
+      ["Shots", homeTs?.shots?.total, awayTs?.shots?.total],
+      ["Shots on target", homeTs?.shotsOnTarget?.total, awayTs?.shotsOnTarget?.total],
+      ["Possession %", homeTs?.possessionPct, awayTs?.possessionPct],
+    ] as [string, number | null | undefined, number | null | undefined][]
+  ).filter(([, h, a]) => h != null && a != null) as [string, number, number][];
+
+  if (!stats.hasEvents && !stats.hasLineups && !homeTs && !awayTs) {
     return <p className="mt-4 text-base text-white/70">Stats will appear once the result and team sheets are published.</p>;
   }
 
@@ -41,6 +56,9 @@ export default function MatchStats({ match, players, teamColorById, staffByTeam 
           {stats.rows.map((r) => (
             <CompareRow key={r.key} label={r.label} home={r.home} away={r.away} homeColour={homeColour} awayColour={awayColour} />
           ))}
+          {extraRows.map(([label, h, a]) => (
+            <CompareRow key={label} label={label} home={h} away={a} homeColour={homeColour} awayColour={awayColour} />
+          ))}
           {hasShootout && (
             <CompareRow
               label="Shootout"
@@ -52,6 +70,16 @@ export default function MatchStats({ match, players, teamColorById, staffByTeam 
           )}
         </ul>
       </section>
+
+      {/* Set pieces */}
+      <SetPieces
+        match={match}
+        homeTs={homeTs}
+        awayTs={awayTs}
+        periodEndMinutes={periodEndMinutes}
+        homeColour={homeColour}
+        awayColour={awayColour}
+      />
 
       {/* Goal scorers */}
       {(stats.scorers.home.length > 0 || stats.scorers.away.length > 0) && (
@@ -256,6 +284,163 @@ function Lineup({
           {staff.map((s) => `${s.role}: ${s.name}`).join(" · ")}
         </p>
       )}
+    </div>
+  );
+}
+
+function SetPieces({
+  match,
+  homeTs,
+  awayTs,
+  periodEndMinutes,
+  homeColour,
+  awayColour,
+}: {
+  match: Match;
+  homeTs?: PublicTeamStats;
+  awayTs?: PublicTeamStats;
+  periodEndMinutes: number[];
+  homeColour: Colour;
+  awayColour: Colour;
+}) {
+  const events = match.matchEvents ?? [];
+  const goals = (teamId: string | undefined, type: "corner" | "stroke") =>
+    events.filter((e) => e.teamId === teamId && goalType(e) === type).length;
+  const pcGoals = { home: goals(match.homeTeamId, "corner"), away: goals(match.awayTeamId, "corner") };
+  const psGoals = { home: goals(match.homeTeamId, "stroke"), away: goals(match.awayTeamId, "stroke") };
+  const pcAwarded = { home: homeTs?.penaltyCornersAwarded?.total ?? null, away: awayTs?.penaltyCornersAwarded?.total ?? null };
+  const psAwarded = { home: homeTs?.penaltyStrokesAwarded?.total ?? null, away: awayTs?.penaltyStrokesAwarded?.total ?? null };
+  const recordedPc = pcAwarded.home != null && pcAwarded.away != null;
+  const recordedPs = psAwarded.home != null && psAwarded.away != null;
+
+  if (!recordedPc && pcGoals.home + pcGoals.away + psGoals.home + psGoals.away === 0) return null;
+
+  const pct = (scored: number, awarded: number | null) =>
+    awarded == null ? "—" : awarded === 0 ? "—" : `${Math.round((scored / awarded) * 100)}%`;
+
+  const homePeriods = homeTs?.penaltyCornersAwarded?.byPeriod ?? [];
+  const awayPeriods = awayTs?.penaltyCornersAwarded?.byPeriod ?? [];
+  const periodCount = Math.max(homePeriods.length, awayPeriods.length);
+  const short = (i: number) => (periodCount === 2 ? `H${i + 1}` : periodCount === 4 ? `Q${i + 1}` : `P${i + 1}`);
+
+  return (
+    <section aria-labelledby="stats-setpieces">
+      <SectionTitle id="stats-setpieces">Penalty corners &amp; strokes</SectionTitle>
+      <div className="grid gap-4 md:grid-cols-2">
+        <SetPieceCard
+          title="Penalty corners"
+          home={match.homeTeam}
+          away={match.awayTeam}
+          homeColour={homeColour}
+          awayColour={awayColour}
+          rows={[
+            ["Awarded", pcAwarded.home ?? "—", pcAwarded.away ?? "—"],
+            ["Goals", pcGoals.home, pcGoals.away],
+            ["Conversion", pct(pcGoals.home, pcAwarded.home), pct(pcGoals.away, pcAwarded.away)],
+          ]}
+        />
+        <SetPieceCard
+          title="Penalty strokes"
+          home={match.homeTeam}
+          away={match.awayTeam}
+          homeColour={homeColour}
+          awayColour={awayColour}
+          rows={[
+            ["Awarded", recordedPs ? psAwarded.home! : "—", recordedPs ? psAwarded.away! : "—"],
+            ["Goals", psGoals.home, psGoals.away],
+            ["Conversion", recordedPs ? pct(psGoals.home, psAwarded.home) : "—", recordedPs ? pct(psGoals.away, psAwarded.away) : "—"],
+          ]}
+          note={recordedPs ? undefined : "Strokes awarded aren't recorded for this match — only strokes scored."}
+        />
+      </div>
+
+      {recordedPc && periodCount > 0 && (
+        <div className="mt-4 overflow-x-auto rounded-2xl border border-white/10 bg-black/20">
+          <table className="w-full min-w-[420px] text-base text-white">
+            <caption className="px-4 pt-3 text-left text-sm font-bold text-white/80">
+              Penalty corners by {periodCount === 2 ? "half" : "quarter"}
+            </caption>
+            <thead>
+              <tr className="text-xs uppercase tracking-wider text-white/50">
+                <th scope="col" className="px-4 py-2 text-left font-semibold">Team</th>
+                {Array.from({ length: periodCount }).map((_, i) => (
+                  <th key={i} scope="col" className="w-14 py-2 text-center font-semibold" title={periodLabel(i, periodCount)}>
+                    {short(i)}
+                  </th>
+                ))}
+                <th scope="col" className="w-16 py-2 pr-4 text-center font-semibold">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(
+                [
+                  [match.homeTeam, homePeriods, pcAwarded.home, homeColour],
+                  [match.awayTeam, awayPeriods, pcAwarded.away, awayColour],
+                ] as [string, (number | null)[], number | null, Colour][]
+              ).map(([name, periods, total, colour]) => (
+                <tr key={name} className="border-t border-white/10">
+                  <th scope="row" className="px-4 py-2 text-left font-semibold">
+                    <span className="mr-2 inline-block h-3 w-3 rounded-sm align-middle" style={{ background: colour.primary }} aria-hidden />
+                    {name}
+                  </th>
+                  {Array.from({ length: periodCount }).map((_, i) => (
+                    <td key={i} className="py-2 text-center tabular-nums">{periods[i] ?? "—"}</td>
+                  ))}
+                  <td className="py-2 pr-4 text-center font-black tabular-nums">{total ?? "—"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {periodEndMinutes.length > 0 && (
+            <p className="px-4 pb-3 text-xs text-white/50">
+              {periodEndMinutes.map((m, i) => `${short(i)} ends ${m}'`).join(" · ")}
+            </p>
+          )}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function SetPieceCard({
+  title,
+  home,
+  away,
+  homeColour,
+  awayColour,
+  rows,
+  note,
+}: {
+  title: string;
+  home: string;
+  away: string;
+  homeColour: Colour;
+  awayColour: Colour;
+  rows: [string, number | string, number | string][];
+  note?: string;
+}) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+      <p className="mb-3 text-base font-black text-white">{title}</p>
+      <div className="grid grid-cols-[1fr_auto_1fr] gap-x-3 gap-y-2 text-white">
+        <span className="truncate text-xs font-semibold uppercase tracking-wider" style={{ color: homeColour.primary === "#ffffff" ? "#e2e8f0" : undefined }}>
+          <span className="mr-1 inline-block h-2.5 w-2.5 rounded-sm align-middle" style={{ background: homeColour.primary }} aria-hidden />
+          {home}
+        </span>
+        <span />
+        <span className="truncate text-right text-xs font-semibold uppercase tracking-wider">
+          {away}
+          <span className="ml-1 inline-block h-2.5 w-2.5 rounded-sm align-middle" style={{ background: awayColour.primary }} aria-hidden />
+        </span>
+        {rows.map(([label, h, a]) => (
+          <div key={label} className="contents">
+            <span className="text-2xl font-black tabular-nums">{h}</span>
+            <span className="self-center text-center text-sm font-semibold text-white/70">{label}</span>
+            <span className="text-right text-2xl font-black tabular-nums">{a}</span>
+          </div>
+        ))}
+      </div>
+      {note ? <p className="mt-3 text-xs text-white/50">{note}</p> : null}
     </div>
   );
 }

@@ -22,6 +22,8 @@ import { MongoClient, type AnyBulkWriteOperation, type Db, type Document } from 
 import { transformHarvest, type ClubRef, type TransformResult } from "../../lib/altius/transform";
 import type { AltiusHarvest } from "../../lib/altius/harvestTypes";
 import { validateTransform } from "../../lib/altius/validate";
+import { transformTeamStats, type AltiusMatchStatsHarvest } from "../../lib/altius/teamStats";
+import { FixtureTeamStatsSchema, FIXTURE_TEAM_STATS_COLLECTION } from "../../lib/db/schemas/fixtureTeamStats.schema";
 
 if (process.env.DNS_SERVERS !== "system") {
   dns.setServers((process.env.DNS_SERVERS || "1.1.1.1,8.8.8.8").split(","));
@@ -31,6 +33,8 @@ const arg = (k: string) => process.argv.find((a) => a.startsWith(`--${k}=`))?.sp
 const APPLY = process.argv.includes("--apply");
 const SKIP_PEOPLE = process.argv.includes("--skip-people");
 const FILE = arg("file") ?? "data/altius/2026/bha-2026-altius.json";
+/** Optional second harvest: per-match statistics PDFs (penalty corners awarded per period). */
+const STATS_FILE = arg("stats-file") ?? "data/altius/2026/bha-2026-altius-stats.json";
 const ONLY = (arg("only") ?? "").split(",").map((s) => s.trim().toUpperCase()).filter(Boolean);
 const ASSOC = arg("association") ?? "bha";
 const SEASON = "2026";
@@ -64,6 +68,21 @@ async function main() {
   const t = transformHarvest(harvest, { associationId, season: SEASON, clubsByShortName, by: BY });
   const problems = validateTransform(t);
 
+  let teamStats: Document[] = [];
+  if (fs.existsSync(path.resolve(STATS_FILE))) {
+    const statsHarvest = JSON.parse(fs.readFileSync(path.resolve(STATS_FILE), "utf-8")) as AltiusMatchStatsHarvest;
+    const ts = transformTeamStats(statsHarvest, t.fixtures);
+    teamStats = ts.teamStats;
+    t.warnings.push(...ts.warnings);
+    for (const d of teamStats) {
+      const r = FixtureTeamStatsSchema.safeParse(d);
+      if (!r.success) problems.push(`team stats ${d.statsId}: ${r.error.issues[0]?.path.join(".")} — ${r.error.issues[0]?.message}`);
+    }
+    console.log(`\nTeam stats file: ${STATS_FILE} → ${teamStats.length} fixture_team_stats documents`);
+  } else {
+    console.log(`\n(No ${STATS_FILE} — skipping fixture_team_stats. Penalty corners awarded won't show.)`);
+  }
+
   printSummary(t, problems);
   if (t.unmappedTeams.length) {
     console.log("\n⚠ Teams whose club isn't in your clubs collection — a minimal club will be created for each:");
@@ -82,7 +101,7 @@ async function main() {
     return;
   }
 
-  await write(db, t);
+  await write(db, t, teamStats);
   await client.close();
 }
 
@@ -141,7 +160,7 @@ async function bulk(db: Db, name: string, ops: AnyBulkWriteOperation<Document>[]
   console.log(`  ${label.padEnd(28)} +${up} new, ${mod} updated`);
 }
 
-async function write(db: Db, t: TransformResult) {
+async function write(db: Db, t: TransformResult, teamStats: Document[]) {
   const now = new Date();
   const nowIso = now.toISOString();
   console.log("\nWriting…");
@@ -158,6 +177,11 @@ async function write(db: Db, t: TransformResult) {
     const { createdAt: _c, createdBy: _b, ...doc } = d;
     return { updateOne: { filter: { fixtureId: d.fixtureId }, update: { $set: doc, $setOnInsert: { createdAt: nowIso, createdBy: BY } }, upsert: true } };
   }));
+
+  if (teamStats.length) {
+    await db.collection(FIXTURE_TEAM_STATS_COLLECTION).createIndex({ fixtureId: 1, teamId: 1 }, { unique: true });
+    await bulk(db, FIXTURE_TEAM_STATS_COLLECTION, teamStats.map((d) => set({ statsId: d.statsId }, d, now)));
+  }
 
   // Remove Altius fixtures that no longer exist in the harvest for these season competitions
   const scIds = t.seasonCompetitions.map((s) => s.seasonCompetitionId);
