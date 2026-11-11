@@ -10,6 +10,8 @@ interface MatchFiltersProps {
   selectedRound: string;
   selectedStatus: string;
   selectedView: ViewType;
+  /** Keep a team filter (from the ladder) while changing round/status. */
+  selectedTeamId?: string;
 }
 
 export default function MatchFilters({
@@ -20,6 +22,7 @@ export default function MatchFilters({
   selectedRound,
   selectedStatus,
   selectedView,
+  selectedTeamId,
 }: MatchFiltersProps) {
   const buildUrl = (params: Record<string, string>) => {
     const searchParams = new URLSearchParams({
@@ -29,6 +32,8 @@ export default function MatchFilters({
       status: selectedStatus,
       ...params,
     });
+    // A team belongs to one season competition: drop the team filter when switching competitions
+    if (selectedTeamId && !("seasonCompetitionId" in params)) searchParams.set("teamId", selectedTeamId);
     return `/competitions/matches?${searchParams.toString()}`;
   };
 

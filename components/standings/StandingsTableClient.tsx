@@ -3,7 +3,8 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { cva } from "class-variance-authority";
 import { cn } from "../../lib/utils";
-import StandingsRow from "./StandingsRow";
+import StandingsRow, { STANDINGS_COMPACT_GRID } from "./StandingsRow";
+import { teamMatchesHref } from "./StandingsTableFull";
 import { Button } from "@/components/ui/Button";
 import Text from "../ui/Text";
 import type { Division } from "../../types";
@@ -13,7 +14,7 @@ const standingsContainerVariants = cva(
 );
 
 const tableHeaderVariants = cva(
-  "grid grid-cols-12 items-center px-2 pb-2 border-b border-white/20 text-[8px] font-black uppercase text-slate-400",
+  "px-2 pb-2 border-b border-white/20 text-[11px] font-bold uppercase tracking-wider text-slate-400",
 );
 
 const emptyStateVariants = cva("text-center py-8");
@@ -93,20 +94,22 @@ export default function StandingsTableClient({
       {division && division.teams && division.teams.length > 0 ? (
         <div className="space-y-1">
           {/* Table Header */}
-          <div className={tableHeaderVariants()}>
-            <div className="col-span-1">#</div>
-            <div className="col-span-5">Team</div>
-            <div className="col-span-2 text-center">P</div>
-            <div className="col-span-2 text-center">GD</div>
-            <div className="col-span-2 text-right">Pts</div>
+          <div className={cn(STANDINGS_COMPACT_GRID, tableHeaderVariants())}>
+            <span aria-hidden />
+            <span>#</span>
+            <span>Team</span>
+            <span className="text-center">P</span>
+            <span className="text-center">GD</span>
+            <span className="text-right">Pts</span>
           </div>
 
           {/* Team Rows */}
           {division.teams.map((team) => (
             <StandingsRow
-              key={team.club}
+              key={team.teamId ?? team.club}
               team={team}
-              totalTeams={division.teams.length}
+              finalsPlaces={division.finalsPlaces}
+              href={teamMatchesHref(division.slug, team)}
             />
           ))}
 

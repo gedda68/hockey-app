@@ -77,7 +77,7 @@ export default async function StandingsPage({
       </div>
 
       {/* Standings Table */}
-      <div className="max-w-4xl mx-auto">
+      <div className="max-w-5xl mx-auto pb-16">
         {finalDivision ? (
           <StandingsTableFull
             division={finalDivision}

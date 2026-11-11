@@ -27,10 +27,12 @@ interface Match {
   legacyMatchId?: string | null;
   fixtureUmpires?: FixtureUmpireSlot[] | null;
   homeTeam: {
+    id?: string;
     name: string;
     icon?: string;
   };
   awayTeam: {
+    id?: string;
     name: string;
     icon?: string;
   };
@@ -58,8 +60,10 @@ function mapStoredMatchToPublic(m: Match): PublicMatch {
     round: m.round,
     status: m.status,
     homeTeam: m.homeTeam.name,
+    homeTeamId: m.homeTeam.id,
     homeTeamIcon: m.homeTeam.icon,
     awayTeam: m.awayTeam.name,
+    awayTeamId: m.awayTeam.id,
     awayTeamIcon: m.awayTeam.icon,
     homeScore: m.score?.home ?? null,
     awayScore: m.score?.away ?? null,
@@ -296,12 +300,14 @@ export async function getMatches(opts?: GetMatchesOptions): Promise<Match[]> {
         dateTime,
         venue,
         homeTeam: {
+          id: f.homeTeamId ? String(f.homeTeamId) : undefined,
           name: teamNameById.get(String(f.homeTeamId)) ?? String(f.homeTeamId ?? "Home"),
           icon:
             clubLogoById.get(teamClubIdById.get(String(f.homeTeamId)) ?? "") ??
             undefined,
         },
         awayTeam: {
+          id: f.awayTeamId ? String(f.awayTeamId) : undefined,
           name: teamNameById.get(String(f.awayTeamId)) ?? String(f.awayTeamId ?? "Away"),
           icon:
             clubLogoById.get(teamClubIdById.get(String(f.awayTeamId)) ?? "") ??
@@ -852,6 +858,8 @@ export async function filterMatches(filters: {
   round?: string;
   status?: string;
   view?: ViewType;
+  /** Only matches this team played in (home or away). */
+  teamId?: string;
 }): Promise<PublicMatch[]> {
   let matches = await getMatches();
 
@@ -875,6 +883,12 @@ export async function filterMatches(filters: {
 
   if (filters.season) {
     matches = matches.filter((m) => m.season === filters.season);
+  }
+
+  if (filters.teamId) {
+    matches = matches.filter(
+      (m) => m.homeTeam.id === filters.teamId || m.awayTeam.id === filters.teamId,
+    );
   }
 
   if (filters.round && filters.round !== "All") {
