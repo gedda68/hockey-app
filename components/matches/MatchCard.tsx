@@ -29,6 +29,10 @@ const scoreVariants = cva(
   },
 );
 
+/** Same size + colour for every card action (navy = former ladder header colour). */
+const actionButtonClass =
+  "inline-flex h-10 flex-1 items-center justify-center whitespace-nowrap rounded-xl bg-[#06054e] px-4 text-xs font-bold uppercase tracking-wider text-white shadow-sm transition hover:bg-[#1a1870] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-sky-300 md:w-full md:flex-none";
+
 interface MatchCardProps {
   match: Match;
   isUpcoming: boolean;
@@ -56,10 +60,10 @@ export default function MatchCard({
   return (
     <Card variant="default" className="p-0 group">
       <div className="p-6">
-        <div className="flex items-start justify-between gap-4">
+        <div className="flex flex-col gap-4 md:flex-row md:items-center">
           <Link
             href={href}
-            className="flex-1 rounded-2xl outline-none focus:ring-4 ring-yellow-400/20"
+            className="min-w-0 flex-1 rounded-2xl outline-none focus:ring-4 ring-yellow-400/20"
             aria-label={`Open match centre: ${match.homeTeam} vs ${match.awayTeam}`}
           >
       <div className="flex flex-col md:flex-row items-center justify-between gap-6">
@@ -84,9 +88,9 @@ export default function MatchCard({
         </div>
 
         {/* TEAMS & SCORE (Center) */}
-        <div className="flex-1 flex items-center justify-center gap-4 md:gap-12 w-full">
+        <div className="flex min-w-0 flex-1 items-center justify-center gap-3 md:gap-6 w-full">
           {/* Home Team */}
-          <div className="flex flex-1 items-center justify-end gap-4">
+          <div className="flex min-w-0 flex-1 items-center justify-end gap-3">
             <Text
               variant="h4"
               className="text-sm md:text-base text-right leading-tight"
@@ -145,7 +149,7 @@ export default function MatchCard({
           </div>
 
           {/* Away Team */}
-          <div className="flex flex-1 items-center justify-start gap-4">
+          <div className="flex min-w-0 flex-1 items-center justify-start gap-3">
             {match.awayTeamIcon ? (
               <div className="relative w-12 h-12 shrink-0">
                 <Image
@@ -168,24 +172,16 @@ export default function MatchCard({
           </div>
         </div>
 
-        {/* Right-side action placeholder (buttons rendered outside Link) */}
-        <div className="hidden md:block min-w-[140px]" />
       </div>
           </Link>
 
-          <div className="shrink-0 flex flex-col items-end gap-2">
-            <Link
-              href={href}
-              className="rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-sky-900 hover:bg-sky-100"
-            >
+          {/* Actions: inside the card, equal size */}
+          <div className="flex shrink-0 gap-2 md:w-40 md:flex-col">
+            <Link href={href} className={actionButtonClass}>
               Match centre →
             </Link>
             {onQuickView ? (
-              <button
-                type="button"
-                onClick={onQuickView}
-                className="rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-[10px] font-black uppercase tracking-widest text-sky-900 hover:bg-sky-100"
-              >
+              <button type="button" onClick={onQuickView} className={actionButtonClass}>
                 Quick view
               </button>
             ) : null}
