@@ -1,5 +1,6 @@
 "use client";
 
+import { formatFixtureLabel } from "@/lib/competitions/fixtureLabel";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ListOrdered, Loader2, Plus, Save, Trash2 } from "lucide-react";
 import type { FixtureMatchEventKind } from "@/types";
@@ -73,7 +74,7 @@ export default function MatchEventsEditorClient({
     { seasonCompetitionId: string; season: string; status: string; label?: string }[]
   >([]);
   const [seasonCompetitionId, setSeasonCompetitionId] = useState("");
-  const [fixtures, setFixtures] = useState<{ fixtureId: string; round: number }[]>([]);
+  const [fixtures, setFixtures] = useState<{ fixtureId: string; round: number; label: string }[]>([]);
   const [fixtureId, setFixtureId] = useState("");
   const [ctx, setCtx] = useState<Context | null>(null);
   const [rows, setRows] = useState<Row[]>([]);
@@ -142,14 +143,33 @@ export default function MatchEventsEditorClient({
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(
-        `/api/admin/season-competitions/${encodeURIComponent(scId)}/fixtures`,
-        { credentials: "include" },
-      );
+      const [res, namesRes] = await Promise.all([
+        fetch(`/api/admin/season-competitions/${encodeURIComponent(scId)}/fixtures`, { credentials: "include" }),
+        fetch(`/api/admin/season-competitions/${encodeURIComponent(scId)}/squad`, { credentials: "include" }),
+      ]);
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to load fixtures");
-      const list = (data.fixtures ?? []) as { fixtureId: string; round: number }[];
-      setFixtures(list.map((f) => ({ fixtureId: f.fixtureId, round: Number(f.round) || 0 })));
+      const namesJson = namesRes.ok ? await namesRes.json() : { teams: [] };
+      const nameById = new Map<string, string>(
+        ((namesJson.teams ?? []) as { teamId: string; name: string }[]).map((t) => [t.teamId, t.name]),
+      );
+      const list = (data.fixtures ?? []) as {
+        fixtureId: string; round: number; homeTeamId?: string; awayTeamId?: string; scheduledStart?: string | null;
+      }[];
+      setFixtures(
+        [...list]
+          .sort((a, b) => (Number(a.round) || 0) - (Number(b.round) || 0) || (a.scheduledStart ?? "").localeCompare(b.scheduledStart ?? ""))
+          .map((f) => ({
+            fixtureId: f.fixtureId,
+            round: Number(f.round) || 0,
+            label: formatFixtureLabel({
+              round: Number(f.round) || 0,
+              homeName: nameById.get(f.homeTeamId ?? "") ?? null,
+              awayName: nameById.get(f.awayTeamId ?? "") ?? null,
+              fixtureId: f.fixtureId,
+            }),
+          })),
+      );
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
       setFixtures([]);
@@ -308,7 +328,7 @@ export default function MatchEventsEditorClient({
               <option value="">Select…</option>
               {fixtures.map((f) => (
                 <option key={f.fixtureId} value={f.fixtureId}>
-                  Round {f.round} · {f.fixtureId.slice(0, 14)}…
+                  {f.label}
                 </option>
               ))}
             </select>
