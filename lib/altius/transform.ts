@@ -10,6 +10,7 @@
 // updates in place instead of duplicating. Each document carries an `altius`
 // sub-document recording where it came from.
 
+import { modernizeMemberFields } from "../members/modernize";
 import type {
   AltiusCompetition,
   AltiusHarvest,
@@ -258,7 +259,7 @@ interface Appearance {
 export function transformHarvest(h: AltiusHarvest, opts: TransformOptions): TransformResult {
   const now = opts.now ?? new Date();
   const nowIso = now.toISOString();
-  const by = opts.by ?? "altius-seed";
+  const by = opts.by ?? "import";
   const assoc = opts.associationId;
   const season = opts.season;
   const warnings: string[] = [];
@@ -280,9 +281,9 @@ export function transformHarvest(h: AltiusHarvest, opts: TransformOptions): Tran
   const officials = new Map<string, { name: string; roles: Set<string>; altiusIds: Set<string> }>();
   const fixtureByAltius = new Map<string, Doc>();
 
-  const memberIdForPlayer = (pid: string) => `MBR-ALT-${pid}`;
-  const memberIdForStaff = (name: string, clubShort: string) => `MBR-ALT-STAFF-${clubShort}-${slug(name)}`.toUpperCase();
-  const memberIdForOfficial = (name: string) => `MBR-ALT-OFF-${slug(name)}`.toUpperCase();
+  const memberIdForPlayer = (pid: string) => `MBR_${pid}`;
+  const memberIdForStaff = (name: string, clubShort: string) => `MBR_STAFF-${clubShort}-${slug(name)}`.toUpperCase();
+  const memberIdForOfficial = (name: string) => `MBR_OFF-${slug(name)}`.toUpperCase();
 
   for (const c of comps) {
     const grade = gradeFromTitle(c.title, season);
@@ -755,7 +756,7 @@ export function transformHarvest(h: AltiusHarvest, opts: TransformOptions): Tran
 
     // Registrations: one association registration, one per club played for
     out.associationRegistrations.push({
-      registrationId: `AREG-ALT-${assoc}-${memberId}-${season}`,
+      registrationId: `AREG-${assoc}-${memberId}-${season}`,
       memberId,
       associationId: assoc,
       seasonYear: season,
@@ -771,7 +772,7 @@ export function transformHarvest(h: AltiusHarvest, opts: TransformOptions): Tran
     });
     for (const clubId of Object.keys(byClub)) {
       out.clubRegistrations.push({
-        registrationId: `CREG-ALT-${clubId}-${memberId}-${season}`,
+        registrationId: `CREG-${clubId}-${memberId}-${season}`,
         memberId,
         clubId,
         registrationType: clubId === primaryClubId ? "primary" : "secondary",
@@ -1019,7 +1020,9 @@ function baseMember(p: {
   teams: Doc[];
   altius: Doc;
 }): Doc {
-  return {
+  // The importer collects source details in a scratch `altius` object; they are
+  // stored as proper member fields (never under a vendor-named key).
+  return modernizeMemberFields({
     memberId: p.memberId,
     clubId: p.clubId,
     personalInfo: {
@@ -1059,7 +1062,7 @@ function baseMember(p: {
     medical: { conditions: "", medications: "", allergies: "", doctorName: "", doctorPhone: "" },
     emergencyContacts: [],
     familyRelationships: [],
-    notes: "Imported from Altius (hockeybrisbane.altius.live). Contact details not available — complete before use.",
+    notes: "Imported from the previous system. Contact details not available — complete before use.",
     status: { banned: false, bannedUntil: null, banReason: null, bannedBy: null },
     teams: p.teams,
     family: null,
@@ -1067,5 +1070,5 @@ function baseMember(p: {
     altius: p.altius,
     updatedAt: p.now,
     updatedBy: p.by,
-  };
+  });
 }

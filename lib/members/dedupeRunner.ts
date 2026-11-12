@@ -2,6 +2,7 @@
  * Applies the member de-duplication to a database. Takes a minimal DB interface so it
  * can be tested against an in-memory fake; the CLI passes the real MongoDB `Db`.
  */
+import { modernizeMemberFields } from "./modernize";
 import {
   collectIds,
   findDuplicateGroups,
@@ -181,7 +182,12 @@ export async function runDedupe(db: DbLike, opts: RunOptions): Promise<RunResult
     }
 
     const survivorDoc = byId.get(p.survivorId)!;
-    const merged = mergeMemberDocs(survivorDoc, p.loserIds.map((id) => byId.get(id)!), now);
+    // Move any vendor-named import fields into proper fields first, so nothing in them is lost.
+    const merged = mergeMemberDocs(
+      modernizeMemberFields(survivorDoc),
+      p.loserIds.map((id) => modernizeMemberFields(byId.get(id)!)),
+      now,
+    );
     await db.collection("members").replaceOne({ _id: survivorDoc._id }, merged);
 
     // Archive, then remove, the extras (last, so a crash never loses a record).
