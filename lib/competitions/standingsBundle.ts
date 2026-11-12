@@ -8,6 +8,7 @@ import {
   loadLeagueFixturesForStandings,
   type LadderRules,
 } from "./standings";
+import { applyPointsAdjustments } from "./pointsAdjustments";
 import { enrichRollupsFromRowMap } from "./seasonStatsRollup";
 import {
   getStandingsBundleCached,
@@ -52,6 +53,10 @@ export async function getSeasonCompetitionStandingsReadBundle(input: {
         ladderRules,
         requiresResultApproval,
       );
+      const scDoc = await db
+        .collection("season_competitions")
+        .findOne({ seasonCompetitionId }, { projection: { pointsAdjustments: 1 } });
+      applyPointsAdjustments(rowMap, scDoc?.pointsAdjustments);
       const standings = await finalizeStandingsFromRowMap(db, rowMap);
       const rollups = includeRollups
         ? await enrichRollupsFromRowMap({
