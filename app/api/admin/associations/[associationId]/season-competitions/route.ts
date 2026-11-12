@@ -41,11 +41,19 @@ export async function GET(request: NextRequest, { params }: Params) {
         season: 1,
         status: 1,
         displayName: 1,
+        competitionName: 1,
       })
       .sort({ season: -1, seasonCompetitionId: 1 })
       .toArray();
 
-    const competitionIds = [...new Set(rows.map((r) => r.competitionId).filter(Boolean))];
+    const competitionIds = [
+      ...new Set(
+        rows
+          .filter((r) => !(typeof r.competitionName === "string" && r.competitionName.trim()))
+          .map((r) => r.competitionId)
+          .filter(Boolean),
+      ),
+    ];
     const comps = competitionIds.length
       ? await db
           .collection("competitions")
@@ -57,7 +65,12 @@ export async function GET(request: NextRequest, { params }: Params) {
 
     return NextResponse.json({
       seasonCompetitions: rows.map((r) => {
-        const competitionName = nameById.get(String(r.competitionId)) ?? "";
+        // The season record can carry its own competitionName (imports do); otherwise
+        // use the competition it points at.
+        const competitionName =
+          (typeof r.competitionName === "string" && r.competitionName.trim()) ||
+          nameById.get(String(r.competitionId)) ||
+          "";
         return {
           seasonCompetitionId: r.seasonCompetitionId,
           competitionId: r.competitionId,
