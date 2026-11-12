@@ -76,7 +76,23 @@ export async function GET(request: NextRequest, { params }: Params) {
           .toArray()
       : [];
 
-    const seasonRows = await db
+    // Scoped to one competition: also include teams that play in its fixtures,
+    // even when the team record does not carry the seasonCompetitionId.
+    const only = request.nextUrl.searchParams.get("seasonCompetitionId")?.trim() || null;
+    const fixtureTeamIds = new Set<string>();
+    if (only) {
+      const fx = await db
+        .collection("league_fixtures")
+        .find({ seasonCompetitionId: only, owningAssociationId: associationId })
+        .project({ homeTeamId: 1, awayTeamId: 1 })
+        .toArray();
+      for (const f of fx) {
+        if (f.homeTeamId) fixtureTeamIds.add(String(f.homeTeamId));
+        if (f.awayTeamId) fixtureTeamIds.add(String(f.awayTeamId));
+      }
+    }
+
+    const seasonRows = (await db
       .collection("season_competitions")
       .find({ owningAssociationId: associationId })
       .project({
@@ -88,7 +104,7 @@ export async function GET(request: NextRequest, { params }: Params) {
         divisions: 1,
       })
       .sort({ season: -1, seasonCompetitionId: 1 })
-      .toArray();
+      .toArray()).filter((r) => !only || r.seasonCompetitionId === only);
 
     const seasonIdSet = new Set(
       seasonRows.map((s) => String(s.seasonCompetitionId ?? "")),
@@ -151,7 +167,9 @@ export async function GET(request: NextRequest, { params }: Params) {
       }));
 
       const inSeason = teams.filter(
-        (t) => String(t.seasonCompetitionId ?? "") === sid,
+        (t) =>
+          String(t.seasonCompetitionId ?? "") === sid ||
+          (only === sid && fixtureTeamIds.has(String(t.teamId ?? ""))),
       );
       const teamsByDivision: Record<string, TeamLite[]> = {};
       for (const d of divList) {
@@ -188,7 +206,7 @@ export async function GET(request: NextRequest, { params }: Params) {
     });
 
     const orphanSeason: TeamLite[] = [];
-    for (const t of teams) {
+    for (const t of only ? [] : teams) {
       const scid = String(t.seasonCompetitionId ?? "").trim();
       if (!scid || !seasonIdSet.has(scid)) {
         orphanSeason.push(toTeamLite(t as Record<string, unknown>));
