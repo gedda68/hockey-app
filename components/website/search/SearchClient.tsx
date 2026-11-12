@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
 type SearchResult = {
-  kind: "news" | "club" | "team";
+  kind: "news" | "club" | "team" | "player";
   id: string;
   title: string;
   subtitle?: string;
@@ -14,6 +14,7 @@ type SearchResult = {
 function groupLabel(kind: SearchResult["kind"]): string {
   if (kind === "news") return "News";
   if (kind === "club") return "Clubs";
+  if (kind === "player") return "Players";
   return "Teams";
 }
 
@@ -80,7 +81,7 @@ export default function SearchClient() {
           Search
         </h1>
         <p className="mt-2 text-slate-600">
-          Search news, clubs, and teams within this portal.
+          Search news, clubs, teams, and players within this portal.
         </p>
 
         <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
@@ -107,7 +108,7 @@ export default function SearchClient() {
         ) : null}
 
         <div className="mt-8 space-y-10">
-          {(["news", "club", "team"] as const).map((kind) => {
+          {(["news", "club", "team", "player"] as const).map((kind) => {
             const rows = grouped.get(kind) ?? [];
             if (rows.length === 0) return null;
             return (
