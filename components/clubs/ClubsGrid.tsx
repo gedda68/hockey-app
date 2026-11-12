@@ -9,12 +9,17 @@ import AboutModal from "./AboutModal";
 import { sanitizeHtml } from "@/lib/utils/sanitize";
 import ContactModal from "./ContactModal";
 import { Club } from "../../app/(admin)/admin/types/clubs";
+import LoadMore from "../shared/LoadMore";
+import { useIncrementalList } from "@/lib/pagination/useIncrementalList";
+
+const CLUBS_PAGE_SIZE = 12;
 
 interface ClubsGridProps {
   clubs: Club[];
 }
 
 export default function ClubsGrid({ clubs }: ClubsGridProps) {
+  const { visible, shown, total, showMore } = useIncrementalList(clubs, CLUBS_PAGE_SIZE);
   const [selectedClub, setSelectedClub] = useState<Club | null>(null);
   const [showAboutModal, setShowAboutModal] = useState(false);
   const [showContactModal, setShowContactModal] = useState(false);
@@ -33,7 +38,7 @@ export default function ClubsGrid({ clubs }: ClubsGridProps) {
     <>
       {/* Clubs Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {clubs.map((club) => (
+        {visible.map((club) => (
           <div
             key={club.id}
             className="bg-white rounded-3xl p-6 shadow-lg hover:shadow-xl transition-shadow"
@@ -189,6 +194,8 @@ export default function ClubsGrid({ clubs }: ClubsGridProps) {
           </div>
         ))}
       </div>
+
+      <LoadMore shown={shown} total={total} onLoadMore={showMore} noun="clubs" />
 
       {/* Modals */}
       {selectedClub && (
