@@ -229,6 +229,9 @@ function buildMenuForUser(user: User | null): MenuItem[] {
     if (item.label === "Team selection policy") {
       return { ...item, href: selectionPolicyHref };
     }
+    if (item.label === "Match rosters") {
+      return { ...item, href: clubRef ? `/admin/clubs/${clubRef}/match-rosters` : item.href };
+    }
     if (item.label === "Competition panel") {
       return {
         ...item,

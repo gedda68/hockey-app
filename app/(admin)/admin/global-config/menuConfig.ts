@@ -192,6 +192,15 @@ export const menuConfig: MenuItem[] = [
     ],
   },
   {
+    label: "Match rosters",
+    href: "/admin/clubs",
+    icon: "📝",
+    description: "Pick who plays in each match. Rosters lock 5 minutes before the start.",
+    color: "from-emerald-500 to-green-600",
+    section: "competition",
+    allowedRoles: ["club-admin", "club-committee", "coach", "manager", "team-selector"],
+  },
+  {
     label: "Competition panel",
     href: "/admin/competition-panel",
     icon: "🏆",
