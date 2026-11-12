@@ -233,3 +233,37 @@ describe("runDedupe — import data with no birthdays (--merge-generated-staff)"
     expect(r.plans[0].details["MBR-ALT-19761"]).toEqual({ clubId: "rdc", roles: ["role-player"] });
   });
 });
+
+describe("runDedupe — --merge-undated", () => {
+  const rec = (memberId: string, dob?: string, o: Doc = {}): Doc => ({
+    _id: `oid-${memberId}`,
+    memberId,
+    clubId: "",
+    roles: [],
+    personalInfo: { firstName: "Mitchell", lastName: "Aitchison", ...(dob ? { dateOfBirth: dob } : {}) },
+    ...o,
+  });
+
+  it("removes the record without a birthday, keeps the dated one, and re-points its links", async () => {
+    const e = fakeDb({
+      members: [
+        rec("MBR-ALT-11226", "2001-05-04", { clubId: "commercial" }),
+        rec("MBR-ALT-OFF-AITCHISON-MITCHELL", undefined, { roles: ["role-umpire"] }),
+      ],
+      teamRosters: [{ _id: "r1", memberIds: ["MBR-ALT-OFF-AITCHISON-MITCHELL"] }],
+    });
+    const r = await runDedupe(e.db, { apply: true, attachUndatedToDated: true });
+    expect(r.merged).toBe(1);
+    expect(e.data.members.map((m) => m.memberId)).toEqual(["MBR-ALT-11226"]);
+    expect(e.data.members[0].roles).toEqual(["role-umpire"]);
+    expect(e.data.teamRosters[0].memberIds).toEqual(["MBR-ALT-11226"]);
+    expect(e.data.members_merged_backup).toHaveLength(1);
+  });
+
+  it("leaves namesakes with different birthdays alone", async () => {
+    const e = fakeDb({ members: [rec("A", "2001-05-04"), rec("B", "1970-01-01"), rec("C")] });
+    const r = await runDedupe(e.db, { apply: true, attachUndatedToDated: true });
+    expect(r.merged).toBe(0);
+    expect(e.data.members).toHaveLength(3);
+  });
+});

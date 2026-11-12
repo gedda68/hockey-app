@@ -19,6 +19,8 @@ export interface DuplicateGroup {
   nameKey: string;
   dateOfBirth: string;
   memberIds: string[];
+  /** When set, the record to keep must come from this list (the ones with a birthday). */
+  keepFrom?: string[];
 }
 
 const str = (v: unknown): string => (typeof v === "string" ? v : "");
@@ -63,6 +65,13 @@ export interface FindOptions {
    * (MBR-ALT-STAFF-… / MBR-ALT-OFF-…), treat those as the same person.
    */
   mergeGeneratedShadows?: boolean;
+  /**
+   * Same name where some records have a date of birth and some don't: the undated
+   * ones are duplicates of the dated one and are merged into it. Only when the dated
+   * records all share ONE birthday; otherwise it is unclear whose record the undated
+   * one is, and the group stays in review.
+   */
+  attachUndatedToDated?: boolean;
 }
 
 /** Ids the import generates for a person's coaching/officiating role. */
@@ -112,6 +121,19 @@ export function findDuplicateGroups(
     }
 
     const dated = [...byDob.entries()];
+
+    if (opts.attachUndatedToDated && undated.length > 0 && dated.length === 1) {
+      const [dob, datedMembers] = dated[0];
+      out.push({
+        tier: "auto",
+        reason: "same name; record(s) without a date of birth merged into the one that has it",
+        nameKey,
+        dateOfBirth: dob,
+        memberIds: [...datedMembers, ...undated].map((m) => m.memberId),
+        keepFrom: datedMembers.map((m) => m.memberId),
+      });
+      continue;
+    }
     // Which dated subgroup do undated members attach to? Only when it is unambiguous.
     const attachTo =
       opts.allowMissingDob && undated.length > 0 && dated.length <= 1
@@ -217,12 +239,15 @@ export function scoreMember(m: MemberLite, s: SurvivorSignals): ScoredMember {
 export function pickSurvivor(
   members: MemberLite[],
   signals: Map<string, SurvivorSignals>,
+  keepFrom?: readonly string[],
 ): { survivor: ScoredMember; losers: ScoredMember[] } {
   const scored = members
     .map((m) => scoreMember(m, signals.get(m.memberId) ?? { inboundRefs: 0, hasUserAccount: false }))
     // Higher score first; ties broken by id so the result is deterministic.
     .sort((a, b) => b.score - a.score || a.memberId.localeCompare(b.memberId));
-  return { survivor: scored[0], losers: scored.slice(1) };
+  // If the survivor must come from a given set, take the best-scoring one from it.
+  const survivor = (keepFrom && scored.find((m) => keepFrom.includes(m.memberId))) || scored[0];
+  return { survivor, losers: scored.filter((m) => m !== survivor) };
 }
 
 // ── Merging the documents ──────────────────────────────────────────────────────

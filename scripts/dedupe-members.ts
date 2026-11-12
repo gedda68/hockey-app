@@ -10,6 +10,8 @@
  *
  * Options
  *   --allow-missing-dob   also merge records that have no date of birth (see docs)
+ *   --merge-undated       same name, some records have a birthday and some don't: keep the one
+ *                         with the birthday, merge the undated ones into it
  *   --merge-generated-staff  for data with no birthdays: merge generated MBR-ALT-STAFF-/OFF-
  *                         records into the one player record that has the same name
  *   --out <dir>           where the plan/backup JSON is written (default ./dedupe-output)
@@ -54,6 +56,7 @@ async function main() {
     apply: APPLY,
     allowMissingDob: flag("--allow-missing-dob"),
     mergeGeneratedShadows: flag("--merge-generated-staff"),
+    attachUndatedToDated: flag("--merge-undated"),
     writeBackup: (backup) => {
       const f = path.join(OUT_DIR, `backup-${stamp}.json`);
       fs.writeFileSync(f, JSON.stringify(backup));
