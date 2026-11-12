@@ -70,7 +70,7 @@ export default function MatchEventsEditorClient({
   initialFixtureId?: string | null;
 }) {
   const [seasonOptions, setSeasonOptions] = useState<
-    { seasonCompetitionId: string; season: string; status: string }[]
+    { seasonCompetitionId: string; season: string; status: string; label?: string }[]
   >([]);
   const [seasonCompetitionId, setSeasonCompetitionId] = useState("");
   const [fixtures, setFixtures] = useState<{ fixtureId: string; round: number }[]>([]);
@@ -292,7 +292,7 @@ export default function MatchEventsEditorClient({
               <option value="">Select…</option>
               {seasonOptions.map((s) => (
                 <option key={s.seasonCompetitionId} value={s.seasonCompetitionId}>
-                  {String(s.season)} · {s.seasonCompetitionId.slice(0, 12)}… ({s.status})
+                  {s.label || String(s.season)}
                 </option>
               ))}
             </select>

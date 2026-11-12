@@ -22,6 +22,7 @@ type SeasonComp = {
   competitionId?: string;
   season?: string | number;
   status?: string;
+  label?: string;
 };
 
 type FixtureRow = {
@@ -536,8 +537,7 @@ export default function UmpirePaymentsTreasurerPanel({
                   key={sc.seasonCompetitionId}
                   value={sc.seasonCompetitionId}
                 >
-                  {String(sc.season ?? "")} · {sc.seasonCompetitionId}
-                  {sc.status ? ` (${sc.status})` : ""}
+                  {sc.label || String(sc.season ?? "")}
                 </option>
               ))}
             </select>

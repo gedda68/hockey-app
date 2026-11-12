@@ -3,6 +3,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
+import { formatSeasonLabel } from "@/lib/competitions/seasonLabel";
 import {
   requireAnyPermission,
   requireResourceAccess,
@@ -39,17 +40,38 @@ export async function GET(request: NextRequest, { params }: Params) {
         competitionId: 1,
         season: 1,
         status: 1,
+        displayName: 1,
       })
       .sort({ season: -1, seasonCompetitionId: 1 })
       .toArray();
 
+    const competitionIds = [...new Set(rows.map((r) => r.competitionId).filter(Boolean))];
+    const comps = competitionIds.length
+      ? await db
+          .collection("competitions")
+          .find({ competitionId: { $in: competitionIds } })
+          .project({ competitionId: 1, name: 1 })
+          .toArray()
+      : [];
+    const nameById = new Map(comps.map((c) => [String(c.competitionId), String(c.name ?? "")]));
+
     return NextResponse.json({
-      seasonCompetitions: rows.map((r) => ({
-        seasonCompetitionId: r.seasonCompetitionId,
-        competitionId: r.competitionId,
-        season: r.season,
-        status: r.status,
-      })),
+      seasonCompetitions: rows.map((r) => {
+        const competitionName = nameById.get(String(r.competitionId)) ?? "";
+        return {
+          seasonCompetitionId: r.seasonCompetitionId,
+          competitionId: r.competitionId,
+          season: r.season,
+          status: r.status,
+          competitionName,
+          /** "2026 - BHL 2": year and grade only. */
+          label: formatSeasonLabel({
+            season: r.season,
+            displayName: r.displayName,
+            competitionName,
+          }),
+        };
+      }),
     });
   } catch (error) {
     console.error("GET association season-competitions error:", error);
