@@ -10,6 +10,8 @@
  *
  * Options
  *   --allow-missing-dob   also merge records that have no date of birth (see docs)
+ *   --merge-generated-staff  for data with no birthdays: merge generated MBR-ALT-STAFF-/OFF-
+ *                         records into the one player record that has the same name
  *   --out <dir>           where the plan/backup JSON is written (default ./dedupe-output)
  *
  * Safety
@@ -51,6 +53,7 @@ async function main() {
   const result = await runDedupe(client.db(DB_NAME) as unknown as DbLike, {
     apply: APPLY,
     allowMissingDob: flag("--allow-missing-dob"),
+    mergeGeneratedShadows: flag("--merge-generated-staff"),
     writeBackup: (backup) => {
       const f = path.join(OUT_DIR, `backup-${stamp}.json`);
       fs.writeFileSync(f, JSON.stringify(backup));
@@ -58,7 +61,10 @@ async function main() {
     },
   });
 
-  const name = (id: string, plan: (typeof result.plans)[number]) => `${id} (${plan.referenceCounts[id] ?? 0} refs)`;
+  const name = (id: string, plan: (typeof result.plans)[number]) => {
+    const d = plan.details[id];
+    return `${id}  club=${d?.clubId || "-"}  roles=${d?.roles.join(",") || "-"}  refs=${plan.referenceCounts[id] ?? 0}`;
+  };
   for (const p of result.plans) {
     console.log(`• ${p.group.nameKey.replace("|", " ")}  DOB ${p.group.dateOfBirth || "n/a"}  — ${p.group.reason}`);
     console.log(`    KEEP   ${name(p.survivorId, p)}   [${p.survivorWhy.join("; ") || "tie-break by id"}]`);

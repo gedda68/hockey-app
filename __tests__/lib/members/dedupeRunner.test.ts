@@ -184,3 +184,52 @@ describe("runDedupe — apply", () => {
     expect(e.data.members.map((m) => m.memberId)).toContain("MBR-OLD");
   });
 });
+
+describe("runDedupe — import data with no birthdays (--merge-generated-staff)", () => {
+  const noDob = (memberId: string, o: Doc = {}, first = "Blair", last = "Brown"): Doc => ({
+    _id: `oid-${memberId}`,
+    memberId,
+    clubId: "",
+    roles: [],
+    personalInfo: { firstName: first, lastName: last },
+    ...o,
+  });
+  const data = (): Record<string, Doc[]> => ({
+    members: [
+      noDob("MBR-ALT-19761", { roles: ["role-player"], clubId: "rdc" }),
+      noDob("MBR-ALT-STAFF-RDC-BROWN-BLAIR", { roles: ["role-coach"] }),
+      // ambiguous: two player records with the same name
+      noDob("MBR-ALT-10515", { roles: ["role-player"] }, "Steven", "Green"),
+      noDob("MBR-ALT-16141", { roles: ["role-player"] }, "Steven", "Green"),
+    ],
+    teams: [{ _id: "t1", coachMemberId: "MBR-ALT-STAFF-RDC-BROWN-BLAIR", playerIds: ["MBR-ALT-19761"] }],
+  });
+
+  it("does nothing by default", async () => {
+    const e = fakeDb(data());
+    const r = await runDedupe(e.db, { apply: true });
+    expect(r.merged).toBe(0);
+    expect(e.data.members).toHaveLength(4);
+  });
+
+  it("merges the coach record into the player, re-points the team, and leaves ambiguous names alone", async () => {
+    const e = fakeDb(data());
+    const r = await runDedupe(e.db, { apply: true, mergeGeneratedShadows: true });
+    expect(r.merged).toBe(1);
+    expect(e.data.members.map((m) => m.memberId).sort()).toEqual([
+      "MBR-ALT-10515",
+      "MBR-ALT-16141",
+      "MBR-ALT-19761",
+    ]);
+    const blair = e.data.members.find((m) => m.memberId === "MBR-ALT-19761")!;
+    expect(blair.roles).toEqual(["role-player", "role-coach"]);
+    expect(e.data.teams[0].coachMemberId).toBe("MBR-ALT-19761");
+    expect(r.review.map((g) => g.nameKey)).toContain("steven|green");
+  });
+
+  it("shows club and roles for each record in the plan", async () => {
+    const e = fakeDb(data());
+    const r = await runDedupe(e.db, { apply: false, mergeGeneratedShadows: true });
+    expect(r.plans[0].details["MBR-ALT-19761"]).toEqual({ clubId: "rdc", roles: ["role-player"] });
+  });
+});
