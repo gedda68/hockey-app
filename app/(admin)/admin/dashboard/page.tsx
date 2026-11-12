@@ -142,7 +142,13 @@ export default function DashboardPage() {
 
   // Role-filtered quick-access tiles
   const quickTiles = user
-    ? filterMenuForRole(user.role).filter(i => i.color && i.href !== "/admin/dashboard")
+    ? filterMenuForRole(user.role)
+        .filter(i => i.color && i.href !== "/admin/dashboard")
+        .map(i =>
+          i.label === "Competition panel" && user.associationId
+            ? { ...i, href: `/admin/associations/${user.associationId}/competition-panel` }
+            : i,
+        )
     : [];
 
   const totals = analytics?.totals;

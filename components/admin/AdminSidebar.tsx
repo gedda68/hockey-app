@@ -229,6 +229,14 @@ function buildMenuForUser(user: User | null): MenuItem[] {
     if (item.label === "Team selection policy") {
       return { ...item, href: selectionPolicyHref };
     }
+    if (item.label === "Competition panel") {
+      return {
+        ...item,
+        href: assocId
+          ? `/admin/associations/${assocId}/competition-panel`
+          : item.href,
+      };
+    }
     if (item.label === "League setup") {
       return { ...item, href: leagueSetupHref };
     }

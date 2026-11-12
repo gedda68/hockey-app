@@ -191,6 +191,21 @@ export const menuConfig: MenuItem[] = [
       "media-marketing",
     ],
   },
+  {
+    label: "Competition panel",
+    href: "/admin/associations",
+    icon: "🏆",
+    description:
+      "Every competition at a glance: fixtures, results awaiting approval, rosters, events and ladders",
+    color: "from-sky-500 to-blue-600",
+    section: "competition",
+    allowedRoles: [
+      "super-admin",
+      "association-admin",
+      "assoc-committee",
+      "assoc-competition",
+    ],
+  },
 
   // ── Representative (association-level only) ──────────────────────────────────
   {
