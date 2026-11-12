@@ -10,6 +10,7 @@ import FixtureOperationsConsole from "@/components/admin/associations/FixtureOpe
 import MatchEventsEditorClient from "@/components/admin/associations/MatchEventsEditorClient";
 import DivisionTeamOverviewClient from "@/components/admin/associations/DivisionTeamOverviewClient";
 import CompetitionAwardsAdminClient from "@/components/admin/CompetitionAwardsAdminClient";
+import CompetitionTeamsTab from "@/components/admin/associations/CompetitionTeamsTab";
 import CompetitionLadderTab from "@/components/admin/associations/CompetitionLadderTab";
 import CompetitionStatsStrip from "@/components/admin/associations/CompetitionStatsStrip";
 
@@ -103,7 +104,15 @@ export default async function CompetitionWorkspacePage({
           <MatchEventsEditorClient key={seasonCompetitionId} associationId={associationId} associationName={associationName} primaryColor={primaryColor} initialSeasonCompetitionId={seasonCompetitionId} />
         )}
         {tab === "teams" && (
-          <DivisionTeamOverviewClient key={seasonCompetitionId} seasonCompetitionId={seasonCompetitionId} associationId={associationId} associationName={associationName} primaryColor={primaryColor} />
+          <div className="space-y-8">
+            <CompetitionTeamsTab key={seasonCompetitionId} seasonCompetitionId={seasonCompetitionId} />
+            <details className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+              <summary className="cursor-pointer text-sm font-bold text-[#06054e]">Division assignments</summary>
+              <div className="mt-4">
+                <DivisionTeamOverviewClient key={seasonCompetitionId} seasonCompetitionId={seasonCompetitionId} associationId={associationId} associationName={associationName} primaryColor={primaryColor} />
+              </div>
+            </details>
+          </div>
         )}
         {tab === "ladder" && <CompetitionLadderTab seasonCompetitionId={seasonCompetitionId} />}
         {tab === "awards" && <Suspense fallback={null}><CompetitionAwardsAdminClient /></Suspense>}
