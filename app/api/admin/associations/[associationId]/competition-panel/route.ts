@@ -31,10 +31,14 @@ export async function GET(request: NextRequest, { params }: Params) {
       .project({ _id: 0, seasonCompetitionId: 1, competitionId: 1, season: 1, status: 1, displayName: 1, competitionName: 1 })
       .toArray();
     const seasons = [...new Set(all.map((r) => String(r.season)))].sort().reverse();
-    const requested = request.nextUrl.searchParams.get("season");
+    const only = request.nextUrl.searchParams.get("seasonCompetitionId");
+    const onlyRow = only ? all.find((r) => r.seasonCompetitionId === only) : null;
+    const requested = onlyRow ? String(onlyRow.season) : request.nextUrl.searchParams.get("season");
     const season = requested && seasons.includes(requested) ? requested : seasons.includes("2026") ? "2026" : seasons[0] ?? null;
 
-    const rows = all.filter((r) => String(r.season) === season);
+    const rows = all.filter(
+      (r) => String(r.season) === season && (!onlyRow || r.seasonCompetitionId === only),
+    );
     const ids = rows.map((r) => r.seasonCompetitionId as string);
     const fixtures = ids.length
       ? await db
