@@ -393,7 +393,7 @@ export default function DashboardPage() {
               <h2 className="text-xs font-black uppercase text-slate-400 tracking-widest mb-4">Quick Access</h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                 {quickTiles.map(item => (
-                  <QuickTile key={item.href} item={item} />
+                  <QuickTile key={`${item.href}::${item.label}`} item={item} />
                 ))}
               </div>
             </div>
