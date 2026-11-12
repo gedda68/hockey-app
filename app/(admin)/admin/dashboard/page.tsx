@@ -145,7 +145,9 @@ export default function DashboardPage() {
     ? filterMenuForRole(user.role)
         .filter(i => i.color && i.href !== "/admin/dashboard")
         .map(i =>
-          i.label === "Competition panel" && user.associationId
+          i.label === "Match rosters" && (user.clubSlug || user.clubId)
+            ? { ...i, href: `/admin/clubs/${user.clubSlug || user.clubId}/match-rosters` }
+            : i.label === "Competition panel" && user.associationId
             ? { ...i, href: `/admin/associations/${user.associationId}/competition-panel` }
             : i,
         )
