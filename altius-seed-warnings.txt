@@ -1,0 +1,24 @@
+fx-altius-8931: goal by "" (Valley JHL U12B) not linked to a player — skipped
+fx-altius-8931: goal by "" (Valley JHL U12B) not linked to a player — skipped
+fx-altius-8931: goal by "" (Valley JHL U12B) not linked to a player — skipped
+fx-altius-8901: goal by "" (Commercial JHL U12A) not linked to a player — skipped
+fx-altius-9749: goal by "" (Northern Suburbs JHL U12A) not linked to a player — skipped
+fx-altius-9760: goal by "" (University of Qld JHL U12C) not linked to a player — skipped
+fx-altius-9326: goal by "" (Easts 1/2 BYE) not linked to a player — skipped
+fx-altius-9326: goal by "" (Valley BYE) not linked to a player — skipped
+fx-altius-8931: goal events 9-0 ≠ score 12-0
+fx-altius-8901: goal events 3-0 ≠ score 4-0
+fx-altius-9749: goal events 6-0 ≠ score 7-0
+match 5077: no statistics report
+match 5125: no statistics report
+match 5170: no statistics report
+fx-altius-5202: 2 PC goals but 1 PCs recorded for team-altius-529
+fx-altius-5282: 2 PC goals but 0 PCs recorded for team-altius-492
+fx-altius-5335: 2 PC goals but 0 PCs recorded for team-altius-476
+fx-altius-5442: 1 PC goals but 0 PCs recorded for team-altius-484
+match 5538: no statistics report
+match 5962: no statistics report
+match 6003: no statistics report
+match 8888: no statistics report
+match 8900: no statistics report
+match 9742: no statistics report
