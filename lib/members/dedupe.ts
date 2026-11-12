@@ -57,7 +57,16 @@ export function dobOf(doc: Doc): string {
 export interface FindOptions {
   /** Also merge members with no date of birth into their name group (see docs). */
   allowMissingDob?: boolean;
+  /**
+   * For data with no birthdays (e.g. the Altius import): when a name has exactly ONE
+   * ordinary member record and the rest are generated staff/official records
+   * (MBR-ALT-STAFF-… / MBR-ALT-OFF-…), treat those as the same person.
+   */
+  mergeGeneratedShadows?: boolean;
 }
+
+/** Ids the import generates for a person's coaching/officiating role. */
+export const GENERATED_SHADOW_ID = /^MBR-ALT-(STAFF|OFF)-/;
 
 /**
  * Same first+last name (case/accent/punctuation-insensitive) AND same date of birth
@@ -78,6 +87,21 @@ export function findDuplicateGroups(
   const out: DuplicateGroup[] = [];
   for (const [nameKey, list] of byName) {
     if (list.length < 2) continue;
+
+    if (opts.mergeGeneratedShadows) {
+      const shadows = list.filter((m) => GENERATED_SHADOW_ID.test(m.memberId));
+      const ordinary = list.filter((m) => !GENERATED_SHADOW_ID.test(m.memberId));
+      if (shadows.length > 0 && ordinary.length === 1) {
+        out.push({
+          tier: "auto",
+          reason: "generated staff/official record matched to the only player record with this name",
+          nameKey,
+          dateOfBirth: dobOf(ordinary[0].doc),
+          memberIds: [ordinary[0].memberId, ...shadows.map((m) => m.memberId)],
+        });
+        continue;
+      }
+    }
 
     const byDob = new Map<string, MemberLite[]>();
     const undated: MemberLite[] = [];

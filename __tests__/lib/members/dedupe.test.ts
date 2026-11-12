@@ -192,3 +192,63 @@ describe("containsId", () => {
     expect(containsId({ _id: "DROP", a: "DROP", b: ["DROP", { c: "DROP" }], d: "xDROP" }, ids)).toBe(3);
   });
 });
+
+describe("mergeGeneratedShadows (data with no birthdays)", () => {
+  const noDob = (id: string, first: string, last: string, over: Doc = {}): MemberLite => ({
+    memberId: id,
+    doc: { memberId: id, roles: [], personalInfo: { firstName: first, lastName: last }, ...over },
+  });
+
+  it("is off by default: nothing merges without birthdays", () => {
+    const g = findDuplicateGroups([
+      noDob("MBR-ALT-19761", "Blair", "Brown"),
+      noDob("MBR-ALT-STAFF-RDC-BROWN-BLAIR", "Blair", "Brown"),
+    ]);
+    expect(g.every((x) => x.tier === "review")).toBe(true);
+  });
+
+  it("merges generated staff/official records into the single player record", () => {
+    const g = findDuplicateGroups(
+      [
+        noDob("MBR-ALT-19761", "Blair", "Brown"),
+        noDob("MBR-ALT-STAFF-RDC-BROWN-BLAIR", "Blair", "Brown"),
+        noDob("MBR-ALT-OFF-BROWN-BLAIR", "Blair", "Brown"),
+      ],
+      { mergeGeneratedShadows: true },
+    );
+    expect(g).toHaveLength(1);
+    expect(g[0].tier).toBe("auto");
+    expect(g[0].memberIds).toEqual([
+      "MBR-ALT-19761",
+      "MBR-ALT-STAFF-RDC-BROWN-BLAIR",
+      "MBR-ALT-OFF-BROWN-BLAIR",
+    ]);
+  });
+
+  it("leaves ambiguous groups for review: two player records with the same name", () => {
+    const g = findDuplicateGroups(
+      [
+        noDob("MBR-ALT-10515", "Steven", "Green"),
+        noDob("MBR-ALT-16141", "Steven", "Green"),
+        noDob("MBR-ALT-STAFF-CHC-GREEN-STEVEN", "Steven", "Green"),
+      ],
+      { mergeGeneratedShadows: true },
+    );
+    expect(g).toHaveLength(1);
+    expect(g[0].tier).toBe("review");
+  });
+
+  it("leaves staff-only groups for review", () => {
+    const g = findDuplicateGroups(
+      [noDob("MBR-ALT-STAFF-A-X-JO", "Jo", "X"), noDob("MBR-ALT-OFF-X-JO", "Jo", "X")],
+      { mergeGeneratedShadows: true },
+    );
+    expect(g.every((x) => x.tier === "review")).toBe(true);
+  });
+
+  it("makes the player record the survivor", () => {
+    const player = noDob("MBR-ALT-19761", "Blair", "Brown", { roles: ["role-player"] });
+    const coach = noDob("MBR-ALT-STAFF-RDC-BROWN-BLAIR", "Blair", "Brown", { roles: ["role-coach"] });
+    expect(pickSurvivor([coach, player], new Map()).survivor.memberId).toBe("MBR-ALT-19761");
+  });
+});

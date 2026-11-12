@@ -38,12 +38,15 @@ export interface Plan {
   survivorWhy: string[];
   loserIds: string[];
   referenceCounts: Record<string, number>;
+  /** Club and roles of each record, so the plan can be checked at a glance. */
+  details: Record<string, { clubId: string; roles: string[] }>;
   blocked?: string;
 }
 
 export interface RunOptions {
   apply: boolean;
   allowMissingDob?: boolean;
+  mergeGeneratedShadows?: boolean;
   now?: string;
   /** Called with a full backup of everything that will change, BEFORE the first write. */
   writeBackup?: (backup: Record<string, Doc[]>) => void | Promise<void>;
@@ -71,7 +74,10 @@ export async function runDedupe(db: DbLike, opts: RunOptions): Promise<RunResult
     .map((d) => ({ memberId: d.memberId as string, doc: d }));
   const byId = new Map(members.map((m) => [m.memberId, m.doc]));
 
-  const groups = findDuplicateGroups(members, { allowMissingDob: opts.allowMissingDob });
+  const groups = findDuplicateGroups(members, {
+    allowMissingDob: opts.allowMissingDob,
+    mergeGeneratedShadows: opts.mergeGeneratedShadows,
+  });
   const auto = groups.filter((g) => g.tier === "auto");
   const review = groups.filter((g) => g.tier === "review");
   const candidateIds = new Set(groups.flatMap((g) => g.memberIds));
@@ -120,6 +126,12 @@ export async function runDedupe(db: DbLike, opts: RunOptions): Promise<RunResult
       survivorWhy: survivor.why,
       loserIds: losers.map((l) => l.memberId),
       referenceCounts: Object.fromEntries(group.memberIds.map((id) => [id, refCounts.get(id) ?? 0])),
+      details: Object.fromEntries(
+        group.memberIds.map((id) => {
+          const d = byId.get(id)!;
+          return [id, { clubId: typeof d.clubId === "string" ? d.clubId : "", roles: Array.isArray(d.roles) ? (d.roles as string[]) : [] }];
+        }),
+      ),
       blocked:
         logins.length > 1
           ? `${logins.length} of these records have their own login (${logins.join(", ")}); merge by hand so no account is lost`
