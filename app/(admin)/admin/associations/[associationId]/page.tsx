@@ -192,6 +192,13 @@ export default async function AssociationDetailPage({
                   Teams &amp; divisions
                 </Link>
                 <Link
+                  href={`/admin/associations/${associationId}/competition-panel`}
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-[#06054e] text-white rounded-xl font-black hover:opacity-90 transition-all text-sm"
+                >
+                  <Wrench size={18} />
+                  Competition panel
+                </Link>
+                <Link
                   href={`/admin/associations/${associationId}/fixtures-console`}
                   className="inline-flex items-center gap-2 px-4 py-2 border-2 border-teal-600 text-teal-900 rounded-xl font-black hover:bg-teal-50 transition-all text-sm"
                 >
