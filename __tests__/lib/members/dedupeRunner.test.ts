@@ -267,3 +267,30 @@ describe("runDedupe — --merge-undated", () => {
     expect(e.data.members).toHaveLength(3);
   });
 });
+
+describe("runDedupe — confirmed people", () => {
+  const hugh = (id: string, club: string, roles: string[]): Doc =>
+    person(id, { clubId: club, roles }, { firstName: "Hugh", lastName: "Abrahams", dateOfBirth: "" });
+  const seedHugh = (): Record<string, Doc[]> => ({
+    members: [
+      hugh("MBR-ALT-10833", "nth", ["role-player"]),
+      hugh("MBR-ALT-19718", "uqh", ["role-player"]),
+    ],
+    teamRosters: [{ _id: "r1", teamId: "t1", memberIds: ["MBR-ALT-19718"] }],
+  });
+
+  it("leaves a different-club same-name group in review unless confirmed", async () => {
+    const e = fakeDb(seedHugh());
+    const r = await runDedupe(e.db, { apply: false, mergeSameName: true });
+    expect(r.plans).toHaveLength(0);
+    expect(r.review.map((g) => g.nameKey)).toContain("hugh|abrahams");
+  });
+
+  it("merges it once the nameKey is confirmed", async () => {
+    const e = fakeDb(seedHugh());
+    const r = await runDedupe(e.db, { apply: true, mergeSameName: true, confirmedNameKeys: ["Hugh|Abrahams"] });
+    expect(r.merged).toBe(1);
+    expect(r.review).toHaveLength(0);
+    expect(e.data.members).toHaveLength(1);
+  });
+});

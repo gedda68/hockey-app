@@ -16,6 +16,8 @@
  *                         records into the one player record that has the same name
  *   --merge-same-name     nobody with this name has a birthday: treat them as one person, unless
  *                         the records are in different clubs (those are listed for review)
+ *   --confirm-people <csv>  a review CSV (see review-*.csv written by each run) where the
+ *                         same_person column is yes: those groups are merged as one person
  *   --out <dir>           where the plan/backup JSON is written (default ./dedupe-output)
  *
  * Safety
@@ -40,6 +42,18 @@ const opt = (n: string) => {
 };
 
 const APPLY = flag("--apply");
+
+/** Reads a review CSV and returns the nameKeys marked same_person = yes. */
+function readConfirmed(file: string | undefined): string[] {
+  if (!file) return [];
+  const rows = fs.readFileSync(path.resolve(file), "utf8").split(/\r?\n/).filter(Boolean);
+  const split = (l: string) => l.match(/("([^"]|"")*"|[^,]*)(,|$)/g)!.map((c) => c.replace(/,$/, "").replace(/^"|"$/g, "").replace(/""/g, '"'));
+  const head = split(rows[0]).map((h) => h.trim().toLowerCase());
+  const ni = head.indexOf("namekey");
+  const si = head.indexOf("same_person");
+  if (ni < 0 || si < 0) throw new Error("CSV needs nameKey and same_person columns.");
+  return rows.slice(1).map(split).filter((r) => /^(y|yes|true|1)$/i.test((r[si] ?? "").trim())).map((r) => r[ni].trim());
+}
 const OUT_DIR = path.resolve(opt("--out") ?? "dedupe-output");
 const DB_NAME = process.env.DB_NAME || "hockey-app";
 
@@ -60,6 +74,7 @@ async function main() {
     mergeGeneratedShadows: flag("--merge-generated-staff"),
     attachUndatedToDated: flag("--merge-undated"),
     mergeSameName: flag("--merge-same-name"),
+    confirmedNameKeys: readConfirmed(opt("--confirm-people")),
     writeBackup: (backup) => {
       const f = path.join(OUT_DIR, `backup-${stamp}.json`);
       fs.writeFileSync(f, JSON.stringify(backup));
@@ -83,6 +98,25 @@ async function main() {
   }
   const hist = Object.entries(result.historyOnly);
   if (hist.length) console.log("\nLeft as recorded (history/audit): " + hist.map(([c, n]) => `${c} (${n})`).join(", "));
+
+  if (result.review.length) {
+    const clubs = new Map<string, string>();
+    for (const c of await client.db(DB_NAME).collection("clubs").find({}).toArray()) {
+      const nm = String(c.name ?? c.shortName ?? "");
+      for (const k of [c.id, c.clubId, c.slug]) if (k) clubs.set(String(k), nm);
+    }
+    const q = (v: string) => `"${v.replace(/"/g, '""')}"`;
+    const lines = ["nameKey,same_person,memberIds,clubs,roles"];
+    for (const g of result.review) {
+      const docs = await client.db(DB_NAME).collection("members").find({ memberId: { $in: g.memberIds } }).toArray();
+      const cl = [...new Set(docs.map((d) => clubs.get(String(d.clubId ?? d.membership?.clubId ?? "")) || String(d.clubId ?? d.membership?.clubId ?? "-")))];
+      const ro = [...new Set(docs.flatMap((d) => (d.roles as string[]) ?? []))];
+      lines.push([q(g.nameKey), "", q(g.memberIds.join(" ")), q(cl.join(" / ")), q(ro.join(" "))].join(","));
+    }
+    const csv = path.join(OUT_DIR, `review-${stamp}.csv`);
+    fs.writeFileSync(csv, lines.join("\n"));
+    console.log(`Review sheet written to ${csv} (put yes in same_person, then re-run with --confirm-people <that file>)`);
+  }
 
   const planFile = path.join(OUT_DIR, `plan-${stamp}.json`);
   fs.writeFileSync(planFile, JSON.stringify({ db: DB_NAME, ...result }, null, 2));

@@ -50,6 +50,8 @@ export interface RunOptions {
   mergeGeneratedShadows?: boolean;
   attachUndatedToDated?: boolean;
   mergeSameName?: boolean;
+  /** nameKeys (e.g. "hugh|abrahams") an administrator has confirmed are the same person: promoted from review to merge. */
+  confirmedNameKeys?: Iterable<string>;
   now?: string;
   /** Called with a full backup of everything that will change, BEFORE the first write. */
   writeBackup?: (backup: Record<string, Doc[]>) => void | Promise<void>;
@@ -83,6 +85,13 @@ export async function runDedupe(db: DbLike, opts: RunOptions): Promise<RunResult
     attachUndatedToDated: opts.attachUndatedToDated,
     mergeSameName: opts.mergeSameName,
   });
+  const confirmed = new Set([...(opts.confirmedNameKeys ?? [])].map((k) => k.trim().toLowerCase()));
+  for (let i = 0; i < groups.length; i++) {
+    const g = groups[i];
+    if (g.tier === "review" && confirmed.has(g.nameKey.toLowerCase())) {
+      groups[i] = { ...g, tier: "auto", reason: `confirmed by an administrator as the same person (was: ${g.reason})` };
+    }
+  }
   const auto = groups.filter((g) => g.tier === "auto");
   const review = groups.filter((g) => g.tier === "review");
   const candidateIds = new Set(groups.flatMap((g) => g.memberIds));
