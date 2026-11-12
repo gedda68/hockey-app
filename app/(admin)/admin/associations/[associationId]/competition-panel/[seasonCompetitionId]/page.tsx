@@ -103,7 +103,7 @@ export default async function CompetitionWorkspacePage({
           <MatchEventsEditorClient key={seasonCompetitionId} associationId={associationId} associationName={associationName} primaryColor={primaryColor} initialSeasonCompetitionId={seasonCompetitionId} />
         )}
         {tab === "teams" && (
-          <DivisionTeamOverviewClient associationId={associationId} associationName={associationName} primaryColor={primaryColor} />
+          <DivisionTeamOverviewClient key={seasonCompetitionId} seasonCompetitionId={seasonCompetitionId} associationId={associationId} associationName={associationName} primaryColor={primaryColor} />
         )}
         {tab === "ladder" && <CompetitionLadderTab seasonCompetitionId={seasonCompetitionId} />}
         {tab === "awards" && <Suspense fallback={null}><CompetitionAwardsAdminClient /></Suspense>}

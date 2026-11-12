@@ -67,10 +67,13 @@ export default function DivisionTeamOverviewClient({
   associationId,
   associationName,
   primaryColor = "#06054e",
+  seasonCompetitionId = null,
 }: {
   associationId: string;
   associationName: string;
   primaryColor?: string;
+  /** When set, only this competition's divisions and teams are shown. */
+  seasonCompetitionId?: string | null;
 }) {
   const [data, setData] = useState<OverviewPayload | null>(null);
   const [loading, setLoading] = useState(true);
@@ -85,7 +88,9 @@ export default function DivisionTeamOverviewClient({
     setLoading(true);
     try {
       const res = await fetch(
-        `/api/admin/associations/${encodeURIComponent(associationId)}/division-team-overview`,
+        `/api/admin/associations/${encodeURIComponent(associationId)}/division-team-overview${
+          seasonCompetitionId ? `?seasonCompetitionId=${encodeURIComponent(seasonCompetitionId)}` : ""
+        }`,
         { credentials: "include" },
       );
       const j = (await res.json()) as OverviewPayload & { error?: string };
@@ -126,7 +131,7 @@ export default function DivisionTeamOverviewClient({
     } finally {
       setLoading(false);
     }
-  }, [associationId]);
+  }, [associationId, seasonCompetitionId]);
 
   useEffect(() => {
     void load();
