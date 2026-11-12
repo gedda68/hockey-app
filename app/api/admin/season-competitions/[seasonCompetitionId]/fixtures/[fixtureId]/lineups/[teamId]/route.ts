@@ -166,19 +166,32 @@ export async function PUT(request: NextRequest, { params }: Params) {
       );
     }
 
-    const ids = [...body.players.map((x) => x.memberId), ...body.staff.map((x) => x.memberId)];
+    const before = await db
+      .collection(FIXTURE_LINEUPS_COLLECTION)
+      .findOne({ fixtureId: p.fixtureId, teamId: p.teamId }, { projection: { _id: 0 } });
+
     if (new Set(body.players.map((x) => x.memberId)).size !== body.players.length) {
       return NextResponse.json({ error: "A player is listed twice" }, { status: 400 });
     }
-    const uniqueIds = [...new Set(ids)];
-    const found = await db
-      .collection("members")
-      .find({
-        memberId: { $in: uniqueIds },
-        ...memberBelongsToClubFilter(team.clubId as string),
-      })
-      .project({ memberId: 1 })
-      .toArray();
+    // Everyone must belong to the team's club, unless they are already named in
+    // this match's existing roster (e.g. imported loan players).
+    const alreadyNamed = new Set(
+      [...((before?.players as { memberId: string }[]) ?? []), ...((before?.staff as { memberId: string }[]) ?? [])].map(
+        (x) => x.memberId,
+      ),
+    );
+    const ids = [...body.players.map((x) => x.memberId), ...body.staff.map((x) => x.memberId)];
+    const uniqueIds = [...new Set(ids)].filter((id) => !alreadyNamed.has(id));
+    const found = uniqueIds.length
+      ? await db
+          .collection("members")
+          .find({
+            memberId: { $in: uniqueIds },
+            ...memberBelongsToClubFilter(team.clubId as string),
+          })
+          .project({ memberId: 1 })
+          .toArray()
+      : [];
     const foundIds = new Set(found.map((m) => m.memberId as string));
     const missing = uniqueIds.filter((id) => !foundIds.has(id));
     if (missing.length) {
@@ -189,10 +202,6 @@ export async function PUT(request: NextRequest, { params }: Params) {
     }
 
     const now = new Date().toISOString();
-    const before = await db
-      .collection(FIXTURE_LINEUPS_COLLECTION)
-      .findOne({ fixtureId: p.fixtureId, teamId: p.teamId }, { projection: { _id: 0 } });
-
     const lineup = {
       lineupId: (before?.lineupId as string) ?? `lu-${p.fixtureId}-${p.teamId}`,
       fixtureId: p.fixtureId,
