@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import FavouritesPanel from "@/components/favourites/FavouritesPanel";
 
 /**
  * Local event type to remove `any` usage.
@@ -104,6 +105,9 @@ export default function EventDashboard() {
           </Link>
         </div>
       </div>
+
+      {/* 2b. FAVOURITES (device-local; renders nothing until something is starred) */}
+      <FavouritesPanel />
 
       {/* 3. GRID CONTAINER (4 Wide on Desktop) */}
       <div className="w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
