@@ -397,7 +397,7 @@ export default function TeamsList({ clubId }: TeamsListProps) {
           {visibleTeams.map((team) => (
             <Link
               key={team.teamId}
-              href={`/clubs/${clubId}/teams/${team.teamId}`}
+              href={`/clubs/${clubId}/teams/${team.teamId}/manage`}
               className="group bg-white rounded-[2rem] shadow-xl border border-slate-100 p-6 hover:shadow-2xl hover:border-yellow-400 transition-all"
             >
               {/* Header */}

@@ -43,6 +43,11 @@ function safeInt(v: unknown): number | null {
   return Math.trunc(v);
 }
 
+/** True for fixtures marked as finals series games (`matchLevel: "finals"`). */
+export function isFinalsMatchLevel(matchLevel: unknown): boolean {
+  return typeof matchLevel === "string" && /^finals?$/i.test(matchLevel.trim());
+}
+
 export async function loadLeagueFixturesForStandings(
   db: Db,
   seasonCompetitionId: string,
@@ -61,6 +66,7 @@ export async function loadLeagueFixturesForStandings(
       status: 1,
       result: 1,
       resultStatus: 1,
+      matchLevel: 1,
     })
     .toArray() as Promise<Record<string, unknown>[]>;
 }
@@ -113,6 +119,8 @@ export function accumulateStandingsRowsFromFixtures(
     const homeTeamId = String(f.homeTeamId ?? "");
     const awayTeamId = String(f.awayTeamId ?? "");
     if (!homeTeamId || !awayTeamId) continue;
+    // Finals series games don't count towards the regular-season ladder.
+    if (isFinalsMatchLevel(f.matchLevel)) continue;
 
     touch(homeTeamId);
     touch(awayTeamId);

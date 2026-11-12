@@ -1,123 +1,64 @@
-import Image from "next/image";
-import { cva } from "class-variance-authority";
+import Link from "next/link";
 import { cn } from "../../lib/utils";
-import Text from "../ui/Text";
 import type { Team } from "../../types";
-import EntityColorBar from "@/components/ui/EntityColorBar";
 
-const rowVariants = cva(
-  "grid grid-cols-12 items-center bg-white/5 hover:bg-white/10 p-2 rounded-lg text-xs transition-colors cursor-pointer"
-);
-
-const positionVariants = cva("col-span-1 font-black", {
-  variants: {
-    zone: {
-      promotion: "text-green-400",
-      safe: "text-slate-400",
-      relegation: "text-red-400",
-    },
-  },
-  defaultVariants: {
-    zone: "safe",
-  },
-});
-
-const goalDiffVariants = cva("col-span-2 text-center font-bold", {
-  variants: {
-    value: {
-      positive: "text-green-400",
-      zero: "text-slate-400",
-      negative: "text-red-400",
-    },
-  },
-  defaultVariants: {
-    value: "zero",
-  },
-});
-
-const pointsVariants = cva("col-span-2 text-right font-black text-blue-400");
+/**
+ * Shared column layout for the compact ladder (header + rows use the same template,
+ * so columns always line up): colour bar | # | team | P | GD | Pts
+ */
+export const STANDINGS_COMPACT_GRID =
+  "grid grid-cols-[4px_1.75rem_minmax(0,1fr)_2.25rem_2.75rem_2.75rem] items-center gap-x-2";
 
 interface StandingsRowProps {
   team: Team;
-  promotionZone?: number;
-  relegationZone?: number;
-  totalTeams?: number;
+  /** Finals places — highlights qualifying positions */
+  finalsPlaces?: number;
+  /** Link to the team's matches */
+  href?: string | null;
 }
 
-export default function StandingsRow({
-  team,
-  promotionZone = 3,
-  relegationZone = 2,
-  totalTeams = 10,
-}: StandingsRowProps) {
-  // Use 'gd' from JSON (goal difference)
-  const goalDiff = team.gd || team.goalDifference || 0;
-  // Use 'p' from JSON (played)
-  const played = team.p || team.played || 0;
+export default function StandingsRow({ team, finalsPlaces = 0, href }: StandingsRowProps) {
+  const goalDiff = team.gd ?? team.goalDifference ?? 0;
+  const played = team.p ?? team.played ?? 0;
+  const inFinals = finalsPlaces > 0 && team.pos != null && team.pos <= finalsPlaces;
 
-  // Determine position zone
-  const getPositionZone = () => {
-    const pos = team.pos;
-    if (pos == null) return "safe";
-    if (pos <= promotionZone) return "promotion";
-    if (pos > totalTeams - relegationZone) return "relegation";
-    return "safe";
-  };
-
-  // Determine goal difference category
-  const getGoalDiffValue = () => {
-    if (goalDiff > 0) return "positive";
-    if (goalDiff < 0) return "negative";
-    return "zero";
-  };
+  const name = (
+    <span className="flex min-w-0 items-center gap-2">
+      {team.icon && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={team.icon} alt="" className="h-6 w-6 shrink-0 rounded-full bg-white object-contain p-0.5" />
+      )}
+      <span className="truncate text-sm font-semibold text-white">{team.club}</span>
+    </span>
+  );
 
   return (
-    <div className={cn(rowVariants(), "flex items-center gap-0 overflow-hidden rounded-lg")}>
-      {/* Club colour stripe */}
-      {(team.primaryColor || team.secondaryColor) && (
-        <EntityColorBar
-          primary={team.primaryColor}
-          secondary={team.secondaryColor}
-          className="mr-2"
-        />
-      )}
-
-      {/* Position */}
-      <div className={cn(positionVariants({ zone: getPositionZone() }), "w-6 shrink-0")}>
+    <div className={cn(STANDINGS_COMPACT_GRID, "rounded-lg bg-white/5 px-2 py-2 transition-colors hover:bg-white/10")}>
+      <span
+        className="h-6 w-1 rounded-full"
+        style={{ background: team.primaryColor || "transparent" }}
+        aria-hidden
+      />
+      <span className={cn("text-sm font-bold tabular-nums", inFinals ? "text-emerald-400" : "text-slate-400")}>
         {team.pos ?? "—"}
-      </div>
-
-      {/* Team Name & Logo */}
-      <div className="flex-1 flex items-center gap-2 min-w-0">
-        {team.icon && (
-          <Image
-            src={team.icon}
-            alt={team.club}
-            width={16}
-            height={16}
-            className="shrink-0"
-          />
+      </span>
+      {href ? (
+        <Link href={href} className="min-w-0 hover:underline focus-visible:underline" title={`${team.club} matches`}>
+          {name}
+        </Link>
+      ) : (
+        name
+      )}
+      <span className="text-center text-sm tabular-nums text-slate-300">{played}</span>
+      <span
+        className={cn(
+          "text-center text-sm font-semibold tabular-nums",
+          goalDiff > 0 ? "text-emerald-400" : goalDiff < 0 ? "text-rose-400" : "text-slate-400",
         )}
-        <Text className="font-bold uppercase text-[10px] truncate text-white">
-          {team.club}
-        </Text>
-      </div>
-
-      {/* Played */}
-      <div className="col-span-2 text-center font-bold text-slate-300">
-        {played}
-      </div>
-
-      {/* Goal Difference */}
-      <div className={goalDiffVariants({ value: getGoalDiffValue() })}>
-        {goalDiff > 0 ? "+" : ""}
-        {goalDiff}
-      </div>
-
-      {/* Points */}
-      <div className={pointsVariants()}>{team.pts}</div>
+      >
+        {goalDiff > 0 ? `+${goalDiff}` : goalDiff}
+      </span>
+      <span className="text-right text-base font-black tabular-nums text-sky-300">{team.pts}</span>
     </div>
   );
 }
-
-export { rowVariants, positionVariants, goalDiffVariants, pointsVariants };

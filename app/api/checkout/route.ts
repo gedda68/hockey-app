@@ -36,15 +36,16 @@ import clientPromise from "@/lib/mongodb";
 import { getSession } from "@/lib/auth/session";
 import { getPaymentGatewayMode } from "@/lib/payments/paymentGateway";
 import { getStripe, isStripeConfigured } from "@/lib/stripe/server";
+import { alignLocalOriginPort, localDevOrigin } from "@/lib/utils/devServerOrigin";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 /** Base URL for Stripe redirect targets — must be an absolute URL. */
 function appBaseUrl(): string {
-  return (
+  return alignLocalOriginPort(
     process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") ||
-    process.env.NEXTAUTH_URL?.replace(/\/$/, "") ||
-    "http://localhost:3000"
+      process.env.NEXTAUTH_URL?.replace(/\/$/, "") ||
+      localDevOrigin(),
   );
 }
 

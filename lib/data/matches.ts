@@ -11,7 +11,20 @@ import type {
   Season,
   ViewType,
 } from "@/types";
+import type { Db } from "mongodb";
 import clientPromise from "@/lib/mongodb";
+import { loadMatchPlayers, loadMatchStaff, type PublicMatchPlayer, type PublicMatchStaff } from "@/lib/data/matchPlayers";
+import { FIXTURE_TEAM_STATS_COLLECTION } from "@/lib/db/schemas/fixtureTeamStats.schema";
+
+/** Team-level numbers for one fixture (penalty corners awarded per period, etc.). */
+export type PublicTeamStats = {
+  penaltyCornersAwarded: { total: number; byPeriod: (number | null)[] } | null;
+  penaltyStrokesAwarded: { total: number; byPeriod: (number | null)[] } | null;
+  circleEntries: { total: number; byPeriod: (number | null)[] } | null;
+  shots: { total: number; byPeriod: (number | null)[] } | null;
+  shotsOnTarget: { total: number; byPeriod: (number | null)[] } | null;
+  possessionPct: number | null;
+};
 import type { PublicTenantPayload } from "@/lib/tenant/portalHost";
 import { seasonCompetitionVisibleForPortalTenant } from "@/lib/tenant/seasonCompetitionTenantGate";
 
@@ -27,10 +40,12 @@ interface Match {
   legacyMatchId?: string | null;
   fixtureUmpires?: FixtureUmpireSlot[] | null;
   homeTeam: {
+    id?: string;
     name: string;
     icon?: string;
   };
   awayTeam: {
+    id?: string;
     name: string;
     icon?: string;
   };
@@ -58,8 +73,10 @@ function mapStoredMatchToPublic(m: Match): PublicMatch {
     round: m.round,
     status: m.status,
     homeTeam: m.homeTeam.name,
+    homeTeamId: m.homeTeam.id,
     homeTeamIcon: m.homeTeam.icon,
     awayTeam: m.awayTeam.name,
+    awayTeamId: m.awayTeam.id,
     awayTeamIcon: m.awayTeam.icon,
     homeScore: m.score?.home ?? null,
     awayScore: m.score?.away ?? null,
@@ -296,12 +313,14 @@ export async function getMatches(opts?: GetMatchesOptions): Promise<Match[]> {
         dateTime,
         venue,
         homeTeam: {
+          id: f.homeTeamId ? String(f.homeTeamId) : undefined,
           name: teamNameById.get(String(f.homeTeamId)) ?? String(f.homeTeamId ?? "Home"),
           icon:
             clubLogoById.get(teamClubIdById.get(String(f.homeTeamId)) ?? "") ??
             undefined,
         },
         awayTeam: {
+          id: f.awayTeamId ? String(f.awayTeamId) : undefined,
           name: teamNameById.get(String(f.awayTeamId)) ?? String(f.awayTeamId ?? "Away"),
           icon:
             clubLogoById.get(teamClubIdById.get(String(f.awayTeamId)) ?? "") ??
@@ -477,6 +496,16 @@ export type PublicMatchCentre = {
   teamNameById: Record<string, string>;
   venue: { name: string | null; addressLine: string | null };
   umpires: FixtureUmpireSlot[] | null;
+  /** Players referenced by the timeline / lineups (name, shirt number, photo, link). */
+  players: Record<string, PublicMatchPlayer>;
+  /** Club colours per team, for player badges without a photo. */
+  teamColorById: Record<string, { primary: string; secondary: string }>;
+  /** Coaches / managers from the fixture lineups, by team id. */
+  staffByTeam: Record<string, PublicMatchStaff[]>;
+  /** Team stats by team id (only once the result is public). */
+  teamStats: Record<string, PublicTeamStats>;
+  /** Minute each period ends, e.g. [17, 34, 51, 68]; empty when unknown. */
+  periodEndMinutes: number[];
 };
 
 export async function getPublicMatchCentreById(
@@ -535,9 +564,16 @@ export async function getPublicMatchCentreById(
       ? await db
           .collection("clubs")
           .find({ id: { $in: clubIds } })
-          .project({ id: 1, logo: 1, iconSrc: 1, icon: 1 })
+          .project({ id: 1, logo: 1, iconSrc: 1, icon: 1, colors: 1 })
           .toArray()
       : [];
+
+  const teamColorById: Record<string, { primary: string; secondary: string }> = {};
+  for (const [teamId, clubId] of teamClubIdById) {
+    const c = clubs.find((x) => String(x.id) === clubId);
+    const primary = c?.colors?.primary || c?.colors?.primaryColor;
+    if (primary) teamColorById[teamId] = { primary, secondary: c?.colors?.secondary || c?.colors?.secondaryColor || primary };
+  }
 
   const clubLogoById = new Map<string, string>();
   for (const c of clubs) {
@@ -590,10 +626,12 @@ export async function getPublicMatchCentreById(
     legacyMatchId: fx.legacyMatchId ? String(fx.legacyMatchId) : null,
     fixtureUmpires: fixtureUmpires ?? null,
     homeTeam: {
+      id: homeTeamId || undefined,
       name: teamNameById.get(homeTeamId) ?? "Home",
       icon: clubLogoById.get(teamClubIdById.get(homeTeamId) ?? "") || undefined,
     },
     awayTeam: {
+      id: awayTeamId || undefined,
       name: teamNameById.get(awayTeamId) ?? "Away",
       icon: clubLogoById.get(teamClubIdById.get(awayTeamId) ?? "") || undefined,
     },
@@ -605,11 +643,22 @@ export async function getPublicMatchCentreById(
 
   const match = mapStoredMatchToPublic(m);
 
+  const players = await loadMatchPlayers(
+    db,
+    String(fx.fixtureId ?? id),
+    teamIds,
+    (matchEvents ?? []).flatMap((e) => [e.memberId, e.assistMemberId ?? ""]).filter(Boolean),
+  );
+
   return {
     match,
     teamNameById: Object.fromEntries(teamNameById.entries()),
     venue: { name: venueName, addressLine },
     umpires: fixtureUmpires,
+    players,
+    teamColorById,
+    staffByTeam: await loadMatchStaff(db, String(fx.fixtureId ?? id)),
+    ...(await loadTeamStats(db, String(fx.fixtureId ?? id), showEvents)),
   };
 }
 
@@ -699,7 +748,7 @@ export type SeasonCompetitionOption = {
 /** Public options for filtering matches by season competition (competition + season). */
 export async function getSeasonCompetitionOptions(): Promise<SeasonCompetitionOption[]> {
   const client = await clientPromise;
-  const db = client.db("hockey-app");
+  const db = client.db(process.env.DB_NAME || "hockey-app");
 
   const scs = await db
     .collection("season_competitions")
@@ -852,6 +901,8 @@ export async function filterMatches(filters: {
   round?: string;
   status?: string;
   view?: ViewType;
+  /** Only matches this team played in (home or away). */
+  teamId?: string;
 }): Promise<PublicMatch[]> {
   let matches = await getMatches();
 
@@ -877,6 +928,12 @@ export async function filterMatches(filters: {
     matches = matches.filter((m) => m.season === filters.season);
   }
 
+  if (filters.teamId) {
+    matches = matches.filter(
+      (m) => m.homeTeam.id === filters.teamId || m.awayTeam.id === filters.teamId,
+    );
+  }
+
   if (filters.round && filters.round !== "All") {
     matches = matches.filter((m) => m.round.toString() === filters.round);
   }
@@ -899,4 +956,31 @@ export async function getMatchStatsData(): Promise<any> {
     topAssists: [],
     teamStats: [],
   };
+}
+
+async function loadTeamStats(
+  db: Db,
+  fixtureId: string,
+  visible: boolean,
+): Promise<{ teamStats: Record<string, PublicTeamStats>; periodEndMinutes: number[] }> {
+  if (!visible) return { teamStats: {}, periodEndMinutes: [] };
+  const docs = await db
+    .collection(FIXTURE_TEAM_STATS_COLLECTION)
+    .find({ fixtureId })
+    .project({ _id: 0, teamId: 1, periodEndMinutes: 1, penaltyCornersAwarded: 1, penaltyStrokesAwarded: 1, circleEntries: 1, shots: 1, shotsOnTarget: 1, possessionPct: 1 })
+    .toArray();
+  const teamStats: Record<string, PublicTeamStats> = {};
+  let periodEndMinutes: number[] = [];
+  for (const d of docs) {
+    teamStats[String(d.teamId)] = {
+      penaltyCornersAwarded: d.penaltyCornersAwarded ?? null,
+      penaltyStrokesAwarded: d.penaltyStrokesAwarded ?? null,
+      circleEntries: d.circleEntries ?? null,
+      shots: d.shots ?? null,
+      shotsOnTarget: d.shotsOnTarget ?? null,
+      possessionPct: typeof d.possessionPct === "number" ? d.possessionPct : null,
+    };
+    if (!periodEndMinutes.length && Array.isArray(d.periodEndMinutes)) periodEndMinutes = d.periodEndMinutes.filter((n: unknown) => typeof n === "number");
+  }
+  return { teamStats, periodEndMinutes };
 }

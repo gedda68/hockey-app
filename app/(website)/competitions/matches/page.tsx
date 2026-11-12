@@ -29,6 +29,7 @@ export default async function MatchesPage({
     round?: string;
     status?: string;
     view?: string;
+    teamId?: string;
   };
 }) {
   // 1. PARAMS
@@ -36,6 +37,7 @@ export default async function MatchesPage({
   const selectedRound = params.round || "All";
   const selectedStatus = params.status || "All";
   const selectedView: ViewType = (params.view as ViewType) || "results";
+  const selectedTeamId = params.teamId?.trim() || "";
 
   // 2. DATA LOADING (live)
   const [seasonCompetitions, statsData, umpireList] = await Promise.all([
@@ -59,6 +61,7 @@ export default async function MatchesPage({
     seasonCompetitionId: selectedSeasonCompetitionId || undefined,
     round: selectedRound,
     status: selectedStatus,
+    teamId: selectedTeamId || undefined,
   });
 
   const umpireAllocations =
@@ -71,6 +74,11 @@ export default async function MatchesPage({
     ? await getLiveStandingsDivision(selectedSeasonCompetitionId)
     : null;
 
+  const selectedTeam = selectedTeamId
+    ? currentStandings?.teams.find((t) => t.teamId === selectedTeamId)
+    : undefined;
+  const teamQuery = selectedTeamId ? `&teamId=${encodeURIComponent(selectedTeamId)}` : "";
+
   const statuses =
     selectedView === "upcoming"
       ? ["All", "Scheduled"]
@@ -80,7 +88,7 @@ export default async function MatchesPage({
   const viewToggle = (
     <>
       <Link
-        href={`/competitions/matches?view=results&seasonCompetitionId=${selectedSeasonCompetitionId}&round=${selectedRound}&status=All`}
+        href={`/competitions/matches?view=results&seasonCompetitionId=${selectedSeasonCompetitionId}&round=${selectedRound}&status=All${teamQuery}`}
         className={`px-6 py-2 rounded-full text-[10px] font-black uppercase tracking-widest transition-all shadow-lg ${
           selectedView === "results"
             ? "bg-red-600 text-white"
@@ -90,7 +98,7 @@ export default async function MatchesPage({
         Results
       </Link>
       <Link
-        href={`/competitions/matches?view=upcoming&seasonCompetitionId=${selectedSeasonCompetitionId}&round=${selectedRound}&status=All`}
+        href={`/competitions/matches?view=upcoming&seasonCompetitionId=${selectedSeasonCompetitionId}&round=${selectedRound}&status=All${teamQuery}`}
         className={`px-6 py-2 rounded-full text-[10px] font-black uppercase tracking-widest transition-all shadow-lg ${
           selectedView === "upcoming"
             ? "bg-red-600 text-white"
@@ -133,7 +141,26 @@ export default async function MatchesPage({
           selectedRound={selectedRound}
           selectedStatus={selectedStatus}
           selectedView={selectedView}
+          selectedTeamId={selectedTeamId}
         />
+
+        {selectedTeamId && (
+          <div className="mt-6 flex flex-wrap items-center gap-3">
+            <span className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-semibold text-[#06054e] shadow">
+              {selectedTeam?.icon && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={selectedTeam.icon} alt="" className="h-5 w-5 rounded-full object-contain" />
+              )}
+              Showing {selectedTeam?.club ?? "this team"}&rsquo;s {selectedMeta?.season ?? ""} matches
+            </span>
+            <Link
+              href={`/competitions/matches?view=${selectedView}&seasonCompetitionId=${selectedSeasonCompetitionId}&round=${selectedRound}&status=${selectedStatus}`}
+              className="text-sm font-semibold text-slate-300 underline underline-offset-4 hover:text-white"
+            >
+              Show all teams
+            </Link>
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-10">

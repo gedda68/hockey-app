@@ -2,7 +2,8 @@ import React from "react";
 import Link from "next/link";
 import StandingsTableFull from "../../../../components/standings/StandingsTableFull";
 import PageHeader from "../../../../components/shared/PageHeader";
-import FilterButton from "../../../../components/shared/FilterButton";
+import CompetitionPicker from "../../../../components/shared/CompetitionPicker";
+import { buildCompetitionPicker } from "../../../../lib/competitions/competitionPickerOptions";
 
 import {
   getLiveStandingsDivision,
@@ -53,31 +54,20 @@ export default async function StandingsPage({
       <div className="flex flex-col mb-10 border-b-4 border-[#06054e] pb-6">
         <PageHeader title="League" highlight="Standings" />
 
-        {/* Filters */}
-        <div className="flex flex-wrap gap-x-12 gap-y-6">
-          {/* Season competition filter */}
-          <div className="flex flex-col gap-2">
-            <span className="text-[10px] font-black uppercase text-slate-400 tracking-[0.2em]">
-              Competition
-            </span>
-            <div className="flex gap-2 flex-wrap">
-              {seasonCompetitions.map((sc) => (
-                <FilterButton
-                  key={sc.seasonCompetitionId}
-                  href={`/competitions/standings?seasonCompetitionId=${sc.seasonCompetitionId}`}
-                  isActive={selectedId === sc.seasonCompetitionId}
-                  variant="primary"
-                >
-                  {sc.competitionName ?? sc.competitionId} {sc.season}
-                </FilterButton>
-              ))}
-            </div>
-          </div>
-        </div>
+        {/* Competition picker */}
+        <CompetitionPicker
+          selectedId={selectedId}
+          seasons={buildCompetitionPicker(
+            seasonCompetitions.map((sc) => ({
+              ...sc,
+              href: `/competitions/standings?seasonCompetitionId=${encodeURIComponent(sc.seasonCompetitionId)}`,
+            })),
+          )}
+        />
       </div>
 
       {/* Standings Table */}
-      <div className="max-w-4xl mx-auto">
+      <div className="max-w-5xl mx-auto pb-16">
         {finalDivision ? (
           <StandingsTableFull
             division={finalDivision}

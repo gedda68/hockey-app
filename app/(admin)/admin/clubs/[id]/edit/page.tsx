@@ -3,10 +3,11 @@
 import { notFound } from "next/navigation";
 import { headers } from "next/headers";
 import ClubForm from "@/components/admin/clubs/ClubForm";
+import { alignLocalOriginPort, localDevOrigin } from "@/lib/utils/devServerOrigin";
 
 async function getClub(id: string, cookie: string) {
   try {
-    const baseUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
+    const baseUrl = alignLocalOriginPort(process.env.NEXTAUTH_URL || localDevOrigin());
     const res = await fetch(`${baseUrl}/api/admin/clubs/${id}`, {
       cache: "no-store",
       headers: cookie ? { cookie } : {},
@@ -28,7 +29,7 @@ async function getClub(id: string, cookie: string) {
 /** Parent-association dropdown — uses club-scoped API so club admins are not blocked by association.view */
 async function getAssociationOptionsForClub(clubRef: string, cookie: string) {
   try {
-    const baseUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
+    const baseUrl = alignLocalOriginPort(process.env.NEXTAUTH_URL || localDevOrigin());
     const res = await fetch(
       `${baseUrl}/api/admin/clubs/${encodeURIComponent(clubRef)}/association-options`,
       {

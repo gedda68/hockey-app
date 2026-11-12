@@ -26,9 +26,17 @@ import {
   sessionCookieNameForWrite,
 } from "@/lib/auth/cookieName";
 
-const SECRET_KEY = process.env.JWT_SECRET;
-if (!SECRET_KEY) throw new Error("JWT_SECRET environment variable is not set");
-const key = new TextEncoder().encode(SECRET_KEY);
+// Read lazily: a missing secret fails the request that needs it (never signs
+// or accepts tokens), but doesn't break `next build`, which imports this
+// module while collecting page data.
+let cachedKey: Uint8Array | null = null;
+function getKey(): Uint8Array {
+  if (cachedKey) return cachedKey;
+  const secret = process.env.JWT_SECRET;
+  if (!secret) throw new Error("JWT_SECRET environment variable is not set");
+  cachedKey = new TextEncoder().encode(secret);
+  return cachedKey;
+}
 
 /**
  * Minimal scoped role — stored in the JWT for middleware access checks.
@@ -86,13 +94,13 @@ async function encrypt(payload: SessionData): Promise<string> {
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
     .setExpirationTime("7d")
-    .sign(key);
+    .sign(getKey());
 }
 
 // Decrypt and verify a session JWT
 async function decrypt(token: string): Promise<SessionData | null> {
   try {
-    const { payload } = await jwtVerify(token, key, {
+    const { payload } = await jwtVerify(token, getKey(), {
       algorithms: ["HS256"],
     });
     return payload as unknown as SessionData;

@@ -5,10 +5,11 @@ import { headers } from "next/headers";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import FeeManager from "@/components/admin/FeeManager";
+import { alignLocalOriginPort, localDevOrigin } from "@/lib/utils/devServerOrigin";
 
 async function getClub(id: string, cookie: string) {
   try {
-    const baseUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
+    const baseUrl = alignLocalOriginPort(process.env.NEXTAUTH_URL || localDevOrigin());
     const res = await fetch(`${baseUrl}/api/admin/clubs/${id}`, {
       cache: "no-store",
       headers: cookie ? { cookie } : {},

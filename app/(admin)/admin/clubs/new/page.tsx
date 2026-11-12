@@ -3,11 +3,12 @@
 
 import { headers } from "next/headers";
 import ClubForm from "@/components/admin/clubs/ClubForm";
+import { alignLocalOriginPort, localDevOrigin } from "@/lib/utils/devServerOrigin";
 
 async function getAssociations(cookie: string) {
   try {
     const res = await fetch(
-      `${process.env.NEXTAUTH_URL || "http://localhost:3000"}/api/admin/associations`,
+      `${alignLocalOriginPort(process.env.NEXTAUTH_URL || localDevOrigin())}/api/admin/associations`,
       {
         cache: "no-store",
         headers: cookie ? { cookie } : {},

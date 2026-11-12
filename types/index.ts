@@ -54,8 +54,10 @@ export interface Match {
   round: string | number;
   status: StatusType | string;
   homeTeam: string;
+  homeTeamId?: string;
   homeTeamIcon?: string;
   awayTeam: string;
+  awayTeamId?: string;
   awayTeamIcon?: string;
   homeScore?: number | null;
   awayScore?: number | null;
@@ -74,6 +76,9 @@ export interface Match {
 export interface Team {
   pos?: number;
   club: string;
+  /** League team id (teams.teamId) — used to link to the team's matches */
+  teamId?: string;
+  clubId?: string;
   icon?: string;
   /** Club brand colours — enriched from the clubs collection at load time */
   primaryColor?: string;
@@ -97,8 +102,11 @@ export interface Team {
 export interface Division {
   divisionName: string;
   year?: string | number;
+  /** seasonCompetitionId for live ladders */
   slug?: string;
   teams: Team[];
+  /** How many top ladder places qualify for finals (from the season's finals rules). */
+  finalsPlaces?: number;
 }
 
 // Umpire Types

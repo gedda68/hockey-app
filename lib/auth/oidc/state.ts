@@ -1,9 +1,11 @@
 import { SignJWT, jwtVerify } from "jose";
 
-const SECRET = process.env.JWT_SECRET;
-if (!SECRET) throw new Error("JWT_SECRET is required for OIDC state");
-
-const key = new TextEncoder().encode(SECRET);
+// Read lazily so a missing secret doesn't break `next build`.
+function getKey(): Uint8Array {
+  const secret = process.env.JWT_SECRET;
+  if (!secret) throw new Error("JWT_SECRET is required for OIDC state");
+  return new TextEncoder().encode(secret);
+}
 
 export type OidcStatePayload = {
   kind: "oidc-sso";
@@ -23,14 +25,14 @@ export async function signOidcState(
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
     .setExpirationTime("10m")
-    .sign(key);
+    .sign(getKey());
 }
 
 export async function verifyOidcState(
   token: string,
 ): Promise<OidcStatePayload | null> {
   try {
-    const { payload } = await jwtVerify(token, key, { algorithms: ["HS256"] });
+    const { payload } = await jwtVerify(token, getKey(), { algorithms: ["HS256"] });
     if (payload.kind !== "oidc-sso" || typeof payload.nonce !== "string") {
       return null;
     }

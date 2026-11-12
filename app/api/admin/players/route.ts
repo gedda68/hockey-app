@@ -22,6 +22,7 @@ import {
   requirePermission,
   requireResourceAccess,
 } from "@/lib/auth/middleware";
+import { alignLocalOriginPort, localDevOrigin } from "@/lib/utils/devServerOrigin";
 
 // ── Status mapping ────────────────────────────────────────────────────────────
 function mapStatus(membershipStatus?: string): string {
@@ -292,7 +293,7 @@ export async function POST(request: NextRequest) {
         };
 
     // Proxy to /api/admin/members
-    const base = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+    const base = alignLocalOriginPort(process.env.NEXT_PUBLIC_APP_URL ?? localDevOrigin());
     const res = await fetch(`${base}/api/admin/members`, {
       method: "POST",
       headers: {

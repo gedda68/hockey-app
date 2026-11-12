@@ -4,13 +4,14 @@ import { headers } from "next/headers";
 import PlayerForm from "@/components/admin/players/PlayerForm";
 import { notFound } from "next/navigation";
 import { getErrorMessage } from "@/lib/utils/errors";
+import { alignLocalOriginPort, localDevOrigin } from "@/lib/utils/devServerOrigin";
 
 interface EditPlayerPageProps {
   params: Promise<{ playerId: string }>;
 }
 
 async function getPlayerData(playerId: string, cookie: string) {
-  const base = process.env.NEXTAUTH_URL || "http://localhost:3000";
+  const base = alignLocalOriginPort(process.env.NEXTAUTH_URL || localDevOrigin());
   const opts: RequestInit = {
     cache: "no-store",
     ...(cookie ? { headers: { cookie } } : {}),

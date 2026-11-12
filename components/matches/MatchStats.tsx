@@ -1,0 +1,372 @@
+import Link from "next/link";
+import type { Match } from "@/types";
+import type { PublicMatchPlayer, PublicMatchStaff } from "@/lib/data/matchPlayers";
+import { computeMatchStats, goalType, roleTag, type MatchScorer } from "@/lib/competitions/matchStats";
+import type { PublicTeamStats } from "@/lib/data/matches";
+import { periodLabel } from "@/lib/competitions/matchTimeline";
+
+type Colour = { primary: string; secondary: string };
+
+interface MatchStatsProps {
+  match: Match;
+  players: Record<string, PublicMatchPlayer>;
+  teamColorById: Record<string, Colour>;
+  /** @deprecated team sheets moved to their own tab */
+  staffByTeam?: Record<string, PublicMatchStaff[]>;
+  teamStats?: Record<string, PublicTeamStats>;
+  periodEndMinutes?: number[];
+}
+
+const FALLBACK: Record<"home" | "away", Colour> = {
+  home: { primary: "#38bdf8", secondary: "#0284c7" },
+  away: { primary: "#f472b6", secondary: "#db2777" },
+};
+
+export default function MatchStats({ match, players, teamColorById, teamStats = {}, periodEndMinutes = [] }: MatchStatsProps) {
+  const stats = computeMatchStats(match.matchEvents ?? [], match.homeTeamId, match.awayTeamId, players);
+  const homeColour = (match.homeTeamId && teamColorById[match.homeTeamId]) || FALLBACK.home;
+  const awayColour = (match.awayTeamId && teamColorById[match.awayTeamId]) || FALLBACK.away;
+  const hasShootout = match.homeShootOutScore != null && match.awayShootOutScore != null;
+
+  const homeTs = match.homeTeamId ? teamStats[match.homeTeamId] : undefined;
+  const awayTs = match.awayTeamId ? teamStats[match.awayTeamId] : undefined;
+  const extraRows = (
+    [
+      ["Circle entries", homeTs?.circleEntries?.total, awayTs?.circleEntries?.total],
+      ["Shots", homeTs?.shots?.total, awayTs?.shots?.total],
+      ["Shots on target", homeTs?.shotsOnTarget?.total, awayTs?.shotsOnTarget?.total],
+      ["Possession %", homeTs?.possessionPct, awayTs?.possessionPct],
+    ] as [string, number | null | undefined, number | null | undefined][]
+  ).filter(([, h, a]) => h != null && a != null) as [string, number, number][];
+
+  if (!stats.hasEvents && !homeTs && !awayTs) {
+    return <p className="mt-4 text-base text-white/70">Stats will appear once the result and team sheets are published.</p>;
+  }
+
+  return (
+    <div className="mt-4 space-y-8">
+      {/* Team comparison */}
+      <section aria-labelledby="stats-compare">
+        <h3 id="stats-compare" className="sr-only">Team comparison</h3>
+        <div className="mb-3 grid grid-cols-[1fr_auto_1fr] items-center gap-3 text-sm font-bold text-white">
+          <TeamLabel name={match.homeTeam} icon={match.homeTeamIcon} colour={homeColour} />
+          <span className="text-xs uppercase tracking-widest text-white/50">vs</span>
+          <TeamLabel name={match.awayTeam} icon={match.awayTeamIcon} colour={awayColour} align="right" />
+        </div>
+        <ul className="space-y-3 rounded-2xl border border-white/10 bg-black/20 p-4">
+          {stats.rows.map((r) => (
+            <CompareRow key={r.key} label={r.label} home={r.home} away={r.away} homeColour={homeColour} awayColour={awayColour} />
+          ))}
+          {extraRows.map(([label, h, a]) => (
+            <CompareRow key={label} label={label} home={h} away={a} homeColour={homeColour} awayColour={awayColour} />
+          ))}
+          {hasShootout && (
+            <CompareRow
+              label="Shootout"
+              home={match.homeShootOutScore!}
+              away={match.awayShootOutScore!}
+              homeColour={homeColour}
+              awayColour={awayColour}
+            />
+          )}
+        </ul>
+      </section>
+
+      {/* Set pieces */}
+      <SetPieces
+        match={match}
+        homeTs={homeTs}
+        awayTs={awayTs}
+        periodEndMinutes={periodEndMinutes}
+        homeColour={homeColour}
+        awayColour={awayColour}
+      />
+
+      {/* Goal scorers */}
+      {(stats.scorers.home.length > 0 || stats.scorers.away.length > 0) && (
+        <section aria-labelledby="stats-scorers">
+          <SectionTitle id="stats-scorers">Goal scorers</SectionTitle>
+          <div className="grid gap-4 md:grid-cols-2">
+            <ScorerList scorers={stats.scorers.home} team={match.homeTeam} colour={homeColour} />
+            <ScorerList scorers={stats.scorers.away} team={match.awayTeam} colour={awayColour} />
+          </div>
+        </section>
+      )}
+
+    </div>
+  );
+}
+
+function SectionTitle({ id, children }: { id: string; children: React.ReactNode }) {
+  return (
+    <h3 id={id} className="mb-3 text-[10px] font-black uppercase tracking-[0.3em] text-yellow-200">
+      {children}
+    </h3>
+  );
+}
+
+function TeamLabel({ name, icon, colour, align = "left" }: { name: string; icon?: string; colour: Colour; align?: "left" | "right" }) {
+  return (
+    <span className={`flex min-w-0 items-center gap-2 ${align === "right" ? "flex-row-reverse text-right" : ""}`}>
+      {icon ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={icon} alt="" className="h-8 w-8 shrink-0 rounded-full bg-white object-contain p-0.5" />
+      ) : (
+        <span className="h-8 w-8 shrink-0 rounded-full" style={{ background: colour.primary }} aria-hidden />
+      )}
+      <span className="truncate">{name}</span>
+    </span>
+  );
+}
+
+function CompareRow({
+  label,
+  home,
+  away,
+  homeColour,
+  awayColour,
+}: {
+  label: string;
+  home: number;
+  away: number;
+  homeColour: Colour;
+  awayColour: Colour;
+}) {
+  const total = home + away;
+  const homePct = total ? (home / total) * 100 : 50;
+  return (
+    <li>
+      <div className="flex items-baseline justify-between text-white">
+        <span className={`w-10 text-left text-xl font-black tabular-nums ${home > away ? "text-white" : "text-white/70"}`}>{home}</span>
+        <span className="text-sm font-semibold text-white/80">{label}</span>
+        <span className={`w-10 text-right text-xl font-black tabular-nums ${away > home ? "text-white" : "text-white/70"}`}>{away}</span>
+      </div>
+      <div className="mt-1.5 flex h-2.5 overflow-hidden rounded-full bg-white/10" aria-hidden>
+        {total > 0 && (
+          <>
+            <span
+              className="h-full"
+              style={{ width: `${homePct}%`, background: `linear-gradient(90deg, ${homeColour.secondary}, ${homeColour.primary})` }}
+            />
+            <span
+              className="h-full border-l-2 border-slate-900"
+              style={{ width: `${100 - homePct}%`, background: `linear-gradient(90deg, ${awayColour.primary}, ${awayColour.secondary})` }}
+            />
+          </>
+        )}
+      </div>
+    </li>
+  );
+}
+
+function PlayerName({ p }: { p: { name: string; href: string | null; isCaptain: boolean; isGoalkeeper: boolean } }) {
+  const tag = roleTag(p);
+  const extras = tag ? <span className="ml-1.5 text-xs font-bold text-yellow-200">{tag}</span> : null;
+  return p.href ? (
+    <Link href={p.href} className="truncate font-semibold text-white underline-offset-4 hover:underline focus-visible:underline">
+      {p.name}
+      {extras}
+    </Link>
+  ) : (
+    <span className="truncate font-semibold text-white">
+      {p.name}
+      {extras}
+    </span>
+  );
+}
+
+function ShirtBadge({ n, colour }: { n: number | null; colour: Colour }) {
+  return (
+    <span
+      className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-black tabular-nums text-white ring-1 ring-white/30"
+      style={{ background: colour.primary }}
+    >
+      {n ?? "–"}
+    </span>
+  );
+}
+
+function ScorerList({ scorers, team, colour }: { scorers: MatchScorer[]; team: string; colour: Colour }) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-black/20 p-4" style={{ borderTopColor: colour.primary, borderTopWidth: 4 }}>
+      <p className="mb-2 truncate text-sm font-bold text-white/80">{team}</p>
+      {scorers.length === 0 ? (
+        <p className="text-sm text-white/50">No goals</p>
+      ) : (
+        <ul className="space-y-2">
+          {scorers.map((s) => (
+            <li key={s.memberId} className="flex items-center gap-3 text-base">
+              <ShirtBadge n={s.shirtNumber} colour={colour} />
+              <span className="min-w-0 flex-1">
+                <PlayerName p={s} />
+              </span>
+              <span className="shrink-0 text-right text-sm text-white/80">
+                {s.goals
+                  .map((g) => `${g.minute != null ? `${g.minute}'` : "–"}${g.type === "Field goal" ? "" : ` (${g.type === "Penalty corner" ? "PC" : "PS"})`}`)
+                  .join(", ")}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+function SetPieces({
+  match,
+  homeTs,
+  awayTs,
+  periodEndMinutes,
+  homeColour,
+  awayColour,
+}: {
+  match: Match;
+  homeTs?: PublicTeamStats;
+  awayTs?: PublicTeamStats;
+  periodEndMinutes: number[];
+  homeColour: Colour;
+  awayColour: Colour;
+}) {
+  const events = match.matchEvents ?? [];
+  const goals = (teamId: string | undefined, type: "corner" | "stroke") =>
+    events.filter((e) => e.teamId === teamId && goalType(e) === type).length;
+  const pcGoals = { home: goals(match.homeTeamId, "corner"), away: goals(match.awayTeamId, "corner") };
+  const psGoals = { home: goals(match.homeTeamId, "stroke"), away: goals(match.awayTeamId, "stroke") };
+  const pcAwarded = { home: homeTs?.penaltyCornersAwarded?.total ?? null, away: awayTs?.penaltyCornersAwarded?.total ?? null };
+  const psAwarded = { home: homeTs?.penaltyStrokesAwarded?.total ?? null, away: awayTs?.penaltyStrokesAwarded?.total ?? null };
+  const recordedPc = pcAwarded.home != null && pcAwarded.away != null;
+  const recordedPs = psAwarded.home != null && psAwarded.away != null;
+
+  if (!recordedPc && pcGoals.home + pcGoals.away + psGoals.home + psGoals.away === 0) return null;
+
+  const pct = (scored: number, awarded: number | null) =>
+    awarded == null ? "—" : awarded === 0 ? "—" : `${Math.round((scored / awarded) * 100)}%`;
+
+  const homePeriods = homeTs?.penaltyCornersAwarded?.byPeriod ?? [];
+  const awayPeriods = awayTs?.penaltyCornersAwarded?.byPeriod ?? [];
+  const periodCount = Math.max(homePeriods.length, awayPeriods.length);
+  const short = (i: number) => (periodCount === 2 ? `H${i + 1}` : periodCount === 4 ? `Q${i + 1}` : `P${i + 1}`);
+
+  return (
+    <section aria-labelledby="stats-setpieces">
+      <SectionTitle id="stats-setpieces">Penalty corners &amp; strokes</SectionTitle>
+      <div className="grid gap-4 md:grid-cols-2">
+        <SetPieceCard
+          title="Penalty corners"
+          home={match.homeTeam}
+          away={match.awayTeam}
+          homeColour={homeColour}
+          awayColour={awayColour}
+          rows={[
+            ["Awarded", pcAwarded.home ?? "—", pcAwarded.away ?? "—"],
+            ["Goals", pcGoals.home, pcGoals.away],
+            ["Conversion", pct(pcGoals.home, pcAwarded.home), pct(pcGoals.away, pcAwarded.away)],
+          ]}
+          note={recordedPc ? undefined : "Corners awarded weren't recorded for this match — only corners scored."}
+        />
+        <SetPieceCard
+          title="Penalty strokes"
+          home={match.homeTeam}
+          away={match.awayTeam}
+          homeColour={homeColour}
+          awayColour={awayColour}
+          rows={[
+            ["Awarded", recordedPs ? psAwarded.home! : "—", recordedPs ? psAwarded.away! : "—"],
+            ["Goals", psGoals.home, psGoals.away],
+            ["Conversion", recordedPs ? pct(psGoals.home, psAwarded.home) : "—", recordedPs ? pct(psGoals.away, psAwarded.away) : "—"],
+          ]}
+          note={recordedPs ? undefined : "Strokes awarded aren't recorded for this match — only strokes scored."}
+        />
+      </div>
+
+      {recordedPc && periodCount > 0 && (
+        <div className="mt-4 overflow-x-auto rounded-2xl border border-white/10 bg-black/20">
+          <table className="w-full min-w-[420px] text-base text-white">
+            <caption className="px-4 pt-3 text-left text-sm font-bold text-white/80">
+              Penalty corners by {periodCount === 2 ? "half" : "quarter"}
+            </caption>
+            <thead>
+              <tr className="text-xs uppercase tracking-wider text-white/50">
+                <th scope="col" className="px-4 py-2 text-left font-semibold">Team</th>
+                {Array.from({ length: periodCount }).map((_, i) => (
+                  <th key={i} scope="col" className="w-14 py-2 text-center font-semibold" title={periodLabel(i, periodCount)}>
+                    {short(i)}
+                  </th>
+                ))}
+                <th scope="col" className="w-16 py-2 pr-4 text-center font-semibold">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(
+                [
+                  [match.homeTeam, homePeriods, pcAwarded.home, homeColour],
+                  [match.awayTeam, awayPeriods, pcAwarded.away, awayColour],
+                ] as [string, (number | null)[], number | null, Colour][]
+              ).map(([name, periods, total, colour]) => (
+                <tr key={name} className="border-t border-white/10">
+                  <th scope="row" className="px-4 py-2 text-left font-semibold">
+                    <span className="mr-2 inline-block h-3 w-3 rounded-sm align-middle" style={{ background: colour.primary }} aria-hidden />
+                    {name}
+                  </th>
+                  {Array.from({ length: periodCount }).map((_, i) => (
+                    <td key={i} className="py-2 text-center tabular-nums">{periods[i] ?? "—"}</td>
+                  ))}
+                  <td className="py-2 pr-4 text-center font-black tabular-nums">{total ?? "—"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {periodEndMinutes.length > 0 && (
+            <p className="px-4 pb-3 text-xs text-white/50">
+              {periodEndMinutes.map((m, i) => `${short(i)} ends ${m}'`).join(" · ")}
+            </p>
+          )}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function SetPieceCard({
+  title,
+  home,
+  away,
+  homeColour,
+  awayColour,
+  rows,
+  note,
+}: {
+  title: string;
+  home: string;
+  away: string;
+  homeColour: Colour;
+  awayColour: Colour;
+  rows: [string, number | string, number | string][];
+  note?: string;
+}) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+      <p className="mb-3 text-base font-black text-white">{title}</p>
+      <div className="grid grid-cols-[1fr_auto_1fr] gap-x-3 gap-y-2 text-white">
+        <span className="truncate text-xs font-semibold uppercase tracking-wider" style={{ color: homeColour.primary === "#ffffff" ? "#e2e8f0" : undefined }}>
+          <span className="mr-1 inline-block h-2.5 w-2.5 rounded-sm align-middle" style={{ background: homeColour.primary }} aria-hidden />
+          {home}
+        </span>
+        <span />
+        <span className="truncate text-right text-xs font-semibold uppercase tracking-wider">
+          {away}
+          <span className="ml-1 inline-block h-2.5 w-2.5 rounded-sm align-middle" style={{ background: awayColour.primary }} aria-hidden />
+        </span>
+        {rows.map(([label, h, a]) => (
+          <div key={label} className="contents">
+            <span className="text-2xl font-black tabular-nums">{h}</span>
+            <span className="self-center text-center text-sm font-semibold text-white/70">{label}</span>
+            <span className="text-right text-2xl font-black tabular-nums">{a}</span>
+          </div>
+        ))}
+      </div>
+      {note ? <p className="mt-3 text-xs text-white/50">{note}</p> : null}
+    </div>
+  );
+}

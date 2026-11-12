@@ -1,5 +1,7 @@
 "use client";
 
+import type React from "react";
+
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { PublicMatchCentre } from "@/lib/data/matches";
@@ -14,9 +16,12 @@ function pollIntervalMs(status: string): number | null {
 export default function PublicMatchCentreClient({
   initialCentre,
   fixtureId,
+  sidebar,
 }: {
   initialCentre: PublicMatchCentre;
   fixtureId: string;
+  /** Quick-links panel (year / division / matches), shown beside the match on wide screens. */
+  sidebar?: React.ReactNode;
 }) {
   const [centre, setCentre] = useState<PublicMatchCentre>(initialCentre);
 
@@ -48,7 +53,7 @@ export default function PublicMatchCentreClient({
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#06054e] via-slate-900 to-slate-800 px-4 py-10 md:px-8">
-      <div className="mx-auto max-w-4xl">
+      <div className={`mx-auto ${sidebar ? "max-w-7xl" : "max-w-4xl"}`}>
         <Link
           href="/competitions/matches"
           className="inline-flex text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-white"
@@ -56,7 +61,8 @@ export default function PublicMatchCentreClient({
           ← Back to fixtures & results
         </Link>
 
-        <div className="mt-6 rounded-3xl border border-white/10 bg-white/5 p-6 text-white">
+        <div className={sidebar ? "mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start" : ""}>
+        <div className={`${sidebar ? "" : "mt-6 "}min-w-0 rounded-3xl border border-white/10 bg-white/5 p-6 text-white`}>
           <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <h1 className="text-2xl font-black uppercase italic tracking-tight">
@@ -118,7 +124,14 @@ export default function PublicMatchCentreClient({
             teamNameById={centre.teamNameById}
             venue={centre.venue}
             umpires={centre.umpires}
+            players={centre.players}
+            teamColorById={centre.teamColorById}
+            staffByTeam={centre.staffByTeam}
+            teamStats={centre.teamStats}
+            periodEndMinutes={centre.periodEndMinutes}
           />
+        </div>
+        {sidebar}
         </div>
       </div>
     </div>

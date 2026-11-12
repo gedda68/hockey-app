@@ -8,9 +8,12 @@ import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 import { activeSessionCookieName } from "@/lib/auth/cookieName";
 
-const authSecret = process.env.AUTH_SECRET;
-if (!authSecret) throw new Error("AUTH_SECRET environment variable is not set");
-const secret = new TextEncoder().encode(authSecret);
+// Read lazily so a missing secret doesn't break `next build`.
+function getSecret(): Uint8Array {
+  const authSecret = process.env.AUTH_SECRET;
+  if (!authSecret) throw new Error("AUTH_SECRET environment variable is not set");
+  return new TextEncoder().encode(authSecret);
+}
 
 export interface User {
   userId: string;
@@ -32,7 +35,7 @@ export async function createSession(user: User): Promise<string> {
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
     .setExpirationTime("30d") // 30 days
-    .sign(secret);
+    .sign(getSecret());
 
   return token;
 }
@@ -40,7 +43,7 @@ export async function createSession(user: User): Promise<string> {
 // Verify and decode a session token
 export async function verifySession(token: string): Promise<Session | null> {
   try {
-    const verified = await jwtVerify(token, secret);
+    const verified = await jwtVerify(token, getSecret());
     const user = verified.payload.user as User;
     const expires = new Date((verified.payload.exp || 0) * 1000).toISOString();
 

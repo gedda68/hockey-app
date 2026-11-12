@@ -128,7 +128,7 @@ export default function CreateTeamForm({
       }
 
       const team = await res.json();
-      router.push(`/clubs/${clubId}/teams/${team.teamId}`);
+      router.push(`/clubs/${clubId}/teams/${team.teamId}/manage`);
     } catch (err) {
       setError(getErrorMessage(err));
     } finally {

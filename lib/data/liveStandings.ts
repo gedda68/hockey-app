@@ -4,6 +4,7 @@
 import clientPromise from "@/lib/mongodb";
 import { computeSeasonCompetitionStandings } from "@/lib/competitions/standings";
 import { listPublicLeagues } from "@/lib/public/publicLeagues";
+import { ladderFinalistCount } from "@/lib/competitions/seasonFinalsRules";
 import type { Division, Team } from "@/types";
 
 const PUBLIC_SC_STATUSES = new Set(["published", "in_progress", "completed"]);
@@ -17,7 +18,7 @@ async function getClubColorMap(): Promise<ColorMap> {
     colorCachePromise = (async () => {
       try {
         const client = await clientPromise;
-        const db = client.db("hockey-app");
+        const db = client.db(process.env.DB_NAME || "hockey-app");
         const clubs = await db
           .collection("clubs")
           .find(
@@ -27,8 +28,7 @@ async function getClubColorMap(): Promise<ColorMap> {
                 name: 1,
                 shortName: 1,
                 slug: 1,
-                "colors.primaryColor": 1,
-                "colors.secondaryColor": 1,
+                colors: 1,
               },
             },
           )
@@ -36,8 +36,8 @@ async function getClubColorMap(): Promise<ColorMap> {
 
         const map: ColorMap = new Map();
         for (const club of clubs) {
-          const primary = club.colors?.primaryColor || "#06054e";
-          const secondary = club.colors?.secondaryColor || "#1a1870";
+          const primary = club.colors?.primary || club.colors?.primaryColor || "#06054e";
+          const secondary = club.colors?.secondary || club.colors?.secondaryColor || "#1a1870";
           const entry = { primaryColor: primary, secondaryColor: secondary };
 
           const names = [club.name, club.shortName, club.slug].filter(
@@ -88,7 +88,7 @@ export async function getLiveStandingsDivision(
   seasonCompetitionId: string,
 ): Promise<Division | null> {
   const client = await clientPromise;
-  const db = client.db("hockey-app");
+  const db = client.db(process.env.DB_NAME || "hockey-app");
 
   const sc = await db.collection("season_competitions").findOne({
     seasonCompetitionId,
@@ -109,11 +109,32 @@ export async function getLiveStandingsDivision(
 
   const colorMap = await getClubColorMap();
 
+  // Club logo + colours via each team's own club (exact), falling back to name matching
+  const teamDocs = await db
+    .collection("teams")
+    .find({ teamId: { $in: standings.map((r) => r.teamId) } }, { projection: { teamId: 1, clubId: 1 } })
+    .toArray();
+  const clubIdByTeam = new Map(teamDocs.map((t) => [String(t.teamId), String(t.clubId ?? "")]));
+  const clubDocs = await db
+    .collection("clubs")
+    .find({ id: { $in: [...new Set([...clubIdByTeam.values()].filter(Boolean))] } }, { projection: { id: 1, logo: 1, iconSrc: 1, colors: 1 } })
+    .toArray();
+  const clubById = new Map(clubDocs.map((c) => [String(c.id), c]));
+
   const teams: Team[] = standings.map((r) => {
     const club = r.teamName ?? r.teamId;
+    const clubId = clubIdByTeam.get(r.teamId) || undefined;
+    const clubDoc = clubId ? clubById.get(clubId) : undefined;
+    const logo = (clubDoc?.logo as string | undefined) || (clubDoc?.iconSrc as string | undefined) || undefined;
+    const exactColors = clubDoc?.colors?.primary
+      ? { primaryColor: String(clubDoc.colors.primary), secondaryColor: String(clubDoc.colors.secondary || clubDoc.colors.primary) }
+      : null;
     return {
       pos: r.pos,
       club,
+      teamId: r.teamId,
+      clubId,
+      icon: logo,
       pts: r.pts,
       p: r.p,
       w: r.w,
@@ -122,7 +143,7 @@ export async function getLiveStandingsDivision(
       goalsFor: r.gf,
       goalsAgainst: r.ga,
       gd: r.gd,
-      ...findColors(club, colorMap),
+      ...(exactColors ?? findColors(club, colorMap)),
     };
   });
 
@@ -139,6 +160,7 @@ export async function getLiveStandingsDivision(
     year: sc.season ?? undefined,
     slug: seasonCompetitionId,
     teams,
+    finalsPlaces: sc.finalsSeries ? ladderFinalistCount(teams.length, sc.finalsSeries) : undefined,
   };
 }
 

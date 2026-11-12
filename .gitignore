@@ -13,6 +13,12 @@
 !/scripts
 /scripts/*
 !/scripts/clean-dynamic-slug-conflicts.mjs
+!/scripts/altius-2026/
+!/scripts/create-super-admin.ts
+
+# scraped data with personal information (players incl. juniors) — keep local
+/data/altius/
+altius-seed-warnings.txt
 
 # testing
 /coverage

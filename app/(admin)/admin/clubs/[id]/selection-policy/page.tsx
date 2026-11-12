@@ -2,10 +2,11 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { headers } from "next/headers";
 import SelectionPolicyForm from "@/components/admin/selection/SelectionPolicyForm";
+import { alignLocalOriginPort, localDevOrigin } from "@/lib/utils/devServerOrigin";
 
 async function getClub(clubId: string, cookie: string) {
   try {
-    const baseUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
+    const baseUrl = alignLocalOriginPort(process.env.NEXTAUTH_URL || localDevOrigin());
     const res = await fetch(
       `${baseUrl}/api/admin/clubs/${encodeURIComponent(clubId)}`,
       {

@@ -4,6 +4,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import type { Db } from "mongodb";
+import { clubMemberFilter, getClubMemberLinks } from "@/lib/clubs/clubPortalData";
 import clientPromise from "@/lib/mongodb";
 import {
   requirePermission,
@@ -183,14 +184,23 @@ export async function GET(
 
     // ✅ Get all members using club.id
 
+    // Members of the club: primary club, or registered with it (e.g. also plays here)
     const members = await db
       .collection("members")
-      .find({ clubId: club.id })
+      .find(clubMemberFilter(String(club.id)))
       .sort({ "personalInfo.lastName": 1, "personalInfo.firstName": 1 })
+      .collation({ locale: "en", strength: 2 })
       .toArray();
 
-
-    return NextResponse.json(members);
+    // Teams (linked) and positions held, for the members list
+    const links = await getClubMemberLinks(db, club, members);
+    return NextResponse.json(
+      members.map((m) => ({
+        ...m,
+        clubTeams: links[String(m.memberId)]?.teams ?? [],
+        positions: links[String(m.memberId)]?.positions ?? [],
+      })),
+    );
   } catch (error) {
     console.error("💥 Error fetching members:", error);
     return NextResponse.json(
