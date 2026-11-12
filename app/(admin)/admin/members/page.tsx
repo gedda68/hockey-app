@@ -371,7 +371,7 @@ export default function MembersPage() {
                         <td className="px-5 py-3">
                           <div className="flex items-center gap-1">
                             <Link
-                              href={`/admin/players/${m.memberId}`}
+                              href={`/admin/members/${encodeURIComponent(m.memberId)}`}
                               className="p-1.5 hover:bg-blue-50 rounded-lg transition-colors"
                               title="View"
                             >
