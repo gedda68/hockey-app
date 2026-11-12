@@ -1050,6 +1050,8 @@ function baseMember(p: {
       seasonYear: p.season,
       expiryDate: `${p.season}-12-31`,
       renewalDate: null,
+      // The members list and club-scoped queries read the club from here.
+      ...(p.clubId ? { clubId: p.clubId } : {}),
     },
     roles: p.roles,
     playerInfo: p.playerInfo ?? {

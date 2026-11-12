@@ -49,6 +49,7 @@ export interface RunOptions {
   allowMissingDob?: boolean;
   mergeGeneratedShadows?: boolean;
   attachUndatedToDated?: boolean;
+  mergeSameName?: boolean;
   now?: string;
   /** Called with a full backup of everything that will change, BEFORE the first write. */
   writeBackup?: (backup: Record<string, Doc[]>) => void | Promise<void>;
@@ -80,6 +81,7 @@ export async function runDedupe(db: DbLike, opts: RunOptions): Promise<RunResult
     allowMissingDob: opts.allowMissingDob,
     mergeGeneratedShadows: opts.mergeGeneratedShadows,
     attachUndatedToDated: opts.attachUndatedToDated,
+    mergeSameName: opts.mergeSameName,
   });
   const auto = groups.filter((g) => g.tier === "auto");
   const review = groups.filter((g) => g.tier === "review");
