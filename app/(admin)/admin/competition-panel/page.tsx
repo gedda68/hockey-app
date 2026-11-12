@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import clientPromise from "@/lib/mongodb";
 import { getSession } from "@/lib/auth/session";
+import { userCanAccessAssociationResource } from "@/lib/auth/resourceAccessDb";
 
 export const metadata = { title: "Competition panel | Admin" };
 
@@ -21,11 +22,16 @@ export default async function CompetitionPanelEntry() {
 
   const client = await clientPromise;
   const db = client.db(process.env.DB_NAME || "hockey-app");
-  const rows = await db
+  const all = await db
     .collection("associations")
     .find({}, { projection: { _id: 0, associationId: 1, name: 1 } })
     .sort({ name: 1 })
     .toArray();
+  // Only associations this user may access (super-admin: all).
+  const allowed = await Promise.all(
+    all.map((a) => userCanAccessAssociationResource(session, a.associationId as string)),
+  );
+  const rows = all.filter((_, i) => allowed[i]);
 
   if (rows.length === 1) {
     redirect(`/admin/associations/${encodeURIComponent(rows[0].associationId as string)}/competition-panel`);
