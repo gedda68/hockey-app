@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { cn } from "../../lib/utils";
 import type { Team } from "../../types";
+import TeamFavouriteStar from "../favourites/TeamFavouriteStar";
 
 /**
  * Shared column layout for the compact ladder (header + rows use the same template,
@@ -42,13 +43,16 @@ export default function StandingsRow({ team, finalsPlaces = 0, href }: Standings
       <span className={cn("text-sm font-bold tabular-nums", inFinals ? "text-emerald-400" : "text-slate-400")}>
         {team.pos ?? "—"}
       </span>
-      {href ? (
-        <Link href={href} className="min-w-0 hover:underline focus-visible:underline" title={`${team.club} matches`}>
-          {name}
-        </Link>
-      ) : (
-        name
-      )}
+      <div className="flex min-w-0 items-center gap-1">
+        {href ? (
+          <Link href={href} className="min-w-0 hover:underline focus-visible:underline" title={`${team.club} matches`}>
+            {name}
+          </Link>
+        ) : (
+          name
+        )}
+        {team.teamId && <TeamFavouriteStar teamId={team.teamId} clubId={team.clubId} name={team.club} />}
+      </div>
       <span className="text-center text-sm tabular-nums text-slate-300">{played}</span>
       <span
         className={cn(
