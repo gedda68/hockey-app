@@ -193,7 +193,7 @@ export const menuConfig: MenuItem[] = [
   },
   {
     label: "Competition panel",
-    href: "/admin/associations",
+    href: "/admin/competition-panel",
     icon: "🏆",
     description:
       "Every competition at a glance: fixtures, results awaiting approval, rosters, events and ladders",
