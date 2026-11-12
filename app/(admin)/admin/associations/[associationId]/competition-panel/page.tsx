@@ -2,6 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import Link from "next/link";
 import clientPromise from "@/lib/mongodb";
 import { getSession } from "@/lib/auth/session";
+import { userCanAccessAssociationResource } from "@/lib/auth/resourceAccessDb";
 import CompetitionPanelOverview from "@/components/admin/associations/CompetitionPanelOverview";
 
 export default async function CompetitionPanelPage({
@@ -19,9 +20,11 @@ export default async function CompetitionPanelPage({
   if (!session) {
     redirect(`/login?next=/admin/associations/${encodeURIComponent(associationId)}/competition-panel`);
   }
-  const sessionAssoc = session.associationId?.trim() || null;
-  if (session.role !== "super-admin" && sessionAssoc && sessionAssoc !== associationId) {
-    redirect(`/admin/associations/${encodeURIComponent(sessionAssoc)}/competition-panel`);
+  // Each association sees only its own competitions.
+  if (!(await userCanAccessAssociationResource(session, associationId))) {
+    const own = session.associationId?.trim();
+    if (own) redirect(`/admin/associations/${encodeURIComponent(own)}/competition-panel`);
+    redirect("/admin/competition-panel");
   }
 
   return (
