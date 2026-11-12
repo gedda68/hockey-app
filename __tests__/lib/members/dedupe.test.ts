@@ -296,3 +296,39 @@ describe("attachUndatedToDated (--merge-undated)", () => {
     expect([...(g[0].keepFrom ?? [])].sort()).toEqual(["D1", "D2"]);
   });
 });
+
+describe("same-name merging for data without birthdays", () => {
+  const m = (memberId: string, clubId = "", extra: Record<string, unknown> = {}) => ({
+    memberId,
+    doc: { memberId, clubId, roles: [], personalInfo: { firstName: "Hugh", lastName: "Abrahams", dateOfBirth: "" }, ...extra },
+  });
+
+  it("merges two numeric records plus a staff shadow when they share a club", () => {
+    const g = findDuplicateGroups(
+      [m("MBR-ALT-10833", "nth"), m("MBR-ALT-19718", "nth"), m("MBR-ALT-STAFF-NTH-ABRAHAMS-HUGH", "nth")],
+      { mergeGeneratedShadows: true, mergeSameName: true },
+    );
+    expect(g).toHaveLength(1);
+    expect(g[0].tier).toBe("auto");
+    expect(g[0].memberIds).toHaveLength(3);
+  });
+
+  it("keeps same name in different clubs for review", () => {
+    const g = findDuplicateGroups([m("MBR-ALT-1", "a"), m("MBR-ALT-2", "b")], { mergeSameName: true });
+    expect(g[0].tier).toBe("review");
+    expect(g[0].reason).toMatch(/different clubs/);
+  });
+
+  it("sends a staff record at another club than the player to review instead of merging", () => {
+    const g = findDuplicateGroups(
+      [m("MBR-ALT-11107", "kwc"), m("MBR-ALT-STAFF-VAL-KERR-MATTHEW", "val")],
+      { mergeGeneratedShadows: true },
+    );
+    expect(g[0].tier).toBe("review");
+  });
+
+  it("still merges a staff record with no club, or the same club", () => {
+    expect(findDuplicateGroups([m("MBR-ALT-1", "a"), m("MBR-ALT-OFF-X", "")], { mergeGeneratedShadows: true })[0].tier).toBe("auto");
+    expect(findDuplicateGroups([m("MBR-ALT-1", "a"), m("MBR-ALT-STAFF-A-X", "a")], { mergeGeneratedShadows: true })[0].tier).toBe("auto");
+  });
+});

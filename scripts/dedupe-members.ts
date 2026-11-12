@@ -14,6 +14,8 @@
  *                         with the birthday, merge the undated ones into it
  *   --merge-generated-staff  for data with no birthdays: merge generated MBR-ALT-STAFF-/OFF-
  *                         records into the one player record that has the same name
+ *   --merge-same-name     nobody with this name has a birthday: treat them as one person, unless
+ *                         the records are in different clubs (those are listed for review)
  *   --out <dir>           where the plan/backup JSON is written (default ./dedupe-output)
  *
  * Safety
@@ -57,6 +59,7 @@ async function main() {
     allowMissingDob: flag("--allow-missing-dob"),
     mergeGeneratedShadows: flag("--merge-generated-staff"),
     attachUndatedToDated: flag("--merge-undated"),
+    mergeSameName: flag("--merge-same-name"),
     writeBackup: (backup) => {
       const f = path.join(OUT_DIR, `backup-${stamp}.json`);
       fs.writeFileSync(f, JSON.stringify(backup));

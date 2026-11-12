@@ -11,6 +11,7 @@ import {
   modernizeMember,
   newMemberId,
   rewriteLegacyIdStrings,
+  syncClubFields,
 } from "./modernize";
 
 export interface NormalizeOptions {
@@ -35,6 +36,8 @@ export interface NormalizeResult {
 const needsWork = (doc: Doc, isMember: boolean): boolean =>
   JSON.stringify(doc).match(LEGACY_ID_TOKEN) !== null || (isMember && "altius" in doc);
 
+const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
+
 export async function runNormalize(db: DbLike, opts: NormalizeOptions): Promise<NormalizeResult> {
   const result: NormalizeResult = {
     renames: [], collisions: [], changedDocs: {}, historyOnly: {}, remainingMentions: {}, changed: 0,
@@ -46,6 +49,12 @@ export async function runNormalize(db: DbLike, opts: NormalizeOptions): Promise<
     if (typeof m.memberId === "string") existingIds.add(m.memberId);
   }
 
+  const clubNameById = new Map<string, string>();
+  for await (const c of db.collection("clubs").find({})) {
+    const id = String(c.id ?? c.clubId ?? "");
+    if (id && typeof c.name === "string") clubNameById.set(id, c.name);
+  }
+
   const pending: { collection: string; original: Doc; next: Doc }[] = [];
   const blocked = new Set<string>();
 
@@ -53,12 +62,15 @@ export async function runNormalize(db: DbLike, opts: NormalizeOptions): Promise<
     if (name.startsWith("system.")) continue;
     const isMember = name === "members";
     for await (const doc of db.collection(name).find({})) {
-      if (!needsWork(doc, isMember)) continue;
+      const clubSynced = isMember ? syncClubFields(doc, clubNameById) : doc;
+      if (!needsWork(doc, isMember) && same(clubSynced, doc)) continue;
       if (LEFT_AS_IS.test(name)) {
         result.historyOnly[name] = (result.historyOnly[name] ?? 0) + 1;
         continue;
       }
-      const next = isMember ? modernizeMember(doc) : (rewriteLegacyIdStrings(doc).value as Doc);
+      const next = isMember
+        ? syncClubFields(modernizeMember(doc), clubNameById)
+        : (rewriteLegacyIdStrings(doc).value as Doc);
       if (isMember && typeof doc.memberId === "string" && next.memberId !== doc.memberId) {
         const to = next.memberId as string;
         if (existingIds.has(to)) {

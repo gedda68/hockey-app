@@ -72,7 +72,15 @@ export interface FindOptions {
    * one is, and the group stays in review.
    */
   attachUndatedToDated?: boolean;
+  /**
+   * Nobody with this name has a birthday (e.g. the import): treat them as ONE person,
+   * unless the records sit in two or more different clubs, which stays in review.
+   */
+  mergeSameName?: boolean;
 }
+
+const clubOf = (d: Doc): string =>
+  str(d.clubId) || str((d.membership as Doc | undefined)?.clubId);
 
 /** Ids the import generates for a person's coaching/officiating role. */
 export const GENERATED_SHADOW_ID = /^MBR[-_](ALT-)?(STAFF|OFF)-/;
@@ -101,6 +109,20 @@ export function findDuplicateGroups(
       const shadows = list.filter((m) => GENERATED_SHADOW_ID.test(m.memberId));
       const ordinary = list.filter((m) => !GENERATED_SHADOW_ID.test(m.memberId));
       if (shadows.length > 0 && ordinary.length === 1) {
+        // A staff/official record at a DIFFERENT club than the player may be someone else.
+        const clubsOf = (ms: MemberLite[]) =>
+          new Set(ms.map((m) => clubOf(m.doc)).filter(Boolean));
+        const clubs = clubsOf(list);
+        if (clubs.size > 1) {
+          out.push({
+            tier: "review",
+            reason: `same name, but the staff/official record is at a different club (${[...clubs].join(", ")}) — confirm it is the same person`,
+            nameKey,
+            dateOfBirth: "",
+            memberIds: list.map((m) => m.memberId),
+          });
+          continue;
+        }
         out.push({
           tier: "auto",
           reason: "generated staff/official record matched to the only player record with this name",
@@ -121,6 +143,28 @@ export function findDuplicateGroups(
     }
 
     const dated = [...byDob.entries()];
+
+    if (opts.mergeSameName && dated.length === 0) {
+      const clubs = new Set(list.map((m) => clubOf(m.doc)).filter(Boolean));
+      if (clubs.size <= 1) {
+        out.push({
+          tier: "auto",
+          reason: "same name, no birthdays on record, same club (or none): treated as one person",
+          nameKey,
+          dateOfBirth: "",
+          memberIds: list.map((m) => m.memberId),
+        });
+      } else {
+        out.push({
+          tier: "review",
+          reason: `same name in ${clubs.size} different clubs (${[...clubs].join(", ")}) — confirm it is the same person`,
+          nameKey,
+          dateOfBirth: "",
+          memberIds: list.map((m) => m.memberId),
+        });
+      }
+      continue;
+    }
 
     if (opts.attachUndatedToDated && undated.length > 0 && dated.length === 1) {
       const [dob, datedMembers] = dated[0];

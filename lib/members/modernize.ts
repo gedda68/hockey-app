@@ -155,3 +155,30 @@ export function findSourceMentions(value: unknown, path = ""): string[] {
   walk(value, path);
   return found;
 }
+
+/**
+ * A member's club lives in ONE place conceptually (their home club), but the app reads
+ * it from two: top-level `clubId` and `membership.clubId`/`membership.clubName` (the
+ * members list). Keep them in step: fill whichever is missing from the other, or from
+ * the primary club registration.
+ */
+export function syncClubFields(doc: Doc, clubNameById: ReadonlyMap<string, string>): Doc {
+  const membership = isPlain(doc.membership) ? doc.membership : {};
+  const regs = Array.isArray(doc.clubRegistrations) ? doc.clubRegistrations.filter(isPlain) : [];
+  const primaryReg = regs.find((r) => r.registrationType === "primary") ?? regs[0];
+
+  const clubId =
+    str(doc.clubId) || str(membership.clubId) || (primaryReg ? str(primaryReg.clubId) : "");
+  if (!clubId) return doc;
+
+  const out: Doc = { ...doc };
+  if (!str(out.clubId)) out.clubId = clubId;
+  const m: Doc = { ...membership };
+  if (!str(m.clubId)) m.clubId = clubId;
+  if (!str(m.clubName)) {
+    const name = clubNameById.get(clubId) || (primaryReg ? str(primaryReg.clubName) : "");
+    if (name) m.clubName = name;
+  }
+  out.membership = m;
+  return out;
+}
