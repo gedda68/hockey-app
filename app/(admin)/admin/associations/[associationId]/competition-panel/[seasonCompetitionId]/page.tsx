@@ -10,12 +10,14 @@ import FixtureOperationsConsole from "@/components/admin/associations/FixtureOpe
 import MatchEventsEditorClient from "@/components/admin/associations/MatchEventsEditorClient";
 import DivisionTeamOverviewClient from "@/components/admin/associations/DivisionTeamOverviewClient";
 import CompetitionAwardsAdminClient from "@/components/admin/CompetitionAwardsAdminClient";
+import MatchControlTab from "@/components/admin/associations/MatchControlTab";
 import CompetitionTeamsTab from "@/components/admin/associations/CompetitionTeamsTab";
 import CompetitionLadderTab from "@/components/admin/associations/CompetitionLadderTab";
 import CompetitionStatsStrip from "@/components/admin/associations/CompetitionStatsStrip";
 
 const TABS = [
   ["overview", "Overview"],
+  ["matches", "Match control"],
   ["fixtures", "Fixtures & results"],
   ["events", "Match events"],
   ["teams", "Teams & rosters"],
@@ -97,6 +99,7 @@ export default async function CompetitionWorkspacePage({
 
       <section>
         {tab === "overview" && <WorkspaceOverview associationId={associationId} seasonCompetitionId={seasonCompetitionId} q={q} />}
+        {tab === "matches" && <MatchControlTab key={seasonCompetitionId} seasonCompetitionId={seasonCompetitionId} />}
         {tab === "fixtures" && (
           <FixtureOperationsConsole key={seasonCompetitionId} associationId={associationId} associationName={associationName} primaryColor={primaryColor} initialSeasonCompetitionId={seasonCompetitionId} />
         )}
@@ -125,6 +128,7 @@ function WorkspaceOverview({
   associationId, seasonCompetitionId, q,
 }: { associationId: string; seasonCompetitionId: string; q: (t: string) => string }) {
   const tiles: [string, string, string][] = [
+    ["matches", "Match control", "Every match: reschedule, venue, teams, result, approve, forfeit or void."],
     ["fixtures", "Fixtures & results", "Reschedule, change venue, enter or approve results, forfeit or void."],
     ["events", "Match events", "Goals, cards and timeline for every match."],
     ["teams", "Teams & rosters", "Division teams and season rosters."],
