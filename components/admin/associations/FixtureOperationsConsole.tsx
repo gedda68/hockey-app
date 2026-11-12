@@ -22,6 +22,8 @@ type SeasonOption = {
   seasonCompetitionId: string;
   season: string;
   status: string;
+  /** "2026 - BHL 2" (year and grade) */
+  label?: string;
 };
 
 type TeamRow = {
@@ -572,7 +574,7 @@ export default function FixtureOperationsConsole({
               <option value="">Select…</option>
               {seasonOptions.map((s) => (
                 <option key={s.seasonCompetitionId} value={s.seasonCompetitionId}>
-                  {String(s.season)} · {s.status} · {s.seasonCompetitionId.slice(0, 10)}…
+                  {s.label || String(s.season)}
                 </option>
               ))}
             </select>

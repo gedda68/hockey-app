@@ -41,6 +41,7 @@ type SeasonComp = {
   seasonCompetitionId: string;
   season?: string | number;
   status?: string;
+  label?: string;
 };
 
 export default function OfficiatingReportClient({
@@ -115,7 +116,7 @@ export default function OfficiatingReportClient({
             <option value="">All seasons</option>
             {seasonComps.map((sc) => (
               <option key={sc.seasonCompetitionId} value={sc.seasonCompetitionId}>
-                {String(sc.season ?? "")} · {sc.seasonCompetitionId}
+                {sc.label || String(sc.season ?? "")}
               </option>
             ))}
           </select>
