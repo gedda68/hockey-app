@@ -1,5 +1,6 @@
 "use client";
 
+import { formatFixtureLabel } from "@/lib/competitions/fixtureLabel";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -62,6 +63,8 @@ export default function CompetitionAwardsAdminClient() {
     { fixtureId: string; round?: string; homeTeamId?: string; awayTeamId?: string }[]
   >([]);
 
+  const [teamNames, setTeamNames] = useState<Map<string, string>>(new Map());
+  const [squadPlayers, setSquadPlayers] = useState<{ memberId: string; name: string }[]>([]);
   const [formAwardType, setFormAwardType] = useState("player_of_match");
   const [formFixtureId, setFormFixtureId] = useState("");
   const [formTeamId, setFormTeamId] = useState("");
@@ -102,6 +105,18 @@ export default function CompetitionAwardsAdminClient() {
         setContextTitle(
           `${data.competitionName ?? "League"} · ${data.season ?? ""}`.trim(),
         );
+        try {
+          const sq = await fetch(
+            `/api/admin/season-competitions/${encodeURIComponent(activeLeagueId)}/squad`,
+            { credentials: "include" },
+          );
+          if (sq.ok) {
+            const sj = (await sq.json()) as { teams?: { teamId: string; name: string }[] };
+            setTeamNames(new Map((sj.teams ?? []).map((t) => [t.teamId, t.name])));
+          }
+        } catch {
+          /* names are optional */
+        }
         const fxRes = await fetch(
           `/api/admin/season-competitions/${encodeURIComponent(activeLeagueId)}/fixtures`,
           { credentials: "include" },
@@ -156,6 +171,35 @@ export default function CompetitionAwardsAdminClient() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  const fixtureLabel = useCallback(
+    (f: { fixtureId: string; round?: string | number; homeTeamId?: string; awayTeamId?: string }) =>
+      formatFixtureLabel({
+        round: Number(f.round) || 0,
+        homeName: teamNames.get(f.homeTeamId ?? "") ?? null,
+        awayName: teamNames.get(f.awayTeamId ?? "") ?? null,
+        fixtureId: f.fixtureId,
+      }),
+    [teamNames],
+  );
+  const teamName = (id?: string) => (id ? teamNames.get(id) ?? id : "");
+
+  // Eligible players for the chosen team (league mode) so admins pick a name, not an ID.
+  useEffect(() => {
+    setSquadPlayers([]);
+    if (mode !== "league" || !activeLeagueId || !formTeamId) return;
+    let live = true;
+    fetch(
+      `/api/admin/season-competitions/${encodeURIComponent(activeLeagueId)}/squad?teamId=${encodeURIComponent(formTeamId)}`,
+      { credentials: "include" },
+    )
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => live && j && setSquadPlayers(j.players ?? []))
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, [mode, activeLeagueId, formTeamId]);
 
   const selectedFx = useMemo(
     () => fixtures.find((f) => f.fixtureId === formFixtureId),
@@ -392,8 +436,7 @@ export default function CompetitionAwardsAdminClient() {
                   <option value="">Select fixture…</option>
                   {fixtures.map((f) => (
                     <option key={f.fixtureId} value={f.fixtureId}>
-                      {f.round ? `${f.round} · ` : ""}
-                      {f.fixtureId}
+                      {fixtureLabel(f)}
                     </option>
                   ))}
                 </select>
@@ -408,10 +451,10 @@ export default function CompetitionAwardsAdminClient() {
                   >
                     <option value="">Select…</option>
                     {selectedFx.homeTeamId ? (
-                      <option value={selectedFx.homeTeamId}>Home team</option>
+                      <option value={selectedFx.homeTeamId}>{teamName(selectedFx.homeTeamId)} (home)</option>
                     ) : null}
                     {selectedFx.awayTeamId ? (
-                      <option value={selectedFx.awayTeamId}>Away team</option>
+                      <option value={selectedFx.awayTeamId}>{teamName(selectedFx.awayTeamId)} (away)</option>
                     ) : null}
                   </select>
                 </label>
@@ -420,16 +463,50 @@ export default function CompetitionAwardsAdminClient() {
           )}
           {formAwardType !== "player_of_match" && (
             <label className="flex flex-col gap-1 text-xs font-bold text-slate-600">
-              Team id (optional, for display)
-              <input
-                className="rounded-xl border-2 border-slate-200 px-3 py-2 font-mono text-sm"
-                value={formTeamId}
-                onChange={(e) => setFormTeamId(e.target.value)}
-              />
+              Team (optional, helps pick the player)
+              {teamNames.size > 0 ? (
+                <select
+                  className="rounded-xl border-2 border-slate-200 px-3 py-2 text-sm"
+                  value={formTeamId}
+                  onChange={(e) => setFormTeamId(e.target.value)}
+                >
+                  <option value="">No team</option>
+                  {[...teamNames.entries()]
+                    .sort((a, b) => a[1].localeCompare(b[1]))
+                    .map(([id, n]) => (
+                      <option key={id} value={id}>
+                        {n}
+                      </option>
+                    ))}
+                </select>
+              ) : (
+                <input
+                  className="rounded-xl border-2 border-slate-200 px-3 py-2 font-mono text-sm"
+                  value={formTeamId}
+                  onChange={(e) => setFormTeamId(e.target.value)}
+                />
+              )}
+            </label>
+          )}
+          {squadPlayers.length > 0 && (
+            <label className="flex flex-col gap-1 text-xs font-bold text-slate-600">
+              Player
+              <select
+                className="rounded-xl border-2 border-slate-200 px-3 py-2 text-sm"
+                value={squadPlayers.some((p) => p.memberId === formMemberId) ? formMemberId : ""}
+                onChange={(e) => setFormMemberId(e.target.value)}
+              >
+                <option value="">Choose a player…</option>
+                {squadPlayers.map((p) => (
+                  <option key={p.memberId} value={p.memberId}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
             </label>
           )}
           <label className="flex flex-col gap-1 text-xs font-bold text-slate-600">
-            Member id
+            Member id (or choose a player above)
             <input
               className="rounded-xl border-2 border-slate-200 px-3 py-2 font-mono text-sm"
               value={formMemberId}
@@ -472,7 +549,12 @@ export default function CompetitionAwardsAdminClient() {
                     {a.teamName ? ` · ${a.teamName}` : ""}
                   </p>
                   {a.fixtureId ? (
-                    <p className="text-[10px] font-mono text-slate-400">Fixture {a.fixtureId}</p>
+                    <p className="text-[10px] text-slate-400">
+                      {(() => {
+                        const fx = fixtures.find((x) => x.fixtureId === a.fixtureId);
+                        return fx ? fixtureLabel(fx) : `Fixture ${a.fixtureId}`;
+                      })()}
+                    </p>
                   ) : null}
                   {a.notes ? (
                     <p className="text-xs italic text-slate-500">{a.notes}</p>

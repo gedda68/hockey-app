@@ -12,6 +12,7 @@ import DivisionTeamOverviewClient from "@/components/admin/associations/Division
 import CompetitionAwardsAdminClient from "@/components/admin/CompetitionAwardsAdminClient";
 import MatchControlTab from "@/components/admin/associations/MatchControlTab";
 import CompetitionTeamsTab from "@/components/admin/associations/CompetitionTeamsTab";
+import CompetitionOfficialsTab from "@/components/admin/associations/CompetitionOfficialsTab";
 import CompetitionLadderTab from "@/components/admin/associations/CompetitionLadderTab";
 import CompetitionStatsStrip from "@/components/admin/associations/CompetitionStatsStrip";
 
@@ -23,6 +24,7 @@ const TABS = [
   ["teams", "Teams & rosters"],
   ["ladder", "Ladder"],
   ["awards", "Awards"],
+  ["officials", "Officials"],
 ] as const;
 
 export default async function CompetitionWorkspacePage({
@@ -118,6 +120,7 @@ export default async function CompetitionWorkspacePage({
           </div>
         )}
         {tab === "ladder" && <CompetitionLadderTab seasonCompetitionId={seasonCompetitionId} />}
+        {tab === "officials" && <CompetitionOfficialsTab key={seasonCompetitionId} associationId={associationId} seasonCompetitionId={seasonCompetitionId} />}
         {tab === "awards" && <Suspense fallback={null}><CompetitionAwardsAdminClient /></Suspense>}
       </section>
     </div>
@@ -134,6 +137,7 @@ function WorkspaceOverview({
     ["teams", "Teams & rosters", "Division teams and season rosters."],
     ["ladder", "Ladder", "Live standings and recalculation."],
     ["awards", "Awards", "Player of the match and season awards."],
+    ["officials", "Officials", "Umpire assignments for every match."],
   ];
   return (
     <div className="space-y-6">
