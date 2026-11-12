@@ -52,6 +52,14 @@ const ROLE_LABELS: Record<string, string> = {
   "member":        "Member",
 };
 
+/** "role-junior-player" -> "Junior Player"; known roles use their friendly label. */
+function roleLabel(r: string): string {
+  if (ROLE_LABELS[r]) return ROLE_LABELS[r];
+  const bare = r.replace(/^role-/, "");
+  if (ROLE_LABELS[bare]) return ROLE_LABELS[bare];
+  return bare.split(/[-_]/).filter(Boolean).map((w) => w[0].toUpperCase() + w.slice(1)).join(" ");
+}
+
 function primaryRole(roles: string[]): string {
   for (const r of ["club-admin","association-admin","registrar","coach","umpire","technical-official","manager","player","role-player","volunteer","member"]) {
     if (roles.includes(r)) return ROLE_LABELS[r] ?? r;
@@ -338,9 +346,13 @@ export default function MembersPage() {
 
                         {/* Role */}
                         <td className="px-5 py-3">
-                          <span className="text-xs font-bold text-slate-700">
-                            {primaryRole(m.roles)}
-                          </span>
+                          <div className="flex flex-wrap gap-1">
+                            {(m.roles?.length ? m.roles : ["member"]).map((r) => (
+                              <span key={r} className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-bold text-slate-700">
+                                {roleLabel(r)}
+                              </span>
+                            ))}
+                          </div>
                         </td>
 
                         {/* Status */}

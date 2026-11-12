@@ -75,7 +75,7 @@ export interface FindOptions {
 }
 
 /** Ids the import generates for a person's coaching/officiating role. */
-export const GENERATED_SHADOW_ID = /^MBR-ALT-(STAFF|OFF)-/;
+export const GENERATED_SHADOW_ID = /^MBR[-_](ALT-)?(STAFF|OFF)-/;
 
 /**
  * Same first+last name (case/accent/punctuation-insensitive) AND same date of birth
@@ -261,8 +261,11 @@ const isEmpty = (v: unknown): boolean =>
     !Array.isArray(v) &&
     Object.keys(v as object).length === 0);
 
-const isPlain = (v: unknown): v is Doc =>
-  typeof v === "object" && v !== null && !Array.isArray(v) && !(v instanceof Date);
+const isPlain = (v: unknown): v is Doc => {
+  if (typeof v !== "object" || v === null || Array.isArray(v)) return false;
+  const proto = Object.getPrototypeOf(v);
+  return proto === Object.prototype || proto === null;
+};
 
 /** Arrays that describe the person and should be combined, not replaced. */
 const UNION_ARRAYS = new Set([
@@ -272,6 +275,7 @@ const UNION_ARRAYS = new Set([
   "socialMedia",
   "renewalHistory",
   "additionalEmails",
+  "previousMemberIds",
 ]);
 
 function unionBy(a: unknown[], b: unknown[]): unknown[] {
@@ -302,6 +306,26 @@ function fillMissing(keep: Doc, other: Doc, path: string[] = []): Doc {
   return out;
 }
 
+/** Lists inside `officiating` / `staffInfo` describe the person, so combine them. */
+function unionNested(merged: Doc, docs: Doc[]): Doc {
+  const out: Doc = { ...merged };
+  const groups: Record<string, string[]> = {
+    officiating: ["roles", "matchOfficialIds"],
+    staffInfo: ["teams"],
+  };
+  for (const [group, keys] of Object.entries(groups)) {
+    const parts = docs.map((d) => d[group]).filter(isPlain);
+    if (!parts.length) continue;
+    const base: Doc = isPlain(out[group]) ? { ...(out[group] as Doc) } : {};
+    for (const k of keys) {
+      const all = parts.flatMap((p) => (Array.isArray(p[k]) ? (p[k] as unknown[]) : []));
+      if (all.length) base[k] = unionBy([], all);
+    }
+    out[group] = base;
+  }
+  return out;
+}
+
 /**
  * Keeps the survivor's values; fills anything the survivor lacks from the others (in
  * the order given); combines roles and other person-describing lists; records which
@@ -310,6 +334,8 @@ function fillMissing(keep: Doc, other: Doc, path: string[] = []): Doc {
 export function mergeMemberDocs(survivor: Doc, losers: Doc[], now: string): Doc {
   let merged: Doc = { ...survivor };
   for (const l of losers) merged = fillMissing(merged, l);
+
+  merged = unionNested(merged, [survivor, ...losers]);
 
   const previous = Array.isArray(survivor.mergedFromMemberIds)
     ? (survivor.mergedFromMemberIds as string[])

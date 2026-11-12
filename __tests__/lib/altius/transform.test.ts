@@ -151,29 +151,31 @@ describe("transformHarvest", () => {
   it("records goals and cards as match events against people", () => {
     const f1 = t.fixtures.find((f) => f.legacyMatchId === "1")!;
     expect(f1.matchEvents).toEqual([
-      expect.objectContaining({ kind: "goal", minute: 47, teamId: "team-altius-507", memberId: "MBR-ALT-200", notes: "Penalty Corner" }),
-      expect.objectContaining({ kind: "yellow_card", minute: 29, teamId: "team-altius-502", memberId: "MBR-ALT-101" }),
+      expect.objectContaining({ kind: "goal", minute: 47, teamId: "team-altius-507", memberId: "MBR_200", notes: "Penalty Corner" }),
+      expect.objectContaining({ kind: "yellow_card", minute: 29, teamId: "team-altius-502", memberId: "MBR_101" }),
     ]);
-    expect(f1.umpires).toEqual([expect.objectContaining({ umpireType: "umpire", umpireId: "MBR-ALT-OFF-ORCHARD-SIMONE" })]);
+    expect(f1.umpires).toEqual([expect.objectContaining({ umpireType: "umpire", umpireId: "MBR_OFF-ORCHARD-SIMONE" })]);
     const gf = t.fixtures.find((f) => f.legacyMatchId === "4")!;
     // the per-registration Altius id 301 is folded into the same person as 101
     expect(gf.matchEvents.map((e: { kind: string; memberId: string }) => [e.kind, e.memberId])).toEqual([
-      ["penalty_stroke_goal", "MBR-ALT-200"],
-      ["goal", "MBR-ALT-101"],
+      ["penalty_stroke_goal", "MBR_200"],
+      ["goal", "MBR_101"],
     ]);
   });
 
   it("merges Altius player ids for the same person at the same club", () => {
     const marlow = t.members.filter((m) => m.personalInfo.lastName === "Marlow");
     expect(marlow).toHaveLength(1);
-    expect(marlow[0]!.altius.playerIds).toEqual(["101", "301"]);
+    expect(marlow[0]!).not.toHaveProperty("altius");
+    expect(marlow[0]!.memberId).toBe("MBR_101");
+    expect(marlow[0]!.previousMemberIds).toEqual(["MBR_301"]);
     expect(marlow[0]!.clubId).toBe("club-BUL");
-    expect(t.clubRegistrations.filter((r) => r.memberId === "MBR-ALT-101")).toHaveLength(1);
+    expect(t.clubRegistrations.filter((r) => r.memberId === "MBR_101")).toHaveLength(1);
   });
 
   it("builds rosters with captain and goalkeeper", () => {
     const bul = t.teams.find((x) => x.teamId === "team-altius-502")!;
-    expect(bul.leadership.captain).toBe("MBR-ALT-101");
+    expect(bul.leadership.captain).toBe("MBR_101");
     expect(bul.statistics.totalGoalkeepers).toBe(1);
     expect(bul.roster.some((r: { roleCategory: string }) => r.roleCategory === "Official")).toBe(true); // coach
   });
@@ -181,14 +183,14 @@ describe("transformHarvest", () => {
   it("writes fixture lineups with match-day shirt numbers, one person per club", () => {
     const lu = t.lineups.find((l) => l.fixtureId === "fx-altius-4" && l.teamId === "team-altius-502")!;
     expect(lu.players).toEqual([
-      { memberId: "MBR-ALT-101", shirtNumber: 5, isGoalkeeper: false, isCaptain: true, started: true, minuteEntered: null, didNotPlay: false },
+      { memberId: "MBR_101", shirtNumber: 5, isGoalkeeper: false, isCaptain: true, started: true, minuteEntered: null, didNotPlay: false },
     ]);
-    expect(lu.staff).toEqual([{ memberId: expect.stringMatching(/^MBR-ALT-STAFF-BUL-/), role: "Coach" }]);
+    expect(lu.staff).toEqual([{ memberId: expect.stringMatching(/^MBR_STAFF-BUL-/), role: "Coach" }]);
     expect(t.lineups).toHaveLength(4);
   });
 
   it("links competition awards to the player", () => {
-    expect(t.awards).toEqual([expect.objectContaining({ awardType: "top_goal_scorer", memberId: "MBR-ALT-200", teamId: "team-altius-507" })]);
+    expect(t.awards).toEqual([expect.objectContaining({ awardType: "top_goal_scorer", memberId: "MBR_200", teamId: "team-altius-507" })]);
   });
 });
 

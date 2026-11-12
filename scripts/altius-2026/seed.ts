@@ -38,7 +38,7 @@ const STATS_FILE = arg("stats-file") ?? "data/altius/2026/bha-2026-altius-stats.
 const ONLY = (arg("only") ?? "").split(",").map((s) => s.trim().toUpperCase()).filter(Boolean);
 const ASSOC = arg("association") ?? "bha";
 const SEASON = "2026";
-const BY = "altius-seed-2026";
+const BY = "import-2026";
 
 async function main() {
   const harvest = JSON.parse(fs.readFileSync(path.resolve(FILE), "utf-8")) as AltiusHarvest;
@@ -193,7 +193,12 @@ async function write(db: Db, t: TransformResult, teamStats: Document[]) {
 
   if (!SKIP_PEOPLE) {
     await bulk(db, "members", t.members.map((m) =>
-      insertOnly({ memberId: m.memberId }, m, { altius: m.altius, teams: m.teams, roles: m.roles, updatedAt: now }, now)));
+      insertOnly({ memberId: m.memberId }, m, {
+        teams: m.teams, roles: m.roles, updatedAt: now,
+        ...(m.officiating ? { officiating: m.officiating } : {}),
+        ...(m.staffInfo ? { staffInfo: m.staffInfo } : {}),
+        ...(m.previousMemberIds ? { previousMemberIds: m.previousMemberIds } : {}),
+      }, now)));
     // Repair names imported with role tags, e.g. "Joshua (c, Gk) Blakey" (only touches names containing "(")
     const nameFixes = t.members
       .filter((m) => m.altius?.playerId)

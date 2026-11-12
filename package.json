@@ -16,6 +16,7 @@
     "reset:passwords": "tsx scripts/reset-passwords.ts",
     "backfill:tte-canonical": "tsx scripts/backfill-team-tournament-entry-canonical.ts",
     "dedupe:members": "tsx scripts/dedupe-members.ts",
+    "normalize:members": "tsx scripts/normalize-members.ts",
     "seed:public-demo": "tsx scripts/seed-public-demo.ts",
     "seed:tiered-demo": "tsx scripts/seed-tiered-demo-accounts.ts",
     "altius:harvest": "tsx scripts/altius-bhl-seed/cli-harvest.ts",
