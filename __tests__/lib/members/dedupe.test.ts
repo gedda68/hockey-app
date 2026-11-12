@@ -252,3 +252,47 @@ describe("mergeGeneratedShadows (data with no birthdays)", () => {
     expect(pickSurvivor([coach, player], new Map()).survivor.memberId).toBe("MBR-ALT-19761");
   });
 });
+
+describe("attachUndatedToDated (--merge-undated)", () => {
+  const rec = (id: string, dob?: string, over: Doc = {}): MemberLite => ({
+    memberId: id,
+    doc: { memberId: id, roles: [], personalInfo: { firstName: "Jo", lastName: "Lee", ...(dob ? { dateOfBirth: dob } : {}) }, ...over },
+  });
+
+  it("is off by default", () => {
+    expect(findDuplicateGroups([rec("A", "2000-01-01"), rec("B")]).every((g) => g.tier === "review")).toBe(true);
+  });
+
+  it("merges the undated record into the dated one and keeps the dated one", () => {
+    const members = [rec("UNDATED", undefined, { roles: ["role-player"] }), rec("DATED", "2000-01-01")];
+    const g = findDuplicateGroups(members, { attachUndatedToDated: true });
+    expect(g).toHaveLength(1);
+    expect(g[0].tier).toBe("auto");
+    expect(g[0].keepFrom).toEqual(["DATED"]);
+    const { survivor, losers } = pickSurvivor(members, new Map(), g[0].keepFrom);
+    // even though the undated record has the player role, the dated record is kept
+    expect(survivor.memberId).toBe("DATED");
+    expect(losers.map((l) => l.memberId)).toEqual(["UNDATED"]);
+  });
+
+  it("does not guess when the dated records have different birthdays", () => {
+    const g = findDuplicateGroups([rec("A", "2000-01-01"), rec("B", "1975-05-05"), rec("C")], {
+      attachUndatedToDated: true,
+    });
+    expect(g.every((x) => x.tier === "review")).toBe(true);
+  });
+
+  it("does nothing when nobody has a birthday", () => {
+    const g = findDuplicateGroups([rec("A"), rec("B")], { attachUndatedToDated: true });
+    expect(g.every((x) => x.tier === "review")).toBe(true);
+  });
+
+  it("merges several undated records and extra dated copies with the same birthday", () => {
+    const g = findDuplicateGroups([rec("D1", "2000-01-01"), rec("D2", "2000-01-01"), rec("U1"), rec("U2")], {
+      attachUndatedToDated: true,
+    });
+    expect(g).toHaveLength(1);
+    expect([...g[0].memberIds].sort()).toEqual(["D1", "D2", "U1", "U2"]);
+    expect([...(g[0].keepFrom ?? [])].sort()).toEqual(["D1", "D2"]);
+  });
+});

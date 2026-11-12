@@ -47,6 +47,7 @@ export interface RunOptions {
   apply: boolean;
   allowMissingDob?: boolean;
   mergeGeneratedShadows?: boolean;
+  attachUndatedToDated?: boolean;
   now?: string;
   /** Called with a full backup of everything that will change, BEFORE the first write. */
   writeBackup?: (backup: Record<string, Doc[]>) => void | Promise<void>;
@@ -77,6 +78,7 @@ export async function runDedupe(db: DbLike, opts: RunOptions): Promise<RunResult
   const groups = findDuplicateGroups(members, {
     allowMissingDob: opts.allowMissingDob,
     mergeGeneratedShadows: opts.mergeGeneratedShadows,
+    attachUndatedToDated: opts.attachUndatedToDated,
   });
   const auto = groups.filter((g) => g.tier === "auto");
   const review = groups.filter((g) => g.tier === "review");
@@ -118,7 +120,7 @@ export async function runDedupe(db: DbLike, opts: RunOptions): Promise<RunResult
         { inboundRefs: refCounts.get(id) ?? 0, hasUserAccount: userAccounts.has(id) },
       ]),
     );
-    const { survivor, losers } = pickSurvivor(lite, signals);
+    const { survivor, losers } = pickSurvivor(lite, signals, group.keepFrom);
     const logins = group.memberIds.filter((id) => userAccounts.has(id));
     return {
       group,
