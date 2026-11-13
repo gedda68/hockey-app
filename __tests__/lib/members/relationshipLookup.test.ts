@@ -9,3 +9,15 @@ describe("normaliseRelationship", () => {
     expect(normaliseRelationship({ id: "x" })).toBeNull();
   });
 });
+
+describe("normaliseRelationship — unusual shapes", () => {
+  it("finds the name under other field names", () => {
+    expect(normaliseRelationship({ relationshipType: "Uncle", id: "u" })?.name).toBe("Uncle");
+    expect(normaliseRelationship({ _id: "1", code: "AUNT", description: "Aunt" })?.name).toBe("Aunt");
+    expect(normaliseRelationship({ _id: "1", foo: "Cousin", createdAt: "2026-01-01" })?.name).toBe("Cousin");
+  });
+  it("only treats explicit false/inactive as inactive", () => {
+    expect(normaliseRelationship({ name: "A" })?.isActive).toBe(true);
+    expect(normaliseRelationship({ name: "A", status: "inactive" })?.isActive).toBe(false);
+  });
+});
