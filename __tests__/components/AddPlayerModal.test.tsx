@@ -51,3 +51,25 @@ describe("AddPlayerModal", () => {
     ]);
   });
 });
+
+describe("AddPlayerModal eligibility", () => {
+  it("hides members two grades apart or under 15 and explains why", async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      json: async () => ({
+        players: [
+          mk("M1", "Ann", { dateOfBirth: "1990-01-01", currentTeams: [{ teamName: "BHL2", rosterId: "x" }] }),
+          mk("M2", "Bob", { dateOfBirth: "1990-01-01", currentTeams: [{ teamName: "BHL1", rosterId: "x" }] }),
+          mk("M3", "Cat", { dateOfBirth: "2014-01-01" }),
+        ],
+      }),
+    }) as any;
+    const r: any = { ...roster, teams: [{ name: "BHL3", players: [] }] };
+    render(<AddPlayerModal roster={r} teamIndex={0} onClose={() => {}} onSubmit={vi.fn()} />);
+    const box = await screen.findByRole("combobox", { name: "Players" });
+    await userEvent.click(box);
+    expect(await screen.findByRole("option", { name: /Ann Smith/ })).toBeTruthy();
+    expect(screen.queryByRole("option", { name: /Bob Smith/ })).toBeNull();
+    expect(screen.queryByRole("option", { name: /Cat Smith/ })).toBeNull();
+    expect(screen.getByText(/2 members not eligible/)).toBeTruthy();
+  });
+});

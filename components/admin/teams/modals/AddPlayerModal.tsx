@@ -7,6 +7,7 @@
 import { useState, useEffect, useMemo } from "react";
 import type { TeamRoster } from "@/types/admin/teams.types";
 import TypeaheadMultiSelect from "@/components/ui/TypeaheadMultiSelect";
+import { checkTeamEligibility } from "@/lib/rosters/teamEligibility";
 import TypeaheadSelect from "@/components/ui/TypeaheadSelect";
 
 interface Player {
@@ -21,6 +22,7 @@ interface Player {
   memberNumber: string;
   primaryPosition?: string;
   secondaryPosition?: string;
+  currentTeams?: { teamName: string; rosterId: string }[];
   lastSelection?: {
     number: string;
     position: string;
@@ -93,7 +95,8 @@ export default function AddPlayerModal({
           if (p.playerId) onRoster.add(String(p.playerId));
           if (p.memberId) onRoster.add(String(p.memberId));
         };
-        for (const t of roster.teams) for (const p of t.players) collect(p);
+        // Players may be in several teams (rules checked below), so only block this team.
+        for (const p of roster.teams[teamIndex]?.players ?? []) collect(p);
         for (const p of roster.shadowPlayers) collect(p);
         for (const p of roster.withdrawn) collect(p);
 
@@ -114,14 +117,32 @@ export default function AddPlayerModal({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roster.clubId, roster.division, roster.category, roster.gender, roster.season]);
 
+  const teamName = roster.teams[teamIndex]?.name ?? "";
+  const { allowed, blocked } = useMemo(() => {
+    const allowed: Player[] = [];
+    const blocked: { player: Player; reason: string }[] = [];
+    for (const p of players) {
+      const v = checkTeamEligibility({
+        category: roster.category,
+        season: roster.season || "2026",
+        dateOfBirth: p.dateOfBirth,
+        newTeamName: teamName,
+        existing: p.currentTeams ?? [],
+      });
+      if (v.ok) allowed.push(p);
+      else blocked.push({ player: p, reason: v.reason });
+    }
+    return { allowed, blocked };
+  }, [players, roster.category, roster.season, teamName]);
+
   const options = useMemo(
     () =>
-      players.map((p) => ({
+      allowed.map((p) => ({
         value: keyOf(p),
         label: `${p.firstName} ${p.lastName}${p.preferredName ? ` "${p.preferredName}"` : ""} · #${p.memberNumber}`,
         hint: p.primaryPosition,
       })),
-    [players],
+    [allowed],
   );
 
   const handleSelect = (ids: string[]) => {
@@ -226,6 +247,24 @@ export default function AddPlayerModal({
                 }
                 ariaLabel="Players"
               />
+              {blocked.length > 0 && (
+                <details className="mt-3 text-xs text-slate-500">
+                  <summary className="cursor-pointer font-bold">
+                    {blocked.length} member{blocked.length === 1 ? "" : "s"} not
+                    eligible for this team
+                  </summary>
+                  <ul className="mt-1 max-h-24 space-y-0.5 overflow-y-auto">
+                    {blocked.map(({ player, reason }) => (
+                      <li key={keyOf(player)}>
+                        <span className="font-bold">
+                          {player.firstName} {player.lastName}
+                        </span>{" "}
+                        — {reason}
+                      </li>
+                    ))}
+                  </ul>
+                </details>
+              )}
             </div>
 
             <div className="min-h-[200px] min-w-0 flex-1 overflow-y-auto bg-slate-50 px-8 py-6">

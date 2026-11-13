@@ -33,6 +33,8 @@ interface EligiblePlayer {
   secondaryPosition: string;
   teamSelectionHistory: SelectionRecord[];
   lastSelection: SelectionRecord | null;
+  /** Teams this member is already in (same club, season, category) — for tier-gap checks. */
+  currentTeams: { teamName: string; rosterId: string }[];
 }
 
 export async function GET(request: NextRequest) {
@@ -44,6 +46,7 @@ export async function GET(request: NextRequest) {
     const clubId   = searchParams.get("clubId");
     const division = searchParams.get("division") ?? "";
     const season   = searchParams.get("season") ?? new Date().getFullYear().toString();
+    const category = searchParams.get("category") ?? "";
 
     if (!clubId) {
       return NextResponse.json({ error: "Club ID is required" }, { status: 400 });
@@ -70,6 +73,25 @@ export async function GET(request: NextRequest) {
       .limit(200)
       .toArray();
 
+    // Which teams is each member already in this season?
+    const rosterDocs = await db
+      .collection("teamRosters")
+      .find({ clubId, season, ...(category ? { category } : {}) })
+      .project({ id: 1, teams: 1 })
+      .toArray();
+    const teamsByMember = new Map<string, { teamName: string; rosterId: string }[]>();
+    for (const r of rosterDocs) {
+      for (const t of (r.teams ?? []) as { name?: string; players?: { id?: string; playerId?: string; memberId?: string }[] }[]) {
+        for (const p of t.players ?? []) {
+          const mid = p.memberId ?? p.playerId ?? p.id;
+          if (!mid) continue;
+          const list = teamsByMember.get(String(mid)) ?? [];
+          list.push({ teamName: String(t.name ?? ""), rosterId: String(r.id ?? "") });
+          teamsByMember.set(String(mid), list);
+        }
+      }
+    }
+
     const eligiblePlayers: EligiblePlayer[] = members.map((m) => {
       const pi  = (m.personalInfo  ?? {}) as Record<string, string>;
       const mem = (m.membership    ?? {}) as Record<string, string>;
@@ -88,6 +110,7 @@ export async function GET(request: NextRequest) {
         secondaryPosition:    mem.secondaryPosition ?? pi.secondaryPosition ?? "",
         teamSelectionHistory: history,
         lastSelection:        getLastSelection(history, division, season),
+        currentTeams:         teamsByMember.get(String(m.memberId)) ?? [],
       };
     });
 
