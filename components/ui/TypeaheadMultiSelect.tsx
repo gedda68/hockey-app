@@ -17,14 +17,23 @@ export interface MultiOption {
   hint?: string;
 }
 
+const prettyId = (v: string) =>
+  v
+    .replace(/^(role|type|gender)-/, "")
+    .replace(/[-_]/g, " ")
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+
 export default function TypeaheadMultiSelect({
   options,
+  knownOptions,
   values,
   onChange,
   placeholder = "Search and select…",
   ariaLabel,
 }: {
   options: MultiOption[];
+  /** Extra items (e.g. inactive roles) used only to name values already selected. */
+  knownOptions?: MultiOption[];
   values: string[];
   onChange: (values: string[]) => void;
   placeholder?: string;
@@ -69,7 +78,10 @@ export default function TypeaheadMultiSelect({
     return () => document.removeEventListener("mousedown", away);
   }, []);
 
-  const labelOf = (v: string) => options.find((o) => o.value === v)?.label ?? v; // keep unknown saved values visible
+  const find = (v: string) =>
+    options.find((o) => o.value === v) ??
+    knownOptions?.find((o) => o.value === v);
+  const labelOf = (v: string) => find(v)?.label ?? prettyId(v); // unknown saved ids still read as words, not raw ids
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     return q
@@ -94,6 +106,7 @@ export default function TypeaheadMultiSelect({
         {values.map((v) => (
           <span
             key={v}
+            title={find(v)?.hint}
             className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-3 py-1 text-xs font-black text-blue-900"
           >
             {labelOf(v)}

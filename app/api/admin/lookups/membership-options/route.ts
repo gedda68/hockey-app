@@ -4,7 +4,7 @@
 import { NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import { getSession } from "@/lib/auth/session";
-import { normalisePicks } from "@/lib/members/membershipOptions";
+import { normalisePicks, normaliseAllPicks } from "@/lib/members/membershipOptions";
 
 const TYPE_COLLECTIONS = ["member_types", "membership_types"] as const;
 
@@ -34,6 +34,8 @@ export async function GET() {
     return NextResponse.json({
       membershipTypes,
       roles: normalisePicks(roleDocs, ["roleId"]),
+      // Every role, including inactive ones, so roles already saved on a member show their name.
+      allRoles: normaliseAllPicks(roleDocs, ["roleId"]),
       sources: { membershipTypes: typesSource, roles: "member_roles" },
     });
   } catch (e) {

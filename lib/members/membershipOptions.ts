@@ -17,6 +17,11 @@ export function normalisePick(doc: Record<string, unknown>, idKeys: string[]): P
   };
 }
 
+/** Like normalisePicks but keeps inactive rows, so ids already saved on a member can still be named. */
+export function normaliseAllPicks(docs: Record<string, unknown>[], idKeys: string[]): PickOption[] {
+  return docs.map((d) => normalisePick(d, idKeys)).filter((x): x is PickOption => !!x);
+}
+
 export function normalisePicks(docs: Record<string, unknown>[], idKeys: string[]): PickOption[] {
   return docs
     .map((d) => normalisePick(d, idKeys))

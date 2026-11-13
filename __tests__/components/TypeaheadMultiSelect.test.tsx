@@ -33,7 +33,7 @@ describe("TypeaheadMultiSelect", () => {
   it("shows already-saved values as chips and keeps unknown ids visible", () => {
     render(<Harness start={["role-player", "role-old"]} />);
     expect(screen.getByText("Player")).toBeTruthy();
-    expect(screen.getByText("role-old")).toBeTruthy();
+    expect(screen.getByText("Old")).toBeTruthy();
   });
 });
 
@@ -43,5 +43,20 @@ describe("normalisePicks", () => {
       { roleId: "role-b", name: "B" }, { roleId: "role-a", name: "A" }, { roleId: "role-x", name: "X", active: false },
     ], ["roleId"]);
     expect(r.map((x) => x.id)).toEqual(["role-a", "role-b"]);
+  });
+});
+
+describe("TypeaheadMultiSelect saved ids", () => {
+  it("names inactive/unknown saved values instead of showing raw ids", () => {
+    render(
+      <TypeaheadMultiSelect
+        options={opts}
+        knownOptions={[{ value: "role-junior-player", label: "Junior Player", hint: "Under-age player" }]}
+        values={["role-junior-player", "role-old-thing"]}
+        onChange={() => {}}
+      />,
+    );
+    expect(screen.getByText("Junior Player").getAttribute("title")).toBe("Under-age player");
+    expect(screen.getByText("Old Thing")).toBeTruthy();
   });
 });
