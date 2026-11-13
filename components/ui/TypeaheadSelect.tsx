@@ -66,7 +66,7 @@ export default function TypeaheadSelect({
     };
   }, [open]);
 
-  const shown = query ?? selected?.label ?? "";
+  const shown = query ?? selected?.label ?? value ?? ""; // unknown saved values stay visible
   const filtered = useMemo(() => {
     const q = (query ?? "").trim().toLowerCase();
     return q

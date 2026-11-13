@@ -1,6 +1,19 @@
 // components/admin/members/wizard/AddressStep.tsx
 "use client";
 
+import TypeaheadSelect from "@/components/ui/TypeaheadSelect";
+
+const STATES = [
+  { value: "QLD", label: "Queensland" },
+  { value: "NSW", label: "New South Wales" },
+  { value: "VIC", label: "Victoria" },
+  { value: "SA", label: "South Australia" },
+  { value: "WA", label: "Western Australia" },
+  { value: "TAS", label: "Tasmania" },
+  { value: "NT", label: "Northern Territory" },
+  { value: "ACT", label: "Australian Capital Territory" },
+];
+
 export default function AddressStep({
   data,
   onChange,
@@ -58,22 +71,13 @@ export default function AddressStep({
           <label className="text-xs font-black uppercase text-slate-400 mb-2 block">
             State *
           </label>
-          <select
-            value={data.state}
-            onChange={(e) => onChange({ ...data, state: e.target.value })}
-            className={`w-full p-3 bg-slate-50 border rounded-xl outline-none font-bold focus:ring-2 ring-yellow-400 ${
-              errors.state ? "border-red-500" : "border-slate-200"
-            }`}
-          >
-            <option value="QLD">Queensland</option>
-            <option value="NSW">New South Wales</option>
-            <option value="VIC">Victoria</option>
-            <option value="SA">South Australia</option>
-            <option value="WA">Western Australia</option>
-            <option value="TAS">Tasmania</option>
-            <option value="NT">Northern Territory</option>
-            <option value="ACT">Australian Capital Territory</option>
-          </select>
+          <TypeaheadSelect
+            ariaLabel="State"
+            placeholder="Search state..."
+            options={STATES}
+            value={data.state || ""}
+            onChange={(v) => onChange({ ...data, state: v })}
+          />
           {errors.state && (
             <p className="text-red-500 text-xs mt-1 font-bold">
               {errors.state}
