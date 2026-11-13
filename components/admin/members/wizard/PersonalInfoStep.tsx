@@ -35,6 +35,26 @@ interface MemberSearchResult {
   dateOfBirth: string;
 }
 
+/** Used when the config collection has no salutation rows (or cannot be read), so the dropdown is never empty. */
+const DEFAULT_SALUTATIONS: ConfigItem[] = [
+  ["sal-mr", "Mr"],
+  ["sal-mrs", "Mrs"],
+  ["sal-ms", "Ms"],
+  ["sal-miss", "Miss"],
+  ["sal-mx", "Mx"],
+  ["sal-dr", "Dr"],
+  ["sal-prof", "Prof"],
+].map(([id, name], i) => ({
+  configType: "salutation",
+  id,
+  name,
+  code: name,
+  isActive: true,
+  displayOrder: i + 1,
+  createdAt: "",
+  updatedAt: "",
+}));
+
 export default function PersonalInfoStep({
   data,
   onChange,
@@ -82,10 +102,13 @@ export default function PersonalInfoStep({
 
       if (salutationsRes.ok) {
         const salutationsData = await salutationsRes.json();
-        setSalutations(
-          salutationsData.filter((item: ConfigItem) => item.isActive),
-        );
+        const active = Array.isArray(salutationsData)
+          ? salutationsData.filter((item: ConfigItem) => item.isActive)
+          : [];
+        setSalutations(active.length ? active : DEFAULT_SALUTATIONS);
       }
+
+      if (!salutationsRes.ok) setSalutations(DEFAULT_SALUTATIONS);
 
       if (gendersRes.ok) {
         const gendersData = await gendersRes.json();
