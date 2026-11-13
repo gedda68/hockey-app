@@ -109,7 +109,7 @@ export default function MembersPage() {
       const res  = await fetch(`/api/admin/members?${params}`);
       const data = await res.json();
       setMembers(data.members  ?? []);
-      setTotal(data.total ?? 0);
+      setTotal(data.pagination?.total ?? data.total ?? 0);
     } catch {
       setMembers([]);
     } finally {

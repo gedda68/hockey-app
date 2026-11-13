@@ -11,6 +11,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import { requireAnalyticsAccess } from "@/lib/auth/analyticsScope";
+import { classifyRoles } from "@/lib/members/roleClassification";
 
 // ── Age-group classification ───────────────────────────────────────────────────
 // Season year − birth year = age-for-season (Hockey convention)
@@ -49,26 +50,6 @@ function isMemberActive(m: Record<string, any>): boolean {
   return st === "active" || st === "life";
 }
 
-// ── Role classification ───────────────────────────────────────────────────────
-function classifyRoles(roles: string[]): {
-  isPlayer: boolean;
-  isUmpire: boolean;
-  isTechnicalOfficial: boolean;
-  isCoach: boolean;
-  isAdmin: boolean;
-} {
-  const rs = new Set(roles);
-  return {
-    isPlayer:            rs.has("player") || rs.has("role-player"),
-    isUmpire:            rs.has("umpire"),
-    isTechnicalOfficial: rs.has("technical-official"),
-    isCoach:             rs.has("coach") || rs.has("assoc-coach"),
-    isAdmin:             rs.has("club-admin") || rs.has("association-admin") ||
-                         rs.has("club-committee") || rs.has("assoc-committee") ||
-                         rs.has("registrar") || rs.has("assoc-registrar"),
-  };
-}
-
 // ── Main handler ─────────────────────────────────────────────────────────────
 export async function GET(request: NextRequest) {
   try {
@@ -89,7 +70,7 @@ export async function GET(request: NextRequest) {
     const memberQuery: Record<string, any> = {};
 
     if (scope === "club" && scopeId) {
-      memberQuery["membership.clubId"] = scopeId;
+      memberQuery.$or = [{ "membership.clubId": scopeId }, { clubId: scopeId }];
     } else if (scope === "association" && scopeId) {
       // Find all club IDs under this association
       const clubs = await db
@@ -100,7 +81,9 @@ export async function GET(request: NextRequest) {
       // Include direct association members + all club members
       memberQuery.$or = [
         { "membership.associationId": scopeId },
+        { associationId: scopeId },
         { "membership.clubId": { $in: clubIds } },
+        { clubId: { $in: clubIds } },
       ];
     }
     // global: no filter
@@ -113,11 +96,17 @@ export async function GET(request: NextRequest) {
           memberId:    1,
           personalInfo: 1,
           membership:  1,
+          clubId:      1,
           roles:       1,
           createdAt:   1,
         },
       })
       .toArray();
+
+    const clubNames = new Map<string, string>();
+    for (const c of await db.collection("clubs").find({}, { projection: { id: 1, clubId: 1, name: 1 } }).toArray()) {
+      for (const k of [c.id, c.clubId]) if (k) clubNames.set(String(k), String(c.name ?? ""));
+    }
 
     // ── Counters ────────────────────────────────────────────────────────────
     const totals = {
@@ -188,8 +177,8 @@ export async function GET(request: NextRequest) {
         byRole[primary] = (byRole[primary] ?? 0) + 1;
 
         // Club breakdown
-        const clubId   = m.membership?.clubId;
-        const clubName = m.membership?.clubName ?? "Unaffiliated";
+        const clubId   = m.membership?.clubId || m.clubId;
+        const clubName = m.membership?.clubName ?? clubNames.get(String(clubId)) ?? String(clubId ?? "Unaffiliated");
         if (clubId) {
           if (!byClub[clubId]) byClub[clubId] = { name: clubName, total: 0, active: 0, players: 0 };
           byClub[clubId].total++;
