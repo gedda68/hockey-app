@@ -31,6 +31,8 @@ import ContactInfoStep from "@/components/admin/members/wizard/ContactInfoStep";
 import EmergencyContactStep from "@/components/admin/members/wizard/EmergencyContactStep";
 import AddressStep from "@/components/admin/members/wizard/AddressStep";
 import BlueCardSection from "@/components/admin/members/BlueCardSection";
+import { canVerifyBlueCard } from "@/lib/members/blueCardWorkflow";
+import { useAuth } from "@/lib/auth/AuthContext";
 import { requiresBlueCard, hasBlueCardData, nonPlayerRoles } from "@/lib/members/blueCard";
 import SocialPreferences, { mergedSocial } from "@/components/admin/members/SocialPreferences";
 import type { TeamHistoryRow } from "@/lib/members/teamHistory";
@@ -56,6 +58,7 @@ export default function EditMemberPage({
   const [isSaving, setIsSaving] = useState<string | null>(null);
   const [roles, setRoles] = useState<string[]>([]);
   const [related, setRelated] = useState<any>(undefined);
+  const { user: authUser } = useAuth();
   const [playerStats, setPlayerStats] = useState<PlayerStats | null>(null);
   const [teamHistory, setTeamHistory] = useState<TeamHistoryRow[]>([]);
   const [changeHistory, setChangeHistory] = useState<any[]>([]);
@@ -474,6 +477,8 @@ export default function EditMemberPage({
             <BlueCardSection
               value={formData.blueCard}
               required={requiresBlueCard(formData)}
+              clubId={formData.membership?.clubId || formData.clubId}
+              canVerify={canVerifyBlueCard(authUser, formData)}
               roleNames={nonPlayerRoles(formData.roles).map((r) => r.replace(/^role-/, "").replace(/-/g, " "))}
               onChange={(next) => setFormData({ ...formData, blueCard: next })}
             />

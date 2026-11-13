@@ -2,6 +2,8 @@
 // Members API - Get, Update, Delete individual member
 
 import { NextRequest, NextResponse } from "next/server";
+import { applyBlueCardUpdate, canVerifyBlueCard, memberClubId } from "@/lib/members/blueCardWorkflow";
+import { notifyBlueCardVerifier } from "@/lib/notifications/blueCardVerification";
 import { computePlayerStats } from "@/lib/members/playerStats";
 import { buildTeamHistory } from "@/lib/members/teamHistory";
 import clientPromise from "@/lib/mongodb";
@@ -179,6 +181,19 @@ export async function PUT(
     // Update timestamp
     updateData.updatedAt = new Date().toISOString();
 
+    // Blue card: only a club admin may change the verification fields; a nominated verifier is notified.
+    let blueCardNotify: { verifierMemberId: string } | null = null;
+    if (updateData.blueCard && typeof updateData.blueCard === "object") {
+      const result = applyBlueCardUpdate({
+        existing: existing.blueCard,
+        incoming: updateData.blueCard,
+        canVerify: canVerifyBlueCard(session as any, existing),
+        actor: session as any,
+      });
+      updateData.blueCard = result.blueCard;
+      if (result.notifyVerifier && result.verifierMemberId) blueCardNotify = { verifierMemberId: result.verifierMemberId };
+    }
+
     // Update member
     const result = await db
       .collection("members")
@@ -186,6 +201,20 @@ export async function PUT(
 
     if (result.matchedCount === 0) {
       return NextResponse.json({ error: "Member not found" }, { status: 404 });
+    }
+
+    if (blueCardNotify) {
+      try {
+        const club = await db.collection("clubs").findOne({ $or: [{ id: memberClubId(existing) }, { clubId: memberClubId(existing) }] });
+        await notifyBlueCardVerifier(db, {
+          member: { ...existing, memberId },
+          verifierMemberId: blueCardNotify.verifierMemberId,
+          requestedBy: session?.name || [session?.firstName, session?.lastName].filter(Boolean).join(" ") || undefined,
+          clubName: club?.name ? String(club.name) : undefined,
+        });
+      } catch (e) {
+        console.error("Blue card verification notice failed", e); // the save itself succeeded
+      }
     }
 
     // Log changes if provided
