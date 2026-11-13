@@ -10,6 +10,7 @@ import {
   Heart, Shield, AlertCircle, Loader2, Calendar, Hash,
   Building2, Users, ChevronRight, Activity,
 } from "lucide-react";
+import MemberRecordDetails, { type MemberRelated } from "@/components/admin/members/MemberRecordDetails";
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -89,6 +90,7 @@ export default function MemberViewPage({ params }: { params: Promise<{ id: strin
   const { id } = use(params);
   const router  = useRouter();
   const [member, setMember]   = useState<any>(null);
+  const [related, setRelated] = useState<MemberRelated | undefined>(undefined);
   const [loading, setLoading] = useState(true);
   const [error,   setError]   = useState<string | null>(null);
 
@@ -98,6 +100,7 @@ export default function MemberViewPage({ params }: { params: Promise<{ id: strin
         const json = await res.json();
         if (!res.ok) throw new Error(json.error || "Member not found");
         setMember(json.member);
+        setRelated(json.related);
       })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
@@ -136,7 +139,7 @@ export default function MemberViewPage({ params }: { params: Promise<{ id: strin
   const plr  = member.playerInfo     || {};
   const med  = member.medical        || {};
   const hc   = member.healthcare     || {};
-  const ec   = member.emergencyContacts?.[0] || ct.emergencyContact || {};
+  const ec   = (ct.emergencyContact?.name ? ct.emergencyContact : member.emergencyContacts?.[0]) || ct.emergencyContact || {};
   const roles: string[] = member.roles || [];
   const dobAge = age(pi.dateOfBirth);
 
@@ -208,8 +211,11 @@ export default function MemberViewPage({ params }: { params: Promise<{ id: strin
         {/* Personal Information */}
         <Section icon={<User size={18} />} title="Personal Information" color="bg-gradient-to-r from-blue-600 to-blue-700">
           <div className="grid grid-cols-2 gap-4">
+            <Field label="Salutation"    value={pi.salutation && String(pi.salutation).replace(/^sal-/, "").replace(/^\w/, (c: string) => c.toUpperCase())} />
             <Field label="First Name"    value={pi.firstName} />
+            <Field label="Middle Name"   value={pi.middleName} />
             <Field label="Last Name"     value={pi.lastName} />
+            <Field label="Display Name"  value={pi.displayName} />
             <Field label="Date of Birth" value={pi.dateOfBirth ? `${formatDate(pi.dateOfBirth)}${dobAge ? ` (${dobAge})` : ""}` : undefined} />
             <Field label="Gender"        value={genderLabel(pi.gender)} />
           </div>
@@ -218,7 +224,8 @@ export default function MemberViewPage({ params }: { params: Promise<{ id: strin
         {/* Contact */}
         <Section icon={<Mail size={18} />} title="Contact Details" color="bg-gradient-to-r from-violet-600 to-violet-700">
           <div className="space-y-3">
-            <Field label="Primary Email" value={ct.primaryEmail ? <a href={`mailto:${ct.primaryEmail}`} className="text-violet-600 hover:underline">{ct.primaryEmail}</a> : undefined} />
+            <Field label="Primary Email" value={(ct.primaryEmail || ct.email) ? <a href={`mailto:${ct.primaryEmail || ct.email}`} className="text-violet-600 hover:underline">{ct.primaryEmail || ct.email}</a> : undefined} />
+            <Field label="Email Ownership" value={ct.emailOwnership} />
             <Field label="Phone"  value={ct.phone  || ct.mobile} />
             <Field label="Mobile" value={ct.mobile || ct.phone} />
           </div>
@@ -242,6 +249,8 @@ export default function MemberViewPage({ params }: { params: Promise<{ id: strin
             <Field label="Join Date"       value={formatDate(mem.joinDate)} />
             <Field label="Expiry Date"     value={formatDate(mem.expiryDate)} />
             <Field label="Renewal Date"    value={formatDate(mem.renewalDate)} />
+            <Field label="Season"          value={mem.seasonYear} />
+            <Field label="Club"            value={mem.clubName || related?.clubNames?.[mem.clubId || member.clubId] || mem.clubId || member.clubId} />
           </div>
         </Section>
 
@@ -254,17 +263,6 @@ export default function MemberViewPage({ params }: { params: Promise<{ id: strin
           </Section>
         )}
 
-        {/* Player Info */}
-        {(plr.primaryPosition || plr.secondaryPosition || plr.jerseyNumber) && (
-          <Section icon={<Activity size={18} />} title="Player Details" color="bg-gradient-to-r from-orange-500 to-orange-600">
-            <div className="grid grid-cols-2 gap-4">
-              <Field label="Primary Position"   value={plr.primaryPosition} />
-              <Field label="Secondary Position" value={plr.secondaryPosition} />
-              <Field label="Jersey Number"      value={plr.jerseyNumber} />
-              <Field label="Preferred Foot"     value={plr.preferredFoot} />
-            </div>
-          </Section>
-        )}
 
         {/* Emergency Contact */}
         <Section icon={<Phone size={18} />} title="Emergency Contact" color="bg-gradient-to-r from-rose-600 to-rose-700">
@@ -329,6 +327,9 @@ export default function MemberViewPage({ params }: { params: Promise<{ id: strin
           </Section>
         )}
       </div>
+
+      {/* ── Everything else stored on the record ───────────────────────────── */}
+      <MemberRecordDetails member={member} related={related} />
 
       {/* ── Footer actions ────────────────────────────────────────────────── */}
       <div className="flex items-center justify-between pt-2">
