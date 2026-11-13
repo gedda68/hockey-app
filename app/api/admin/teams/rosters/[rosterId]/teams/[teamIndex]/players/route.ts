@@ -17,6 +17,7 @@ import {
   ACTIVE_MEMBERSHIP_STATUSES,
   memberBelongsToClubFilter,
 } from "@/lib/rosters/memberClubQuery";
+import { checkTeamEligibility } from "@/lib/rosters/teamEligibility";
 import { sendTeamSelectionEmail } from "@/lib/notifications/teamSelectionNotify";
 
 export async function POST(
@@ -101,6 +102,42 @@ export async function POST(
 
     const pi  = member.personalInfo ?? {};
     const mem = member.membership   ?? {};
+
+    // Eligibility: age for seniors, and teams may be at most one grade apart.
+    const sameSeason = await db
+      .collection("teamRosters")
+      .find({
+        clubId: roster.clubId,
+        season: roster.season,
+        ...(roster.category ? { category: roster.category } : {}),
+      })
+      .project({ id: 1, teams: 1 })
+      .toArray();
+    const existing: { teamName: string; rosterId: string }[] = [];
+    for (const r of sameSeason) {
+      for (const t of (r.teams ?? []) as { name?: string; players?: { id?: string; playerId?: string; memberId?: string }[] }[]) {
+        if (
+          (t.players ?? []).some(
+            (p) => (p.memberId ?? p.playerId ?? p.id) === member.memberId,
+          )
+        ) {
+          existing.push({ teamName: String(t.name ?? ""), rosterId: String(r.id ?? "") });
+        }
+      }
+    }
+    const verdict = checkTeamEligibility({
+      category: roster.category,
+      season: roster.season,
+      dateOfBirth: pi.dateOfBirth,
+      newTeamName: String(roster.teams[teamIndex].name ?? ""),
+      existing,
+    });
+    if (!verdict.ok) {
+      return NextResponse.json(
+        { error: verdict.reason, code: verdict.code },
+        { status: 409 },
+      );
+    }
 
     // Create player object for roster
     const rosterPlayer = {
