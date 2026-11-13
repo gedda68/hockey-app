@@ -1,6 +1,7 @@
 // app/api/admin/members/route.ts
 // Members API - List and Create
 
+import { memberBelongsToClubFilter } from "@/lib/rosters/memberClubQuery";
 import { NextRequest, NextResponse } from "next/server";
 import type { Db } from "mongodb";
 import clientPromise from "@/lib/mongodb";
@@ -112,10 +113,13 @@ export async function GET(request: NextRequest) {
     const scopeParts: Record<string, unknown>[] = [];
 
     if (user.role === "super-admin") {
-      if (paramClubId) scopeParts.push({ "membership.clubId": paramClubId });
+      if (paramClubId) scopeParts.push(memberBelongsToClubFilter(paramClubId));
       if (paramAssociationId) {
         scopeParts.push({
-          "membership.associationId": paramAssociationId,
+          $or: [
+            { "membership.associationId": paramAssociationId },
+            { associationId: paramAssociationId },
+          ],
         });
       }
     } else if (user.clubId) {
@@ -125,7 +129,8 @@ export async function GET(request: NextRequest) {
       if (paramAssociationId) {
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
       }
-      scopeParts.push({ "membership.clubId": user.clubId });
+      // Imported members carry the club at the top level; app-created ones also under membership.
+      scopeParts.push(memberBelongsToClubFilter(user.clubId));
     } else if (user.associationId) {
       if (
         paramAssociationId &&
@@ -137,7 +142,7 @@ export async function GET(request: NextRequest) {
         if (!(await userCanAccessClubResource(session, paramClubId))) {
           return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
-        scopeParts.push({ "membership.clubId": paramClubId });
+        scopeParts.push(memberBelongsToClubFilter(paramClubId));
       } else {
         const clubs = await db
           .collection("clubs")
@@ -148,8 +153,9 @@ export async function GET(request: NextRequest) {
         scopeParts.push({
           $or: [
             { "membership.associationId": user.associationId },
+            { associationId: user.associationId },
             ...(clubIds.length
-              ? [{ "membership.clubId": { $in: clubIds } }]
+              ? [{ "membership.clubId": { $in: clubIds } }, { clubId: { $in: clubIds } }]
               : []),
           ],
         });
@@ -199,6 +205,32 @@ export async function GET(request: NextRequest) {
       .limit(limit)
       .toArray();
 
+    // Show the club for every member, whichever field it was stored in.
+    const ids = [
+      ...new Set(
+        members
+          .map((m) => (m.membership?.clubId || m.clubId) as string | undefined)
+          .filter((v): v is string => typeof v === "string" && v !== ""),
+      ),
+    ];
+    const nameById = new Map<string, string>();
+    if (ids.length) {
+      const clubDocs = await db
+        .collection("clubs")
+        .find({ $or: [{ id: { $in: ids } }, { clubId: { $in: ids } }, { slug: { $in: ids } }] })
+        .project({ id: 1, clubId: 1, slug: 1, name: 1 })
+        .toArray();
+      for (const c of clubDocs) for (const k of [c.id, c.clubId, c.slug]) if (k) nameById.set(String(k), String(c.name ?? ""));
+    }
+    for (const m of members) {
+      const cid = (m.membership?.clubId || m.clubId) as string | undefined;
+      if (!cid) continue;
+      m.membership = {
+        ...(m.membership || {}),
+        clubId: cid,
+        clubName: m.membership?.clubName || nameById.get(cid) || cid,
+      };
+    }
 
     return NextResponse.json({
       members,
