@@ -73,3 +73,8 @@ export function mergeShootoutEvents(
   }));
   return [...keep, ...added];
 }
+
+/** 1-based attempt number of draft `index` within its own team. */
+export function attemptNumber(drafts: ShootoutDraft[], index: number): number {
+  return drafts.slice(0, index + 1).filter((x) => x.teamId === drafts[index].teamId).length;
+}

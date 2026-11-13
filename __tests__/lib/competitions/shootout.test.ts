@@ -48,3 +48,20 @@ describe("shootout admin helpers", () => {
     expect(out[1]).toMatchObject({ kind: "shootout_goal", teamId: "A", memberId: "a9", goalkeeperMemberId: null });
   });
 });
+
+import { attemptNumber } from "@/lib/competitions/shootout";
+import { isPlayingMember } from "@/lib/competitions/matchEventRoster";
+
+describe("attempt numbers and who can shoot", () => {
+  it("counts attempts per team", () => {
+    const d = ["H", "A", "H", "A", "H"].map((teamId) => ({ teamId, shooterId: "", goalkeeperId: "", scored: true }));
+    expect(d.map((_, i) => attemptNumber(d, i))).toEqual([1, 1, 2, 2, 3]);
+  });
+  it("excludes staff unless they also play", () => {
+    expect(isPlayingMember("Participant", ["role-coach"])).toBe(true);
+    expect(isPlayingMember(undefined, ["role-coach", "role-player"])).toBe(true);
+    expect(isPlayingMember("Official", ["role-team-manager"])).toBe(false);
+    expect(isPlayingMember(undefined, ["role-coach"])).toBe(false);
+    expect(isPlayingMember(undefined, undefined)).toBe(true);
+  });
+});
