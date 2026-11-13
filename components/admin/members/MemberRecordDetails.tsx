@@ -3,6 +3,8 @@
 // Used on the member profile and at the bottom of the edit screen.
 
 import { useEffect, useState, type ReactNode } from "react";
+import { BlueCardBanner } from "@/components/admin/members/BlueCardSection";
+import { hasBlueCardData, requiresBlueCard } from "@/lib/members/blueCard";
 import PlayerDetails from "@/components/admin/members/PlayerDetails";
 import type { TeamHistoryRow } from "@/lib/members/teamHistory";
 import { hasPlayerHistory, type PlayerStats } from "@/lib/members/playerStats";
@@ -111,6 +113,7 @@ export default function MemberRecordDetails({
   registrationsOnly,
   teamHistory,
   hideSocial,
+  hideBlueCard,
 }: {
   member: any;
   related?: MemberRelated;
@@ -119,6 +122,7 @@ export default function MemberRecordDetails({
   registrationsOnly?: boolean;
   teamHistory?: TeamHistoryRow[];
   hideSocial?: boolean;
+  hideBlueCard?: boolean;
 }) {
   const clubId: string = member.membership?.clubId || member.clubId || "";
   const clubName =
@@ -369,6 +373,65 @@ export default function MemberRecordDetails({
           <F label="Staff of teams" value={chips(staff.teams)} />
         </Card>
       ) : null}
+
+      {!hideBlueCard &&
+        (requiresBlueCard(member) || hasBlueCardData(member.blueCard)) && (
+          <Card
+            title="Blue Card (Working with Children)"
+            tint="bg-gradient-to-r from-blue-600 to-blue-700"
+          >
+            <BlueCardBanner
+              card={member.blueCard}
+              required={requiresBlueCard(member)}
+            />
+            {member.blueCard?.exempt ? (
+              <F
+                label="Exemption reason"
+                value={member.blueCard.exemptReason}
+              />
+            ) : (
+              <div className="grid grid-cols-2 gap-4">
+                <F label="Card type" value={member.blueCard?.cardType} />
+                <F label="Category" value={member.blueCard?.category} />
+                <F label="Card number" value={member.blueCard?.cardNumber} />
+                <F label="Status" value={member.blueCard?.status} />
+                <F
+                  label="Issued"
+                  value={
+                    member.blueCard?.issueDate
+                      ? fmtDate(member.blueCard.issueDate)
+                      : undefined
+                  }
+                />
+                <F
+                  label="Expires"
+                  value={
+                    member.blueCard?.expiryDate
+                      ? fmtDate(member.blueCard.expiryDate)
+                      : undefined
+                  }
+                />
+                <F
+                  label="Linked to club"
+                  value={
+                    member.blueCard?.linkedToClub
+                      ? `Yes${member.blueCard.linkedDate ? ` (${fmtDate(member.blueCard.linkedDate)})` : ""}`
+                      : "No"
+                  }
+                />
+                <F
+                  label="Last verified"
+                  value={
+                    member.blueCard?.lastVerifiedDate
+                      ? `${fmtDate(member.blueCard.lastVerifiedDate)}${member.blueCard.verifiedBy ? ` by ${member.blueCard.verifiedBy}` : ""}`
+                      : undefined
+                  }
+                />
+              </div>
+            )}
+            <F label="Notes" value={member.blueCard?.notes} />
+          </Card>
+        )}
 
       {!hideSocial && (
         <Card
