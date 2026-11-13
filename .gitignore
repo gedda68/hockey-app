@@ -17,6 +17,7 @@
 !/scripts/create-super-admin.ts
 !/scripts/create-club-user.ts
 !/scripts/normalize-members.ts
+!/scripts/possible-duplicates.ts
 
 # scraped data with personal information (players incl. juniors) — keep local
 /data/altius/
