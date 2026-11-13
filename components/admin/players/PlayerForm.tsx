@@ -485,8 +485,9 @@ export default function PlayerForm({
         );
       }
 
-      if (formData.notes && formData.notes.length > 0 && savedPlayerId) {
-        // Save each note separately
+      // Notes are saved one by one when they are a list. A record imported as a member can carry a
+      // single text note instead; that is stored with the player record itself, so skip it here.
+      if (Array.isArray(formData.notes) && formData.notes.length > 0 && savedPlayerId) {
         formData.notes.forEach((note) => {
           additionalSaves.push(
             fetch(`/api/admin/players/${savedPlayerId}/notes`, {
