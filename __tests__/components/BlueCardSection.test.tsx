@@ -40,16 +40,16 @@ import { afterEach, beforeEach } from "vitest";
 
 describe("verification controls", () => {
   beforeEach(() => {
-    vi.stubGlobal("fetch", vi.fn(async () => ({ ok: true, json: async () => ({ items: [{ memberId: "adm1", name: "Ada Admin" }, { memberId: "adm2", name: "Bob Boss" }] }) })));
+    vi.stubGlobal("fetch", vi.fn(async () => ({ ok: true, json: async () => ({ items: [{ memberId: "adm1", name: "Ada Admin", clubName: "CHC" }, { memberId: "adm2", name: "Bob Boss" }] }) })));
   });
   afterEach(() => vi.unstubAllGlobals());
 
   it("nominates a verifier from the club admin list", async () => {
     const onChange = vi.fn();
     render(<BlueCardSection value={{}} required clubId="club-1" canVerify={false} onChange={onChange} />);
-    const box = screen.getByRole("combobox", { name: "Verifier" });
+    const box = screen.getByRole("combobox", { name: "Approver" });
     await userEvent.click(box);
-    await userEvent.click(await screen.findByRole("option", { name: "Ada Admin" }));
+    await userEvent.click(await screen.findByRole("option", { name: /Ada Admin/ }));
     expect(onChange).toHaveBeenCalledWith({ verifierMemberId: "adm1", verifierName: "Ada Admin" });
   });
 
@@ -57,9 +57,28 @@ describe("verification controls", () => {
     const { unmount } = render(<BlueCardSection value={{}} required clubId="club-1" canVerify={false} onChange={() => {}} />);
     expect((screen.getByLabelText(/linked to our club/i) as HTMLInputElement).disabled).toBe(true);
     expect((screen.getByLabelText("Last verified") as HTMLInputElement).disabled).toBe(true);
-    expect(screen.getByText(/can only be updated by a club admin/i)).toBeTruthy();
+    expect(screen.getByText(/can only be updated by an approver/i)).toBeTruthy();
     unmount();
     render(<BlueCardSection value={{}} required clubId="club-1" canVerify onChange={() => {}} />);
     await waitFor(() => expect((screen.getByLabelText("Last verified") as HTMLInputElement).disabled).toBe(false));
+  });
+});
+
+describe("who can confirm", () => {
+  beforeEach(() => {
+    vi.stubGlobal("fetch", vi.fn(async () => ({ ok: true, json: async () => ({ items: [{ memberId: "adm1", name: "Ada Admin" }] }) })));
+  });
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("unlocks for a signed-in user who is in the approver list, and for super-admin", async () => {
+    const approver = render(<BlueCardSection value={{}} required currentMemberId="adm1" onChange={() => {}} />);
+    await waitFor(() => expect((screen.getByLabelText("Last verified") as HTMLInputElement).disabled).toBe(false));
+    approver.unmount();
+    const other = render(<BlueCardSection value={{}} required currentMemberId="zzz" onChange={() => {}} />);
+    await new Promise((r) => setTimeout(r, 20));
+    expect((screen.getByLabelText("Last verified") as HTMLInputElement).disabled).toBe(true);
+    other.unmount();
+    render(<BlueCardSection value={{}} required isSuperAdmin onChange={() => {}} />);
+    expect((screen.getByLabelText("Last verified") as HTMLInputElement).disabled).toBe(false);
   });
 });

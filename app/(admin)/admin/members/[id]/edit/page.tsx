@@ -31,7 +31,6 @@ import ContactInfoStep from "@/components/admin/members/wizard/ContactInfoStep";
 import EmergencyContactStep from "@/components/admin/members/wizard/EmergencyContactStep";
 import AddressStep from "@/components/admin/members/wizard/AddressStep";
 import BlueCardSection from "@/components/admin/members/BlueCardSection";
-import { canVerifyBlueCard } from "@/lib/members/blueCardWorkflow";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { requiresBlueCard, hasBlueCardData, nonPlayerRoles } from "@/lib/members/blueCard";
 import SocialPreferences, { mergedSocial } from "@/components/admin/members/SocialPreferences";
@@ -478,7 +477,8 @@ export default function EditMemberPage({
               value={formData.blueCard}
               required={requiresBlueCard(formData)}
               clubId={formData.membership?.clubId || formData.clubId}
-              canVerify={canVerifyBlueCard(authUser, formData)}
+              currentMemberId={authUser?.memberId}
+              isSuperAdmin={authUser?.role === "super-admin"}
               roleNames={nonPlayerRoles(formData.roles).map((r) => r.replace(/^role-/, "").replace(/-/g, " "))}
               onChange={(next) => setFormData({ ...formData, blueCard: next })}
             />

@@ -57,6 +57,8 @@ export default function BlueCardSection({
   roleNames,
   clubId,
   canVerify,
+  currentMemberId,
+  isSuperAdmin,
 }: {
   value: Record<string, any> | undefined;
   onChange: (next: Record<string, any>) => void;
@@ -66,18 +68,20 @@ export default function BlueCardSection({
   clubId?: string;
   /** Club admin (or super-admin) — the only people who can change the locked verification fields. */
   canVerify?: boolean;
+  /** Used when canVerify is not given: the signed-in user's member id and whether they are a super-admin. */
+  currentMemberId?: string;
+  isSuperAdmin?: boolean;
 }) {
   const bc = value || {};
 
-  const [admins, setAdmins] = useState<{ memberId: string; name: string }[]>(
-    [],
-  );
+  const [admins, setAdmins] = useState<
+    { memberId: string; name: string; clubName?: string }[]
+  >([]);
   useEffect(() => {
-    if (!clubId) return;
     (async () => {
       try {
         const res = await fetch(
-          `/api/admin/lookups/club-admins?clubId=${encodeURIComponent(clubId)}`,
+          `/api/admin/lookups/blue-card-approvers?clubId=${encodeURIComponent(clubId ?? "")}`,
         );
         if (res.ok) setAdmins((await res.json()).items || []);
       } catch (e) {
@@ -85,8 +89,18 @@ export default function BlueCardSection({
       }
     })();
   }, [clubId]);
+  // Approvers (active role-admins) can confirm; an explicit canVerify prop wins.
+  const canConfirm =
+    canVerify !== undefined
+      ? canVerify
+      : !!isSuperAdmin ||
+        (!!currentMemberId &&
+          admins.some((a) => a.memberId === currentMemberId));
   const verifierOptions = useMemo(() => {
-    const list = admins.map((a) => ({ value: a.memberId, label: a.name }));
+    const list = admins.map((a) => ({
+      value: a.memberId,
+      label: a.clubName ? `${a.name} — ${a.clubName}` : a.name,
+    }));
     // keep an already-nominated person visible even if they are no longer in the list
     if (
       bc.verifierMemberId &&
@@ -195,9 +209,9 @@ export default function BlueCardSection({
             </h4>
 
             <div>
-              <label className={LABEL}>Verifier (club admin)</label>
+              <label className={LABEL}>Approver (role admin)</label>
               <TypeaheadSelect
-                ariaLabel="Verifier"
+                ariaLabel="Approver"
                 placeholder={
                   clubId ? "Search club admins..." : "Choose a club first"
                 }
@@ -228,23 +242,23 @@ export default function BlueCardSection({
             </div>
 
             <fieldset
-              disabled={!canVerify}
-              className={`space-y-3 ${canVerify ? "" : "opacity-70"}`}
+              disabled={!canConfirm}
+              className={`space-y-3 ${canConfirm ? "" : "opacity-70"}`}
             >
               {check(
                 "linkedToClub",
                 "Card holder is linked to our club in the Blue Card system",
-                !canVerify,
+                !canConfirm,
               )}
               <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
                 {bc.linkedToClub &&
                   field("linkedDate", "Date linked", {
                     type: "date",
-                    disabled: !canVerify,
+                    disabled: !canConfirm,
                   })}
                 {field("lastVerifiedDate", "Last verified", {
                   type: "date",
-                  disabled: !canVerify,
+                  disabled: !canConfirm,
                 })}
                 <div>
                   <label className={LABEL}>Verified by</label>
@@ -254,10 +268,10 @@ export default function BlueCardSection({
                 </div>
               </div>
             </fieldset>
-            {!canVerify && (
+            {!canConfirm && (
               <p className="text-xs font-bold text-slate-500">
-                🔒 The link tick and verification date can only be updated by a
-                club admin.
+                🔒 The link tick and verification date can only be updated by an
+                approver (an active Admin).
               </p>
             )}
           </div>

@@ -1,11 +1,11 @@
 // Blue card verification workflow rules.
 //
-//  - Any editor can record the card details and nominate a verifier (a club admin).
-//  - Only a club admin (of the member's club) or a super-admin can set the "linked to club" tick and the
+//  - Any editor can record the card details and nominate an approver (an active member holding the Admin role).
+//  - Only an active role-admin member or a super-admin can set the "linked to club" tick and the
 //    "last verified" date. Everyone else's changes to those fields are ignored by the server.
 //  - If the card's identity details change after a verification, the verification is cleared and the
 //    verifier must be asked again.
-//  - A request to verify is sent to the nominated verifier when one is nominated or the card details change.
+//  - A request to verify is sent to the nominated approver when one is nominated or the card details change.
 
 type Doc = Record<string, any>;
 
@@ -24,14 +24,23 @@ export interface Actor {
 
 export const memberClubId = (m: Doc) => String(m?.membership?.clubId ?? m?.clubId ?? "");
 
-/** Club admin of the member's club, or super-admin. */
-export function canVerifyBlueCard(actor: Actor | null | undefined, member: Doc): boolean {
+/** "role-admin" (or plain "admin") member role. */
+export const isAdminRole = (r: unknown) => /^(role-)?admin$/i.test(String(r ?? "").trim());
+
+/** An active member who holds the Admin member role. */
+export function isActiveRoleAdmin(memberDoc: Doc | null | undefined): boolean {
+  if (!memberDoc) return false;
+  const roles: unknown[] = [...(memberDoc.roles ?? []), ...(memberDoc.membership?.roles ?? [])];
+  if (!roles.some(isAdminRole)) return false;
+  const status = memberDoc.membership?.status;
+  return status === undefined || status === null || status === "" || ["Active", "Life"].includes(String(status));
+}
+
+/** Who may confirm a blue card: super-admin, or an active role-admin (pass the actor's own member record). */
+export function canVerifyBlueCard(actor: Actor | null | undefined, actorMember?: Doc | null): boolean {
   if (!actor) return false;
   if (actor.role === "super-admin") return true;
-  const club = memberClubId(member);
-  if (!club) return false;
-  if (actor.role === "club-admin" && actor.clubId && String(actor.clubId) === club) return true;
-  return (actor.scopedRoles ?? []).some((r) => r.role === "club-admin" && r.scopeType === "club" && String(r.scopeId) === club);
+  return isActiveRoleAdmin(actorMember);
 }
 
 const actorName = (a: Actor) => a.name || [a.firstName, a.lastName].filter(Boolean).join(" ") || "";
