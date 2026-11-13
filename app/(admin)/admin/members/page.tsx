@@ -129,7 +129,7 @@ export default function MembersPage() {
     if (!confirm("Deactivate this member? Their record will be retained.")) return;
     setDeleting(memberId);
     try {
-      await fetch(`/api/admin/players/${memberId}`, { method: "DELETE" });
+      await fetch(`/api/admin/members/${encodeURIComponent(memberId)}`, { method: "DELETE" });
       fetchMembers();
     } finally {
       setDeleting(null);
@@ -392,7 +392,7 @@ export default function MembersPage() {
                             {!isReadonly && (
                               <>
                                 <Link
-                                  href={`/admin/players/${m.memberId}/edit`}
+                                  href={`/admin/members/${encodeURIComponent(m.memberId)}/edit`}
                                   className="p-1.5 hover:bg-yellow-50 rounded-lg transition-colors"
                                   title="Edit"
                                 >
