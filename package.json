@@ -19,6 +19,7 @@
     "normalize:members": "tsx scripts/normalize-members.ts",
     "seed:public-demo": "tsx scripts/seed-public-demo.ts",
     "seed:tiered-demo": "tsx scripts/seed-tiered-demo-accounts.ts",
+    "create:club-user": "tsx scripts/create-club-user.ts",
     "altius:harvest": "tsx scripts/altius-bhl-seed/cli-harvest.ts",
     "altius:seed": "tsx scripts/altius-bhl-seed/cli-seed.ts",
     "reconcile:association-levels": "tsx scripts/reconcile-association-levels.ts",
