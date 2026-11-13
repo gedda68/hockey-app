@@ -49,10 +49,10 @@ export default function EmergencyContactStep({
   const fetchRelationshipTypes = async () => {
     setIsLoading(true);
     try {
-      const res = await fetch("/api/admin/config/relationship-type");
+      const res = await fetch("/api/admin/lookups/relationship-types");
       if (res.ok) {
         const relationshipsData = await res.json();
-        setRelationshipTypes(activeOrDefault(relationshipsData, DEFAULT_RELATIONSHIPS as unknown as ConfigItem[]));
+        setRelationshipTypes(activeOrDefault(relationshipsData?.items, DEFAULT_RELATIONSHIPS as unknown as ConfigItem[]));
       } else {
         setRelationshipTypes(DEFAULT_RELATIONSHIPS as unknown as ConfigItem[]);
       }

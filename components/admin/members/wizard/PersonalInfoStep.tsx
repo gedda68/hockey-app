@@ -123,7 +123,7 @@ export default function PersonalInfoStep({
       const [salutationsRes, gendersRes, relationshipsRes] = await Promise.all([
         fetch("/api/admin/config/salutation"),
         fetch("/api/admin/config/gender"),
-        fetch("/api/admin/config/relationship-type"),
+        fetch("/api/admin/lookups/relationship-types"),
       ]);
 
       if (salutationsRes.ok) {
@@ -146,7 +146,7 @@ export default function PersonalInfoStep({
 
       if (relationshipsRes.ok) {
         const relationshipsData = await relationshipsRes.json();
-        setRelationshipTypes(activeOrDefault(relationshipsData, DEFAULT_RELATIONSHIPS as unknown as ConfigItem[]));
+        setRelationshipTypes(activeOrDefault(relationshipsData?.items, DEFAULT_RELATIONSHIPS as unknown as ConfigItem[]));
       } else {
         setRelationshipTypes(DEFAULT_RELATIONSHIPS as unknown as ConfigItem[]);
       }
