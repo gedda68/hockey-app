@@ -187,7 +187,10 @@ export async function PUT(
       const result = applyBlueCardUpdate({
         existing: existing.blueCard,
         incoming: updateData.blueCard,
-        canVerify: canVerifyBlueCard(session as any, existing),
+        canVerify: canVerifyBlueCard(
+          session as any,
+          session?.memberId ? await db.collection("members").findOne({ memberId: session.memberId }) : null,
+        ),
         actor: session as any,
       });
       updateData.blueCard = result.blueCard;

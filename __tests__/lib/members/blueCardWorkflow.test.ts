@@ -1,17 +1,17 @@
 import { describe, it, expect } from "vitest";
 import { applyBlueCardUpdate, canVerifyBlueCard } from "@/lib/members/blueCardWorkflow";
 
-const member = { membership: { clubId: "club-1" } };
-const clubAdmin = { role: "club-admin", clubId: "club-1", memberId: "adm1", firstName: "Ada", lastName: "Admin" };
+const clubAdmin = { role: "registrar", memberId: "adm1", firstName: "Ada", lastName: "Admin" };
+const roleAdmin = { memberId: "adm1", roles: ["role-player", "role-admin"], membership: { status: "Active" } };
 
 describe("canVerifyBlueCard", () => {
-  it("allows the member's club admin and super-admin only", () => {
-    expect(canVerifyBlueCard(clubAdmin, member)).toBe(true);
-    expect(canVerifyBlueCard({ role: "super-admin" }, member)).toBe(true);
-    expect(canVerifyBlueCard({ role: "club-admin", clubId: "club-2" }, member)).toBe(false);
-    expect(canVerifyBlueCard({ role: "registrar", clubId: "club-1" }, member)).toBe(false);
-    expect(canVerifyBlueCard({ role: "player", scopedRoles: [{ role: "club-admin", scopeType: "club", scopeId: "club-1" }] }, member)).toBe(true);
-    expect(canVerifyBlueCard(null, member)).toBe(false);
+  it("allows an active role-admin member and super-admin only", () => {
+    expect(canVerifyBlueCard(clubAdmin, roleAdmin)).toBe(true);
+    expect(canVerifyBlueCard({ role: "super-admin" }, null)).toBe(true);
+    expect(canVerifyBlueCard(clubAdmin, { ...roleAdmin, membership: { status: "Inactive" } })).toBe(false);
+    expect(canVerifyBlueCard(clubAdmin, { roles: ["role-coach"], membership: { status: "Active" } })).toBe(false);
+    expect(canVerifyBlueCard({ role: "club-admin", clubId: "c1" }, { roles: ["role-coach"] })).toBe(false);
+    expect(canVerifyBlueCard(null, roleAdmin)).toBe(false);
   });
 });
 
