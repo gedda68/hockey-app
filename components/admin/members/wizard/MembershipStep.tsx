@@ -4,6 +4,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { ChevronRight, Building2, MapPin } from "lucide-react";
 import TypeaheadSelect from "@/components/ui/TypeaheadSelect";
+import TypeaheadMultiSelect from "@/components/ui/TypeaheadMultiSelect";
 import {
   nationalAssociations,
   childAssociations,
@@ -98,24 +99,17 @@ export default function MembershipStep({
 
   useEffect(() => {
     if (selectedClub) {
-      fetchMembershipTypes();
-      fetchRoles();
+      fetchOptions();
     }
   }, [selectedClub]);
 
-  const fetchMembershipTypes = async () => {
+  const fetchOptions = async () => {
     try {
-      const res = await fetch("/api/admin/config/membership-type");
-      if (res.ok) setMembershipTypes(await res.json());
-    } catch (e) {
-      console.error(e);
-    }
-  };
-
-  const fetchRoles = async () => {
-    try {
-      const res = await fetch("/api/admin/config/member-role");
-      if (res.ok) setAvailableRoles(await res.json());
+      const res = await fetch("/api/admin/lookups/membership-options");
+      if (!res.ok) return;
+      const data = await res.json();
+      setMembershipTypes(data.membershipTypes || []);
+      setAvailableRoles(data.roles || []);
     } catch (e) {
       console.error(e);
     }
@@ -318,57 +312,22 @@ export default function MembershipStep({
                 {errors.membershipTypes}
               </p>
             )}
-            <div className="grid grid-cols-2 gap-4">
-              {membershipTypes.map((type) => {
-                const id = type.typeId || type.id;
-                const selected = (
-                  membershipData.membershipTypes || []
-                ).includes(id);
-                return (
-                  <button
-                    key={id}
-                    type="button"
-                    onClick={() => toggleMembershipType(id)}
-                    className={`p-4 border-2 rounded-xl text-left transition-all ${
-                      selected
-                        ? "border-green-500 bg-green-50"
-                        : "border-slate-200 hover:border-slate-300"
-                    }`}
-                  >
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="font-black text-slate-900">
-                          {type.name}
-                        </div>
-                        <div className="text-sm text-slate-600 mt-1">
-                          {type.description}
-                        </div>
-                        {type.annualFee && (
-                          <div className="text-sm font-bold text-green-600 mt-2">
-                            ${type.annualFee}/year
-                          </div>
-                        )}
-                      </div>
-                      {selected && (
-                        <div className="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center ml-2 flex-shrink-0">
-                          <svg
-                            className="w-4 h-4 text-white"
-                            fill="currentColor"
-                            viewBox="0 0 20 20"
-                          >
-                            <path
-                              fillRule="evenodd"
-                              d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                              clipRule="evenodd"
-                            />
-                          </svg>
-                        </div>
-                      )}
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
+            <TypeaheadMultiSelect
+              ariaLabel="Membership types"
+              placeholder="Search and select membership types..."
+              options={membershipTypes.map((t) => ({
+                value: t.id,
+                label: t.name,
+                hint:
+                  [t.description, t.annualFee ? `$${t.annualFee}/year` : ""]
+                    .filter(Boolean)
+                    .join(" · ") || undefined,
+              }))}
+              values={membershipData.membershipTypes || []}
+              onChange={(v) =>
+                onMembershipChange({ ...membershipData, membershipTypes: v })
+              }
+            />
           </div>
 
           {/* Roles */}
@@ -376,50 +335,17 @@ export default function MembershipStep({
             <label className="text-xs font-black uppercase text-slate-400 mb-2 block">
               Roles (optional)
             </label>
-            <div className="grid grid-cols-3 gap-4">
-              {availableRoles.map((role) => {
-                const id = role.roleId || role.id;
-                const selected = roles.includes(id);
-                return (
-                  <button
-                    key={id}
-                    type="button"
-                    onClick={() => toggleRole(id)}
-                    className={`p-3 border-2 rounded-xl text-left transition-all ${
-                      selected
-                        ? "border-blue-500 bg-blue-50"
-                        : "border-slate-200 hover:border-slate-300"
-                    }`}
-                  >
-                    <div className="flex items-center gap-2">
-                      {role.icon && (
-                        <span className="text-xl">{role.icon}</span>
-                      )}
-                      <div className="flex-1">
-                        <div className="font-bold text-sm text-slate-900">
-                          {role.name}
-                        </div>
-                      </div>
-                      {selected && (
-                        <div className="w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center flex-shrink-0">
-                          <svg
-                            className="w-3 h-3 text-white"
-                            fill="currentColor"
-                            viewBox="0 0 20 20"
-                          >
-                            <path
-                              fillRule="evenodd"
-                              d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                              clipRule="evenodd"
-                            />
-                          </svg>
-                        </div>
-                      )}
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
+            <TypeaheadMultiSelect
+              ariaLabel="Roles"
+              placeholder="Search and select roles..."
+              options={availableRoles.map((r) => ({
+                value: r.id,
+                label: r.name,
+                hint: r.description,
+              }))}
+              values={roles}
+              onChange={onRolesChange}
+            />
           </div>
 
           {/* Join Date & Status */}
