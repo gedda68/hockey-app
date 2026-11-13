@@ -36,6 +36,8 @@ export interface FixtureMatchEventPublic {
   teamId: string;
   memberId: string;
   assistMemberId?: string | null;
+  /** Shootout attempts: the keeper faced. */
+  goalkeeperMemberId?: string | null;
   period?: number | null;
   minute?: number | null;
   notes?: string | null;

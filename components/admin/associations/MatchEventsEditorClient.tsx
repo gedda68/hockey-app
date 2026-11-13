@@ -35,6 +35,7 @@ type Context = {
     teamId: string;
     memberId: string;
     assistMemberId?: string | null;
+    goalkeeperMemberId?: string | null;
     period?: number | null;
     minute?: number | null;
     notes?: string | null;
@@ -50,6 +51,7 @@ function emptyRow(homeTeamId: string): Row {
     teamId: homeTeamId,
     memberId: "",
     assistMemberId: null,
+    goalkeeperMemberId: null,
     period: null,
     minute: null,
     notes: null,
@@ -233,6 +235,9 @@ export default function MatchEventsEditorClient({
       if (patch.kind && patch.kind !== "goal") {
         cur.assistMemberId = null;
       }
+      if (patch.kind && !patch.kind.startsWith("shootout")) {
+        cur.goalkeeperMemberId = null;
+      }
       next[index] = cur;
       return next;
     });
@@ -260,6 +265,7 @@ export default function MatchEventsEditorClient({
           teamId: r.teamId,
           memberId: r.memberId.trim(),
           assistMemberId: r.kind === "goal" ? r.assistMemberId ?? null : undefined,
+          goalkeeperMemberId: r.kind.startsWith("shootout") ? r.goalkeeperMemberId ?? null : undefined,
           period: r.period ?? null,
           minute: r.minute ?? null,
           notes: r.notes ?? null,
@@ -464,6 +470,22 @@ export default function MatchEventsEditorClient({
                               }
                             />
                           )
+                        ) : row.kind.startsWith("shootout") ? (
+                          <select
+                            className="w-full max-w-[12rem] rounded border border-slate-300 px-1 py-1"
+                            title="Goalkeeper faced"
+                            value={row.goalkeeperMemberId ?? ""}
+                            onChange={(e) =>
+                              updateRow(i, { goalkeeperMemberId: e.target.value || null })
+                            }
+                          >
+                            <option value="">GK faced…</option>
+                            {rosterForTeam(row.teamId === ctx?.homeTeamId ? ctx?.awayTeamId ?? "" : ctx?.homeTeamId ?? "").map((r) => (
+                              <option key={r.memberId} value={r.memberId}>
+                                {r.displayName}
+                              </option>
+                            ))}
+                          </select>
                         ) : (
                           <span className="text-slate-400">—</span>
                         )}

@@ -53,6 +53,8 @@ export const FixtureMatchEventSchema = z
     teamId: z.string().min(1),
     memberId: z.string().min(1),
     assistMemberId: z.string().min(1).nullable().optional(),
+    /** Shootout attempts only: the keeper the shooter faced. */
+    goalkeeperMemberId: z.string().min(1).nullable().optional(),
     period: z.number().int().min(1).max(99).nullable().optional(),
     minute: z.number().int().min(0).max(150).nullable().optional(),
     notes: z.string().max(500).nullable().optional(),
@@ -64,6 +66,17 @@ export const FixtureMatchEventSchema = z
         code: "custom",
         message: "assistMemberId is only valid for field-goal events (kind=goal)",
         path: ["assistMemberId"],
+      });
+    }
+    if (
+      e.goalkeeperMemberId != null &&
+      e.kind !== "shootout_goal" &&
+      e.kind !== "shootout_miss"
+    ) {
+      ctx.addIssue({
+        code: "custom",
+        message: "goalkeeperMemberId is only valid for shootout events",
+        path: ["goalkeeperMemberId"],
       });
     }
   });
