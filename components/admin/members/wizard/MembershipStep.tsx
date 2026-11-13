@@ -55,6 +55,7 @@ export default function MembershipStep({
   // Membership types & roles
   const [membershipTypes, setMembershipTypes] = useState<any[]>([]);
   const [availableRoles, setAvailableRoles] = useState<any[]>([]);
+  const [allRoles, setAllRoles] = useState<any[]>([]);
 
   useEffect(() => {
     (async () => {
@@ -117,6 +118,7 @@ export default function MembershipStep({
       const data = await res.json();
       setMembershipTypes(data.membershipTypes || []);
       setAvailableRoles(data.roles || []);
+      setAllRoles(data.allRoles || data.roles || []);
     } catch (e) {
       console.error(e);
     }
@@ -344,6 +346,11 @@ export default function MembershipStep({
             </label>
             <TypeaheadMultiSelect
               ariaLabel="Roles"
+              knownOptions={allRoles.map((r) => ({
+                value: r.id,
+                label: r.name,
+                hint: r.description,
+              }))}
               placeholder="Search and select roles..."
               options={availableRoles.map((r) => ({
                 value: r.id,
@@ -382,7 +389,9 @@ export default function MembershipStep({
                 placeholder="Search status..."
                 options={STATUS_OPTIONS}
                 value={membershipData.status || ""}
-                onChange={(v) => onMembershipChange({ ...membershipData, status: v })}
+                onChange={(v) =>
+                  onMembershipChange({ ...membershipData, status: v })
+                }
               />
             </div>
           </div>
