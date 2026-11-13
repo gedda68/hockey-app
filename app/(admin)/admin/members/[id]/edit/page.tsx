@@ -447,7 +447,7 @@ export default function EditMemberPage({
         </EditCard>
 
         {/* Everything else stored on this member (read-only) */}
-        <MemberRecordDetails member={formData} related={related} hidePlayerDetails />
+        <MemberRecordDetails member={formData} related={related} hidePlayerDetails registrationsOnly />
 
         {/* Player details — for anyone who is or was a player */}
         {hasPlayerHistory(formData, playerStats) && (
