@@ -101,7 +101,7 @@ export default function TypeaheadMultiSelect({
   return (
     <div ref={root} className="relative">
       <div
-        className="flex min-h-[3rem] w-full cursor-text flex-wrap items-center gap-2 rounded-xl border-2 border-slate-300 bg-white px-3 py-2 pr-10 hover:border-slate-400 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-200"
+        className="flex min-h-[3rem] max-h-32 w-full cursor-text flex-wrap items-center gap-2 overflow-y-auto rounded-xl border-2 border-slate-300 bg-white px-3 py-2 pr-10 hover:border-slate-400 focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-200"
         onClick={() => {
           setOpen(true);
           root.current?.querySelector("input")?.focus();

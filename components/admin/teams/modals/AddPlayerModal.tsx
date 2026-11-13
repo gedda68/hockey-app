@@ -209,8 +209,8 @@ export default function AddPlayerModal({
             onSubmit={handleSubmit}
             className="flex min-h-0 flex-1 flex-col overflow-hidden"
           >
-            <div className="shrink-0 bg-white border-b border-slate-200 px-8 py-6">
-              <div className="flex items-center justify-between mb-4">
+            <div className="shrink-0 bg-white border-b border-slate-200 px-8 py-5">
+              <div className="flex items-center justify-between mb-3">
                 <div>
                   <h2 className="text-2xl font-black uppercase text-[#06054e]">
                     Add Players to Team
@@ -248,7 +248,7 @@ export default function AddPlayerModal({
                 ariaLabel="Players"
               />
               {blocked.length > 0 && (
-                <details className="mt-3 text-xs text-slate-500">
+                <details className="mt-2 text-xs text-slate-500">
                   <summary className="cursor-pointer font-bold">
                     {blocked.length} member{blocked.length === 1 ? "" : "s"} not
                     eligible for this team
