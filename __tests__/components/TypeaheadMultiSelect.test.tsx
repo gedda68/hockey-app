@@ -30,6 +30,18 @@ describe("TypeaheadMultiSelect", () => {
     await userEvent.click(screen.getByRole("button", { name: "Remove Coach" }));
     expect(spy).toHaveBeenLastCalledWith(["role-umpire"]);
   });
+  it("clears the typed text after a pick so another can be typed", async () => {
+    render(<Harness />);
+    const box = screen.getByRole("combobox") as HTMLInputElement;
+    await userEvent.click(box);
+    await userEvent.type(box, "co");
+    await userEvent.click(screen.getByRole("option", { name: /Coach/ }));
+    expect(box.value).toBe("");
+    await userEvent.type(box, "um");
+    expect(box.value).toBe("um");
+    await userEvent.click(screen.getByRole("option", { name: /Umpire/ }));
+    expect(box.value).toBe("");
+  });
   it("shows already-saved values as chips and keeps unknown ids visible", () => {
     render(<Harness start={["role-player", "role-old"]} />);
     expect(screen.getByText("Player")).toBeTruthy();
