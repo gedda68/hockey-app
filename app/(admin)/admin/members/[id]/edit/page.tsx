@@ -21,6 +21,7 @@ import {
   History,
   Trophy,
   Share2,
+  ShieldCheck,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -29,6 +30,8 @@ import PersonalInfoStep from "@/components/admin/members/wizard/PersonalInfoStep
 import ContactInfoStep from "@/components/admin/members/wizard/ContactInfoStep";
 import EmergencyContactStep from "@/components/admin/members/wizard/EmergencyContactStep";
 import AddressStep from "@/components/admin/members/wizard/AddressStep";
+import BlueCardSection from "@/components/admin/members/BlueCardSection";
+import { requiresBlueCard, hasBlueCardData, nonPlayerRoles } from "@/lib/members/blueCard";
 import SocialPreferences, { mergedSocial } from "@/components/admin/members/SocialPreferences";
 import type { TeamHistoryRow } from "@/lib/members/teamHistory";
 import PlayerDetails from "@/components/admin/members/PlayerDetails";
@@ -458,7 +461,24 @@ export default function EditMemberPage({
         </EditCard>
 
         {/* Everything else stored on this member (read-only) */}
-        <MemberRecordDetails member={formData} related={related} teamHistory={teamHistory} hidePlayerDetails registrationsOnly hideSocial />
+        <MemberRecordDetails member={formData} related={related} teamHistory={teamHistory} hidePlayerDetails registrationsOnly hideSocial hideBlueCard />
+
+        {/* Blue card: only when the member is over 15 with a non-player role (or a card is already on file) */}
+        {(requiresBlueCard(formData) || hasBlueCardData(formData.blueCard)) && (
+          <EditCard
+            title="Blue Card (Working with Children)"
+            icon={<ShieldCheck className="text-blue-600" />}
+            onSave={() => handleSectionSave("Blue Card", "blueCard")}
+            isSaving={isSaving === "Blue Card"}
+          >
+            <BlueCardSection
+              value={formData.blueCard}
+              required={requiresBlueCard(formData)}
+              roleNames={nonPlayerRoles(formData.roles).map((r) => r.replace(/^role-/, "").replace(/-/g, " "))}
+              onChange={(next) => setFormData({ ...formData, blueCard: next })}
+            />
+          </EditCard>
+        )}
 
         {/* Social links and contact preferences, each public or private */}
         <EditCard
