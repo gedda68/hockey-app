@@ -89,10 +89,14 @@ export default function TypeaheadMultiSelect({
       : options;
   }, [options, query]);
 
-  const toggle = (v: string) =>
+  const toggle = (v: string) => {
     onChange(
       values.includes(v) ? values.filter((x) => x !== v) : [...values, v],
     );
+    // Clear the typed text so the next name can be typed straight away.
+    setQuery("");
+    setHi(0);
+  };
 
   return (
     <div ref={root} className="relative">
