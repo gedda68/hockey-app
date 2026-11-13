@@ -6,20 +6,44 @@ import clientPromise from "@/lib/mongodb";
 import { getSession } from "@/lib/auth/session";
 import { normalisePicks } from "@/lib/members/membershipOptions";
 
+const TYPE_COLLECTIONS = ["member_types", "membership_types"] as const;
+
 export async function GET() {
   const session = await getSession();
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!session)
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   try {
     const db = (await clientPromise).db("hockey-app");
-    const [types, roles] = await Promise.all([
-      db.collection("membership_types").find({}).limit(500).toArray(),
-      db.collection("member_roles").find({}).limit(500).toArray(),
-    ]);
+    // Membership types live in `member_types`; the older `membership_types` is only a fallback.
+    let membershipTypes: ReturnType<typeof normalisePicks> = [];
+    let typesSource: string | null = null;
+    for (const name of TYPE_COLLECTIONS) {
+      const docs = await db.collection(name).find({}).limit(500).toArray();
+      const items = normalisePicks(docs, ["typeId", "memberTypeId"]);
+      if (items.length) {
+        membershipTypes = items;
+        typesSource = name;
+        break;
+      }
+    }
+    const roleDocs = await db
+      .collection("member_roles")
+      .find({})
+      .limit(500)
+      .toArray();
     return NextResponse.json({
-      membershipTypes: normalisePicks(types, ["typeId"]),
-      roles: normalisePicks(roles, ["roleId"]),
+      membershipTypes,
+      roles: normalisePicks(roleDocs, ["roleId"]),
+      sources: { membershipTypes: typesSource, roles: "member_roles" },
     });
   } catch (e) {
-    return NextResponse.json({ error: e instanceof Error ? e.message : String(e), membershipTypes: [], roles: [] }, { status: 500 });
+    return NextResponse.json(
+      {
+        error: e instanceof Error ? e.message : String(e),
+        membershipTypes: [],
+        roles: [],
+      },
+      { status: 500 },
+    );
   }
 }

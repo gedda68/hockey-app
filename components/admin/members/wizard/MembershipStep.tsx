@@ -333,7 +333,7 @@ export default function MembershipStep({
           {/* Roles */}
           <div>
             <label className="text-xs font-black uppercase text-slate-400 mb-2 block">
-              Roles (optional)
+              Membership Roles
             </label>
             <TypeaheadMultiSelect
               ariaLabel="Roles"
