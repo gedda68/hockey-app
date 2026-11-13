@@ -27,6 +27,7 @@ import PersonalInfoStep from "@/components/admin/members/wizard/PersonalInfoStep
 import ContactInfoStep from "@/components/admin/members/wizard/ContactInfoStep";
 import EmergencyContactStep from "@/components/admin/members/wizard/EmergencyContactStep";
 import AddressStep from "@/components/admin/members/wizard/AddressStep";
+import MemberRecordDetails from "@/components/admin/members/MemberRecordDetails";
 import MembershipStep from "@/components/admin/members/wizard/MembershipStep";
 import MedicalStep from "@/components/admin/members/wizard/MedicalStep";
 
@@ -45,6 +46,7 @@ export default function EditMemberPage({
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState<string | null>(null);
   const [roles, setRoles] = useState<string[]>([]);
+  const [related, setRelated] = useState<any>(undefined);
   const [changeHistory, setChangeHistory] = useState<any[]>([]);
   const [showHistory, setShowHistory] = useState(false);
 
@@ -62,6 +64,7 @@ export default function EditMemberPage({
         const normalized = {
           ...member,
           personalInfo: {
+            ...(member.personalInfo || {}),
             salutation: member.personalInfo?.salutation || "",
             firstName: member.personalInfo?.firstName || "",
             middleName: member.personalInfo?.middleName || "",
@@ -73,17 +76,26 @@ export default function EditMemberPage({
             relatedMembers: member.personalInfo?.relatedMembers || [],
           },
           contact: {
-            email: member.contact?.email || "",
+            ...(member.contact || {}),
+            // Imported members store the address as primaryEmail; the wizard saves it as email.
+            email: member.contact?.email || member.contact?.primaryEmail || "",
             phone: member.contact?.phone || "",
             mobile: member.contact?.mobile || "",
-            emergencyContact: {
-              name: member.contact?.emergencyContact?.name || "",
-              relationship: member.contact?.emergencyContact?.relationship || "",
-              phone: member.contact?.emergencyContact?.phone || "",
-              email: member.contact?.emergencyContact?.email || "",
-            },
+            emergencyContact: (() => {
+              const ec = member.contact?.emergencyContact?.name
+                ? member.contact.emergencyContact
+                : member.emergencyContacts?.[0] || member.contact?.emergencyContact || {};
+              return {
+                ...ec,
+                name: ec.name || "",
+                relationship: ec.relationship || "",
+                phone: ec.phone || ec.mobile || "",
+                email: ec.email || "",
+              };
+            })(),
           },
           address: {
+            ...(member.address || {}),
             street: member.address?.street || "",
             suburb: member.address?.suburb || "",
             state: member.address?.state || "",
@@ -91,6 +103,7 @@ export default function EditMemberPage({
             country: member.address?.country || "Australia",
           },
           membership: {
+            ...(member.membership || {}),
             joinDate: member.membership?.joinDate || "",
             membershipTypes: member.membership?.membershipTypes || [],
             status: member.membership?.status || "Active",
@@ -100,20 +113,21 @@ export default function EditMemberPage({
             clubName: member.membership?.clubName || "",
           },
           medical: {
+            ...(member.medical || {}),
             conditions: member.medical?.conditions || "",
             medications: member.medical?.medications || "",
             allergies: member.medical?.allergies || "",
             doctorName: member.medical?.doctorName || "",
             doctorPhone: member.medical?.doctorPhone || "",
             medicare: {
-              number: member.medical?.medicare?.number || "",
+              number: member.medical?.medicare?.number || member.healthcare?.medicare?.number || "",
               referenceNumber: member.medical?.medicare?.referenceNumber || "",
               expiryDate: member.medical?.medicare?.expiryDate || "",
               cardColor: member.medical?.medicare?.cardColor || "",
             },
             privateHealth: {
               hasInsurance: member.medical?.privateHealth?.hasInsurance || false,
-              provider: member.medical?.privateHealth?.provider || "",
+              provider: member.medical?.privateHealth?.provider || member.healthcare?.privateHealth?.provider || "",
               membershipNumber:
                 member.medical?.privateHealth?.membershipNumber || "",
               policyType: member.medical?.privateHealth?.policyType || "",
@@ -134,6 +148,7 @@ export default function EditMemberPage({
           notes: member.notes || "",
         };
 
+        setRelated(data.related);
         setOriginalData(JSON.parse(JSON.stringify(normalized)));
         setFormData(normalized);
         setRoles(normalized.roles);
@@ -209,6 +224,10 @@ export default function EditMemberPage({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...formData,
+          contact: {
+            ...formData.contact,
+            primaryEmail: formData.contact?.email || formData.contact?.primaryEmail || "",
+          },
           _changeLog: {
             section: sectionName,
             changes: changes,
@@ -421,6 +440,9 @@ export default function EditMemberPage({
             errors={{}}
           />
         </EditCard>
+
+        {/* Everything else stored on this member (read-only) */}
+        <MemberRecordDetails member={formData} related={related} />
 
         {/* Medical Information */}
         <EditCard

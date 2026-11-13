@@ -38,7 +38,39 @@ export async function GET(
     const scope = await assertMemberInSessionScope(request, member as MemberScopeDoc);
     if (scope) return scope;
 
-    return NextResponse.json({ member });
+    // Related records so the profile can show everything stored about this member.
+    const [clubRegs, assocRegs] = await Promise.all([
+      db.collection("clubRegistrations").find({ memberId: id }).sort({ seasonYear: -1 }).limit(50).toArray(),
+      db.collection("associationRegistrations").find({ memberId: id }).sort({ seasonYear: -1 }).limit(50).toArray(),
+    ]);
+    const clubIds = [
+      ...new Set([
+        member.clubId,
+        member.membership?.clubId,
+        ...clubRegs.map((r) => r.clubId),
+      ].filter((v): v is string => typeof v === "string" && !!v)),
+    ];
+    const assocIds = [...new Set(assocRegs.map((r) => r.associationId).filter(Boolean))];
+    const [clubDocs, assocDocs] = await Promise.all([
+      clubIds.length
+        ? db.collection("clubs").find({ $or: [{ id: { $in: clubIds } }, { clubId: { $in: clubIds } }, { slug: { $in: clubIds } }] }).toArray()
+        : [],
+      assocIds.length ? db.collection("associations").find({ associationId: { $in: assocIds } }).toArray() : [],
+    ]);
+    const clubNames: Record<string, string> = {};
+    for (const c of clubDocs) for (const k of [c.id, c.clubId, c.slug]) if (k) clubNames[String(k)] = String(c.name ?? "");
+    const assocNames: Record<string, string> = {};
+    for (const a of assocDocs) assocNames[String(a.associationId)] = String(a.name ?? "");
+
+    return NextResponse.json({
+      member,
+      related: {
+        clubNames,
+        associationNames: assocNames,
+        clubRegistrations: clubRegs.map(({ _id, ...r }) => r),
+        associationRegistrations: assocRegs.map(({ _id, ...r }) => r),
+      },
+    });
   } catch (error: unknown) {
     logAdminError("admin.member.get.error", "no-trace", error);
     return NextResponse.json({ error: error instanceof Error ? error.message : String(error) }, { status: 500 });
