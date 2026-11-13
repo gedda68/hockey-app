@@ -1,6 +1,21 @@
 // components/admin/members/wizard/MedicalStep.tsx
 "use client";
 
+import { useEffect, useMemo, useState } from "react";
+import TypeaheadSelect from "@/components/ui/TypeaheadSelect";
+
+const DEFAULT_PROVIDERS = [
+  "Bupa",
+  "Medibank",
+  "HCF",
+  "nib",
+  "ahm",
+  "HBF",
+  "Australian Unity",
+  "Teachers Health",
+  "Other",
+];
+
 export default function MedicalStep({
   data: incomingData,
   onChange,
@@ -14,6 +29,29 @@ export default function MedicalStep({
   const data = incomingData || {};
   const medicare = data.medicare || {};
   const privateHealth = data.privateHealth || {};
+
+  // Providers come from the private_health_providers collection; defaults are used if it is empty.
+  const [providers, setProviders] = useState<string[]>(DEFAULT_PROVIDERS);
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch("/api/admin/lookups/health-providers");
+        if (!res.ok) return;
+        const json = await res.json();
+        const names = (json.items || []).map((i: { name: string }) => i.name);
+        if (names.length) setProviders(names);
+      } catch (e) {
+        console.error(e);
+      }
+    })();
+  }, []);
+  const providerOptions = useMemo(() => {
+    const list = [...providers];
+    const cur = privateHealth.provider;
+    if (cur && !list.some((p) => p.toLowerCase() === String(cur).toLowerCase()))
+      list.push(cur); // keep a saved value visible
+    return list.map((p) => ({ value: p, label: p }));
+  }, [providers, privateHealth.provider]);
 
   return (
     <div className="space-y-8">
@@ -255,20 +293,17 @@ export default function MedicalStep({
                   <label className="text-xs font-black uppercase text-slate-400 mb-2 block">
                     Insurance Provider
                   </label>
-                  <input
-                    type="text"
+                  <TypeaheadSelect
+                    ariaLabel="Insurance provider"
+                    placeholder="Search insurance provider..."
+                    options={providerOptions}
                     value={privateHealth.provider || ""}
-                    onChange={(e) =>
+                    onChange={(v) =>
                       onChange({
                         ...data,
-                        privateHealth: {
-                          ...privateHealth,
-                          provider: e.target.value,
-                        },
+                        privateHealth: { ...privateHealth, provider: v },
                       })
                     }
-                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none font-bold focus:ring-2 ring-yellow-400"
-                    placeholder="e.g., BUPA, Medibank, HCF"
                   />
                 </div>
 

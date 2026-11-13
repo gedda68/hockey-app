@@ -14,6 +14,13 @@ import {
   type HClub,
 } from "@/lib/members/associationHierarchy";
 
+const STATUS_OPTIONS = [
+  { value: "Active", label: "Active" },
+  { value: "Inactive", label: "Inactive" },
+  { value: "Suspended", label: "Suspended" },
+  { value: "Life", label: "Life Member" },
+];
+
 const LABEL = "text-xs font-black uppercase text-slate-400 mb-2 block";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -370,21 +377,13 @@ export default function MembershipStep({
               <label className="text-xs font-black uppercase text-slate-400 mb-2 block">
                 Status
               </label>
-              <select
-                value={membershipData.status}
-                onChange={(e) =>
-                  onMembershipChange({
-                    ...membershipData,
-                    status: e.target.value,
-                  })
-                }
-                className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none font-bold focus:ring-2 ring-yellow-400"
-              >
-                <option value="Active">Active</option>
-                <option value="Inactive">Inactive</option>
-                <option value="Suspended">Suspended</option>
-                <option value="Life">Life Member</option>
-              </select>
+              <TypeaheadSelect
+                ariaLabel="Status"
+                placeholder="Search status..."
+                options={STATUS_OPTIONS}
+                value={membershipData.status || ""}
+                onChange={(v) => onMembershipChange({ ...membershipData, status: v })}
+              />
             </div>
           </div>
         </>
