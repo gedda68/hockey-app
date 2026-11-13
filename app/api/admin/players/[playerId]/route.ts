@@ -8,6 +8,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { playerViewFields, playerEditToMemberSet } from "@/lib/players/memberPlayerMap";
 import clientPromise from "@/lib/mongodb";
 import { requirePermission } from "@/lib/auth/middleware";
 import {
@@ -68,6 +69,8 @@ function memberToPlayer(m: Record<string, any>, clubName?: string | null) {
       email:        ec.email     ?? "",
     })),
     playerInfo:    m.playerInfo ?? undefined,
+    // Flat fields the player form reads, taken from the member's own data (address, salutation, positions, medical…)
+    ...playerViewFields(m),
     // Pass through raw member fields for the edit form
     personalInfo:  pi,
     contact:       ct,
@@ -186,6 +189,9 @@ export async function PUT(
       };
       update["membership.status"] = statusMap[body.status?.current ?? body.status] ?? existing.membership?.status;
     }
+
+    // Flat player-form fields write straight onto the member's own fields (address, gender, medical, positions…)
+    Object.assign(update, playerEditToMemberSet(body));
 
     if (body.emergencyContacts) update.emergencyContacts = body.emergencyContacts;
     if (body.address)           update.address           = body.address;
