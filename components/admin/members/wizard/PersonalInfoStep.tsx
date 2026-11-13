@@ -1,6 +1,7 @@
 // components/admin/members/wizard/PersonalInfoStep.tsx
 "use client";
 
+import TypeaheadSelect, { type TypeaheadOption } from "@/components/ui/TypeaheadSelect";
 import { useState, useEffect, useRef } from "react";
 import {
   Plus,
@@ -54,6 +55,30 @@ const DEFAULT_SALUTATIONS: ConfigItem[] = [
   createdAt: "",
   updatedAt: "",
 }));
+
+const DEFAULT_GENDERS: ConfigItem[] = [
+  ["gender-male", "Male"],
+  ["gender-female", "Female"],
+  ["gender-non-binary", "Non-binary"],
+  ["gender-other", "Other"],
+  ["gender-undisclosed", "Prefer not to say"],
+].map(([id, name], i) => ({
+  configType: "gender", id, name, code: name, isActive: true, displayOrder: i + 1, createdAt: "", updatedAt: "",
+}));
+
+const norm = (v: unknown) => String(v ?? "").toLowerCase().replace(/^(gender|sal)[-_]/, "").replace(/[-_\s]+/g, "");
+
+/** Options for a typeahead, plus the option value that matches what is stored (by id, code or name). */
+function buildOptions(items: ConfigItem[], stored: unknown): { options: TypeaheadOption[]; value: string } {
+  const options = items.map((i) => ({ value: i.id, label: i.name }));
+  const raw = String(stored ?? "");
+  if (!raw) return { options, value: "" };
+  const hit = items.find((i) => i.id === raw) ?? items.find((i) => [i.id, (i as { code?: string }).code, i.name].some((x) => norm(x) === norm(raw)));
+  if (hit) return { options, value: hit.id };
+  // Stored value isn't in the list: keep it visible rather than showing a blank.
+  const label = raw.replace(/^(gender|sal)[-_]/, "").replace(/[-_]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+  return { options: [{ value: raw, label }, ...options], value: raw };
+}
 
 export default function PersonalInfoStep({
   data,
@@ -112,7 +137,10 @@ export default function PersonalInfoStep({
 
       if (gendersRes.ok) {
         const gendersData = await gendersRes.json();
-        setGenders(gendersData.filter((item: ConfigItem) => item.isActive));
+        const act = Array.isArray(gendersData) ? gendersData.filter((item: ConfigItem) => item.isActive) : [];
+        setGenders(act.length ? act : DEFAULT_GENDERS);
+      } else {
+        setGenders(DEFAULT_GENDERS);
       }
 
       if (relationshipsRes.ok) {
@@ -448,20 +476,19 @@ export default function PersonalInfoStep({
               <label className="text-xs font-black uppercase text-slate-400 mb-2 block">
                 Salutation
               </label>
-              <select
-                value={data.salutation || ""}
-                onChange={(e) =>
-                  onChange({ ...data, salutation: e.target.value })
-                }
-                className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none font-bold focus:ring-2 ring-yellow-400"
-              >
-                <option value="">Select...</option>
-                {salutations.map((item) => (
-                  <option key={item.id} value={item.id}>
-                    {item.name}
-                  </option>
-                ))}
-              </select>
+              {(() => {
+                const o = buildOptions(salutations, data.salutation);
+                return (
+                  <TypeaheadSelect
+                    ariaLabel="Salutation"
+                    options={o.options}
+                    value={o.value}
+                    placeholder="Type to search…"
+                    onChange={(v) => onChange({ ...data, salutation: v })}
+                    className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl outline-none font-bold focus:ring-2 ring-yellow-400"
+                  />
+                );
+              })()}
             </div>
 
             {/* Gender */}
@@ -469,20 +496,21 @@ export default function PersonalInfoStep({
               <label className="text-xs font-black uppercase text-slate-400 mb-2 block">
                 Gender *
               </label>
-              <select
-                value={data.gender || ""}
-                onChange={(e) => onChange({ ...data, gender: e.target.value })}
-                className={`w-full p-3 bg-slate-50 border rounded-xl outline-none font-bold focus:ring-2 ring-yellow-400 ${
-                  errors.gender ? "border-red-500" : "border-slate-200"
-                }`}
-              >
-                <option value="">Select...</option>
-                {genders.map((item) => (
-                  <option key={item.id} value={item.id}>
-                    {item.name}
-                  </option>
-                ))}
-              </select>
+              {(() => {
+                const g = buildOptions(genders, data.gender);
+                return (
+                  <TypeaheadSelect
+                    ariaLabel="Gender"
+                    options={g.options}
+                    value={g.value}
+                    placeholder="Type to search…"
+                    onChange={(v) => onChange({ ...data, gender: v })}
+                    className={`w-full p-3 bg-slate-50 border rounded-xl outline-none font-bold focus:ring-2 ring-yellow-400 ${
+                      errors.gender ? "border-red-500" : "border-slate-200"
+                    }`}
+                  />
+                );
+              })()}
               {errors.gender && (
                 <p className="text-red-500 text-xs mt-1 font-bold">
                   {errors.gender}
