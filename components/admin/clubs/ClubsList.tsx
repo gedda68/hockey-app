@@ -92,7 +92,7 @@ export default function ClubsList() {
     };
     const fetchAssociations = async () => {
       try {
-        const res = await fetch("/api/admin/associations", { cache: "no-store" });
+        const res = await fetch("/api/admin/lookups/association-hierarchy", { cache: "no-store" });
         const data = await res.json().catch(() => ({}));
         if (!res.ok) {
           const msg =
@@ -106,8 +106,8 @@ export default function ClubsList() {
         console.error("Error fetching associations:", error);
         const msg =
           error instanceof Error ? error.message : "Failed to load associations";
-        toast.error(msg);
-        setLoadError((prev) => prev || msg);
+        // Only the filter drop-down depends on this list, so don't block the clubs themselves.
+        console.warn(msg);
       }
     };
     void fetchClubs();
@@ -127,7 +127,7 @@ export default function ClubsList() {
 
   const fetchAssociations = async () => {
     try {
-      const res = await fetch("/api/admin/associations");
+      const res = await fetch("/api/admin/lookups/association-hierarchy");
       const data = await res.json();
       setAssociations(data.associations || []);
     } catch (error) {
