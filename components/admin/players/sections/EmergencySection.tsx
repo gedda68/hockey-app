@@ -45,10 +45,16 @@ interface RelationshipType {
 }
 
 export default function EmergencySection({
-  formData,
+  formData: rawFormData,
   onChange,
   errors,
 }: BaseSectionProps) {
+  // Records created or merged elsewhere (e.g. member imports) may lack these lists.
+  const formData = {
+    ...rawFormData,
+    guardians: rawFormData.guardians ?? [],
+    emergencyContacts: rawFormData.emergencyContacts ?? [],
+  };
   const playerIsMinor = formData.dateOfBirth
     ? isMinor(formData.dateOfBirth)
     : false;
