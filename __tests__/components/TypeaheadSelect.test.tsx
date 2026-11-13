@@ -26,3 +26,20 @@ describe("TypeaheadSelect", () => {
     expect(screen.getByRole("combobox")).toHaveValue("Male");
   });
 });
+
+import { activeOrDefault, buildOptions, DEFAULT_RELATIONSHIPS } from "@/lib/members/configOptions";
+
+describe("config option helpers", () => {
+  it("falls back to defaults when config is empty or unreadable", () => {
+    expect(activeOrDefault([], DEFAULT_RELATIONSHIPS)).toBe(DEFAULT_RELATIONSHIPS);
+    expect(activeOrDefault({ error: "x" }, DEFAULT_RELATIONSHIPS)).toBe(DEFAULT_RELATIONSHIPS);
+    expect(activeOrDefault([{ id: "a", name: "A", isActive: false }], DEFAULT_RELATIONSHIPS)).toBe(DEFAULT_RELATIONSHIPS);
+  });
+  it("matches stored values by id or name and keeps unknown ones", () => {
+    expect(buildOptions(DEFAULT_RELATIONSHIPS, "Parent").value).toBe("rel-parent");
+    expect(buildOptions(DEFAULT_RELATIONSHIPS, "rel-guardian").value).toBe("rel-guardian");
+    const u = buildOptions(DEFAULT_RELATIONSHIPS, "rel-aunt");
+    expect(u.value).toBe("rel-aunt");
+    expect(u.options[0].label).toBe("Aunt");
+  });
+});

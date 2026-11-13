@@ -1,6 +1,8 @@
 // components/admin/members/wizard/EmergencyContactStep.tsx
 "use client";
 
+import TypeaheadSelect from "@/components/ui/TypeaheadSelect";
+import { DEFAULT_RELATIONSHIPS, activeOrDefault, buildOptions } from "@/lib/members/configOptions";
 import { useState, useEffect } from "react";
 import { Search, User, CheckCircle } from "lucide-react";
 
@@ -50,12 +52,13 @@ export default function EmergencyContactStep({
       const res = await fetch("/api/admin/config/relationship-type");
       if (res.ok) {
         const relationshipsData = await res.json();
-        setRelationshipTypes(
-          relationshipsData.filter((item: ConfigItem) => item.isActive),
-        );
+        setRelationshipTypes(activeOrDefault(relationshipsData, DEFAULT_RELATIONSHIPS as unknown as ConfigItem[]));
+      } else {
+        setRelationshipTypes(DEFAULT_RELATIONSHIPS as unknown as ConfigItem[]);
       }
     } catch (error) {
       console.error("Error fetching relationship types:", error);
+      setRelationshipTypes(DEFAULT_RELATIONSHIPS as unknown as ConfigItem[]);
     } finally {
       setIsLoading(false);
     }
@@ -311,22 +314,21 @@ export default function EmergencyContactStep({
             <label className="text-xs font-black uppercase text-slate-400 mb-2 block">
               Relationship to Member *
             </label>
-            <select
-              value={data.relationship || ""}
-              onChange={(e) =>
-                onChange({ ...data, relationship: e.target.value })
-              }
-              className={`w-full p-3 bg-slate-50 border rounded-xl outline-none font-bold focus:ring-2 ring-yellow-400 ${
-                errors.relationship ? "border-red-500" : "border-slate-200"
-              }`}
-            >
-              <option value="">Select relationship...</option>
-              {relationshipTypes.map((rel) => (
-                <option key={rel.id} value={rel.id}>
-                  {rel.name}
-                </option>
-              ))}
-            </select>
+            {(() => {
+              const o = buildOptions(relationshipTypes, data.relationship);
+              return (
+                <TypeaheadSelect
+                  ariaLabel="Relationship to member"
+                  options={o.options}
+                  value={o.value}
+                  placeholder="Type to search…"
+                  onChange={(v) => onChange({ ...data, relationship: v })}
+                  className={`w-full p-3 bg-slate-50 border rounded-xl outline-none font-bold focus:ring-2 ring-yellow-400 ${
+                    errors.relationship ? "border-red-500" : "border-slate-200"
+                  }`}
+                />
+              );
+            })()}
             {errors.relationship && (
               <p className="text-red-500 text-xs mt-1 font-bold">
                 {errors.relationship}
