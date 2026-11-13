@@ -44,7 +44,7 @@ export default function RenewalReminderBanner() {
       if (!res.ok) return;
       const data = await res.json() as { notifications: MemberNotification[] };
       setNotifications(
-        (data.notifications ?? []).filter((n) => n.type === "renewal_reminder"),
+        (data.notifications ?? []).filter((n) => n.type === "renewal_reminder" || n.type === "blue_card_verification"),
       );
     } catch {
       // Silent — banner failure should never block the page
@@ -105,7 +105,7 @@ export default function RenewalReminderBanner() {
               text-amber-800 underline underline-offset-2 hover:text-amber-900
               whitespace-nowrap"
           >
-            Renew now
+            {notif.type === "blue_card_verification" ? "Review" : "Renew now"}
             <ChevronRight className="w-3.5 h-3.5" />
           </Link>
 
@@ -114,7 +114,7 @@ export default function RenewalReminderBanner() {
             type="button"
             onClick={() => dismiss(notif.notificationId)}
             disabled={dismissing.has(notif.notificationId)}
-            aria-label="Dismiss renewal reminder"
+            aria-label="Dismiss notification"
             className="flex-shrink-0 p-1 rounded hover:bg-amber-100
               disabled:opacity-50 transition-colors"
           >

@@ -2,6 +2,7 @@
 // Blue Card (Queensland Working with Children check): everything needed to record and verify a member's card.
 // Saved on the member as `blueCard`.
 
+import { useEffect, useMemo, useState } from "react";
 import TypeaheadSelect from "@/components/ui/TypeaheadSelect";
 import {
   CARD_CATEGORIES,
@@ -54,13 +55,50 @@ export default function BlueCardSection({
   onChange,
   required,
   roleNames,
+  clubId,
+  canVerify,
 }: {
   value: Record<string, any> | undefined;
   onChange: (next: Record<string, any>) => void;
   required: boolean;
   roleNames?: string[];
+  /** The member's club: club admins of this club can be nominated as verifier. */
+  clubId?: string;
+  /** Club admin (or super-admin) — the only people who can change the locked verification fields. */
+  canVerify?: boolean;
 }) {
   const bc = value || {};
+
+  const [admins, setAdmins] = useState<{ memberId: string; name: string }[]>(
+    [],
+  );
+  useEffect(() => {
+    if (!clubId) return;
+    (async () => {
+      try {
+        const res = await fetch(
+          `/api/admin/lookups/club-admins?clubId=${encodeURIComponent(clubId)}`,
+        );
+        if (res.ok) setAdmins((await res.json()).items || []);
+      } catch (e) {
+        console.error(e);
+      }
+    })();
+  }, [clubId]);
+  const verifierOptions = useMemo(() => {
+    const list = admins.map((a) => ({ value: a.memberId, label: a.name }));
+    // keep an already-nominated person visible even if they are no longer in the list
+    if (
+      bc.verifierMemberId &&
+      !list.some((o) => o.value === bc.verifierMemberId)
+    ) {
+      list.push({
+        value: bc.verifierMemberId,
+        label: bc.verifierName || bc.verifierMemberId,
+      });
+    }
+    return list;
+  }, [admins, bc.verifierMemberId, bc.verifierName]);
   const set = (patch: Record<string, any>) => onChange({ ...bc, ...patch });
   const field = (
     key: string,
@@ -95,12 +133,13 @@ export default function BlueCardSection({
       />
     </div>
   );
-  const check = (key: string, label: string) => (
+  const check = (key: string, label: string, disabled = false) => (
     <label className="flex items-center gap-3 text-sm font-bold text-slate-700">
       <input
         type="checkbox"
         className="h-5 w-5 rounded border-slate-300"
         checked={!!bc[key]}
+        disabled={disabled}
         onChange={(e) => set({ [key]: e.target.checked })}
       />
       {label}
@@ -150,22 +189,77 @@ export default function BlueCardSection({
             {field("expiryDate", "Expiry date", { type: "date" })}
           </div>
 
-          <div className="space-y-3 rounded-xl border border-slate-200 p-4">
+          <div className="space-y-4 rounded-xl border border-slate-200 p-4">
             <h4 className="text-xs font-black uppercase text-slate-400">
               Organisation link and verification
             </h4>
-            {check(
-              "linkedToClub",
-              "Card holder is linked to our club in the Blue Card system",
-            )}
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-              {bc.linkedToClub &&
-                field("linkedDate", "Date linked", { type: "date" })}
-              {field("lastVerifiedDate", "Last verified", { type: "date" })}
-              {field("verifiedBy", "Verified by", {
-                placeholder: "Name of person who checked",
-              })}
+
+            <div>
+              <label className={LABEL}>Verifier (club admin)</label>
+              <TypeaheadSelect
+                ariaLabel="Verifier"
+                placeholder={
+                  clubId ? "Search club admins..." : "Choose a club first"
+                }
+                options={verifierOptions}
+                value={bc.verifierMemberId ?? ""}
+                onChange={(v) =>
+                  set({
+                    verifierMemberId: v,
+                    verifierName:
+                      admins.find((a) => a.memberId === v)?.name ?? "",
+                  })
+                }
+              />
+              <p className="mt-1 text-xs text-slate-500">
+                When you save, this person is sent a request to verify the card
+                (in the app and by email).
+              </p>
+              {bc.verificationStatus === "requested" && (
+                <p className="mt-1 text-xs font-bold text-amber-700">
+                  Verification requested
+                  {bc.verifierName ? ` from ${bc.verifierName}` : ""}
+                  {bc.verificationRequestedAt
+                    ? ` on ${new Date(bc.verificationRequestedAt).toLocaleDateString("en-AU")}`
+                    : ""}{" "}
+                  — waiting for a club admin to confirm.
+                </p>
+              )}
             </div>
+
+            <fieldset
+              disabled={!canVerify}
+              className={`space-y-3 ${canVerify ? "" : "opacity-70"}`}
+            >
+              {check(
+                "linkedToClub",
+                "Card holder is linked to our club in the Blue Card system",
+                !canVerify,
+              )}
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                {bc.linkedToClub &&
+                  field("linkedDate", "Date linked", {
+                    type: "date",
+                    disabled: !canVerify,
+                  })}
+                {field("lastVerifiedDate", "Last verified", {
+                  type: "date",
+                  disabled: !canVerify,
+                })}
+                <div>
+                  <label className={LABEL}>Verified by</label>
+                  <p className="rounded-xl border-2 border-slate-200 bg-slate-50 px-4 py-3 text-sm font-bold text-slate-700">
+                    {bc.verifiedBy || "—"}
+                  </p>
+                </div>
+              </div>
+            </fieldset>
+            {!canVerify && (
+              <p className="text-xs font-bold text-slate-500">
+                🔒 The link tick and verification date can only be updated by a
+                club admin.
+              </p>
+            )}
           </div>
         </>
       )}
