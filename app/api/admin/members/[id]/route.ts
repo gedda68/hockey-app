@@ -2,6 +2,7 @@
 // Members API - Get, Update, Delete individual member
 
 import { NextRequest, NextResponse } from "next/server";
+import { computePlayerStats } from "@/lib/members/playerStats";
 import clientPromise from "@/lib/mongodb";
 import { getSession } from "@/lib/auth/session";
 import { requirePermission } from "@/lib/auth/middleware";
@@ -62,8 +63,16 @@ export async function GET(
     const assocNames: Record<string, string> = {};
     for (const a of assocDocs) assocNames[String(a.associationId)] = String(a.name ?? "");
 
+    // Games and goals from match line-ups / events.
+    const lineups = await db.collection("fixture_lineups").find({ "players.memberId": id }, { projection: { fixtureId: 1, players: 1 } }).limit(2000).toArray();
+    const fixtures = lineups.length
+      ? await db.collection("league_fixtures").find({ fixtureId: { $in: lineups.map((l) => String(l.fixtureId)) } }, { projection: { fixtureId: 1, scheduledStart: 1, status: 1, matchEvents: 1 } }).toArray()
+      : [];
+    const playerStats = computePlayerStats(id, lineups, fixtures, new Date(), member.playerInfo?.appearances, member.playerInfo?.goals);
+
     return NextResponse.json({
       member,
+      playerStats,
       related: {
         clubNames,
         associationNames: assocNames,
