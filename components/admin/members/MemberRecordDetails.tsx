@@ -3,6 +3,8 @@
 // Used on the member profile and at the bottom of the edit screen.
 
 import type { ReactNode } from "react";
+import PlayerDetails from "@/components/admin/members/PlayerDetails";
+import { hasPlayerHistory, type PlayerStats } from "@/lib/members/playerStats";
 
 export interface MemberRelated {
   clubNames?: Record<string, string>;
@@ -50,7 +52,7 @@ const chips = (items: unknown[] | undefined, fmt: (v: any) => string = String) =
     </span>
   ) : undefined;
 
-export default function MemberRecordDetails({ member, related }: { member: any; related?: MemberRelated }) {
+export default function MemberRecordDetails({ member, related, playerStats, hidePlayerDetails }: { member: any; related?: MemberRelated; playerStats?: PlayerStats | null; hidePlayerDetails?: boolean }) {
   const clubId: string = member.membership?.clubId || member.clubId || "";
   const clubName = member.membership?.clubName || related?.clubNames?.[clubId] || clubId;
   const plr = member.playerInfo || {};
@@ -101,15 +103,11 @@ export default function MemberRecordDetails({ member, related }: { member: any; 
         ))}
       </Card>
 
-      <Card title="Player Details" tint="bg-gradient-to-r from-orange-500 to-orange-600">
-        <div className="grid grid-cols-2 gap-4">
-          <F label="Primary position" value={plr.primaryPosition || plr.position} />
-          <F label="Secondary position" value={plr.secondaryPosition} />
-          <F label="Jersey number" value={plr.jerseyNumber} />
-          <F label="Preferred foot" value={plr.preferredFoot} />
-          <F label="Appearances (imported)" value={plr.appearances} />
-        </div>
-      </Card>
+      {!hidePlayerDetails && hasPlayerHistory(member, playerStats) && (
+        <Card title="Player Details" tint="bg-gradient-to-r from-orange-500 to-orange-600">
+          <PlayerDetails playerInfo={plr} stats={playerStats} />
+        </Card>
+      )}
 
       {(off.roles?.length || off.matchOfficialIds?.length || staff.teams?.length) ? (
         <Card title="Officiating & Staff" tint="bg-gradient-to-r from-purple-600 to-purple-700">

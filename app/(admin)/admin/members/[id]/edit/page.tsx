@@ -19,6 +19,7 @@ import {
   Users,
   AlertCircle,
   History,
+  Trophy,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -27,6 +28,8 @@ import PersonalInfoStep from "@/components/admin/members/wizard/PersonalInfoStep
 import ContactInfoStep from "@/components/admin/members/wizard/ContactInfoStep";
 import EmergencyContactStep from "@/components/admin/members/wizard/EmergencyContactStep";
 import AddressStep from "@/components/admin/members/wizard/AddressStep";
+import PlayerDetails from "@/components/admin/members/PlayerDetails";
+import { hasPlayerHistory, type PlayerStats } from "@/lib/members/playerStats";
 import MemberRecordDetails from "@/components/admin/members/MemberRecordDetails";
 import MembershipStep from "@/components/admin/members/wizard/MembershipStep";
 import MedicalStep from "@/components/admin/members/wizard/MedicalStep";
@@ -47,6 +50,7 @@ export default function EditMemberPage({
   const [isSaving, setIsSaving] = useState<string | null>(null);
   const [roles, setRoles] = useState<string[]>([]);
   const [related, setRelated] = useState<any>(undefined);
+  const [playerStats, setPlayerStats] = useState<PlayerStats | null>(null);
   const [changeHistory, setChangeHistory] = useState<any[]>([]);
   const [showHistory, setShowHistory] = useState(false);
 
@@ -149,6 +153,7 @@ export default function EditMemberPage({
         };
 
         setRelated(data.related);
+        setPlayerStats(data.playerStats ?? null);
         setOriginalData(JSON.parse(JSON.stringify(normalized)));
         setFormData(normalized);
         setRoles(normalized.roles);
@@ -442,7 +447,23 @@ export default function EditMemberPage({
         </EditCard>
 
         {/* Everything else stored on this member (read-only) */}
-        <MemberRecordDetails member={formData} related={related} />
+        <MemberRecordDetails member={formData} related={related} hidePlayerDetails />
+
+        {/* Player details — for anyone who is or was a player */}
+        {hasPlayerHistory(formData, playerStats) && (
+          <EditCard
+            title="Player Details"
+            icon={<Trophy className="text-orange-600" />}
+            onSave={() => handleSectionSave("Player Details", "playerInfo")}
+            isSaving={isSaving === "Player Details"}
+          >
+            <PlayerDetails
+              playerInfo={formData.playerInfo}
+              stats={playerStats}
+              onChange={(next) => setFormData({ ...formData, playerInfo: next })}
+            />
+          </EditCard>
+        )}
 
         {/* Medical Information */}
         <EditCard
