@@ -1,7 +1,8 @@
 "use client";
 // Searchable dropdown: type to filter, arrow keys + Enter to pick, Esc to close.
 
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 export interface TypeaheadOption { value: string; label: string }
 
@@ -21,6 +22,21 @@ export default function TypeaheadSelect({
   const [query, setQuery] = useState<string | null>(null); // null = showing the selected label
   const [open, setOpen] = useState(false);
   const [hi, setHi] = useState(0);
+  const [rect, setRect] = useState<{ left: number; top: number; width: number } | null>(null);
+  const listRef = useRef<HTMLUListElement>(null);
+
+  // The list is drawn in a portal with fixed position so parent cards (overflow-hidden) cannot clip it.
+  useLayoutEffect(() => {
+    if (!open) return;
+    const place = () => {
+      const r = root.current?.getBoundingClientRect();
+      if (r) setRect({ left: r.left, top: r.bottom + 4, width: r.width });
+    };
+    place();
+    window.addEventListener("scroll", place, true);
+    window.addEventListener("resize", place);
+    return () => { window.removeEventListener("scroll", place, true); window.removeEventListener("resize", place); };
+  }, [open]);
 
   const shown = query ?? selected?.label ?? "";
   const filtered = useMemo(() => {
@@ -30,7 +46,8 @@ export default function TypeaheadSelect({
 
   useEffect(() => {
     const away = (e: MouseEvent) => {
-      if (!root.current?.contains(e.target as Node)) { setOpen(false); setQuery(null); }
+      const t = e.target as Node;
+      if (!root.current?.contains(t) && !listRef.current?.contains(t)) { setOpen(false); setQuery(null); }
     };
     document.addEventListener("mousedown", away);
     return () => document.removeEventListener("mousedown", away);
@@ -63,8 +80,13 @@ export default function TypeaheadSelect({
           else if (e.key === "Escape") { setOpen(false); setQuery(null); }
         }}
       />
-      {open && (
-        <ul id={`${id}-list`} role="listbox" className="absolute z-30 mt-1 max-h-56 w-full overflow-auto rounded-xl border border-slate-200 bg-white py-1 shadow-lg">
+      {open && rect && createPortal(
+        <ul
+          ref={listRef}
+          id={`${id}-list`}
+          role="listbox"
+          style={{ position: "fixed", left: rect.left, top: rect.top, width: rect.width, zIndex: 1000 }}
+          className="max-h-56 overflow-auto rounded-xl border border-slate-200 bg-white py-1 shadow-lg">
           {filtered.length === 0 ? (
             <li className="px-3 py-2 text-sm text-slate-400">No matches</li>
           ) : filtered.map((o, i) => (
@@ -79,7 +101,8 @@ export default function TypeaheadSelect({
               {o.label}
             </li>
           ))}
-        </ul>
+        </ul>,
+        document.body,
       )}
     </div>
   );
