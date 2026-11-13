@@ -10,6 +10,7 @@ import {
   Heart, Shield, AlertCircle, Loader2, Calendar, Hash,
   Building2, Users, ChevronRight, Activity,
 } from "lucide-react";
+import type { TeamHistoryRow } from "@/lib/members/teamHistory";
 import type { PlayerStats } from "@/lib/members/playerStats";
 import MemberRecordDetails, { type MemberRelated } from "@/components/admin/members/MemberRecordDetails";
 
@@ -93,6 +94,7 @@ export default function MemberViewPage({ params }: { params: Promise<{ id: strin
   const [member, setMember]   = useState<any>(null);
   const [related, setRelated] = useState<MemberRelated | undefined>(undefined);
   const [playerStats, setPlayerStats] = useState<PlayerStats | null>(null);
+  const [teamHistory, setTeamHistory] = useState<TeamHistoryRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error,   setError]   = useState<string | null>(null);
 
@@ -104,6 +106,7 @@ export default function MemberViewPage({ params }: { params: Promise<{ id: strin
         setMember(json.member);
         setRelated(json.related);
         setPlayerStats(json.playerStats ?? null);
+        setTeamHistory(json.teamHistory ?? []);
       })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
@@ -332,7 +335,7 @@ export default function MemberViewPage({ params }: { params: Promise<{ id: strin
       </div>
 
       {/* ── Everything else stored on the record ───────────────────────────── */}
-      <MemberRecordDetails member={member} related={related} playerStats={playerStats} />
+      <MemberRecordDetails member={member} related={related} playerStats={playerStats} teamHistory={teamHistory} />
 
       {/* ── Footer actions ────────────────────────────────────────────────── */}
       <div className="flex items-center justify-between pt-2">

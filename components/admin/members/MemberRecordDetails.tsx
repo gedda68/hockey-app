@@ -4,9 +4,11 @@
 
 import type { ReactNode } from "react";
 import PlayerDetails from "@/components/admin/members/PlayerDetails";
+import type { TeamHistoryRow } from "@/lib/members/teamHistory";
 import { hasPlayerHistory, type PlayerStats } from "@/lib/members/playerStats";
 
 export interface MemberRelated {
+  memberNames?: Record<string, string>;
   clubNames?: Record<string, string>;
   associationNames?: Record<string, string>;
   clubRegistrations?: Record<string, any>[];
@@ -70,6 +72,16 @@ function F({ label, value }: { label: string; value?: ReactNode }) {
   );
 }
 
+function VisBadge({ on }: { on: boolean }) {
+  return (
+    <span
+      className={`ml-1 rounded-full px-2 py-0.5 text-[10px] font-black uppercase ${on ? "bg-green-100 text-green-700" : "bg-slate-100 text-slate-500"}`}
+    >
+      {on ? "Public" : "Private"}
+    </span>
+  );
+}
+
 const chips = (
   items: unknown[] | undefined,
   fmt: (v: any) => string = String,
@@ -93,12 +105,16 @@ export default function MemberRecordDetails({
   playerStats,
   hidePlayerDetails,
   registrationsOnly,
+  teamHistory,
+  hideSocial,
 }: {
   member: any;
   related?: MemberRelated;
   playerStats?: PlayerStats | null;
   hidePlayerDetails?: boolean;
   registrationsOnly?: boolean;
+  teamHistory?: TeamHistoryRow[];
+  hideSocial?: boolean;
 }) {
   const clubId: string = member.membership?.clubId || member.clubId || "";
   const clubName =
@@ -121,9 +137,70 @@ export default function MemberRecordDetails({
   const cRegs = related?.clubRegistrations ?? [];
   const aRegs = related?.associationRegistrations ?? [];
 
+  // One row per registration year (club and association), with the roles held that year.
+  const rolesByYear = new Map<string, string[]>();
+  for (const h of teamHistory ?? []) {
+    const cur = rolesByYear.get(h.year) ?? [];
+    for (const r of h.roles) if (!cur.includes(r)) cur.push(r);
+    rolesByYear.set(h.year, cur);
+  }
+  const regRows: any[] = [
+    ...cRegs.map((r) => ({
+      ...r,
+      kind: "Club",
+      org: related?.clubNames?.[r.clubId] || r.clubId,
+    })),
+    ...aRegs.map((r) => ({
+      ...r,
+      kind: "Association",
+      org: related?.associationNames?.[r.associationId] || r.associationId,
+    })),
+  ].sort(
+    (a: any, b: any) =>
+      String(b.seasonYear).localeCompare(String(a.seasonYear)) ||
+      a.kind.localeCompare(b.kind),
+  );
+  const regRoles = (r: any): string[] =>
+    Array.isArray(r.roles) && r.roles.length
+      ? r.roles.map((x: string) => pretty(x))
+      : (rolesByYear.get(String(r.seasonYear)) ?? []);
+
+  const relatedName = (id: string) => related?.memberNames?.[id] || id;
+  const family: { id: string; name: string; relationship: string }[] = [
+    ...(member.familyRelationships || []).map((f: any) => {
+      const id = f.memberId || f.relatedMemberId || "";
+      return {
+        id,
+        name: f.name || (id ? relatedName(id) : ""),
+        relationship: f.relationship || f.type || "",
+      };
+    }),
+    ...(member.personalInfo?.relatedMembers || []).map((r: any) => {
+      const id = typeof r === "string" ? r : r.memberId || "";
+      return {
+        id,
+        name: relatedName(id),
+        relationship:
+          typeof r === "string" ? "" : r.relationship || r.type || "",
+      };
+    }),
+  ].filter(
+    (f, i, all) =>
+      (f.id || f.name) &&
+      all.findIndex((x) => (x.id || x.name) === (f.id || f.name)) === i,
+  );
+  const emergency: any[] =
+    Array.isArray(member.emergencyContacts) && member.emergencyContacts.length
+      ? member.emergencyContacts
+      : member.contact?.emergencyContact?.name
+        ? [member.contact.emergencyContact]
+        : [];
+  const vis = (group: string, key: string) =>
+    member.privacy?.[group]?.[key] === true;
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-      {(!registrationsOnly || cRegs.length > 0 || aRegs.length > 0) && (
+      {(!registrationsOnly || regRows.length > 0) && (
         <Card
           title={registrationsOnly ? "Registrations" : "Club & Registrations"}
           tint="bg-gradient-to-r from-green-600 to-green-700"
@@ -146,43 +223,82 @@ export default function MemberRecordDetails({
                 value={chips(member.membership?.membershipTypes, pretty)}
               />
             </>
-          )}{" "}
-          {cRegs.length > 0 && (
-            <div className="pt-2 border-t border-slate-100 space-y-1">
-              <p className="text-xs font-black uppercase text-slate-400">
-                Club registrations
-              </p>
-              {cRegs.map((r) => (
-                <p key={r.registrationId} className="text-sm text-slate-700">
-                  <b>{r.seasonYear}</b> ·{" "}
-                  {related?.clubNames?.[r.clubId] || r.clubId} ·{" "}
-                  {r.registrationType || "—"} · {pretty(r.status)}
-                  {r.ageCategory ? ` · ${pretty(r.ageCategory)}` : ""}
-                </p>
-              ))}
-            </div>
           )}
-          {aRegs.length > 0 && (
-            <div className="pt-2 border-t border-slate-100 space-y-1">
-              <p className="text-xs font-black uppercase text-slate-400">
-                Association registrations
+          <div
+            className={
+              !registrationsOnly ? "pt-2 border-t border-slate-100" : ""
+            }
+          >
+            <p className="text-xs font-black uppercase text-slate-400 mb-2">
+              Registration history
+            </p>
+            {regRows.length === 0 ? (
+              <p className="text-slate-400 text-sm italic">
+                No registrations recorded.
               </p>
-              {aRegs.map((r) => (
-                <p key={r.registrationId} className="text-sm text-slate-700">
-                  <b>{r.seasonYear}</b> ·{" "}
-                  {related?.associationNames?.[r.associationId] ||
-                    r.associationId}{" "}
-                  · {pretty(r.status)}
-                  {r.ageCategory ? ` · ${pretty(r.ageCategory)}` : ""}
-                </p>
-              ))}
-            </div>
-          )}
+            ) : (
+              <div className="space-y-2">
+                {regRows.map((r, i) => {
+                  const roles = regRoles(r);
+                  return (
+                    <div
+                      key={r.registrationId || i}
+                      className="text-sm text-slate-700"
+                    >
+                      <p>
+                        <b>{r.seasonYear}</b> · {r.org}{" "}
+                        <span className="text-slate-400">({r.kind})</span> ·{" "}
+                        {pretty(r.status)}
+                        {r.ageCategory ? ` · ${pretty(r.ageCategory)}` : ""}
+                      </p>
+                      {roles.length > 0 && (
+                        <div className="mt-1">{chips(roles)}</div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </Card>
       )}
 
       <Card title="Teams" tint="bg-gradient-to-r from-sky-600 to-sky-700">
-        {teams.length === 0 ? (
+        {teamHistory && teamHistory.length > 0 ? (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-xs font-black uppercase text-slate-400">
+                  <th className="pb-2 pr-3">Year</th>
+                  <th className="pb-2 pr-3">Team</th>
+                  <th className="pb-2 pr-3">Role(s)</th>
+                  <th className="pb-2 text-right">Goals</th>
+                </tr>
+              </thead>
+              <tbody>
+                {teamHistory.map((h, i) => (
+                  <tr key={i} className="border-t border-slate-100 align-top">
+                    <td className="py-2 pr-3 font-black text-slate-900">
+                      {h.year}
+                    </td>
+                    <td className="py-2 pr-3 font-semibold text-slate-800">
+                      {h.team}
+                      {h.games > 0 && (
+                        <span className="block text-xs font-normal text-slate-400">
+                          {h.games} game{h.games === 1 ? "" : "s"}
+                        </span>
+                      )}
+                    </td>
+                    <td className="py-2 pr-3">{chips(h.roles)}</td>
+                    <td className="py-2 text-right font-black tabular-nums">
+                      {h.games > 0 ? h.goals : "—"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : teams.length === 0 ? (
           <p className="text-slate-400 text-sm italic">
             Not assigned to a team.
           </p>
@@ -227,72 +343,160 @@ export default function MemberRecordDetails({
         </Card>
       ) : null}
 
-      <Card
-        title="Social & Preferences"
-        tint="bg-gradient-to-r from-pink-600 to-pink-700"
-      >
-        <div className="grid grid-cols-2 gap-4">
-          {Object.entries(social).map(([k, v]) => (
-            <F key={k} label={pretty(k)} value={String(v || "")} />
-          ))}
-          <F label="Preferred contact" value={comm.preferredMethod} />
-          <F label="Email frequency" value={comm.emailFrequency} />
-          <F
-            label="SMS notifications"
-            value={
-              comm.smsNotifications === undefined
-                ? undefined
-                : comm.smsNotifications
-                  ? "Yes"
-                  : "No"
-            }
-          />
-          <F
-            label="Push notifications"
-            value={
-              comm.pushNotifications === undefined
-                ? undefined
-                : comm.pushNotifications
-                  ? "Yes"
-                  : "No"
-            }
-          />
-        </div>
-        {(member.contact?.additionalEmails?.length ?? 0) > 0 && (
-          <F
-            label="Additional emails"
-            value={chips(member.contact.additionalEmails, (e) =>
-              typeof e === "string" ? e : e.email,
-            )}
-          />
-        )}
-      </Card>
-
-      <Card title="Family" tint="bg-gradient-to-r from-teal-600 to-teal-700">
-        {(member.familyRelationships?.length ?? 0) === 0 &&
-        !member.family &&
-        !member.personalInfo?.relatedMembers?.length ? (
-          <p className="text-slate-400 text-sm italic">
-            No family links recorded.
-          </p>
-        ) : (
-          <>
-            {(member.familyRelationships || []).map((f: any, i: number) => (
-              <p key={i} className="text-sm font-semibold text-slate-800">
-                {f.name || f.memberId || f.relatedMemberId}{" "}
-                <span className="text-slate-500 font-normal">
-                  · {pretty(f.relationship || f.type)}
-                </span>
-              </p>
+      {!hideSocial && (
+        <Card
+          title="Social & Preferences"
+          tint="bg-gradient-to-r from-pink-600 to-pink-700"
+        >
+          <div className="grid grid-cols-2 gap-4">
+            {Object.entries(social).map(([k, v]) => (
+              <F
+                key={k}
+                label={pretty(k)}
+                value={
+                  <>
+                    {String(v || "")} <VisBadge on={vis("socialMedia", k)} />
+                  </>
+                }
+              />
             ))}
             <F
-              label="Related members"
-              value={chips(member.personalInfo?.relatedMembers, (r) =>
-                typeof r === "string" ? r : r.memberId,
+              label="Preferred contact"
+              value={
+                comm.preferredMethod && (
+                  <>
+                    {comm.preferredMethod}{" "}
+                    <VisBadge
+                      on={vis("communicationPreferences", "preferredMethod")}
+                    />
+                  </>
+                )
+              }
+            />
+            <F
+              label="Email frequency"
+              value={
+                comm.emailFrequency && (
+                  <>
+                    {comm.emailFrequency}{" "}
+                    <VisBadge
+                      on={vis("communicationPreferences", "emailFrequency")}
+                    />
+                  </>
+                )
+              }
+            />
+            <F
+              label="SMS notifications"
+              value={
+                comm.smsNotifications === undefined
+                  ? undefined
+                  : comm.smsNotifications
+                    ? "Yes"
+                    : "No"
+              }
+            />
+            <F
+              label="Push notifications"
+              value={
+                comm.pushNotifications === undefined
+                  ? undefined
+                  : comm.pushNotifications
+                    ? "Yes"
+                    : "No"
+              }
+            />
+          </div>
+          {(member.contact?.additionalEmails?.length ?? 0) > 0 && (
+            <F
+              label="Additional emails"
+              value={chips(member.contact.additionalEmails, (e) =>
+                typeof e === "string" ? e : e.email,
               )}
             />
-          </>
-        )}
+          )}
+        </Card>
+      )}
+
+      <Card
+        title="Family & Emergency Contacts"
+        tint="bg-gradient-to-r from-teal-600 to-teal-700"
+      >
+        <div>
+          <p className="text-xs font-black uppercase text-slate-400 mb-1">
+            Related members
+          </p>
+          {family.length === 0 ? (
+            <p className="text-slate-400 text-sm italic">
+              No related members recorded.
+            </p>
+          ) : (
+            family.map((f, i) => (
+              <p key={i} className="text-sm font-semibold text-slate-800">
+                {f.id ? (
+                  <a
+                    href={`/admin/members/${encodeURIComponent(f.id)}`}
+                    className="text-blue-700 hover:underline"
+                  >
+                    {f.name || f.id}
+                  </a>
+                ) : (
+                  f.name
+                )}
+                {f.relationship && (
+                  <span className="text-slate-500 font-normal">
+                    {" "}
+                    · {pretty(f.relationship)}
+                  </span>
+                )}
+              </p>
+            ))
+          )}
+        </div>
+        <div className="pt-2 border-t border-slate-100">
+          <p className="text-xs font-black uppercase text-slate-400 mb-1">
+            Emergency contacts
+          </p>
+          {emergency.length === 0 ? (
+            <p className="text-slate-400 text-sm italic">
+              No emergency contacts recorded.
+            </p>
+          ) : (
+            emergency.map((c, i) => {
+              const linked = c.linkedMemberId || c.memberId;
+              return (
+                <div key={i} className="mb-2 text-sm">
+                  <p className="font-semibold text-slate-800">
+                    {c.name || "(unnamed)"}
+                    {c.relationship && (
+                      <span className="text-slate-500 font-normal">
+                        {" "}
+                        · {pretty(c.relationship)}
+                      </span>
+                    )}
+                    {linked ? (
+                      <a
+                        href={`/admin/members/${encodeURIComponent(linked)}`}
+                        className="ml-2 rounded-full bg-teal-100 px-2 py-0.5 text-xs font-black text-teal-800"
+                      >
+                        Member
+                      </a>
+                    ) : (
+                      <span className="ml-2 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-bold text-slate-500">
+                        Not a member
+                      </span>
+                    )}
+                  </p>
+                  <p className="text-slate-600">
+                    {[c.phone || c.mobile, c.email]
+                      .filter(Boolean)
+                      .join(" · ") || "—"}
+                  </p>
+                </div>
+              );
+            })
+          )}
+        </div>
       </Card>
 
       <Card

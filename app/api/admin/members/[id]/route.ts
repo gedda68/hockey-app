@@ -3,6 +3,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { computePlayerStats } from "@/lib/members/playerStats";
+import { buildTeamHistory } from "@/lib/members/teamHistory";
 import clientPromise from "@/lib/mongodb";
 import { getSession } from "@/lib/auth/session";
 import { requirePermission } from "@/lib/auth/middleware";
@@ -63,17 +64,74 @@ export async function GET(
     const assocNames: Record<string, string> = {};
     for (const a of assocDocs) assocNames[String(a.associationId)] = String(a.name ?? "");
 
-    // Games and goals from match line-ups / events.
-    const lineups = await db.collection("fixture_lineups").find({ "players.memberId": id }, { projection: { fixtureId: 1, players: 1 } }).limit(2000).toArray();
+    // Match line-ups / events, team rosters and team names: games, goals and team history.
+    const lineups = await db
+      .collection("fixture_lineups")
+      .find(
+        { $or: [{ "players.memberId": id }, { "staff.memberId": id }] },
+        { projection: { fixtureId: 1, teamId: 1, players: 1, staff: 1 } },
+      )
+      .limit(2000)
+      .toArray();
     const fixtures = lineups.length
-      ? await db.collection("league_fixtures").find({ fixtureId: { $in: lineups.map((l) => String(l.fixtureId)) } }, { projection: { fixtureId: 1, scheduledStart: 1, status: 1, matchEvents: 1 } }).toArray()
+      ? await db
+          .collection("league_fixtures")
+          .find(
+            { fixtureId: { $in: lineups.map((l) => String(l.fixtureId)) } },
+            { projection: { fixtureId: 1, scheduledStart: 1, status: 1, matchEvents: 1 } },
+          )
+          .toArray()
       : [];
     const playerStats = computePlayerStats(id, lineups, fixtures, new Date(), member.playerInfo?.appearances, member.playerInfo?.goals);
+
+    const rosters = await db
+      .collection("teamRosters")
+      .find({
+        $or: [
+          { "teams.players.id": id },
+          { "teams.players.playerId": id },
+          { "teams.coach.memberId": id },
+          { "teams.assistantCoach.memberId": id },
+          { "teams.manager.memberId": id },
+          { "teams.staff.memberId": id },
+        ],
+      })
+      .limit(200)
+      .toArray();
+    const lineupTeamIds = [...new Set(lineups.map((l) => String(l.teamId)).filter(Boolean))];
+    const teamDocs = lineupTeamIds.length
+      ? await db.collection("teams").find({ teamId: { $in: lineupTeamIds } }, { projection: { teamId: 1, name: 1, displayName: 1 } }).toArray()
+      : [];
+    const teamNames = new Map(teamDocs.map((t) => [String(t.teamId), String(t.displayName ?? t.name ?? t.teamId)]));
+    const teamHistory = buildTeamHistory({ memberId: id, rosters, memberTeams: member.teams ?? [], lineups, fixtures, teamNames });
+
+    // Names of related members (family), so the profile can show names rather than ids.
+    const relatedIds = [
+      ...new Set(
+        [
+          ...(member.personalInfo?.relatedMembers ?? []),
+          ...(member.familyRelationships ?? []),
+          ...(member.emergencyContacts ?? []),
+        ]
+          .map((r: any) => (typeof r === "string" ? r : r?.memberId ?? r?.relatedMemberId ?? r?.linkedMemberId))
+          .filter((v: unknown): v is string => typeof v === "string" && !!v),
+      ),
+    ];
+    const memberNames: Record<string, string> = {};
+    if (relatedIds.length) {
+      const docs = await db
+        .collection("members")
+        .find({ memberId: { $in: relatedIds } }, { projection: { memberId: 1, personalInfo: 1 } })
+        .toArray();
+      for (const d of docs) memberNames[String(d.memberId)] = `${d.personalInfo?.firstName ?? ""} ${d.personalInfo?.lastName ?? ""}`.trim();
+    }
 
     return NextResponse.json({
       member,
       playerStats,
+      teamHistory,
       related: {
+        memberNames,
         clubNames,
         associationNames: assocNames,
         clubRegistrations: clubRegs.map(({ _id, ...r }) => r),
