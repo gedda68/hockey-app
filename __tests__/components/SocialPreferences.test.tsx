@@ -55,3 +55,17 @@ describe("MemberRecordDetails history cards", () => {
     expect(screen.getByText("Public")).toBeTruthy();
   });
 });
+
+describe("relationship display", () => {
+  it("never shows a raw id, and resolves ids to names when the lookup has them", async () => {
+    const { findByText, queryByText } = render(
+      <MemberRecordDetails
+        member={{ memberId: "m1", emergencyContacts: [{ name: "Lee A", relationship: "6aef8f436b2c0d41708115ed" }, { name: "Kim B", relationship: "aabbccddeeff001122334455" }] }}
+        related={{}}
+      />,
+    );
+    expect(queryByText(/6aef8f436b2c0d41708115ed/)).toBeNull();
+    expect(queryByText(/aabbccddeeff001122334455/)).toBeNull();
+    expect(await findByText("Lee A")).toBeTruthy();
+  });
+});

@@ -2,7 +2,7 @@
 // Read-only cards for everything stored on a member beyond the editable core sections.
 // Used on the member profile and at the bottom of the edit screen.
 
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import PlayerDetails from "@/components/admin/members/PlayerDetails";
 import type { TeamHistoryRow } from "@/lib/members/teamHistory";
 import { hasPlayerHistory, type PlayerStats } from "@/lib/members/playerStats";
@@ -81,6 +81,10 @@ function VisBadge({ on }: { on: boolean }) {
     </span>
   );
 }
+
+/** A saved relationship can be a relationship-type id; show its name, and never show a bare id. */
+const looksLikeId = (v: string) =>
+  /^[a-f0-9]{24}$/i.test(v) || (/^rel-/i.test(v) && /\d{6,}/.test(v));
 
 const chips = (
   items: unknown[] | undefined,
@@ -164,6 +168,29 @@ export default function MemberRecordDetails({
     Array.isArray(r.roles) && r.roles.length
       ? r.roles.map((x: string) => pretty(x))
       : (rolesByYear.get(String(r.seasonYear)) ?? []);
+
+  const [relNames, setRelNames] = useState<Record<string, string>>({});
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch("/api/admin/lookups/relationship-types");
+        if (!res.ok) return;
+        const json = await res.json();
+        const map: Record<string, string> = {};
+        for (const i of json.items || [])
+          if (i.id && i.name) map[String(i.id)] = i.name;
+        setRelNames(map);
+      } catch {
+        /* names just stay hidden */
+      }
+    })();
+  }, []);
+  const relLabel = (v: unknown) => {
+    const t = String(v ?? "").trim();
+    if (!t) return "";
+    if (relNames[t]) return relNames[t];
+    return looksLikeId(t) ? "" : pretty(t);
+  };
 
   const relatedName = (id: string) => related?.memberNames?.[id] || id;
   const family: { id: string; name: string; relationship: string }[] = [
@@ -443,10 +470,10 @@ export default function MemberRecordDetails({
                 ) : (
                   f.name
                 )}
-                {f.relationship && (
+                {relLabel(f.relationship) && (
                   <span className="text-slate-500 font-normal">
                     {" "}
-                    · {pretty(f.relationship)}
+                    · {relLabel(f.relationship)}
                   </span>
                 )}
               </p>
@@ -468,10 +495,10 @@ export default function MemberRecordDetails({
                 <div key={i} className="mb-2 text-sm">
                   <p className="font-semibold text-slate-800">
                     {c.name || "(unnamed)"}
-                    {c.relationship && (
+                    {relLabel(c.relationship) && (
                       <span className="text-slate-500 font-normal">
                         {" "}
-                        · {pretty(c.relationship)}
+                        · {relLabel(c.relationship)}
                       </span>
                     )}
                     {linked ? (
