@@ -1,10 +1,13 @@
-// app/admin/teams/components/modals/AddPlayerModal.tsx
-// Uses PLAYERS table with smart defaults from selection history
+// components/admin/teams/modals/AddPlayerModal.tsx
+// Add several players to a team at once: type-ahead name multi-select, then a
+// jersey number + type-ahead position for each selected player.
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import type { TeamRoster } from "@/types/admin/teams.types";
+import TypeaheadMultiSelect from "@/components/ui/TypeaheadMultiSelect";
+import TypeaheadSelect from "@/components/ui/TypeaheadSelect";
 
 interface Player {
   /** Mongo _id (display/debug only) — API add-player expects `memberId`. */
@@ -26,17 +29,20 @@ interface Player {
   } | null;
 }
 
+export interface AddPlayerEntry {
+  playerId: string;
+  number: string;
+  position: string;
+}
+
 interface AddPlayerModalProps {
   roster: TeamRoster;
   teamIndex: number;
   onClose: () => void;
-  onSubmit: (
-    playerId: string,
-    details?: { number: string; position: string },
-  ) => void;
+  onSubmit: (entries: AddPlayerEntry[]) => void | Promise<void>;
 }
 
-const POSITIONS = [
+export const POSITIONS = [
   "Goalkeeper",
   "Defender",
   "Midfielder",
@@ -45,6 +51,14 @@ const POSITIONS = [
   "Winger",
   "Utility",
 ];
+const POSITION_OPTIONS = POSITIONS.map((p) => ({ value: p, label: p }));
+
+interface Pick {
+  number: string;
+  position: string;
+}
+
+const keyOf = (p: Player) => p.memberId || p.playerId;
 
 export default function AddPlayerModal({
   roster,
@@ -53,17 +67,13 @@ export default function AddPlayerModal({
   onSubmit,
 }: AddPlayerModalProps) {
   const [players, setPlayers] = useState<Player[]>([]);
-  const [filteredPlayers, setFilteredPlayers] = useState<Player[]>([]);
-  const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
-  /** Canonical member id (e.g. CHC-0000009) — must match POST body `playerId`. */
-  const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
-
-  const [playerNumber, setPlayerNumber] = useState("");
-  const [playerPosition, setPlayerPosition] = useState("");
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [picks, setPicks] = useState<Record<string, Pick>>({});
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    const fetchEligiblePlayers = async () => {
+    const load = async () => {
       setLoading(true);
       try {
         const url =
@@ -75,130 +85,92 @@ export default function AddPlayerModal({
             gender: roster.gender,
             season: roster.season || "2026",
           });
+        const data = await (await fetch(url)).json();
 
-        const response = await fetch(url);
-        const data = await response.json();
-
-        const rosterMemberIds = new Set<string>();
+        const onRoster = new Set<string>();
         const collect = (p: { id?: string; playerId?: string; memberId?: string }) => {
-          if (p.id) rosterMemberIds.add(String(p.id));
-          if (p.playerId) rosterMemberIds.add(String(p.playerId));
-          if (p.memberId) rosterMemberIds.add(String(p.memberId));
+          if (p.id) onRoster.add(String(p.id));
+          if (p.playerId) onRoster.add(String(p.playerId));
+          if (p.memberId) onRoster.add(String(p.memberId));
         };
         for (const t of roster.teams) for (const p of t.players) collect(p);
         for (const p of roster.shadowPlayers) collect(p);
         for (const p of roster.withdrawn) collect(p);
 
-        const eligible = (data.players || []).filter((p: Player) => {
-          const mid = p.memberId || p.playerId;
-          return mid && !rosterMemberIds.has(mid) && !rosterMemberIds.has(p.id);
-        });
-
-        setPlayers(eligible);
-        setFilteredPlayers(eligible);
+        setPlayers(
+          (data.players || []).filter((p: Player) => {
+            const mid = keyOf(p);
+            return mid && !onRoster.has(mid) && !onRoster.has(p.id);
+          }),
+        );
       } catch (error) {
         console.error("Error fetching eligible players:", error);
       } finally {
         setLoading(false);
       }
     };
-    void fetchEligiblePlayers();
-  // roster.teams / .shadowPlayers / .withdrawn are used for exclusion filtering
-  // but are arrays — using them directly as deps would trigger on every render.
-  // The modal opens once per roster; these values are stable for its lifetime.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    void load();
+    // roster arrays are stable for the modal's lifetime; see exclusion filtering above.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roster.clubId, roster.division, roster.category, roster.gender, roster.season]);
 
-  useEffect(() => {
-    if (searchTerm) {
-      const filtered = players.filter(
-        (p) =>
-          `${p.firstName} ${p.lastName}`
-            .toLowerCase()
-            .includes(searchTerm.toLowerCase()) ||
-          p.memberNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          (p.preferredName &&
-            p.preferredName.toLowerCase().includes(searchTerm.toLowerCase())),
-      );
-      setFilteredPlayers(filtered);
-    } else {
-      setFilteredPlayers(players);
-    }
-  }, [searchTerm, players]);
+  const options = useMemo(
+    () =>
+      players.map((p) => ({
+        value: keyOf(p),
+        label: `${p.firstName} ${p.lastName}${p.preferredName ? ` "${p.preferredName}"` : ""} · #${p.memberNumber}`,
+        hint: p.primaryPosition,
+      })),
+    [players],
+  );
 
-  // When player is selected, apply smart defaults
-  useEffect(() => {
-    if (selectedMemberId) {
-      const player = players.find((p) => p.memberId === selectedMemberId);
-      if (player) {
-        // Smart defaults from last selection or primary position
-        if (player.lastSelection) {
-          setPlayerNumber(player.lastSelection.number || "");
-          setPlayerPosition(
-            player.lastSelection.position || player.primaryPosition || "",
-          );
-        } else {
-          setPlayerNumber("");
-          setPlayerPosition(player.primaryPosition || "");
-        }
+  const handleSelect = (ids: string[]) => {
+    setSelectedIds(ids);
+    setPicks((prev) => {
+      const next = { ...prev };
+      for (const id of ids) {
+        if (next[id]) continue;
+        const p = players.find((x) => keyOf(x) === id);
+        // Smart defaults from last selection / primary position
+        next[id] = {
+          number: p?.lastSelection?.number || "",
+          position: p?.lastSelection?.position || p?.primaryPosition || "",
+        };
       }
-    } else {
-      setPlayerNumber("");
-      setPlayerPosition("");
-    }
-  }, [selectedMemberId, players]);
-
-  const fetchEligiblePlayers = async () => {
-    setLoading(true);
-    try {
-      const url =
-        `/api/admin/teams/players/eligible?` +
-        new URLSearchParams({
-          clubId: roster.clubId,
-          division: roster.division,
-          category: roster.category,
-          gender: roster.gender,
-          season: roster.season || "2026",
-        });
-
-      const response = await fetch(url);
-      const data = await response.json();
-
-      const rosterMemberIds = new Set<string>();
-      const collect = (p: { id?: string; playerId?: string; memberId?: string }) => {
-        if (p.id) rosterMemberIds.add(String(p.id));
-        if (p.playerId) rosterMemberIds.add(String(p.playerId));
-        if (p.memberId) rosterMemberIds.add(String(p.memberId));
-      };
-      for (const t of roster.teams) for (const p of t.players) collect(p);
-      for (const p of roster.shadowPlayers) collect(p);
-      for (const p of roster.withdrawn) collect(p);
-
-      const eligible = (data.players || []).filter((p: Player) => {
-        const mid = p.memberId || p.playerId;
-        return mid && !rosterMemberIds.has(mid) && !rosterMemberIds.has(p.id);
-      });
-
-      setPlayers(eligible);
-      setFilteredPlayers(eligible);
-    } catch (error) {
-      console.error("Error fetching eligible players:", error);
-    } finally {
-      setLoading(false);
-    }
+      return next;
+    });
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const setPick = (id: string, patch: Partial<Pick>) =>
+    setPicks((prev) => ({ ...prev, [id]: { ...prev[id], ...patch } }));
+
+  const selected = selectedIds
+    .map((id) => players.find((p) => keyOf(p) === id))
+    .filter((p): p is Player => !!p);
+
+  const numberCounts = new Map<string, number>();
+  for (const id of selectedIds) {
+    const n = (picks[id]?.number || "").trim();
+    if (n) numberCounts.set(n, (numberCounts.get(n) || 0) + 1);
+  }
+  const hasDuplicateNumbers = [...numberCounts.values()].some((c) => c > 1);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (selectedMemberId) {
-      onSubmit(selectedMemberId, {
-        number: playerNumber,
-        position: playerPosition,
-      });
+    if (!selected.length || submitting) return;
+    setSubmitting(true);
+    try {
+      await onSubmit(
+        selected.map((p) => ({
+          playerId: keyOf(p),
+          number: picks[keyOf(p)]?.number ?? "",
+          position: picks[keyOf(p)]?.position ?? "",
+        })),
+      );
+    } finally {
+      setSubmitting(false);
     }
   };
-
-  const selectedPlayer = players.find((p) => p.memberId === selectedMemberId);
 
   return (
     <>
@@ -209,19 +181,18 @@ export default function AddPlayerModal({
 
       <div className="fixed inset-0 flex items-center justify-center p-4 z-[9999]">
         <div
-          className="flex min-h-0 max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-3xl bg-white shadow-2xl"
+          className="flex min-h-0 max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-3xl bg-white shadow-2xl"
           onClick={(e) => e.stopPropagation()}
         >
           <form
             onSubmit={handleSubmit}
             className="flex min-h-0 flex-1 flex-col overflow-hidden"
           >
-            {/* Header */}
             <div className="shrink-0 bg-white border-b border-slate-200 px-8 py-6">
               <div className="flex items-center justify-between mb-4">
                 <div>
                   <h2 className="text-2xl font-black uppercase text-[#06054e]">
-                    Add Player to Team
+                    Add Players to Team
                   </h2>
                   <p className="text-sm text-slate-500 mt-1">
                     {roster.clubName} · {roster.division} {roster.category}{" "}
@@ -234,236 +205,114 @@ export default function AddPlayerModal({
                 <button
                   type="button"
                   onClick={onClose}
+                  aria-label="Close"
                   className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-slate-100 transition-colors"
                 >
-                  <svg
-                    className="w-6 h-6"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M6 18L18 6M6 6l12 12"
-                    />
-                  </svg>
+                  ✕
                 </button>
               </div>
 
-              {/* Search */}
-              <div>
-                <input
-                  type="text"
-                  placeholder="Search by name or member number..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-200 rounded-xl font-bold focus:border-[#06054e] outline-none"
-                />
-              </div>
+              <label className="block text-xs font-black uppercase text-slate-400 tracking-wider mb-2">
+                Players
+              </label>
+              <TypeaheadMultiSelect
+                options={options}
+                values={selectedIds}
+                onChange={handleSelect}
+                placeholder={
+                  loading
+                    ? "Loading players…"
+                    : "Type a name or member number…"
+                }
+                ariaLabel="Players"
+              />
             </div>
 
-            {/* Player List + Details — min-h-0 lets overflow-y-auto scroll inside flex */}
-            <div className="flex min-h-0 flex-1 overflow-hidden">
-              {/* Player List (Left) */}
-              <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-8 py-6 border-r border-slate-200">
-                {loading ? (
-                  <div className="text-center py-12">
-                    <div className="w-12 h-12 border-4 border-[#06054e] border-t-transparent rounded-full animate-spin mx-auto"></div>
-                    <p className="mt-4 text-slate-600">Loading players...</p>
-                  </div>
-                ) : filteredPlayers.length === 0 ? (
-                  <div className="text-center py-12">
-                    <p className="text-slate-400 font-bold">
-                      {searchTerm
-                        ? "No players match your search"
-                        : "No eligible players available"}
-                    </p>
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    {filteredPlayers.map((player) => {
-                      const memberKey = player.memberId || player.playerId;
-                      return (
-                      <button
-                        key={memberKey}
-                        type="button"
-                        onClick={() =>
-                          setSelectedMemberId((prev) =>
-                            prev === memberKey ? null : memberKey,
-                          )
-                        }
-                        aria-pressed={selectedMemberId === memberKey}
-                        className={`w-full p-4 rounded-xl border-2 transition-all text-left ${
-                          selectedMemberId === memberKey
-                            ? "bg-blue-50 border-blue-500"
-                            : "bg-white border-slate-200 hover:border-slate-300"
-                        }`}
+            <div className="min-h-[200px] min-w-0 flex-1 overflow-y-auto bg-slate-50 px-8 py-6">
+              {selected.length === 0 ? (
+                <div className="py-10 text-center text-slate-400">
+                  <p className="font-bold">
+                    {!loading && players.length === 0
+                      ? "No eligible players available"
+                      : "Select one or more players"}
+                  </p>
+                  <p className="mt-2 text-sm">
+                    Each player gets their own jersey number and position.
+                  </p>
+                </div>
+              ) : (
+                <ul className="space-y-3">
+                  <li className="hidden grid-cols-[1fr_6rem_14rem_2rem] gap-3 px-1 text-xs font-black uppercase tracking-wider text-slate-400 sm:grid">
+                    <span>Player</span>
+                    <span>Number</span>
+                    <span>Position</span>
+                    <span />
+                  </li>
+                  {selected.map((p) => {
+                    const id = keyOf(p);
+                    const pick = picks[id] || { number: "", position: "" };
+                    const dup =
+                      pick.number.trim() !== "" &&
+                      (numberCounts.get(pick.number.trim()) || 0) > 1;
+                    return (
+                      <li
+                        key={id}
+                        className="grid grid-cols-1 items-center gap-3 rounded-xl border-2 border-slate-200 bg-white p-3 sm:grid-cols-[1fr_6rem_14rem_2rem]"
                       >
-                        <div className="flex items-center justify-between">
-                          <div className="flex-1">
-                            <div className="font-black text-lg">
-                              {player.firstName} {player.lastName}
-                              {player.preferredName && (
-                                <span className="text-slate-500 font-normal ml-2">
-                                  "{player.preferredName}"
-                                </span>
-                              )}
-                            </div>
-                            <div className="text-sm text-slate-600 mt-1 flex items-center gap-3">
-                              <span>#{player.memberNumber}</span>
-                              {player.primaryPosition && (
-                                <span className="px-2 py-0.5 bg-slate-100 rounded text-xs font-bold">
-                                  {player.primaryPosition}
-                                </span>
-                              )}
-                              {player.lastSelection && (
-                                <span className="text-green-600 text-xs flex items-center gap-1">
-                                  <svg
-                                    className="w-3 h-3"
-                                    fill="currentColor"
-                                    viewBox="0 0 20 20"
-                                  >
-                                    <path
-                                      fillRule="evenodd"
-                                      d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                                      clipRule="evenodd"
-                                    />
-                                  </svg>
-                                  Last: #{player.lastSelection.number}{" "}
-                                  {player.lastSelection.position}
-                                </span>
-                              )}
-                            </div>
+                        <div className="min-w-0">
+                          <div className="truncate font-black">
+                            {p.firstName} {p.lastName}
                           </div>
-
-                          {selectedMemberId === memberKey && (
-                            <svg
-                              className="w-6 h-6 text-blue-600 flex-shrink-0 ml-4"
-                              fill="currentColor"
-                              viewBox="0 0 20 20"
-                            >
-                              <path
-                                fillRule="evenodd"
-                                d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                                clipRule="evenodd"
-                              />
-                            </svg>
-                          )}
+                          <div className="text-xs text-slate-500">
+                            #{p.memberNumber}
+                            {p.lastSelection && (
+                              <span className="ml-2 text-green-600">
+                                Last: #{p.lastSelection.number}{" "}
+                                {p.lastSelection.position}
+                              </span>
+                            )}
+                          </div>
                         </div>
-                      </button>
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          aria-label={`Jersey number for ${p.firstName} ${p.lastName}`}
+                          value={pick.number}
+                          onChange={(e) => setPick(id, { number: e.target.value })}
+                          placeholder="No."
+                          className={`w-full rounded-xl border-2 bg-white px-3 py-3 text-sm font-bold outline-none focus:border-[#06054e] ${
+                            dup ? "border-red-400" : "border-slate-300"
+                          }`}
+                        />
+                        <TypeaheadSelect
+                          options={POSITION_OPTIONS}
+                          value={pick.position}
+                          onChange={(v) => setPick(id, { position: v })}
+                          placeholder="Position…"
+                          ariaLabel={`Position for ${p.firstName} ${p.lastName}`}
+                        />
+                        <button
+                          type="button"
+                          aria-label={`Remove ${p.firstName} ${p.lastName}`}
+                          onClick={() =>
+                            setSelectedIds((prev) => prev.filter((x) => x !== id))
+                          }
+                          className="h-8 w-8 rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+                        >
+                          ✕
+                        </button>
+                      </li>
                     );
-                    })}
-                  </div>
-                )}
-              </div>
-
-              {/* Player Details (Right) */}
-              <div className="min-h-0 w-96 shrink-0 overflow-y-auto overscroll-contain bg-slate-50 p-8">
-                {selectedPlayer ? (
-                  <div className="space-y-6">
-                    <div>
-                      <h3 className="text-xl font-black text-slate-800 mb-1">
-                        {selectedPlayer.firstName} {selectedPlayer.lastName}
-                      </h3>
-                      <p className="text-sm text-slate-600">
-                        Member #{selectedPlayer.memberNumber}
-                      </p>
-                      {selectedPlayer.primaryPosition && (
-                        <p className="text-sm text-slate-600 mt-1">
-                          Primary: {selectedPlayer.primaryPosition}
-                        </p>
-                      )}
-                    </div>
-
-                    {selectedPlayer.lastSelection && (
-                      <div className="p-3 bg-green-50 border-2 border-green-200 rounded-xl">
-                        <div className="text-xs font-black uppercase text-green-600 mb-1">
-                          Last Selection
-                        </div>
-                        <div className="text-sm text-green-800">
-                          <div className="font-bold">
-                            #{selectedPlayer.lastSelection.number} ·{" "}
-                            {selectedPlayer.lastSelection.position}
-                          </div>
-                          <div className="text-xs text-green-600 mt-1">
-                            {selectedPlayer.lastSelection.teamName} ·{" "}
-                            {new Date(
-                              selectedPlayer.lastSelection.selectedDate,
-                            ).toLocaleDateString()}
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    <div className="h-px bg-slate-300"></div>
-
-                    {/* Player Number */}
-                    <div>
-                      <label className="block text-xs font-black uppercase text-slate-400 tracking-wider mb-2">
-                        Jersey Number{" "}
-                        {selectedPlayer.lastSelection && (
-                          <span className="text-green-600">(auto-filled)</span>
-                        )}
-                      </label>
-                      <input
-                        type="text"
-                        value={playerNumber}
-                        onChange={(e) => setPlayerNumber(e.target.value)}
-                        placeholder="e.g., 7"
-                        className="w-full px-4 py-3 bg-white border-2 border-slate-200 rounded-xl font-bold focus:border-[#06054e] outline-none"
-                      />
-                    </div>
-
-                    {/* Player Position */}
-                    <div>
-                      <label className="block text-xs font-black uppercase text-slate-400 tracking-wider mb-2">
-                        Position{" "}
-                        {selectedPlayer.lastSelection && (
-                          <span className="text-green-600">(auto-filled)</span>
-                        )}
-                      </label>
-                      <select
-                        value={playerPosition}
-                        onChange={(e) => setPlayerPosition(e.target.value)}
-                        className="w-full px-4 py-3 bg-white border-2 border-slate-200 rounded-xl font-bold focus:border-[#06054e] outline-none"
-                      >
-                        <option value="">Select Position...</option>
-                        {POSITIONS.map((pos) => (
-                          <option key={pos} value={pos}>
-                            {pos}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="text-center py-12 text-slate-400">
-                    <svg
-                      className="w-16 h-16 mx-auto mb-4 opacity-50"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-                      />
-                    </svg>
-                    <p className="font-bold">Select a player</p>
-                    <p className="text-sm mt-2">
-                      Choose from the list to add details. Click a selected
-                      player again to deselect.
-                    </p>
-                  </div>
-                )}
-              </div>
+                  })}
+                </ul>
+              )}
+              {hasDuplicateNumbers && (
+                <p className="mt-3 text-sm font-bold text-red-600">
+                  Two selected players share the same jersey number.
+                </p>
+              )}
             </div>
 
-            {/* Footer */}
             <div className="shrink-0 bg-slate-50 border-t border-slate-200 px-8 py-6 flex gap-3">
               <button
                 type="button"
@@ -474,12 +323,14 @@ export default function AddPlayerModal({
               </button>
               <button
                 type="submit"
-                disabled={!selectedMemberId}
+                disabled={!selected.length || submitting}
                 className="flex-1 px-6 py-3 bg-[#06054e] text-white rounded-xl font-black uppercase text-sm hover:bg-blue-900 transition-all shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {selectedPlayer
-                  ? `Add ${selectedPlayer.firstName} ${selectedPlayer.lastName}`
-                  : "Select a Player"}
+                {submitting
+                  ? "Adding…"
+                  : selected.length === 0
+                    ? "Select Players"
+                    : `Add ${selected.length} player${selected.length === 1 ? "" : "s"}`}
               </button>
             </div>
           </form>
