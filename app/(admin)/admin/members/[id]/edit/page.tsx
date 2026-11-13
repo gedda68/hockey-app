@@ -96,6 +96,8 @@ export default function EditMemberPage({
             status: member.membership?.status || "Active",
             expiryDate: member.membership?.expiryDate || "",
             renewalDate: member.membership?.renewalDate || "",
+            clubId: member.membership?.clubId || member.clubId || "",
+            clubName: member.membership?.clubName || "",
           },
           medical: {
             conditions: member.medical?.conditions || "",
