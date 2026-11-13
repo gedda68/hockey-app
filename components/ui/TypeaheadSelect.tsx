@@ -158,7 +158,7 @@ export default function TypeaheadSelect({
               left: rect.left,
               top: rect.top,
               width: rect.width,
-              zIndex: 1000,
+              zIndex: 10000,
             }}
             className="max-h-56 overflow-auto rounded-xl border border-slate-200 bg-white py-1 shadow-lg"
           >

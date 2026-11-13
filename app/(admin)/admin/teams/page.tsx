@@ -219,39 +219,50 @@ export default function ClubTeamsPage() {
     }
   };
 
-  const handleAddPlayer = async (playerId: string, playerDetails?: any) => {
+  const handleAddPlayer = async (
+    entries: { playerId: string; number: string; position: string }[],
+  ) => {
     if (!activeRoster || activeTeamIndex === null) return;
 
-    try {
-      const response = await fetch(
-        `/api/admin/teams/rosters/${activeRoster.id}/teams/${activeTeamIndex}/players`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            playerId,
-            ...playerDetails, // Include number and position
-          }),
-        },
-      );
-
-      if (response.ok) {
-        await fetchRosters();
-        setShowAddPlayer(false);
-        setActiveRoster(null);
-        setActiveTeamIndex(null);
-      } else {
-        const error = await response.json();
-        alert(
-          error.error ||
-            error.details ||
-            error.message ||
-            (error.code ? String(error.code) : "Failed to add player"),
+    // Sequential: each POST rewrites the same roster document.
+    const failures: string[] = [];
+    for (const { playerId, ...details } of entries) {
+      try {
+        const response = await fetch(
+          `/api/admin/teams/rosters/${activeRoster.id}/teams/${activeTeamIndex}/players`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ playerId, ...details }),
+          },
         );
+        if (!response.ok) {
+          const error = await response.json().catch(() => ({}));
+          failures.push(
+            `${playerId}: ${
+              error.error ||
+              error.details ||
+              error.message ||
+              (error.code ? String(error.code) : "Failed to add player")
+            }`,
+          );
+        }
+      } catch (error) {
+        console.error("Error adding player:", error);
+        failures.push(`${playerId}: Failed to add player`);
       }
-    } catch (error) {
-      console.error("Error adding player:", error);
-      alert("Failed to add player");
+    }
+
+    await fetchRosters();
+    if (failures.length === 0) {
+      setShowAddPlayer(false);
+      setActiveRoster(null);
+      setActiveTeamIndex(null);
+    } else {
+      alert(
+        `${entries.length - failures.length} of ${entries.length} added.\n` +
+          failures.join("\n"),
+      );
     }
   };
 
