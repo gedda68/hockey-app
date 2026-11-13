@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AlertTriangle, CheckCircle2, Search, X } from "lucide-react";
+import MatchShootoutPanel from "@/components/admin/associations/MatchShootoutPanel";
 
 interface Fixture {
   fixtureId: string; round: number; homeTeamId: string; awayTeamId: string;
@@ -261,6 +262,18 @@ function MatchDrawer({ sc, fixture: f, teams, name, onClose, onChanged }: {
             <button disabled={busy} className={`${btn} bg-emerald-600 text-white`} onClick={() => run("Result approved", () => send(`${base}/result`, "PATCH", resultBody("approved")))}>Approve</button>
             <button disabled={busy || !f.resultStatus} className={`${btn} bg-amber-500 text-white`} onClick={() => run("Result rejected", () => send(`${base}/result`, "PATCH", resultBody("rejected")))}>Reject</button>
           </div>
+        </Section>
+
+        <Section title="Shootout">
+          <MatchShootoutPanel
+            seasonCompetitionId={sc}
+            fixtureId={f.fixtureId}
+            recordedHome={sh}
+            recordedAway={sa}
+            onUseTotals={(h, a) => { setSh(String(h)); setSa(String(a)); }}
+            onSaved={onChanged}
+          />
+          <p className="text-xs text-slate-400">Attempts are saved here. The shootout score above is saved with the result.</p>
         </Section>
 
         <Section title="Void match">
