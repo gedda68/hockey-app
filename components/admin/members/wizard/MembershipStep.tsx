@@ -268,6 +268,29 @@ export default function MembershipStep({
     finally { setIsLoadingClubs(false); }
   };
 
+  // Editing an existing member: start from the club they already belong to, so their
+  // saved club, membership types, roles, join date and status are shown straight away.
+  useEffect(() => {
+    const existingId: string = membershipData?.clubId || "";
+    if (!existingId || selectedClub) return;
+    setSelectedClub(existingId);
+    if (membershipData?.clubName) {
+      setClubSearch(membershipData.clubName);
+      return;
+    }
+    (async () => {
+      try {
+        const res = await fetch(`/api/admin/clubs/${existingId}`);
+        if (res.ok) {
+          const data = await res.json();
+          const name = data.club?.name || data.name || "";
+          if (name) setClubSearch(name);
+        }
+      } catch (e) { console.error(e); }
+    })();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [membershipData?.clubId]);
+
   useEffect(() => {
     if (selectedClub) {
       fetchMembershipTypes();
