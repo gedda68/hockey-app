@@ -3,6 +3,7 @@
 
 "use client";
 
+import { uniquePlayers } from "@/lib/rosters/uniquePlayers";
 import { useState, type ReactNode } from "react";
 import { useDraggable, useDroppable } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
@@ -313,7 +314,7 @@ export default function RosterCard({
   const [editingStaff, setEditingStaff] = useState<any>(null);
 
   const totalPlayers = roster.teams.reduce(
-    (sum, team) => sum + team.players.length,
+    (sum, team) => sum + uniquePlayers(team.players).length,
     0,
   );
   const primaryColor = roster.clubColors?.primary || "#06054e";
@@ -709,6 +710,7 @@ function TeamSection({
   onEditStaff,
   onDeleteStaff,
 }: any) {
+  const players: Player[] = uniquePlayers(team.players);
   const { setNodeRef } = useDroppable({
     id: `team-${rosterId}-${teamIndex}`,
     data: { rosterId, location: "team", teamIndex, teamName: team.name },
@@ -723,7 +725,7 @@ function TeamSection({
             {team.name}
           </h4>
           <div className="text-sm text-slate-300 font-bold mt-1">
-            {team.players.length} player{team.players.length !== 1 ? "s" : ""}
+            {players.length} player{players.length !== 1 ? "s" : ""}
           </div>
         </div>
 
@@ -750,18 +752,18 @@ function TeamSection({
 
       {/* Players List */}
       <div ref={setNodeRef} className="min-h-[100px] p-4 bg-white">
-        {team.players.length === 0 ? (
+        {players.length === 0 ? (
           <div className="text-center py-8 text-slate-400">
             <p className="font-bold mb-2">No players yet</p>
             <p className="text-sm">Click "Add Player" to get started</p>
           </div>
         ) : (
           <SortableContext
-            items={team.players.map((p: Player) => p.id)}
+            items={players.map((p: Player) => p.id)}
             strategy={verticalListSortingStrategy}
           >
             <div className="space-y-2">
-              {team.players.map((player: Player) => (
+              {players.map((player: Player) => (
                 <div key={player.id} className="relative group">
                   <SortablePlayer
                     player={player}
