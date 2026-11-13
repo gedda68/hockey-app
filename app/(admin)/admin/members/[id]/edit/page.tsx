@@ -20,6 +20,7 @@ import {
   AlertCircle,
   History,
   Trophy,
+  Share2,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -28,6 +29,8 @@ import PersonalInfoStep from "@/components/admin/members/wizard/PersonalInfoStep
 import ContactInfoStep from "@/components/admin/members/wizard/ContactInfoStep";
 import EmergencyContactStep from "@/components/admin/members/wizard/EmergencyContactStep";
 import AddressStep from "@/components/admin/members/wizard/AddressStep";
+import SocialPreferences, { mergedSocial } from "@/components/admin/members/SocialPreferences";
+import type { TeamHistoryRow } from "@/lib/members/teamHistory";
 import PlayerDetails from "@/components/admin/members/PlayerDetails";
 import { hasPlayerHistory, type PlayerStats } from "@/lib/members/playerStats";
 import MemberRecordDetails from "@/components/admin/members/MemberRecordDetails";
@@ -51,6 +54,7 @@ export default function EditMemberPage({
   const [roles, setRoles] = useState<string[]>([]);
   const [related, setRelated] = useState<any>(undefined);
   const [playerStats, setPlayerStats] = useState<PlayerStats | null>(null);
+  const [teamHistory, setTeamHistory] = useState<TeamHistoryRow[]>([]);
   const [changeHistory, setChangeHistory] = useState<any[]>([]);
   const [showHistory, setShowHistory] = useState(false);
 
@@ -154,6 +158,7 @@ export default function EditMemberPage({
 
         setRelated(data.related);
         setPlayerStats(data.playerStats ?? null);
+        setTeamHistory(data.teamHistory ?? []);
         setOriginalData(JSON.parse(JSON.stringify(normalized)));
         setFormData(normalized);
         setRoles(normalized.roles);
@@ -207,16 +212,22 @@ export default function EditMemberPage({
     return changes;
   };
 
-  const handleSectionSave = async (sectionName: string, sectionKey: string) => {
+  const handleSectionSave = async (
+    sectionName: string,
+    sectionKey: string | string[],
+  ) => {
     setIsSaving(sectionName);
 
     try {
-      // Detect changes
-      const changes = getChangedFields(
-        sectionKey,
-        originalData[sectionKey],
-        formData[sectionKey],
-      );
+      // Detect changes (a section can span several top-level keys)
+      const keys = Array.isArray(sectionKey) ? sectionKey : [sectionKey];
+      const changes: Record<string, any> = {};
+      for (const k of keys) {
+        const found = getChangedFields(k, originalData[k] ?? {}, formData[k] ?? {});
+        for (const [path, v] of Object.entries(found)) {
+          changes[keys.length > 1 ? `${k}.${path}` : path] = v;
+        }
+      }
 
       if (Object.keys(changes).length === 0) {
         toast.info("No changes to save");
@@ -447,7 +458,33 @@ export default function EditMemberPage({
         </EditCard>
 
         {/* Everything else stored on this member (read-only) */}
-        <MemberRecordDetails member={formData} related={related} hidePlayerDetails registrationsOnly />
+        <MemberRecordDetails member={formData} related={related} teamHistory={teamHistory} hidePlayerDetails registrationsOnly hideSocial />
+
+        {/* Social links and contact preferences, each public or private */}
+        <EditCard
+          title="Social & Preferences"
+          icon={<Share2 className="text-pink-600" />}
+          onSave={() =>
+            handleSectionSave("Social & Preferences", ["socialMedia", "communicationPreferences", "privacy"])
+          }
+          isSaving={isSaving === "Social & Preferences"}
+        >
+          <SocialPreferences
+            value={{
+              socialMedia: mergedSocial(formData),
+              communicationPreferences: formData.communicationPreferences || {},
+              privacy: formData.privacy || {},
+            }}
+            onChange={(v) =>
+              setFormData({
+                ...formData,
+                socialMedia: v.socialMedia,
+                communicationPreferences: v.communicationPreferences,
+                privacy: v.privacy,
+              })
+            }
+          />
+        </EditCard>
 
         {/* Player details — for anyone who is or was a player */}
         {hasPlayerHistory(formData, playerStats) && (
