@@ -9,8 +9,10 @@ import TeamSheets from "@/components/matches/TeamSheets";
 import type { PublicTeamStats } from "@/lib/data/matches";
 import { buildMatchTimeline } from "@/lib/competitions/matchTimeline";
 import { roleTag } from "@/lib/competitions/matchStats";
+import ShootoutTab from "@/components/matches/ShootoutTab";
+import { hasShootout } from "@/lib/competitions/shootout";
 
-type TabKey = "summary" | "timeline" | "umpires" | "teamsheets" | "stats";
+type TabKey = "summary" | "timeline" | "shootout" | "umpires" | "teamsheets" | "stats";
 
 function TabButton({
   active,
@@ -93,6 +95,11 @@ export default function MatchCentreTabs({
         >
           Timeline
         </TabButton>
+        {hasShootout(match) ? (
+          <TabButton active={tab === "shootout"} onClick={() => setTab("shootout")}>
+            Shootout
+          </TabButton>
+        ) : null}
         <TabButton
           active={tab === "umpires"}
           onClick={() => setTab("umpires")}
@@ -191,6 +198,10 @@ export default function MatchCentreTabs({
             </div>
           )}
         </section>
+      ) : null}
+
+      {tab === "shootout" && hasShootout(match) ? (
+        <ShootoutTab match={match} teamNameById={teamNameById} players={players} teamColorById={teamColorById} />
       ) : null}
 
       {tab === "umpires" ? (
