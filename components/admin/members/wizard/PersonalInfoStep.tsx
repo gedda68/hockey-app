@@ -2,6 +2,7 @@
 "use client";
 
 import TypeaheadSelect, { type TypeaheadOption } from "@/components/ui/TypeaheadSelect";
+import { DEFAULT_RELATIONSHIPS, activeOrDefault, buildOptions as buildRelOptions } from "@/lib/members/configOptions";
 import { useState, useEffect, useRef } from "react";
 import {
   Plus,
@@ -145,9 +146,9 @@ export default function PersonalInfoStep({
 
       if (relationshipsRes.ok) {
         const relationshipsData = await relationshipsRes.json();
-        setRelationshipTypes(
-          relationshipsData.filter((item: ConfigItem) => item.isActive),
-        );
+        setRelationshipTypes(activeOrDefault(relationshipsData, DEFAULT_RELATIONSHIPS as unknown as ConfigItem[]));
+      } else {
+        setRelationshipTypes(DEFAULT_RELATIONSHIPS as unknown as ConfigItem[]);
       }
     } catch (error) {
       console.error("Error fetching config data:", error);
@@ -799,24 +800,19 @@ export default function PersonalInfoStep({
                           <label className="text-xs font-black uppercase text-slate-400 mb-2 block">
                             Relationship *
                           </label>
-                          <select
-                            value={member.relationshipType}
-                            onChange={(e) =>
-                              updateRelatedMember(
-                                member.id,
-                                "relationshipType",
-                                e.target.value,
-                              )
-                            }
-                            className="w-full p-3 bg-white border border-slate-300 rounded-xl outline-none font-bold focus:ring-2 ring-blue-400"
-                          >
-                            <option value="">Select relationship...</option>
-                            {relationshipTypes.map((rel) => (
-                              <option key={rel.id} value={rel.id}>
-                                {rel.name}
-                              </option>
-                            ))}
-                          </select>
+                          {(() => {
+                            const o = buildRelOptions(relationshipTypes, member.relationshipType);
+                            return (
+                              <TypeaheadSelect
+                                ariaLabel="Relationship"
+                                options={o.options}
+                                value={o.value}
+                                placeholder="Type to search…"
+                                onChange={(v) => updateRelatedMember(member.id, "relationshipType", v)}
+                                className="w-full p-3 bg-white border border-slate-300 rounded-xl outline-none font-bold focus:ring-2 ring-blue-400"
+                              />
+                            );
+                          })()}
                         </div>
                       </div>
 
