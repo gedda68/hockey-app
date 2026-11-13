@@ -4,10 +4,10 @@
 import { useCallback, useEffect, useState } from "react";
 import { Check, Plus, Trash2, X } from "lucide-react";
 import {
-  draftsFromEvents, mergeShootoutEvents, shootoutTotals, type ShootoutDraft,
+  attemptNumber, draftsFromEvents, mergeShootoutEvents, shootoutTotals, type ShootoutDraft,
 } from "@/lib/competitions/shootout";
 
-interface RosterOpt { memberId: string; displayName: string }
+interface RosterOpt { memberId: string; displayName: string; isPlayer?: boolean }
 interface Ctx {
   homeTeamId: string; awayTeamId: string; homeTeamName: string; awayTeamName: string;
   homeRoster: RosterOpt[]; awayRoster: RosterOpt[]; matchEvents: Array<Record<string, unknown>>;
@@ -51,7 +51,12 @@ export default function MatchShootoutPanel({
     );
   }
 
-  const rosterOf = (teamId: string) => (teamId === ctx.homeTeamId ? ctx.homeRoster : ctx.awayRoster);
+  // Only people who play: coaches and managers are left out unless they are also playing.
+  // A person already chosen on a saved attempt stays listed so existing data is never hidden.
+  const rosterOf = (teamId: string, keep: string[] = []) =>
+    (teamId === ctx.homeTeamId ? ctx.homeRoster : ctx.awayRoster).filter(
+      (r) => r.isPlayer !== false || keep.includes(r.memberId),
+    );
   const other = (teamId: string) => (teamId === ctx.homeTeamId ? ctx.awayTeamId : ctx.homeTeamId);
   const nameOf = (teamId: string) => (teamId === ctx.homeTeamId ? ctx.homeTeamName : ctx.awayTeamName);
   const totals = shootoutTotals(drafts, ctx.homeTeamId, ctx.awayTeamId);
@@ -107,17 +112,17 @@ export default function MatchShootoutPanel({
         {drafts.map((d, i) => (
           <li key={i} className="rounded-xl border border-slate-200 bg-white p-3">
             <div className="mb-2 flex items-center justify-between text-xs font-black uppercase text-slate-400">
-              <span>{nameOf(d.teamId)} · attempt {drafts.slice(0, i + 1).filter((x) => x.teamId === d.teamId).length}</span>
+              <span>{nameOf(d.teamId)} · attempt {attemptNumber(drafts, i)}</span>
               <button type="button" aria-label="Remove attempt" onClick={() => setDrafts((x) => x.filter((_, n) => n !== i))} className="text-slate-400 hover:text-red-600"><Trash2 size={14} /></button>
             </div>
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_1fr_auto]">
               <select aria-label="Shooter" className={sel} value={d.shooterId} onChange={(e) => patch(i, { shooterId: e.target.value })}>
                 <option value="">Shooter…</option>
-                {rosterOf(d.teamId).map((r) => <option key={r.memberId} value={r.memberId}>{r.displayName}</option>)}
+                {rosterOf(d.teamId, [d.shooterId]).map((r) => <option key={r.memberId} value={r.memberId}>{r.displayName}</option>)}
               </select>
               <select aria-label="Goalkeeper faced" className={sel} value={d.goalkeeperId} onChange={(e) => patch(i, { goalkeeperId: e.target.value })}>
                 <option value="">Keeper faced…</option>
-                {rosterOf(other(d.teamId)).map((r) => <option key={r.memberId} value={r.memberId}>{r.displayName}</option>)}
+                {rosterOf(other(d.teamId), [d.goalkeeperId]).map((r) => <option key={r.memberId} value={r.memberId}>{r.displayName}</option>)}
               </select>
               <div className="flex gap-1.5">
                 <button type="button" aria-pressed={d.scored} aria-label="Scored" onClick={() => patch(i, { scored: true })}

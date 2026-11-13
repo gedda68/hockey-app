@@ -103,7 +103,23 @@ export type RosterOption = {
   memberId: string;
   displayName: string;
   jerseyNumber?: number | null;
+  /** False for coaches/managers/officials who are not also playing. */
+  isPlayer?: boolean;
 };
+
+/**
+ * A playing member: a "Participant" on the team roster, or anyone holding a player role
+ * (so a coach or manager who also plays still counts). Staff-only people do not.
+ * When nothing is known either way, the person is treated as a player rather than hidden.
+ */
+export function isPlayingMember(rosterCategory: unknown, roles: unknown): boolean {
+  if (rosterCategory === "Participant") return true;
+  const list = Array.isArray(roles) ? roles.map(String) : [];
+  if (list.some((r) => /player/i.test(r))) return true;
+  if (rosterCategory === "Official") return false;
+  if (list.some((r) => /(coach|manager|umpire|official|volunteer|admin)/i.test(r))) return false;
+  return true;
+}
 
 export async function buildRosterOptionsForTeams(
   db: Db,
@@ -122,40 +138,47 @@ export async function buildRosterOptionsForTeams(
       ? await db
           .collection("members")
           .find({ memberId: { $in: allIds } })
-          .project({ memberId: 1, personalInfo: 1 })
+          .project({ memberId: 1, personalInfo: 1, roles: 1 })
           .toArray()
       : [];
 
-  const byId = new Map<string, { displayName: string }>();
+  const byId = new Map<string, { displayName: string; roles: unknown }>();
   for (const m of members) {
     const id = String(m.memberId ?? "");
     if (!id) continue;
     const dn = memberDisplayName(m) || id;
-    byId.set(id, { displayName: dn });
+    byId.set(id, { displayName: dn, roles: m.roles });
   }
 
   const teamDoc = async (tid: string) => {
     const t = await db.collection("teams").findOne({ teamId: tid }, { projection: { roster: 1 } });
     const roster = (t?.roster as unknown[]) ?? [];
     const jersey = new Map<string, number | null>();
+    const category = new Map<string, unknown>();
     for (const row of roster) {
       if (!row || typeof row !== "object") continue;
-      const r = row as { memberId?: string; jerseyNumber?: number };
-      if (typeof r.memberId === "string")
+      const r = row as { memberId?: string; jerseyNumber?: number; roleCategory?: unknown };
+      if (typeof r.memberId === "string") {
         jersey.set(r.memberId, typeof r.jerseyNumber === "number" ? r.jerseyNumber : null);
+        category.set(r.memberId, r.roleCategory);
+      }
     }
-    return jersey;
+    return { jersey, category };
   };
 
   const homeJersey = await teamDoc(homeTeamId);
   const awayJersey = await teamDoc(awayTeamId);
 
-  const toOpts = (ids: string[], jersey: Map<string, number | null>): RosterOption[] =>
+  const toOpts = (
+    ids: string[],
+    t: { jersey: Map<string, number | null>; category: Map<string, unknown> },
+  ): RosterOption[] =>
     ids
       .map((memberId) => ({
         memberId,
         displayName: byId.get(memberId)?.displayName ?? memberId,
-        jerseyNumber: jersey.get(memberId) ?? null,
+        jerseyNumber: t.jersey.get(memberId) ?? null,
+        isPlayer: isPlayingMember(t.category.get(memberId), byId.get(memberId)?.roles),
       }))
       .sort((a, b) => a.displayName.localeCompare(b.displayName));
 
