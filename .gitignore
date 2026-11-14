@@ -23,6 +23,7 @@
 !/scripts/seed-fee-lists.ts
 !/scripts/dedupe-registrations.ts
 !/scripts/create-member-logins.ts
+!/scripts/check-member-login.ts
 
 # scraped data with personal information (players incl. juniors) — keep local
 /data/altius/
