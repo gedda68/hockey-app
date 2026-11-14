@@ -32,3 +32,10 @@ describe("limitForAdmin", () => {
     for (const bad of ["contact", "address", "medical", "emergency", "bluecard", "auth", "email", "phone"]) expect(keys).not.toContain(bad);
   });
 });
+
+import { uniqueLines } from "@/lib/members/registrationSummary";
+describe("uniqueLines", () => {
+  it("drops repeated lines", () => {
+    expect(uniqueLines([{ itemId: "a", amount: 1 }, { itemId: "a", amount: 1 }, { name: "x", amount: 2, clubId: "c" }, { name: "x", amount: 2, clubId: "c" }])).toHaveLength(2);
+  });
+});

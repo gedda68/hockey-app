@@ -57,3 +57,16 @@ export function planDedupe(docs: Doc[], kind: "club" | "association") {
   }
   return { groupsWithDupes, remove, updates };
 }
+
+/**
+ * Read-time view of a set of registrations with duplicates collapsed (best record per member + level +
+ * season, with fees/roles from duplicates folded in). Does not change the database; the dedupe script does.
+ */
+export function collapse(docs: Doc[], kind: "club" | "association"): Doc[] {
+  const groups = new Map<string, Doc[]>();
+  for (const d of docs) groups.set(naturalKey(d, kind), [...(groups.get(naturalKey(d, kind)) ?? []), d]);
+  return [...groups.values()].map((g) => {
+    const [keeper, ...rest] = [...g].sort((a, b) => keeperScore(b) - keeperScore(a));
+    return rest.length ? { ...keeper, ...mergeFields(keeper, rest) } : keeper;
+  });
+}

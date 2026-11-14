@@ -6,6 +6,7 @@ import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import { getSession } from "@/lib/auth/session";
 import { userCanAccessAssociationResource, userCanAccessClubResource } from "@/lib/auth/resourceAccessDb";
+import { collapse, keeperScore } from "@/lib/registrations/dedupe";
 import { applyToLines, sumLines, validateChange, type FeeChange } from "@/lib/registrations/feeEdit";
 
 const CLUB_ROLES = ["club-admin", "club-committee", "registrar"];
@@ -32,8 +33,11 @@ export async function PUT(request: NextRequest, context: { params: Promise<{ mem
 
   const db = (await clientPromise).db(process.env.DB_NAME || "hockey-app");
   const seasonIn = { $in: [season, String(season)] };
-  const clubReg = await db.collection("club-registrations").findOne({ memberId, seasonYear: seasonIn, registrationType: { $ne: "secondary" } })
-    ?? await db.collection("club-registrations").findOne({ memberId, seasonYear: seasonIn });
+  // Work on the same "best" record the page shows when duplicates exist, with any fees held only by a
+  // duplicate folded in first, so the line the admin clicked is always found.
+  const all = await db.collection("club-registrations").find({ memberId, seasonYear: seasonIn }).toArray();
+  const pool = body.levelKind === "club" ? all.filter((r) => String(r.clubId) === body.levelId) : all;
+  const clubReg = pool.length ? collapse(pool, "club").sort((a, b) => keeperScore(b) - keeperScore(a))[0] : null;
   if (!clubReg) return NextResponse.json({ error: "No club registration for that season" }, { status: 404 });
   // A club admin may only touch a registration at their own club.
   if (body.levelKind === "club" && String(clubReg.clubId) !== body.levelId) {
