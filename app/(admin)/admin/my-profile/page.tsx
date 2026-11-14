@@ -19,6 +19,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { toast } from "sonner";
 import MoreDetailsForm from "@/components/member/MoreDetailsForm";
+import ChangePasswordCard from "@/components/member/ChangePasswordCard";
 import {
   User,
   Phone,
@@ -725,6 +726,8 @@ export default function MyProfilePage() {
       </form>
 
       {member && <MoreDetailsForm member={member as unknown as Record<string, any>} onSaved={() => void loadProfile()} />}
+
+      <ChangePasswordCard />
 
       {/* ── Recent change history ────────────────────────────────────────────── */}
       {recentChanges.length > 0 && (
