@@ -3,6 +3,9 @@
 // Returns only the fields needed for a public nomination flow (no sensitive admin data).
 
 import { isContactPrivate } from "@/lib/members/privacy";
+import { canSeeSensitive, isOwner } from "@/lib/members/sharing";
+import { getSession } from "@/lib/auth/session";
+import { resolveSessionMemberId } from "@/lib/auth/sessionMember";
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import { escapeRegex } from "@/lib/utils/regex";
@@ -14,7 +17,9 @@ export async function GET(request: NextRequest) {
     const lastName = (searchParams.get("lastName") ?? "").trim();
     const dob = (searchParams.get("dob") ?? "").trim(); // YYYY-MM-DD
 
-    if (!firstName || !lastName || !dob) {
+    const byMemberId = (searchParams.get("memberId") ?? "").trim();
+
+    if (!byMemberId && (!firstName || !lastName || !dob)) {
       return NextResponse.json(
         { error: "firstName, lastName and dob are required" },
         { status: 400 },
@@ -24,19 +29,31 @@ export async function GET(request: NextRequest) {
     const client = await clientPromise;
     const db = client.db("hockey-app");
 
-    // Case-insensitive name match + exact DOB — query members collection
-    const member = await db.collection("members").findOne({
-      "personalInfo.firstName": { $regex: `^${escapeRegex(firstName)}$`, $options: "i" },
-      "personalInfo.lastName":  { $regex: `^${escapeRegex(lastName)}$`,  $options: "i" },
-      "personalInfo.dateOfBirth": dob,
-    });
+    let member;
+    if (byMemberId) {
+      // Signed-in members can look themselves up (nobody else) — no name/date of birth needed.
+      const me = await getSession().catch(() => null);
+      if (!me?.memberId) return NextResponse.json({ player: null });
+      const key = await resolveSessionMemberId(db, me);
+      member = await db.collection("members").findOne({ memberId: key });
+    } else {
+      // Case-insensitive name match + exact DOB — query members collection
+      member = await db.collection("members").findOne({
+        "personalInfo.firstName": { $regex: `^${escapeRegex(firstName)}$`, $options: "i" },
+        "personalInfo.lastName":  { $regex: `^${escapeRegex(lastName)}$`,  $options: "i" },
+        "personalInfo.dateOfBirth": dob,
+      });
+    }
 
     if (!member) {
       return NextResponse.json({ player: null });
     }
 
+    // Medical and emergency-contact details are only returned to the member themselves.
+    const viewer = await getSession().catch(() => null);
+    const sensitiveOk = canSeeSensitive(member, viewer);
     const pi = member.personalInfo ?? {};
-    const ct = isContactPrivate(member) ? {} : (member.contact ?? {});
+    const ct = isContactPrivate(member) && !isOwner(member, viewer) ? {} : (member.contact ?? {});
 
     // Return fields needed for nomination.
     return NextResponse.json({
@@ -55,14 +72,14 @@ export async function GET(request: NextRequest) {
         linkedMemberId: member.memberId,
         photo:          pi.photo ?? null,
         status:         member.membership?.status?.toLowerCase() ?? "active",
-        emergencyContacts: (member.emergencyContacts ?? []).map((c: Record<string, any>) => ({
+        emergencyContacts: (sensitiveOk ? (member.emergencyContacts ?? []) : []).map((c: Record<string, any>) => ({
           id:           c.id ?? "",
           name:         c.name ?? "",
           relationship: c.relationship ?? "",
           phone:        c.phone ?? "",
           email:        c.email ?? "",
         })),
-        medical: member.medical
+        medical: sensitiveOk && member.medical
           ? {
               conditions:  member.medical.conditions  ?? "",
               allergies:   member.medical.allergies   ?? "",

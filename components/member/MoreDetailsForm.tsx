@@ -6,7 +6,7 @@
 
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Loader2, Save, Plus, Trash2, Lock } from "lucide-react";
+import { Loader2, Save, Plus, Trash2, Lock, ArrowUp, ArrowDown } from "lucide-react";
 import MemberNameSearch, { type FoundPerson } from "@/components/member/MemberNameSearch";
 import RelatedPeopleCard, { type Related, type RelatedToMe } from "@/components/member/RelatedPeopleCard";
 import TypeaheadSelect from "@/components/ui/TypeaheadSelect";
@@ -79,7 +79,9 @@ const blankContact = (): Contact => ({ name: "", relationship: "", phone: "", mo
 
 export default function MoreDetailsForm({ member, relatedToMe = [], onSaved }: { member: Doc; relatedToMe?: RelatedToMe[]; onSaved: () => void }) {
   const locked: string[] = member.lockedFields ?? [];
-  const isLocked = (k: string) => locked.some((l) => l === k || k.startsWith(`${l}.`));
+  const isLocked = (k: string) =>
+    locked.some((l) => l === k || k.startsWith(`${l}.`)) ||
+    (k === "emergencyContacts" && locked.some((l) => l.startsWith("contact.emergencyContact")));
 
   const [salutation, setSalutation] = useState("");
   const [displayName, setDisplayName] = useState("");
@@ -111,7 +113,11 @@ export default function MoreDetailsForm({ member, relatedToMe = [], onSaved }: {
     setDisplayName(member.personalInfo?.displayName ?? "");
     setGender(member.personalInfo?.gender ?? "");
     setEmail(member.contact?.primaryEmail ?? member.contact?.email ?? "");
-    const list: Doc[] = Array.isArray(member.emergencyContacts) ? member.emergencyContacts : [];
+    // One list: the new multi-contact list, or the legacy single contact promoted to priority 1.
+    const legacy = member.contact?.emergencyContact;
+    const list: Doc[] = Array.isArray(member.emergencyContacts) && member.emergencyContacts.length
+      ? [...member.emergencyContacts].sort((a: Doc, b: Doc) => (a.priority ?? 99) - (b.priority ?? 99))
+      : legacy?.name ? [{ name: legacy.name, relationship: legacy.relationship, phone: legacy.phone, email: legacy.email }] : [];
     setContacts(list.map((c) => ({ contactId: c.contactId, memberId: c.memberId, name: c.name ?? "", relationship: c.relationship ?? "", phone: c.phone ?? "", mobile: c.mobile ?? "", email: c.email ?? "" })));
     const mc = member.healthcare?.medicare ?? {};
     setMcNumber(mc.number ?? ""); setMcPos(mc.position ?? ""); setMcMonth(mc.expiryMonth ?? ""); setMcYear(mc.expiryYear ?? "");
@@ -123,9 +129,17 @@ export default function MoreDetailsForm({ member, relatedToMe = [], onSaved }: {
     setRelated((Array.isArray(member.personalInfo?.relatedMembers) ? member.personalInfo.relatedMembers : []).map((r: Doc) => ({ id: r.id, memberId: r.memberId, name: r.name ?? "", relationshipType: r.relationshipType ?? "" })));
   }, [member]);
 
+  const move = (i: number, d: -1 | 1) => setContacts((cs) => {
+    const j = i + d;
+    if (j < 0 || j >= cs.length) return cs;
+    const next = [...cs];
+    [next[i], next[j]] = [next[j], next[i]];
+    return next;
+  });
   const setContact = (i: number, patch: Partial<Contact>) => setContacts((cs) => cs.map((c, j) => (j === i ? { ...c, ...patch } : c)));
   const bcSet = (k: string, v: string) => setBc((b) => ({ ...b, [k]: v }));
   const status = blueCardStatus(bc);
+  const releases: Doc[] = (Array.isArray(member.sharing?.releases) ? member.sharing.releases : []).filter((r: Doc) => Number(r.seasonYear) >= new Date().getFullYear());
 
   async function save() {
     setSaving(true);
@@ -170,7 +184,7 @@ export default function MoreDetailsForm({ member, relatedToMe = [], onSaved }: {
 
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="px-5 py-4 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
-          <div><h2 className="text-sm font-black uppercase tracking-wide text-slate-700">Emergency contacts</h2><p className="text-[11px] font-medium text-slate-400 normal-case tracking-normal">People we call in an emergency. They don&apos;t have to be related to you (see Related people below).</p></div>
+          <div><h2 className="text-sm font-black uppercase tracking-wide text-slate-700">Emergency Contacts</h2><p className="text-[11px] font-medium text-slate-400 normal-case tracking-normal">People we call in an emergency, in priority order — contact 1 is called first. They don&apos;t have to be related to you (see Related people below).</p></div>
           <button type="button" disabled={isLocked("emergencyContacts") || contacts.length >= 5}
             onClick={() => setContacts((c) => [...c, blankContact()])}
             className="inline-flex items-center gap-1 text-xs font-bold text-teal-700 hover:underline disabled:opacity-40">
@@ -182,7 +196,7 @@ export default function MoreDetailsForm({ member, relatedToMe = [], onSaved }: {
           {contacts.map((c, i) => (
             <div key={c.contactId ?? i} className="grid grid-cols-1 sm:grid-cols-2 gap-3 border border-slate-100 rounded-xl p-4">
               <div>
-                <label className={labelCls}>{`Contact ${i + 1} name`}</label>
+                <label className={labelCls}>{`Priority ${i + 1}${i === 0 ? " (called first)" : ""} — name`}</label>
                 <MemberNameSearch name={c.name} linkedMemberId={c.memberId} disabled={isLocked("emergencyContacts")}
                   onTyped={(v) => setContact(i, { name: v })}
                   onUnlink={() => setContact(i, { memberId: undefined })}
@@ -199,10 +213,20 @@ export default function MoreDetailsForm({ member, relatedToMe = [], onSaved }: {
               <Field label="Phone" value={c.phone} onChange={(v) => setContact(i, { phone: v })} disabled={isLocked("emergencyContacts")} />
               <Field label="Mobile" value={c.mobile} onChange={(v) => setContact(i, { mobile: v })} disabled={isLocked("emergencyContacts")} />
               <Field label="Email" type="email" span2 value={c.email} onChange={(v) => setContact(i, { email: v })} disabled={isLocked("emergencyContacts")} />
-              <button type="button" disabled={isLocked("emergencyContacts")} onClick={() => setContacts((cs) => cs.filter((_, j) => j !== i))}
-                className="sm:col-span-2 justify-self-start inline-flex items-center gap-1 text-xs font-bold text-red-600 hover:underline">
-                <Trash2 className="h-3.5 w-3.5" /> Remove
-              </button>
+              <div className="sm:col-span-2 flex items-center gap-4">
+                <button type="button" disabled={isLocked("emergencyContacts")} onClick={() => setContacts((cs) => cs.filter((_, j) => j !== i))}
+                  className="inline-flex items-center gap-1 text-xs font-bold text-red-600 hover:underline">
+                  <Trash2 className="h-3.5 w-3.5" /> Remove
+                </button>
+                <button type="button" disabled={isLocked("emergencyContacts") || i === 0} onClick={() => move(i, -1)}
+                  className="inline-flex items-center gap-1 text-xs font-bold text-slate-600 hover:underline disabled:opacity-30">
+                  <ArrowUp className="h-3.5 w-3.5" /> Higher priority
+                </button>
+                <button type="button" disabled={isLocked("emergencyContacts") || i === contacts.length - 1} onClick={() => move(i, 1)}
+                  className="inline-flex items-center gap-1 text-xs font-bold text-slate-600 hover:underline disabled:opacity-30">
+                  <ArrowDown className="h-3.5 w-3.5" /> Lower priority
+                </button>
+              </div>
             </div>
           ))}
         </div>
@@ -257,6 +281,23 @@ export default function MoreDetailsForm({ member, relatedToMe = [], onSaved }: {
             </span>
           </span>
         </label>
+        <div className="px-5 pb-5 -mt-1">
+          <p className="text-xs font-black uppercase tracking-wide text-slate-400 mb-1">Medical, healthcare, blue card &amp; emergency contacts</p>
+          <p className="text-xs font-medium text-slate-500 mb-2">
+            These are private to you. They&apos;re only released to the people who run a team when you&apos;re accepted into it, and only for that season.
+          </p>
+          {releases.length === 0 ? (
+            <p className="text-xs font-semibold text-slate-400">Not currently shared with anyone.</p>
+          ) : (
+            <ul className="space-y-1">
+              {releases.map((r: Doc) => (
+                <li key={r.releaseId} className="text-xs font-semibold text-slate-700">
+                  {r.label || r.purpose} <span className="text-slate-400 font-medium">· {r.seasonYear} · {r.audience === "club" ? "club team staff" : "representative selectors"}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       </div>
 
       <button type="button" onClick={() => void save()} disabled={saving}

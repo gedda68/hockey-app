@@ -1,7 +1,8 @@
 // app/api/admin/members/[id]/route.ts
 // Members API - Get, Update, Delete individual member
 
-import { redactPrivateContact, preservePrivateFields } from "@/lib/members/privacy";
+import { preservePrivateFields } from "@/lib/members/privacy";
+import { protectMember, preserveSensitiveFields } from "@/lib/members/sharing";
 import { NextRequest, NextResponse } from "next/server";
 import { applyBlueCardUpdate, canVerifyBlueCard, memberClubId } from "@/lib/members/blueCardWorkflow";
 import { notifyBlueCardVerifier } from "@/lib/notifications/blueCardVerification";
@@ -131,7 +132,7 @@ export async function GET(
 
     const viewer = await getSession();
     return NextResponse.json({
-      member: redactPrivateContact(member, [viewer?.memberId]),
+      member: protectMember(member, viewer),
       playerStats,
       teamHistory,
       related: {
@@ -182,7 +183,7 @@ export async function PUT(
 
     // While a member's contact details are private, only they may change them (or the privacy setting).
     const isOwner = !!session?.memberId && (session.memberId === String(existing._id) || session.memberId === existing.memberId);
-    const guarded = preservePrivateFields(existing, updateData, isOwner);
+    const guarded = preserveSensitiveFields(existing, preservePrivateFields(existing, updateData, isOwner), session);
     for (const k of Object.keys(updateData)) delete (updateData as Record<string, unknown>)[k];
     Object.assign(updateData, guarded);
 
@@ -253,7 +254,7 @@ export async function PUT(
 
     return NextResponse.json({
       success: true,
-      member: updatedMember ? redactPrivateContact(updatedMember, [session?.memberId]) : updatedMember,
+      member: updatedMember ? protectMember(updatedMember, session) : updatedMember,
     });
   } catch (error: unknown) {
     logAdminError("admin.member.update.error", traceId, error);

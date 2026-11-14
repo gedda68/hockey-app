@@ -1,6 +1,7 @@
 // app/api/admin/teams/rosters/[rosterId]/teams/[teamIndex]/players/route.ts
 // Add player to a team roster + record selection history on the member.
 
+import { grantRelease } from "@/lib/members/sharing";
 import { NextRequest, NextResponse } from "next/server";
 import { ObjectId } from "mongodb";
 import clientPromise from "@/lib/mongodb";
@@ -217,6 +218,19 @@ export async function POST(
         $set:  { updatedAt: new Date().toISOString() },
       },
     );
+
+    // Being placed in a team releases medical / emergency / blue card details to that club's team staff
+    // for the season (and is shown to the member on My Details).
+    if (roster.clubId != null) {
+      await grantRelease(db, String(member.memberId), {
+        purpose: "team-acceptance",
+        audience: "club",
+        scopeId: String(roster.clubId),
+        label: `${(roster as { clubName?: string }).clubName ?? "Club"} — ${roster.teams[teamIndex].name}`,
+        seasonYear: parseInt(String(roster.season ?? new Date().getFullYear()), 10) || new Date().getFullYear(),
+        source: rosterId,
+      }).catch((e) => console.error("grantRelease failed", e));
+    }
 
     const contact = (member as { contact?: { email?: string } }).contact;
     const to = contact?.email?.trim();

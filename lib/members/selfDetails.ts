@@ -73,7 +73,12 @@ export function sanitizeSelfDetails(body: Doc, existing: Doc): SelfDetailsResult
       });
     });
     $set.emergencyContacts = list;
-    touched.push("emergencyContacts");
+    // Keep the legacy single "emergency contact" in step with priority 1 (older screens and imports read it).
+    const first = list[0];
+    $set["contact.emergencyContact"] = first
+      ? { name: first.name, relationship: first.relationship, phone: first.phone || first.mobile, email: first.email || null }
+      : { name: "", relationship: "", phone: "", email: null };
+    touched.push("emergencyContacts", "contact.emergencyContact");
   }
 
   if (Array.isArray(body.relatedMembers)) {
