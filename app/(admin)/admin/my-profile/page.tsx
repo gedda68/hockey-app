@@ -19,6 +19,8 @@ import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { toast } from "sonner";
 import MoreDetailsForm from "@/components/member/MoreDetailsForm";
+import TypeaheadSelect from "@/components/ui/TypeaheadSelect";
+import { resolveSelection, type PickOption } from "@/lib/members/profileOptions";
 import ProfilePhotoControls from "@/components/member/ProfilePhotoControls";
 import ChangePasswordCard from "@/components/member/ChangePasswordCard";
 import {
@@ -211,6 +213,7 @@ export default function MyProfilePage() {
   const { user } = useAuth();
 
   const [member,       setMember]       = useState<MemberProfile | null>(null);
+  const [relOptions,   setRelOptions]   = useState<PickOption[]>([]);
   const [clubName,     setClubName]     = useState<string | null>(null);
   const [assocName,    setAssocName]    = useState<string | null>(null);
   const [recentChanges,setRecentChanges]= useState<ChangeLogEntry[]>([]);
@@ -279,6 +282,13 @@ export default function MyProfilePage() {
   useEffect(() => {
     void loadProfile();
   }, [loadProfile]);
+
+  useEffect(() => {
+    fetch("/api/member/profile-options", { credentials: "include" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => d?.relationships && setRelOptions(d.relationships))
+      .catch(() => {});
+  }, []);
 
   // ── Dirty detection ───────────────────────────────────────────────────────
   const dirty = member !== null && (
@@ -621,15 +631,22 @@ export default function MyProfilePage() {
               <FieldLabel htmlFor="mp-ec-rel" locked={lk("contact.emergencyContact.relationship")}>
                 Relationship
               </FieldLabel>
-              <FieldInput
-                id="mp-ec-rel"
-                value={ecRel}
-                onChange={setEcRel}
-                locked={lk("contact.emergencyContact.relationship")}
-                placeholder="e.g. Spouse, Parent"
-                autoComplete="off"
-                maxLength={80}
-              />
+{lk("contact.emergencyContact.relationship") ? (
+                <FieldInput id="mp-ec-rel" value={resolveSelection(relOptions, ecRel).options.find((o) => o.value === resolveSelection(relOptions, ecRel).value)?.label ?? ecRel} onChange={() => {}} locked />
+              ) : (
+                (() => {
+                  const r = resolveSelection(relOptions, ecRel);
+                  return (
+                    <TypeaheadSelect
+                      options={r.options}
+                      value={r.value}
+                      onChange={setEcRel}
+                      placeholder="Type to search…"
+                      className="w-full rounded-xl border-2 border-slate-200 bg-white px-3 py-2 pr-9 text-sm font-semibold text-slate-800 outline-none focus:border-teal-400"
+                    />
+                  );
+                })()
+              )}
             </div>
             <div>
               <FieldLabel htmlFor="mp-ec-phone" locked={lk("contact.emergencyContact.phone")}>

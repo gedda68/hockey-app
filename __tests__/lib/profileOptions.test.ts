@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { mergeOptions, resolveSelection, namesToOptions } from "@/lib/members/profileOptions";
+import { mergeOptions, resolveSelection, namesToOptions, DEFAULT_SALUTATION_ROWS } from "@/lib/members/profileOptions";
 
 describe("profileOptions", () => {
   it("uses configured rows (id value, name label), de-duplicated by name", () => {
@@ -18,5 +18,16 @@ describe("profileOptions", () => {
     const r = resolveSelection(opts, "Agender");
     expect(r.value).toBe("Agender");
     expect(r.options[0].label).toBe("Agender");
+  });
+  it("resolves by alias (mongo _id) and shows a readable name for unknown prefixed ids", () => {
+    const opts = [{ value: "reltype-mother-child", label: "Mother", aliases: ["6aef8f436b2c0d41708115f5"] }];
+    expect(resolveSelection(opts, "6aef8f436b2c0d41708115f5").value).toBe("reltype-mother-child");
+    expect(resolveSelection([], "sal-mr").options[0].label).toBe("Mr");
+    expect(resolveSelection([], "gender-non-binary").options[0].label).toBe("Non Binary");
+  });
+  it("defaults carry historic ids so sal-mr resolves to Mr", () => {
+    const o = mergeOptions(DEFAULT_SALUTATION_ROWS, []);
+    const r = resolveSelection(o, "sal-mr");
+    expect(r.options.find((x) => x.value === r.value)?.label).toBe("Mr");
   });
 });
