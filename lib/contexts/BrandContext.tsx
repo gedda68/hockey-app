@@ -133,8 +133,17 @@ export function BrandProvider({ children }: { children: ReactNode }) {
         setIsLoading(false);
         return;
       }
+      // Admin endpoint first; plain members aren't allowed there, so fall back to the public club record.
       fetch(`/api/admin/clubs/${ref}`)
-        .then((r) => r.json())
+        .then(async (r) => {
+          if (r.ok) {
+            const d = await r.json().catch(() => null);
+            if (d?.club) return d;
+          }
+          const pub = await fetch(`/api/clubs/${ref}`);
+          if (!pub.ok) return {};
+          return { club: await pub.json().catch(() => null) };
+        })
         .then((data) => {
           const club = data.club;
           if (club) {
