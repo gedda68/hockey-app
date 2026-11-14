@@ -55,14 +55,15 @@ export function getRoleDashboard(
     case "volunteer":
       return clubId ? `/admin/clubs/${clubId}/edit` : "/admin/clubs";
 
-    // ── Portal (no admin access) ─────────────────────────────────────────────
+    // ── Portal (no admin area): their own registration, fees and details ─────
     case "player":
     case "member":
     case "parent":
-      return "/nominate";
+      return "/admin/my-registration";
 
+    // Unrecognised roles (e.g. imported staff) get the self-service page, not an admin dashboard.
     default:
-      return "/admin/dashboard";
+      return "/admin/my-registration";
   }
 }
 
