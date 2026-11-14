@@ -18,6 +18,7 @@
     "dedupe:members": "tsx scripts/dedupe-members.ts",
     "normalize:members": "tsx scripts/normalize-members.ts",
     "possible:duplicates": "tsx scripts/possible-duplicates.ts",
+    "move:team": "tsx scripts/move-team.ts",
     "seed:public-demo": "tsx scripts/seed-public-demo.ts",
     "seed:tiered-demo": "tsx scripts/seed-tiered-demo-accounts.ts",
     "create:club-user": "tsx scripts/create-club-user.ts",
