@@ -44,8 +44,8 @@ export async function GET(
 
     // Related records so the profile can show everything stored about this member.
     const [clubRegs, assocRegs] = await Promise.all([
-      db.collection("clubRegistrations").find({ memberId: id }).sort({ seasonYear: -1 }).limit(50).toArray(),
-      db.collection("associationRegistrations").find({ memberId: id }).sort({ seasonYear: -1 }).limit(50).toArray(),
+      db.collection("club-registrations").find({ memberId: id }).sort({ seasonYear: -1 }).limit(50).toArray(),
+      db.collection("association-registrations").find({ memberId: id }).sort({ seasonYear: -1 }).limit(50).toArray(),
     ]);
     const clubIds = [
       ...new Set([

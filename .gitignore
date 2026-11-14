@@ -19,6 +19,7 @@
 !/scripts/normalize-members.ts
 !/scripts/possible-duplicates.ts
 !/scripts/move-team.ts
+!/scripts/backfill-registrations.ts
 
 # scraped data with personal information (players incl. juniors) — keep local
 /data/altius/
