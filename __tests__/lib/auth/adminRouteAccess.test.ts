@@ -244,3 +244,15 @@ describe("evaluateAdminRouteAccess", () => {
     ).toBe("allow");
   });
 });
+
+describe("self-service pages", () => {
+  const pages = ["/admin/my-profile", "/admin/profile", "/admin/my-registration", "/admin/my-registrations", "/admin/my-fees"];
+  it.each(["player", "member", "parent", "club-admin", "some-imported-staff-role", "staff"])("%s can open their own pages", (role) => {
+    for (const p of pages) expect(evaluateAdminRouteAccess(p, session({ role }))).toBe("allow");
+  });
+  it("unrecognised roles still cannot open admin areas", () => {
+    expect(evaluateAdminRouteAccess("/admin/dashboard", session({ role: "staff" }))).toBe("deny");
+    expect(evaluateAdminRouteAccess("/admin/members", session({ role: "member" }))).toBe("deny");
+    expect(evaluateAdminRouteAccess("/admin/users", session({ role: "member" }))).toBe("deny");
+  });
+});

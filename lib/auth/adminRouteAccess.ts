@@ -152,6 +152,16 @@ const ANY_ADMIN = [
 
 const PORTAL_ROLES = ["player", "member", "parent", ...ANY_ADMIN];
 
+/**
+ * Self-service pages: every signed-in person, whatever their role (including imported/unrecognised
+ * roles), can view and edit their OWN details, registration and fees. The APIs behind them are scoped to
+ * the signed-in member's own record.
+ */
+export const SELF_SERVICE = ["*"];
+/** Where people without an admin area land: their own registration page. */
+export const SELF_SERVICE_LANDING = "/admin/my-registration";
+export const isAdminRole = (role: string) => ANY_ADMIN.includes(role);
+
 interface RouteRule {
   pattern: RegExp;
   allowedRoles: string[];
@@ -164,7 +174,8 @@ const ROUTE_RULES: RouteRule[] = [
   { pattern: /^\/admin\/config(\/|$)/, allowedRoles: SUPER_ADMIN },
 
   { pattern: /^\/admin\/dashboard(\/|$)/, allowedRoles: ANY_ADMIN },
-  { pattern: /^\/admin\/profile(\/|$)/, allowedRoles: PORTAL_ROLES },
+  { pattern: /^\/admin\/profile(\/|$)/, allowedRoles: SELF_SERVICE },
+  { pattern: /^\/admin\/my-profile(\/|$)/, allowedRoles: SELF_SERVICE },
   { pattern: /^\/admin\/reports(\/|$)/, allowedRoles: ANY_ADMIN },
 
   { pattern: /^\/admin\/settings(\/|$)/, allowedRoles: SETTINGS_ROLES, scopeCheck: true },
@@ -233,11 +244,11 @@ const ROUTE_RULES: RouteRule[] = [
     ],
   },
 
-  { pattern: /^\/admin\/my-registrations(\/|$)/, allowedRoles: PORTAL_ROLES },
-  { pattern: /^\/admin\/my-registration(\/|$)/, allowedRoles: PORTAL_ROLES },
+  { pattern: /^\/admin\/my-registrations(\/|$)/, allowedRoles: SELF_SERVICE },
+  { pattern: /^\/admin\/my-registration(\/|$)/, allowedRoles: SELF_SERVICE },
   // Limited member view for club/association admins — the API enforces scope per member.
   { pattern: /^\/admin\/registrations(\/|$)/, allowedRoles: ["super-admin", "association-admin", "assoc-committee", "assoc-registrar", "club-admin", "club-committee", "registrar"] },
-  { pattern: /^\/admin\/my-fees(\/|$)/, allowedRoles: PORTAL_ROLES },
+  { pattern: /^\/admin\/my-fees(\/|$)/, allowedRoles: SELF_SERVICE },
 
   {
     pattern: /^\/admin\/role-requests(\/|$)/,
@@ -338,7 +349,7 @@ export function evaluateAdminRouteAccess(
   for (const rule of ROUTE_RULES) {
     if (!rule.pattern.test(pathname)) continue;
 
-    const primaryAllowed = rule.allowedRoles.includes(role);
+    const primaryAllowed = rule.allowedRoles.includes("*") || rule.allowedRoles.includes(role);
     const scopedAllowed = hasAccessViaScopedRoles(
       rule.allowedRoles,
       pathname,

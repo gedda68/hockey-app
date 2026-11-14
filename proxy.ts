@@ -5,7 +5,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { jwtVerify } from "jose";
-import { evaluateAdminRouteAccess } from "@/lib/auth/adminRouteAccess";
+import { evaluateAdminRouteAccess, isAdminRole, SELF_SERVICE_LANDING } from "@/lib/auth/adminRouteAccess";
 import { ssoAutoRedirectFromMiddleware } from "@/lib/auth/oidc/config";
 import { tenantHostRedirectUrl } from "@/lib/tenant/middlewareTenantRedirect";
 import { tryApexToTenantPublicRedirect } from "@/lib/tenant/publicApexTenantRedirect";
@@ -223,6 +223,14 @@ export async function proxy(request: NextRequest) {
   });
 
   if (decision === "deny") {
+    // People without an admin area (members, players, imported staff roles) who land on /admin or the
+    // admin dashboard go to their own registration page instead of an "Access denied" screen.
+    if (
+      /^\/admin\/?$/.test(path) ||
+      (/^\/admin\/dashboard\/?$/.test(path) && !isAdminRole(session.role || "public"))
+    ) {
+      return NextResponse.redirect(new URL(SELF_SERVICE_LANDING, request.url));
+    }
     if (path.startsWith("/api/")) {
       logPublicTelemetry("access.deny", {
         ...telemetryFromRequestLike({ hostHeader, pathname: path }),
