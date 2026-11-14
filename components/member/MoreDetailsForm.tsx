@@ -7,6 +7,8 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Loader2, Save, Plus, Trash2, Lock } from "lucide-react";
+import TypeaheadSelect from "@/components/ui/TypeaheadSelect";
+import { withCurrent } from "@/lib/members/profileOptions";
 import { CARD_TYPES, CARD_CATEGORIES, CARD_STATUSES, ISSUING_STATES, blueCardStatus } from "@/lib/members/blueCard";
 
 type Doc = Record<string, any>;
@@ -54,6 +56,23 @@ function Select({ label, value, onChange, options, disabled }: { label: string; 
   );
 }
 
+function TypeaheadField({ label, value, onChange, options, disabled, placeholder, span2 = false }: {
+  label: string; value: string; onChange: (v: string) => void; options: string[]; disabled?: boolean; placeholder?: string; span2?: boolean;
+}) {
+  const opts = withCurrent(options, value).map((o) => ({ value: o, label: o }));
+  return (
+    <div className={span2 ? "sm:col-span-2" : ""}>
+      <label className={labelCls}>{label}</label>
+      {disabled ? (
+        <input className={inputCls} value={value} disabled readOnly />
+      ) : (
+        <TypeaheadSelect options={opts} value={value} onChange={onChange} placeholder={placeholder ?? "Type to search…"}
+          className="w-full rounded-xl border-2 border-slate-200 bg-white px-3 py-2 pr-9 text-sm font-semibold text-slate-800 outline-none focus:border-teal-400" />
+      )}
+    </div>
+  );
+}
+
 const blankContact = (): Contact => ({ name: "", relationship: "", phone: "", mobile: "", email: "" });
 
 export default function MoreDetailsForm({ member, onSaved }: { member: Doc; onSaved: () => void }) {
@@ -71,6 +90,16 @@ export default function MoreDetailsForm({ member, onSaved }: { member: Doc; onSa
   const [conditions, setConditions] = useState(""); const [medications, setMedications] = useState(""); const [allergies, setAllergies] = useState("");
   const [bc, setBc] = useState<Doc>({});
   const [saving, setSaving] = useState(false);
+  const [opts, setOpts] = useState<{ salutations: string[]; genders: string[]; relationships: string[] }>({
+    salutations: [], genders: [], relationships: [],
+  });
+
+  useEffect(() => {
+    fetch("/api/member/profile-options", { credentials: "include" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => d && setOpts(d))
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     setSalutation(member.personalInfo?.salutation ?? "");
@@ -124,9 +153,9 @@ export default function MoreDetailsForm({ member, onSaved }: { member: Doc; onSa
   return (
     <div className="space-y-5">
       <Card title="About you" locked={isLocked("personalInfo.salutation")}>
-        <Field label="Title" value={salutation} onChange={setSalutation} disabled={isLocked("personalInfo.salutation")} placeholder="Mr / Ms / Mx / Dr" />
+        <TypeaheadField label="Title" value={salutation} onChange={setSalutation} options={opts.salutations} disabled={isLocked("personalInfo.salutation")} />
         <Field label="Preferred name" value={displayName} onChange={setDisplayName} disabled={isLocked("personalInfo.displayName")} />
-        <Field label="Gender" value={gender} onChange={setGender} disabled={isLocked("personalInfo.gender")} />
+        <TypeaheadField label="Gender" value={gender} onChange={setGender} options={opts.genders} disabled={isLocked("personalInfo.gender")} />
         <Field label="Email address" type="email" value={email} onChange={setEmail} disabled={isLocked("contact.primaryEmail")} />
       </Card>
 
@@ -144,7 +173,7 @@ export default function MoreDetailsForm({ member, onSaved }: { member: Doc; onSa
           {contacts.map((c, i) => (
             <div key={c.contactId ?? i} className="grid grid-cols-1 sm:grid-cols-2 gap-3 border border-slate-100 rounded-xl p-4">
               <Field label={`Contact ${i + 1} name`} value={c.name} onChange={(v) => setContact(i, { name: v })} disabled={isLocked("emergencyContacts")} />
-              <Field label="Relationship" value={c.relationship} onChange={(v) => setContact(i, { relationship: v })} disabled={isLocked("emergencyContacts")} placeholder="Mother, partner, guardian…" />
+              <TypeaheadField label="Relationship" value={c.relationship} onChange={(v) => setContact(i, { relationship: v })} options={opts.relationships} disabled={isLocked("emergencyContacts")} />
               <Field label="Phone" value={c.phone} onChange={(v) => setContact(i, { phone: v })} disabled={isLocked("emergencyContacts")} />
               <Field label="Mobile" value={c.mobile} onChange={(v) => setContact(i, { mobile: v })} disabled={isLocked("emergencyContacts")} />
               <Field label="Email" type="email" span2 value={c.email} onChange={(v) => setContact(i, { email: v })} disabled={isLocked("emergencyContacts")} />
