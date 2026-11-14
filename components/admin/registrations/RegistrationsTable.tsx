@@ -60,7 +60,7 @@ export default function RegistrationsTable({
       setRows(data.registrations);
       setTotal(data.total);
       setPageSize(data.pageSize);
-      setSeasons(data.seasons);
+      setSeasons([...new Set<number>((data.seasons as unknown[]).map(Number))]);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load");
     } finally {

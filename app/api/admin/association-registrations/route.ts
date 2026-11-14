@@ -30,7 +30,8 @@ export async function GET(request: NextRequest) {
 
   const filter: Record<string, unknown> = {};
   if (clubId) filter.associationId = clubId;
-  if (Number.isFinite(season)) filter.seasonYear = season;
+  // seasonYear may be stored as a number or a string depending on the source.
+  if (Number.isFinite(season)) filter.seasonYear = { $in: [season, String(season)] };
   if (status) filter.status = status;
 
   try {
@@ -85,7 +86,7 @@ export async function GET(request: NextRequest) {
       total,
       page,
       pageSize: PAGE,
-      seasons: (seasons as number[]).sort((a, b) => b - a),
+      seasons: [...new Set((seasons as (number | string)[]).map(Number).filter(Number.isFinite))].sort((a, b) => b - a),
       registrations: rows.map(({ _id, ...r }) => ({
         ...r,
         memberName: names.get(String(r.memberId)) || "",
