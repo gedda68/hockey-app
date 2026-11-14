@@ -30,10 +30,13 @@ export default function RegistrationsTable({
   title,
   subtitle,
   endpoint,
+  hideRoles = false,
 }: {
   title: string;
   subtitle: string;
   endpoint: string;
+  /** Associations do not hold player roles, so their list omits the roles column. */
+  hideRoles?: boolean;
 }) {
   const [rows, setRows] = useState<Reg[]>([]);
   const [seasons, setSeasons] = useState<number[]>([]);
@@ -113,7 +116,7 @@ export default function RegistrationsTable({
             <tr>
               <th className="px-4 py-3">Member</th>
               <th className="px-4 py-3">Season</th>
-              <th className="px-4 py-3">Roles</th>
+              {!hideRoles && <th className="px-4 py-3">Roles</th>}
               <th className="px-4 py-3">Registration type</th>
               <th className="px-4 py-3 text-right">Cost</th>
               <th className="px-4 py-3">Status</th>
@@ -122,9 +125,9 @@ export default function RegistrationsTable({
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={7} className="px-4 py-10 text-center text-slate-400">Loading…</td></tr>
+              <tr><td colSpan={hideRoles ? 6 : 7} className="px-4 py-10 text-center text-slate-400">Loading…</td></tr>
             ) : rows.length === 0 ? (
-              <tr><td colSpan={7} className="px-4 py-10 text-center text-slate-400">No registrations found</td></tr>
+              <tr><td colSpan={hideRoles ? 6 : 7} className="px-4 py-10 text-center text-slate-400">No registrations found</td></tr>
             ) : (
               rows.map((r) => (
                 <tr key={r.registrationId} className="border-t border-slate-100">
@@ -135,7 +138,7 @@ export default function RegistrationsTable({
                     <div className="text-xs text-slate-400">{r.memberId}</div>
                   </td>
                   <td className="px-4 py-3 font-bold">{r.seasonYear}</td>
-                  <td className="px-4 py-3">{(r.roleIds ?? []).map(pretty).join(", ") || "—"}</td>
+                  {!hideRoles && <td className="px-4 py-3">{(r.roleIds ?? []).map(pretty).join(", ") || "—"}</td>}
                   <td className="px-4 py-3">{r.registrationCategory ? pretty(r.registrationCategory) : r.membershipType ? pretty(r.membershipType) : "—"}</td>
                   <td className="px-4 py-3 text-right font-bold" title={(r.fees ?? []).map((f) => `${f.name}: $${f.amount}`).join("\n")}>{money(r.totalFee)}</td>
                   <td className="px-4 py-3">

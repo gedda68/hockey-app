@@ -20,7 +20,10 @@ function Card({ title, children, color }: { title: string; children: React.React
 const Empty = ({ text }: { text: string }) => <p className="text-sm text-slate-400">{text}</p>;
 
 export default function MemberRegistrationView({ memberId }: { memberId?: string }) {
-  const [data, setData] = useState<{ view: "self" | "admin"; summary: RegistrationSummary } | null>(null);
+  const [data, setData] = useState<{ view: "self" | "admin"; summary: RegistrationSummary; editable?: string[] } | null>(null);
+  const [tick, setTick] = useState(0);
+  const [busy, setBusy] = useState(false);
+  const [note, setNote] = useState("");
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -32,7 +35,19 @@ export default function MemberRegistrationView({ memberId }: { memberId?: string
         setData(j);
       })
       .catch((e) => setError(e instanceof Error ? e.message : "Failed to load"));
-  }, [memberId]);
+  }, [memberId, tick]);
+
+  async function changeFee(body: Record<string, unknown>) {
+    setBusy(true); setNote("");
+    try {
+      const res = await fetch(`/api/admin/registrations/${encodeURIComponent(data!.summary.member.memberId)}/fees`, {
+        method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+      });
+      const j = await res.json();
+      if (!res.ok) throw new Error(j.error || "Failed");
+      setTick((t) => t + 1);
+    } catch (e) { setNote(e instanceof Error ? e.message : "Failed"); } finally { setBusy(false); }
+  }
 
   if (error) return <p className="p-8 font-bold text-red-600">{error}</p>;
   if (!data) return <p className="p-8 text-slate-400">Loading…</p>;
@@ -67,6 +82,7 @@ export default function MemberRegistrationView({ memberId }: { memberId?: string
         ))}
       </div>
 
+      {note && <p className="font-bold text-red-600">{note}</p>}
       <Card title="Registrations & fees by season" color={primary}>
         {s.registrations.length === 0 ? <Empty text="No registrations yet." /> : (
           <div className="space-y-4">
@@ -93,6 +109,14 @@ export default function MemberRegistrationView({ memberId }: { memberId?: string
                       ))}
                     </tbody>
                   </table>
+                  <FeeLines
+                    season={Number(y)}
+                    regs={regs}
+                    editable={new Set(data.editable ?? [])}
+                    levels={s.levels}
+                    busy={busy}
+                    onChange={changeFee}
+                  />
                   {Object.keys(f.byLevel).length > 0 && (
                     <ul className="mt-1 text-xs text-slate-500">
                       {Object.entries(f.byLevel).map(([lvl, v]) => (
@@ -159,6 +183,69 @@ export default function MemberRegistrationView({ memberId }: { memberId?: string
           </table>
         )}
       </Card>
+    </div>
+  );
+}
+
+type Reg = RegistrationSummary["registrations"][number];
+
+/** Itemised fee lines for one season, with add / edit / remove for the levels the viewer administers. */
+function FeeLines({ season, regs, editable, levels, busy, onChange }: {
+  season: number; regs: Reg[]; editable: Set<string>; levels: RegistrationSummary["levels"]; busy: boolean;
+  onChange: (b: Record<string, unknown>) => Promise<void>;
+}) {
+  const [edit, setEdit] = useState<{ itemId: string; name: string; amount: string } | null>(null);
+  const [add, setAdd] = useState<{ level: string; name: string; amount: string } | null>(null);
+  const lines = new Map<string, Reg["fees"][number]>();
+  for (const r of regs) for (const f of r.fees) if (f.itemId) lines.set(f.itemId, f);
+  const levelOf = (f: Reg["fees"][number]) => (f.associationId ? { kind: "association", id: f.associationId } : { kind: "club", id: f.clubId ?? "" });
+  const mine = levels.filter((l) => editable.has(`${l.kind}:${l.id}`));
+  if (lines.size === 0 && mine.length === 0) return null;
+  const input = "rounded-lg border-2 border-slate-300 px-2 py-1 text-sm";
+
+  return (
+    <div className="mt-2 rounded-xl bg-slate-50 p-3 text-sm">
+      <div className="mb-1 text-xs font-black uppercase tracking-wider text-slate-400">Fee lines</div>
+      <ul className="space-y-1">
+        {[...lines.values()].map((f) => {
+          const lv = levelOf(f);
+          const can = editable.has(`${lv.kind}:${lv.id}`);
+          return (
+            <li key={f.itemId} className="flex flex-wrap items-center justify-between gap-2">
+              {edit?.itemId === f.itemId ? (
+                <span className="flex flex-wrap items-center gap-2">
+                  <input className={input} value={edit.name} onChange={(e) => setEdit({ ...edit, name: e.target.value })} aria-label="Fee name" />
+                  <input className={`${input} w-24`} inputMode="decimal" value={edit.amount} onChange={(e) => setEdit({ ...edit, amount: e.target.value })} aria-label="Amount" />
+                  <button disabled={busy} className="font-bold text-green-700" onClick={async () => { await onChange({ season, action: "edit", levelKind: lv.kind, levelId: lv.id, itemId: f.itemId, name: edit.name, amount: Number(edit.amount) }); setEdit(null); }}>Save</button>
+                  <button className="text-slate-500" onClick={() => setEdit(null)}>Cancel</button>
+                </span>
+              ) : (
+                <>
+                  <span>{f.name}</span>
+                  <span className="flex items-center gap-3">
+                    <b>{$(f.amount)}</b>
+                    {can && <button className="text-blue-700 hover:underline" onClick={() => setEdit({ itemId: f.itemId, name: f.name, amount: String(f.amount) })}>Edit</button>}
+                    {can && <button disabled={busy} className="text-red-600 hover:underline" onClick={() => { if (confirm(`Remove "${f.name}"?`)) void onChange({ season, action: "remove", levelKind: lv.kind, levelId: lv.id, itemId: f.itemId }); }}>Remove</button>}
+                  </span>
+                </>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+      {mine.length > 0 && (add ? (
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          <select className={input} value={add.level} onChange={(e) => setAdd({ ...add, level: e.target.value })} aria-label="Level">
+            {mine.map((l) => <option key={`${l.kind}:${l.id}`} value={`${l.kind}:${l.id}`}>{l.name}</option>)}
+          </select>
+          <input className={input} placeholder="Fee name" value={add.name} onChange={(e) => setAdd({ ...add, name: e.target.value })} />
+          <input className={`${input} w-24`} placeholder="Amount" inputMode="decimal" value={add.amount} onChange={(e) => setAdd({ ...add, amount: e.target.value })} />
+          <button disabled={busy} className="font-bold text-green-700" onClick={async () => { const [k, ...id] = add.level.split(":"); await onChange({ season, action: "add", levelKind: k, levelId: id.join(":"), name: add.name, amount: Number(add.amount) }); setAdd(null); }}>Add</button>
+          <button className="text-slate-500" onClick={() => setAdd(null)}>Cancel</button>
+        </div>
+      ) : (
+        <button className="mt-2 font-bold text-blue-700 hover:underline" onClick={() => setAdd({ level: `${mine[0].kind}:${mine[0].id}`, name: "", amount: "" })}>+ Add fee</button>
+      ))}
     </div>
   );
 }

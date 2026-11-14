@@ -24,7 +24,7 @@ export interface RegistrationSummary {
   levels: LevelInfo[];
   registrations: {
     season: number; level: string; levelKind: "club" | "association"; levelId: string;
-    category: string; status: string; roles: string[]; fee: number; fees: { name: string; amount: number }[];
+    category: string; status: string; roles: string[]; fee: number; fees: { itemId: string; name: string; amount: number; associationId?: string; clubId?: string }[];
   }[];
   fees: { bySeason: Record<string, FeeSummary & { byLevel: Record<string, FeeSummary> }>; total: FeeSummary };
   teams: { season: string; team: string; division: string; club: string; status: "selected" | "shadow" | "withdrawn"; position?: string; number?: string }[];
@@ -121,9 +121,9 @@ export async function loadRegistrationSummary(db: Db, memberId: string): Promise
     levelId: String(kind === "club" ? r.clubId : r.associationId),
     category: String(r.registrationCategory ?? r.ageCategory ?? r.membershipType ?? ""),
     status: String(r.status ?? ""),
-    roles: (r.roleIds ?? []) as string[],
+    roles: kind === "association" ? [] : ((r.roleIds ?? []) as string[]),
     fee: money(r.totalFee),
-    fees: ((r.fees ?? []) as Doc[]).map((f) => ({ name: String(f.name ?? ""), amount: money(f.amount), associationId: f.associationId, clubId: f.clubId })),
+    fees: ((r.fees ?? []) as Doc[]).map((f) => ({ itemId: String(f.itemId ?? ""), name: String(f.name ?? ""), amount: money(f.amount), associationId: f.associationId, clubId: f.clubId })),
   });
   const registrations = [...clubRegs.map((r) => toReg(r, "club")), ...assocRegs.map((r) => toReg(r, "association"))]
     .sort((a, b) => b.season - a.season || (a.levelKind === "club" ? -1 : 1));

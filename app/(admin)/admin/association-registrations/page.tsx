@@ -8,6 +8,7 @@ export default function AssociationRegistrationsPage() {
       title="Association Registrations"
       subtitle="Every member registered with your association (including through its clubs), by season, with the fee for this level."
       endpoint="/api/admin/association-registrations"
+      hideRoles
     />
   );
 }

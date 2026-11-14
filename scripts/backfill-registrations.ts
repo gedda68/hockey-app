@@ -18,6 +18,7 @@
  */
 import "./load-env";
 import { MongoClient } from "mongodb";
+import { naturalKey } from "../lib/registrations/dedupe";
 import { buildRegistrations, memberClubId } from "../lib/members/registrationBackfill";
 import type { Level } from "../lib/registrations/pricing";
 
@@ -66,16 +67,22 @@ async function main() {
     total += r.club.totalFee;
   }
 
-  const lookup = async (col: string, docs: Doc[]) =>
-    new Map((await db.collection(col).find({ registrationId: { $in: docs.map((d) => d.registrationId) } }, { projection: { registrationId: 1, source: 1 } }).toArray()).map((x) => [x.registrationId, x.source]));
-  const haveClub = await lookup("club-registrations", club);
-  const haveAssoc = await lookup("association-registrations", assoc);
-  const plan = (docs: Doc[], have: Map<string, unknown>) => ({
-    insert: docs.filter((d) => !have.has(d.registrationId)),
-    refresh: docs.filter((d) => have.get(d.registrationId) === "backfill"),
-    keep: docs.filter((d) => have.has(d.registrationId) && have.get(d.registrationId) !== "backfill"),
+  // Match on member + club/association + season (not only registrationId) so a registration that already
+  // exists from another source is never duplicated.
+  const seasonKey = [season, String(season)];
+  const existing = async (col: string, kind: "club" | "association", docs: Doc[]) => {
+    const found = await db.collection(col).find({ memberId: { $in: [...new Set(docs.map((d) => d.memberId))] }, seasonYear: { $in: seasonKey } }, { projection: { registrationId: 1, source: 1, memberId: 1, clubId: 1, associationId: 1, seasonYear: 1 } }).toArray();
+    return new Map(found.map((x) => [naturalKey(x, kind), x]));
+  };
+  const haveClub = await existing("club-registrations", "club", club);
+  const haveAssoc = await existing("association-registrations", "association", assoc);
+  const plan = (docs: Doc[], have: Map<string, Doc>, kind: "club" | "association") => ({
+    insert: docs.filter((d) => !have.has(naturalKey(d, kind))),
+    // Refresh only ones this script made; keep the existing registrationId.
+    refresh: docs.filter((d) => have.get(naturalKey(d, kind))?.source === "backfill").map((d) => ({ ...d, registrationId: have.get(naturalKey(d, kind))!.registrationId })),
+    keep: docs.filter((d) => have.has(naturalKey(d, kind)) && have.get(naturalKey(d, kind))!.source !== "backfill"),
   });
-  const pc = plan(club, haveClub), pa = plan(assoc, haveAssoc);
+  const pc = plan(club, haveClub, "club"), pa = plan(assoc, haveAssoc, "association");
 
   console.log(`Season ${season}${onlyClub ? `, club ${onlyClub}` : ""}   Members read: ${members.length} (skipped, no club: ${skipped})`);
   console.log(`Categories: ${Object.entries(tally).map(([k, v]) => `${k} ${v}`).join(", ")}`);
@@ -88,7 +95,7 @@ async function main() {
   const write = async (col: string, p: ReturnType<typeof plan>) => {
     const ops = [
       ...p.insert.map((d) => ({ updateOne: { filter: { registrationId: d.registrationId }, update: { $setOnInsert: { ...d, createdAt: now, createdBy: "backfill-registrations", updatedAt: now } }, upsert: true } })),
-      ...p.refresh.map((d) => ({ updateOne: { filter: { registrationId: d.registrationId, source: "backfill" }, update: { $set: { ...d, updatedAt: now } } } })),
+      ...p.refresh.map((d) => ({ updateOne: { filter: { registrationId: d.registrationId, source: "backfill", feeChanges: { $exists: false } }, update: { $set: { ...d, updatedAt: now } } } })),
     ];
     for (let i = 0; i < ops.length; i += 500) await db.collection(col).bulkWrite(ops.slice(i, i + 500) as any, { ordered: false });
   };

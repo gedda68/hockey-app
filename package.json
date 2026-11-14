@@ -21,6 +21,7 @@
     "move:team": "tsx scripts/move-team.ts",
     "backfill:registrations": "tsx scripts/backfill-registrations.ts",
     "seed:fee-lists": "tsx scripts/seed-fee-lists.ts",
+    "dedupe:registrations": "tsx scripts/dedupe-registrations.ts",
     "create:member-logins": "tsx scripts/create-member-logins.ts",
     "seed:public-demo": "tsx scripts/seed-public-demo.ts",
     "seed:tiered-demo": "tsx scripts/seed-tiered-demo-accounts.ts",

@@ -44,5 +44,14 @@ export async function GET(request: NextRequest) {
   }
   if (!allowed) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-  return NextResponse.json({ view: "admin", summary: limitForAdmin(summary, { role: session.role, associationId: session.associationId }) });
+  // Which levels this admin may edit fee lines for (shown as edit controls in the page).
+  const editable: string[] = [];
+  for (const l of summary.levels) {
+    const ok =
+      session.role === "super-admin" ||
+      (l.kind === "club" && isClubRole && (await userCanAccessClubResource(session, l.id))) ||
+      (l.kind === "association" && !isClubRole && (await userCanAccessAssociationResource(session, l.id)));
+    if (ok) editable.push(`${l.kind}:${l.id}`);
+  }
+  return NextResponse.json({ view: "admin", editable, summary: limitForAdmin(summary, { role: session.role, associationId: session.associationId }) });
 }

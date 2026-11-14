@@ -21,6 +21,7 @@
 !/scripts/move-team.ts
 !/scripts/backfill-registrations.ts
 !/scripts/seed-fee-lists.ts
+!/scripts/dedupe-registrations.ts
 !/scripts/create-member-logins.ts
 
 # scraped data with personal information (players incl. juniors) — keep local
@@ -69,3 +70,4 @@ next-env.d.ts
 # member de-duplication plans/backups (contain personal data)
 /dedupe-output/
 /move-team-backups/
+/registration-dedupe-backups/
