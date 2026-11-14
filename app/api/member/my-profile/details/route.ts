@@ -48,6 +48,23 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
+    // Linked related people must be real members (never yourself); their stored name is authoritative.
+    const related = $set["personalInfo.relatedMembers"] as Record<string, any>[] | undefined;
+    if (related) {
+      const ids = related.map((r) => r.memberId).filter(Boolean) as string[];
+      if (ids.includes(memberKey)) return NextResponse.json({ error: "You can't list yourself as a related person" }, { status: 400 });
+      if (ids.length) {
+        const found = await db.collection("members")
+          .find({ memberId: { $in: ids } }, { projection: { memberId: 1, personalInfo: 1 } }).toArray();
+        const names = new Map(found.map((m) => [m.memberId, `${m.personalInfo?.firstName ?? ""} ${m.personalInfo?.lastName ?? ""}`.trim()]));
+        for (const r of related) {
+          if (!r.memberId) continue;
+          if (!names.has(r.memberId)) return NextResponse.json({ error: `Member ${r.memberId} was not found` }, { status: 400 });
+          r.name = names.get(r.memberId) || r.name;
+        }
+      }
+    }
+
     // Blue card goes through the verification workflow as a non-verifier.
     let notify: string | null = null;
     const incomingCard = $set.__blueCardIncoming as Record<string, unknown> | undefined;

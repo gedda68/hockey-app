@@ -7,6 +7,7 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Loader2, Save, Plus, Trash2, Lock } from "lucide-react";
+import RelatedPeopleCard, { type Related, type RelatedToMe } from "@/components/member/RelatedPeopleCard";
 import TypeaheadSelect from "@/components/ui/TypeaheadSelect";
 import { resolveSelection, type PickOption } from "@/lib/members/profileOptions";
 import { CARD_TYPES, CARD_CATEGORIES, CARD_STATUSES, ISSUING_STATES, blueCardStatus } from "@/lib/members/blueCard";
@@ -75,7 +76,7 @@ function TypeaheadField({ label, value, onChange, options, disabled, placeholder
 
 const blankContact = (): Contact => ({ name: "", relationship: "", phone: "", mobile: "", email: "" });
 
-export default function MoreDetailsForm({ member, onSaved }: { member: Doc; onSaved: () => void }) {
+export default function MoreDetailsForm({ member, relatedToMe = [], onSaved }: { member: Doc; relatedToMe?: RelatedToMe[]; onSaved: () => void }) {
   const locked: string[] = member.lockedFields ?? [];
   const isLocked = (k: string) => locked.some((l) => l === k || k.startsWith(`${l}.`));
 
@@ -89,6 +90,7 @@ export default function MoreDetailsForm({ member, onSaved }: { member: Doc; onSa
   const [phProvider, setPhProvider] = useState(""); const [phNumber, setPhNumber] = useState(""); const [phExpiry, setPhExpiry] = useState("");
   const [conditions, setConditions] = useState(""); const [medications, setMedications] = useState(""); const [allergies, setAllergies] = useState("");
   const [bc, setBc] = useState<Doc>({});
+  const [related, setRelated] = useState<Related[]>([]);
   const [saving, setSaving] = useState(false);
   const [opts, setOpts] = useState<{ salutations: PickOption[]; genders: PickOption[]; relationships: PickOption[] }>({
     salutations: [], genders: [], relationships: [],
@@ -114,6 +116,7 @@ export default function MoreDetailsForm({ member, onSaved }: { member: Doc; onSa
     setPhProvider(ph.provider ?? ""); setPhNumber(ph.membershipNumber ?? ""); setPhExpiry(ph.expiryDate ?? "");
     setConditions(member.medical?.conditions ?? ""); setMedications(member.medical?.medications ?? ""); setAllergies(member.medical?.allergies ?? "");
     setBc(member.blueCard ?? {});
+    setRelated((Array.isArray(member.personalInfo?.relatedMembers) ? member.personalInfo.relatedMembers : []).map((r: Doc) => ({ id: r.id, memberId: r.memberId, name: r.name ?? "", relationshipType: r.relationshipType ?? "" })));
   }, [member]);
 
   const setContact = (i: number, patch: Partial<Contact>) => setContacts((cs) => cs.map((c, j) => (j === i ? { ...c, ...patch } : c)));
@@ -127,6 +130,7 @@ export default function MoreDetailsForm({ member, onSaved }: { member: Doc; onSa
       if (!isLocked("personalInfo.salutation")) body.personalInfo = { salutation, displayName, gender };
       if (!isLocked("contact.primaryEmail")) body.contact = { primaryEmail: email };
       if (!isLocked("emergencyContacts")) body.emergencyContacts = contacts;
+      if (!isLocked("personalInfo.relatedMembers")) body.relatedMembers = related;
       if (!isLocked("healthcare")) {
         body.healthcare = {
           medicare: { number: mcNumber, position: mcPos, expiryMonth: mcMonth, expiryYear: mcYear },
@@ -185,6 +189,8 @@ export default function MoreDetailsForm({ member, onSaved }: { member: Doc; onSa
           ))}
         </div>
       </div>
+
+      <RelatedPeopleCard value={related} onChange={setRelated} relationships={opts.relationships} relatedToMe={relatedToMe} locked={isLocked("personalInfo.relatedMembers")} />
 
       <Card title="Healthcare" locked={isLocked("healthcare")}>
         <Field label="Medicare number" value={mcNumber} onChange={setMcNumber} disabled={isLocked("healthcare")} />

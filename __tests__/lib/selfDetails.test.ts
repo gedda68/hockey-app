@@ -48,3 +48,18 @@ describe("blockedByLocks", () => {
     expect(blockedByLocks(["blueCard"], ["address.street"])).toEqual([]);
   });
 });
+
+describe("related people", () => {
+  it("keeps linked people, one row each, and generates ids", () => {
+    const r = sanitizeSelfDetails(
+      { relatedMembers: [{ memberId: "M1", name: "Lee A", relationshipType: "rel-parent" }, { memberId: "M1", name: "dup" }, { name: "Unlinked Person", relationshipType: "Friend" }, { name: "" }] },
+      {},
+    );
+    const list = r.$set["personalInfo.relatedMembers"] as any[];
+    expect(list).toHaveLength(2);
+    expect(list[0]).toMatchObject({ memberId: "M1", relationshipType: "rel-parent" });
+    expect(list[1].memberId).toBeUndefined();
+    expect(list[1].id).toBeTruthy();
+    expect(r.touched).toContain("personalInfo.relatedMembers");
+  });
+});

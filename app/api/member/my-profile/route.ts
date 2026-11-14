@@ -88,9 +88,21 @@ export async function GET() {
       ? await db.collection("associations").findOne({ $or: [{ associationId: assocRef }, { id: assocRef }] }, { projection: { name: 1, fullName: 1 } })
       : null;
 
+    // People who list this member as one of their related people (e.g. a parent who added their child).
+    const reverse = await db.collection("members")
+      .find({ "personalInfo.relatedMembers.memberId": memberKey, memberId: { $ne: memberKey } },
+        { projection: { memberId: 1, personalInfo: 1 } })
+      .limit(50).toArray();
+    const relatedToMe = reverse.map((m) => ({
+      memberId: m.memberId,
+      name: `${m.personalInfo?.firstName ?? ""} ${m.personalInfo?.lastName ?? ""}`.trim(),
+      relationshipType: (m.personalInfo?.relatedMembers ?? []).find((r: any) => r.memberId === memberKey)?.relationshipType ?? "",
+    }));
+
     return NextResponse.json({
       member,
       recentChanges,
+      relatedToMe,
       clubName: club?.name ? String(club.name) : null,
       associationName: assoc?.name || assoc?.fullName ? String(assoc?.name || assoc?.fullName) : null,
     });
