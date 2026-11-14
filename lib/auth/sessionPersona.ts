@@ -1,5 +1,6 @@
 // Build / validate persona switches for multi-role users (JWT session refresh).
 
+import { normalizeMemberRoles } from "@/lib/auth/memberRoles";
 import type { Db } from "mongodb";
 import { ObjectId } from "mongodb";
 import type { SessionData, ScopedRole } from "@/lib/auth/session";
@@ -70,7 +71,7 @@ export function personaIsAllowed(
 }
 
 function humanRole(role: string): string {
-  return role
+  return String(role ?? "")
     .split("-")
     .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
     .join(" ");
@@ -149,6 +150,7 @@ export async function buildPersonaOptions(
     scopeType: ScopedRole["scopeType"],
     scopeId?: string,
   ) => {
+    if (!role) return;
     const key = encodePersonaKey(role, scopeType, scopeId);
     if (seen.has(key)) return;
     seen.add(key);
@@ -178,11 +180,10 @@ export async function buildPersonaOptions(
       const mid = new ObjectId(String(session.memberId));
       const m = await db
         .collection("members")
-        .findOne({ _id: mid }, { projection: { roles: 1 } });
-      const roles = Array.isArray((m as any)?.roles)
-        ? ((m as any).roles as RoleAssignment[])
-        : [];
-      dbScoped = toScopedRoles(roles);
+        .findOne({ _id: mid }, { projection: { roles: 1, clubId: 1, "membership.clubId": 1 } });
+      dbScoped = toScopedRoles(
+        normalizeMemberRoles((m as any)?.roles, (m as any)?.membership?.clubId || (m as any)?.clubId || session.clubId),
+      );
     } else if (session.userId) {
       const uid = String(session.userId);
       const u = await db.collection("users").findOne(
