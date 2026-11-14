@@ -5,6 +5,7 @@
 import type { Db } from "mongodb";
 import { computePlayerStats, type PlayerStats } from "@/lib/members/playerStats";
 import { buildTeamHistory, type TeamHistoryRow } from "@/lib/members/teamHistory";
+import { collapse } from "@/lib/registrations/dedupe";
 import { ageInYear } from "@/lib/registrations/pricing";
 
 type Doc = Record<string, any>;
@@ -31,6 +32,17 @@ export interface RegistrationSummary {
   nominations: { nominationId: string; window: string; status: string; date?: string }[];
   stats: PlayerStats | null;
   history: TeamHistoryRow[];
+}
+
+/** Drops repeated fee lines (same itemId, or same level + name + amount when ids are missing). */
+export function uniqueLines(lines: Doc[]): Doc[] {
+  const seen = new Set<string>();
+  return lines.filter((l) => {
+    const k = l.itemId ? String(l.itemId) : `${l.clubId ?? ""}|${l.associationId ?? ""}|${l.name}|${l.amount}`;
+    if (seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
 }
 
 const PAID = new Set(["paid", "completed", "succeeded", "success"]);
@@ -84,11 +96,15 @@ export async function loadRegistrationSummary(db: Db, memberId: string): Promise
   );
   if (!m) return null;
 
-  const [clubRegs, assocRegs, payments] = await Promise.all([
+  const [rawClubRegs, rawAssocRegs, payments] = await Promise.all([
     db.collection("club-registrations").find({ memberId }).sort({ seasonYear: -1 }).limit(100).toArray(),
     db.collection("association-registrations").find({ memberId }).sort({ seasonYear: -1 }).limit(200).toArray(),
     db.collection("payments").find({ memberId }).limit(500).toArray(),
   ]);
+
+  // Duplicates in the database are collapsed here so they never double-count fees or repeat rows.
+  const clubRegs = collapse(rawClubRegs, "club");
+  const assocRegs = collapse(rawAssocRegs, "association");
 
   const clubId = String(m.membership?.clubId || m.clubId || clubRegs[0]?.clubId || "");
   const clubIds = [...new Set([clubId, ...clubRegs.map((r) => String(r.clubId))].filter(Boolean))];
@@ -124,7 +140,7 @@ export async function loadRegistrationSummary(db: Db, memberId: string): Promise
     status: String(r.status ?? ""),
     roles: kind === "association" ? [] : ((r.roleIds ?? []) as string[]),
     fee: money(r.totalFee),
-    fees: ((r.fees ?? []) as Doc[]).map((f) => ({ itemId: String(f.itemId ?? ""), name: String(f.name ?? ""), amount: money(f.amount), associationId: f.associationId, clubId: f.clubId })),
+    fees: uniqueLines((r.fees ?? []) as Doc[]).map((f) => ({ itemId: String(f.itemId ?? ""), name: String(f.name ?? ""), amount: money(f.amount), associationId: f.associationId, clubId: f.clubId })),
   });
   const registrations = [...clubRegs.map((r) => toReg(r, "club")), ...assocRegs.map((r) => toReg(r, "association"))]
     .sort((a, b) => b.season - a.season || (a.levelKind === "club" ? -1 : 1));

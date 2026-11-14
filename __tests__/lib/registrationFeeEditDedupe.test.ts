@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { applyToLines, validateChange, sumLines } from "@/lib/registrations/feeEdit";
-import { planDedupe } from "@/lib/registrations/dedupe";
+import { planDedupe, collapse } from "@/lib/registrations/dedupe";
 
 const lines = [
   { itemId: "a", name: "Club junior", amount: 20, clubId: "chc" },
@@ -54,5 +54,18 @@ describe("planDedupe merge", () => {
     expect(p.updates[0]._id).toBe(1);
     expect(p.updates[0].set).toMatchObject({ totalFee: 80, registrationCategory: "junior" });
     expect(p.updates[0].set.roleIds.sort()).toEqual(["role-junior-player", "role-umpire"]);
+  });
+});
+
+describe("collapse (read-time)", () => {
+  it("shows one registration per member + club + season with fees folded in", () => {
+    const docs = [
+      { _id: 1, registrationId: "A", memberId: "M1", clubId: "c", seasonYear: 2026, source: "altius", status: "active", roleIds: ["role-junior-player"] },
+      { _id: 2, registrationId: "B", memberId: "M1", clubId: "c", seasonYear: "2026", source: "backfill", status: "active", roleIds: ["role-umpire"], fees: [{ itemId: "x", amount: 20 }], totalFee: 80 },
+    ];
+    const out = collapse(docs, "club");
+    expect(out).toHaveLength(1);
+    expect(out[0]).toMatchObject({ _id: 1, totalFee: 80 });
+    expect(out[0].roleIds.sort()).toEqual(["role-junior-player", "role-umpire"]);
   });
 });
