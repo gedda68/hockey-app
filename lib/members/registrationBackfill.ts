@@ -72,6 +72,8 @@ export function buildRegistrations(m: BackfillMember, o: BackfillOptions) {
       registrationId: `AREG-${l.associationId}-${memberId}-${o.season}`,
       associationId: l.associationId!,
       clubId,
+      // Associations don't hold player roles — the role is held at the club.
+      roleIds: [] as string[],
       playerClassification: "",
       fees: [l],
       totalFee: l.amount,
