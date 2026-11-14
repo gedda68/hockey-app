@@ -19,6 +19,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { toast } from "sonner";
 import MoreDetailsForm from "@/components/member/MoreDetailsForm";
+import ProfilePhotoControls from "@/components/member/ProfilePhotoControls";
 import ChangePasswordCard from "@/components/member/ChangePasswordCard";
 import {
   User,
@@ -210,6 +211,8 @@ export default function MyProfilePage() {
   const { user } = useAuth();
 
   const [member,       setMember]       = useState<MemberProfile | null>(null);
+  const [clubName,     setClubName]     = useState<string | null>(null);
+  const [assocName,    setAssocName]    = useState<string | null>(null);
   const [recentChanges,setRecentChanges]= useState<ChangeLogEntry[]>([]);
   const [loading,      setLoading]      = useState(true);
   const [saving,       setSaving]       = useState(false);
@@ -245,8 +248,10 @@ export default function MyProfilePage() {
         const d = (await res.json().catch(() => ({}))) as { error?: string };
         throw new Error(d.error ?? "Failed to load profile");
       }
-      const data = (await res.json()) as { member: MemberProfile; recentChanges: ChangeLogEntry[] };
+      const data = (await res.json()) as { member: MemberProfile; recentChanges: ChangeLogEntry[]; clubName?: string | null; associationName?: string | null };
       setMember(data.member);
+      setClubName(data.clubName ?? null);
+      setAssocName(data.associationName ?? null);
       setRecentChanges(data.recentChanges ?? []);
 
       // Populate form from fetched record
@@ -457,10 +462,13 @@ export default function MyProfilePage() {
                     {member.membership.status}
                   </span>
                 )}
-                {member.clubId && (
-                  <span className="text-xs text-slate-500">{member.clubId}</span>
+                {(clubName || assocName) && (
+                  <span className="text-xs font-semibold text-slate-600">
+                    {[clubName, assocName].filter(Boolean).join(" · ")}
+                  </span>
                 )}
               </div>
+              <ProfilePhotoControls hasPhoto={!!member.personalInfo?.photoUrl} onChanged={() => void loadProfile()} />
             </div>
           </div>
         </div>

@@ -8,7 +8,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Loader2, Save, Plus, Trash2, Lock } from "lucide-react";
 import TypeaheadSelect from "@/components/ui/TypeaheadSelect";
-import { withCurrent } from "@/lib/members/profileOptions";
+import { resolveSelection, type PickOption } from "@/lib/members/profileOptions";
 import { CARD_TYPES, CARD_CATEGORIES, CARD_STATUSES, ISSUING_STATES, blueCardStatus } from "@/lib/members/blueCard";
 
 type Doc = Record<string, any>;
@@ -57,16 +57,16 @@ function Select({ label, value, onChange, options, disabled }: { label: string; 
 }
 
 function TypeaheadField({ label, value, onChange, options, disabled, placeholder, span2 = false }: {
-  label: string; value: string; onChange: (v: string) => void; options: string[]; disabled?: boolean; placeholder?: string; span2?: boolean;
+  label: string; value: string; onChange: (v: string) => void; options: PickOption[]; disabled?: boolean; placeholder?: string; span2?: boolean;
 }) {
-  const opts = withCurrent(options, value).map((o) => ({ value: o, label: o }));
+  const resolved = resolveSelection(options, value);
   return (
     <div className={span2 ? "sm:col-span-2" : ""}>
       <label className={labelCls}>{label}</label>
       {disabled ? (
-        <input className={inputCls} value={value} disabled readOnly />
+        <input className={inputCls} value={resolved.options.find((o) => o.value === resolved.value)?.label ?? value} disabled readOnly />
       ) : (
-        <TypeaheadSelect options={opts} value={value} onChange={onChange} placeholder={placeholder ?? "Type to search…"}
+        <TypeaheadSelect options={resolved.options} value={resolved.value} onChange={onChange} placeholder={placeholder ?? "Type to search…"}
           className="w-full rounded-xl border-2 border-slate-200 bg-white px-3 py-2 pr-9 text-sm font-semibold text-slate-800 outline-none focus:border-teal-400" />
       )}
     </div>
@@ -90,7 +90,7 @@ export default function MoreDetailsForm({ member, onSaved }: { member: Doc; onSa
   const [conditions, setConditions] = useState(""); const [medications, setMedications] = useState(""); const [allergies, setAllergies] = useState("");
   const [bc, setBc] = useState<Doc>({});
   const [saving, setSaving] = useState(false);
-  const [opts, setOpts] = useState<{ salutations: string[]; genders: string[]; relationships: string[] }>({
+  const [opts, setOpts] = useState<{ salutations: PickOption[]; genders: PickOption[]; relationships: PickOption[] }>({
     salutations: [], genders: [], relationships: [],
   });
 

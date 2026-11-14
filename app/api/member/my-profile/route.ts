@@ -78,7 +78,22 @@ export async function GET() {
       .limit(5)
       .toArray();
 
-    return NextResponse.json({ member, recentChanges });
+    // Show names, not ids, for the club and association.
+    const clubRef = String(member.membership?.clubId ?? member.clubId ?? "");
+    const assocRef = String(member.associationId ?? member.membership?.associationId ?? "");
+    const club = clubRef
+      ? await db.collection("clubs").findOne({ $or: [{ id: clubRef }, { clubId: clubRef }, { slug: clubRef }] }, { projection: { name: 1 } })
+      : null;
+    const assoc = assocRef
+      ? await db.collection("associations").findOne({ $or: [{ associationId: assocRef }, { id: assocRef }] }, { projection: { name: 1, fullName: 1 } })
+      : null;
+
+    return NextResponse.json({
+      member,
+      recentChanges,
+      clubName: club?.name ? String(club.name) : null,
+      associationName: assoc?.name || assoc?.fullName ? String(assoc?.name || assoc?.fullName) : null,
+    });
   } catch (error: unknown) {
     console.error("💥 my-profile GET error:", error);
     return NextResponse.json({ error: "Failed to load profile" }, { status: 500 });

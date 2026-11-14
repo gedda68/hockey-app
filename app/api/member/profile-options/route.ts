@@ -5,7 +5,7 @@ import { NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import { getSession } from "@/lib/auth/session";
 import {
-  DEFAULT_GENDERS, DEFAULT_RELATIONSHIPS, DEFAULT_SALUTATIONS, mergeOptions,
+  DEFAULT_GENDERS, DEFAULT_RELATIONSHIPS, DEFAULT_SALUTATIONS, mergeOptions, namesToOptions,
 } from "@/lib/members/profileOptions";
 
 export async function GET() {
@@ -13,10 +13,10 @@ export async function GET() {
   if (!session) return NextResponse.json({ error: "Authentication required" }, { status: 401 });
   try {
     const db = (await clientPromise).db("hockey-app");
-    const names = async (configType: string) =>
+    const rows = async (configType: string) =>
       (await db.collection("config").find({ configType, isActive: { $ne: false } }).sort({ sortOrder: 1, name: 1 }).toArray())
-        .map((d) => d.name);
-    const [sal, gen, rel] = await Promise.all([names("salutation"), names("gender"), names("relationship-type")]);
+        .map((d) => ({ id: d.id ?? String(d._id), name: d.name }));
+    const [sal, gen, rel] = await Promise.all([rows("salutation"), rows("gender"), rows("relationship-type")]);
     return NextResponse.json({
       salutations: mergeOptions(sal, DEFAULT_SALUTATIONS),
       genders: mergeOptions(gen, DEFAULT_GENDERS),
@@ -24,7 +24,7 @@ export async function GET() {
     });
   } catch {
     return NextResponse.json({
-      salutations: DEFAULT_SALUTATIONS, genders: DEFAULT_GENDERS, relationships: DEFAULT_RELATIONSHIPS,
+      salutations: namesToOptions(DEFAULT_SALUTATIONS), genders: namesToOptions(DEFAULT_GENDERS), relationships: namesToOptions(DEFAULT_RELATIONSHIPS),
     });
   }
 }
