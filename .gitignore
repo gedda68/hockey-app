@@ -18,6 +18,7 @@
 !/scripts/create-club-user.ts
 !/scripts/normalize-members.ts
 !/scripts/possible-duplicates.ts
+!/scripts/move-team.ts
 
 # scraped data with personal information (players incl. juniors) — keep local
 /data/altius/
@@ -64,3 +65,4 @@ next-env.d.ts
 !lib/website/associationHubCopy.ts
 # member de-duplication plans/backups (contain personal data)
 /dedupe-output/
+/move-team-backups/
