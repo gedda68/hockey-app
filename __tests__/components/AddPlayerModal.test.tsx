@@ -35,8 +35,8 @@ describe("AddPlayerModal", () => {
     const box = await screen.findByRole("combobox", { name: "Players" });
     await waitFor(() => expect(globalThis.fetch).toHaveBeenCalled());
     await userEvent.click(box);
-    await userEvent.click(await screen.findByRole("option", { name: /Ann Smith/ }));
-    await userEvent.click(await screen.findByRole("option", { name: /Bob Smith/ }));
+    await userEvent.click(await screen.findByRole("option", { name: /Smith, Ann/ }));
+    await userEvent.click(await screen.findByRole("option", { name: /Smith, Bob/ }));
 
     await userEvent.type(screen.getByLabelText("Jersey number for Ann Smith"), "7");
     await userEvent.type(screen.getByLabelText("Jersey number for Bob Smith"), "9");
@@ -67,9 +67,24 @@ describe("AddPlayerModal eligibility", () => {
     render(<AddPlayerModal roster={r} teamIndex={0} onClose={() => {}} onSubmit={vi.fn()} />);
     const box = await screen.findByRole("combobox", { name: "Players" });
     await userEvent.click(box);
-    expect(await screen.findByRole("option", { name: /Ann Smith/ })).toBeTruthy();
-    expect(screen.queryByRole("option", { name: /Bob Smith/ })).toBeNull();
-    expect(screen.queryByRole("option", { name: /Cat Smith/ })).toBeNull();
+    expect(await screen.findByRole("option", { name: /Smith, Ann/ })).toBeTruthy();
+    expect(screen.queryByRole("option", { name: /Smith, Bob/ })).toBeNull();
+    expect(screen.queryByRole("option", { name: /Smith, Cat/ })).toBeNull();
     expect(screen.getByText(/2 members not eligible/)).toBeTruthy();
+  });
+});
+
+import { sortPlayers } from "@/components/admin/teams/modals/AddPlayerModal";
+describe("sortPlayers", () => {
+  const l = [
+    { firstName: "Z", lastName: "Brown", memberNumber: "M-10" },
+    { firstName: "A", lastName: "Adams", memberNumber: "M-9" },
+    { firstName: "B", lastName: "Adams", memberNumber: "M-11" },
+  ];
+  it("orders by surname then first name", () => {
+    expect(sortPlayers(l, "surname").map((p) => p.firstName)).toEqual(["A", "B", "Z"]);
+  });
+  it("orders by member number numerically", () => {
+    expect(sortPlayers(l, "number").map((p) => p.memberNumber)).toEqual(["M-9", "M-10", "M-11"]);
   });
 });
