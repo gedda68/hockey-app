@@ -71,7 +71,15 @@ export function canSeeSensitive(member: Doc, viewer?: Viewer | null): boolean {
 
 /** Copy of the member without sensitive groups (and the legacy single emergency contact) unless the viewer may see them. */
 export function redactSensitive<T extends Doc>(member: T, viewer?: Viewer | null): T {
-  if (!member || canSeeSensitive(member, viewer)) return member;
+  if (!member) return member;
+  if (canSeeSensitive(member, viewer)) {
+    // Released to team staff, but a member who opted out keeps their free-text medical notes private.
+    const own = isOwner(member, viewer) || viewer?.role === "super-admin";
+    if (!own && member.medical?.optOut === true && member.medical?.notes) {
+      return { ...member, medical: { ...member.medical, notes: null } };
+    }
+    return member;
+  }
   const out: Doc = { ...member };
   for (const k of SENSITIVE_KEYS) if (k in out) delete out[k];
   if (out.contact?.emergencyContact) out.contact = { ...out.contact, emergencyContact: undefined };

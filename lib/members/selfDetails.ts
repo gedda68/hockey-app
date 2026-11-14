@@ -130,6 +130,14 @@ export function sanitizeSelfDetails(body: Doc, existing: Doc): SelfDetailsResult
 
   const med = body.medical;
   if (med && typeof med === "object") {
+    if (med.notes !== undefined) {
+      $set["medical.notes"] = s(med.notes, 2000) || null;
+      touched.push("medical.notes");
+    }
+    if (typeof med.optOut === "boolean") {
+      $set["medical.optOut"] = med.optOut;
+      touched.push("medical.optOut");
+    }
     for (const f of ["conditions", "medications", "allergies"] as const) {
       if (med[f] !== undefined) {
         $set[`medical.${f}`] = s(med[f], 1000);

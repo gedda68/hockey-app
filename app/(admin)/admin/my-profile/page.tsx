@@ -32,7 +32,6 @@ import {
   ChevronUp,
   RefreshCw,
   AlertCircle,
-  ShieldCheck,
 } from "lucide-react";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -227,8 +226,6 @@ export default function MyProfilePage() {
   const [addrState, setAddrState] = useState("");
   const [postcode,  setPostcode]  = useState("");
   const [country,   setCountry]   = useState("Australia");
-  const [medNotes,  setMedNotes]  = useState("");
-  const [medOptOut, setMedOptOut] = useState(false);
 
   // ── Load profile ──────────────────────────────────────────────────────────
   const loadProfile = useCallback(async () => {
@@ -260,8 +257,6 @@ export default function MyProfilePage() {
       setAddrState( m.address?.state    ?? "");
       setPostcode(  m.address?.postcode ?? "");
       setCountry(   m.address?.country  ?? "Australia");
-      setMedNotes(  m.medical?.notes    ?? "");
-      setMedOptOut( m.medical?.optOut   ?? false);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load profile");
     } finally {
@@ -282,9 +277,7 @@ export default function MyProfilePage() {
     suburb    !== (member.address?.suburb   ?? "") ||
     addrState !== (member.address?.state    ?? "") ||
     postcode  !== (member.address?.postcode ?? "") ||
-    country   !== (member.address?.country  ?? "Australia") ||
-    medNotes  !== (member.medical?.notes    ?? "") ||
-    medOptOut !== (member.medical?.optOut   ?? false)
+    country   !== (member.address?.country  ?? "Australia")
   );
 
   // ── Save ──────────────────────────────────────────────────────────────────
@@ -308,10 +301,6 @@ export default function MyProfilePage() {
             state:    addrState.trim(),
             postcode: postcode.trim(),
             country:  country.trim() || "Australia",
-          },
-          medical: {
-            notes:  medNotes.trim() || null,
-            optOut: medOptOut,
           },
         }),
       });
@@ -398,7 +387,7 @@ export default function MyProfilePage() {
           <div>
             <h1 className="text-2xl font-black mb-1">My Profile</h1>
             <p className="text-sm text-teal-100 max-w-sm">
-              Keep your details current: contact, address, emergency contacts, healthcare, medical and blue card.
+              Keep your details current: contact, address, emergency contacts, related people and your health &amp; safety details.
               Legal name, date of birth and membership details are managed by your club.
             </p>
           </div>
@@ -582,52 +571,6 @@ export default function MyProfilePage() {
               autoComplete="country-name"
               maxLength={80}
             />
-          </div>
-        </SectionCard>
-
-        {/* ── Medical notes ────────────────────────────────────────────────── */}
-        <SectionCard icon={ShieldCheck} title="Medical notes">
-          <div>
-            <FieldLabel htmlFor="mp-med-notes" locked={lk("medical.notes")} optional>
-              Medical notes
-            </FieldLabel>
-            <textarea
-              id="mp-med-notes"
-              value={medNotes}
-              onChange={(e) => setMedNotes(e.target.value)}
-              disabled={lk("medical.notes")}
-              rows={3}
-              placeholder="Allergies, medications, conditions your team staff should know about…"
-              maxLength={2000}
-              className={`
-                w-full rounded-xl border-2 px-3 py-2 text-sm font-medium text-slate-800
-                outline-none transition-colors resize-none
-                ${lk("medical.notes")
-                  ? "border-amber-200 bg-amber-50 text-amber-800 cursor-not-allowed"
-                  : "border-slate-200 bg-white focus:border-teal-400"
-                }
-              `}
-            />
-          </div>
-          <div className="flex items-start gap-3">
-            <input
-              id="mp-med-optout"
-              type="checkbox"
-              checked={!medOptOut}
-              onChange={(e) => setMedOptOut(!e.target.checked)}
-              disabled={lk("medical.optOut")}
-              className="mt-0.5 h-4 w-4 rounded border-slate-300 text-teal-600 focus:ring-teal-500 cursor-pointer disabled:cursor-not-allowed"
-            />
-            <label
-              htmlFor="mp-med-optout"
-              className="text-sm text-slate-700 font-medium cursor-pointer select-none"
-            >
-              Share medical notes with team coaches and managers
-              <span className="block text-xs text-slate-400 font-normal mt-0.5">
-                Uncheck to keep your notes private. Administrators always retain read access.
-              </span>
-            </label>
-            {lk("medical.optOut") && <LockedBadge />}
           </div>
         </SectionCard>
 
