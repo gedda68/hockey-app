@@ -214,6 +214,7 @@ export default function MyProfilePage() {
 
   const [member,       setMember]       = useState<MemberProfile | null>(null);
   const [relOptions,   setRelOptions]   = useState<PickOption[]>([]);
+  const [relatedToMe,  setRelatedToMe]  = useState<{ memberId: string; name: string; relationshipType: string }[]>([]);
   const [clubName,     setClubName]     = useState<string | null>(null);
   const [assocName,    setAssocName]    = useState<string | null>(null);
   const [recentChanges,setRecentChanges]= useState<ChangeLogEntry[]>([]);
@@ -251,8 +252,9 @@ export default function MyProfilePage() {
         const d = (await res.json().catch(() => ({}))) as { error?: string };
         throw new Error(d.error ?? "Failed to load profile");
       }
-      const data = (await res.json()) as { member: MemberProfile; recentChanges: ChangeLogEntry[]; clubName?: string | null; associationName?: string | null };
+      const data = (await res.json()) as { member: MemberProfile; recentChanges: ChangeLogEntry[]; clubName?: string | null; associationName?: string | null; relatedToMe?: { memberId: string; name: string; relationshipType: string }[] };
       setMember(data.member);
+      setRelatedToMe(data.relatedToMe ?? []);
       setClubName(data.clubName ?? null);
       setAssocName(data.associationName ?? null);
       setRecentChanges(data.recentChanges ?? []);
@@ -750,7 +752,7 @@ export default function MyProfilePage() {
         </div>
       </form>
 
-      {member && <MoreDetailsForm member={member as unknown as Record<string, any>} onSaved={() => void loadProfile()} />}
+      {member && <MoreDetailsForm member={member as unknown as Record<string, any>} relatedToMe={relatedToMe} onSaved={() => void loadProfile()} />}
 
       <ChangePasswordCard />
 

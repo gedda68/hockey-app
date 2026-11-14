@@ -11,6 +11,7 @@ import { CARD_TYPES, CARD_CATEGORIES, CARD_STATUSES, ISSUING_STATES } from "@/li
 type Doc = Record<string, any>;
 
 const MAX_CONTACTS = 5;
+const MAX_RELATED = 20;
 const s = (v: unknown, max = 200): string => String(v ?? "").trim().slice(0, max);
 const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -72,6 +73,28 @@ export function sanitizeSelfDetails(body: Doc, existing: Doc): SelfDetailsResult
     });
     $set.emergencyContacts = list;
     touched.push("emergencyContacts");
+  }
+
+  if (Array.isArray(body.relatedMembers)) {
+    const prev: Doc[] = Array.isArray(existing.personalInfo?.relatedMembers) ? existing.personalInfo.relatedMembers : [];
+    const seen = new Set<string>();
+    const list: Doc[] = [];
+    body.relatedMembers.slice(0, MAX_RELATED).forEach((r: Doc, i: number) => {
+      const name = s(r?.name);
+      const memberId = s(r?.memberId, 60);
+      if (!name && !memberId) return;
+      const key = memberId || name.toLowerCase();
+      if (seen.has(key)) return; // one row per person
+      seen.add(key);
+      list.push({
+        id: s(r?.id, 60) || prev[i]?.id || `REL-${Date.now().toString(36)}-${i + 1}`,
+        ...(memberId ? { memberId } : {}),
+        name,
+        relationshipType: s(r?.relationshipType, 100),
+      });
+    });
+    $set["personalInfo.relatedMembers"] = list;
+    touched.push("personalInfo.relatedMembers");
   }
 
   const hc = body.healthcare;
