@@ -129,7 +129,7 @@ export default function RegistrationsTable({
               rows.map((r) => (
                 <tr key={r.registrationId} className="border-t border-slate-100">
                   <td className="px-4 py-3">
-                    <Link href={`/admin/members/${r.memberId}`} className="font-bold text-blue-700 hover:underline">
+                    <Link href={`/admin/registrations/${r.memberId}`} className="font-bold text-blue-700 hover:underline">
                       {r.memberName || r.memberId}
                     </Link>
                     <div className="text-xs text-slate-400">{r.memberId}</div>

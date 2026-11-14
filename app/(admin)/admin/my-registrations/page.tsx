@@ -624,7 +624,7 @@ export default function MyRegistrationsPage() {
       <div className="bg-gradient-to-r from-amber-500 to-amber-600 rounded-2xl p-6 mb-6 text-white shadow-lg">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-black mb-1">My Registrations</h1>
+            <h1 className="text-2xl font-black mb-1">Role Requests</h1>
             <p className="text-amber-100 text-sm">Submit and track your role registration requests</p>
           </div>
           <button
