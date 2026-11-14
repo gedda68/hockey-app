@@ -146,7 +146,7 @@ export default function MoreDetailsForm({ member, relatedToMe = [], onSaved }: {
     setContactPrivate(member.privacy?.contactPrivate === true);
     setMedNotes(member.medical?.notes ?? "");
     setMedOptOut(member.medical?.optOut === true);
-    setRelated((Array.isArray(member.personalInfo?.relatedMembers) ? member.personalInfo.relatedMembers : []).map((r: Doc) => ({ id: r.id, memberId: r.memberId, name: r.name ?? "", relationshipType: r.relationshipType ?? "" })));
+    setRelated((Array.isArray(member.personalInfo?.relatedMembers) ? member.personalInfo.relatedMembers : []).map((r: Doc) => ({ id: r.id, memberId: r.memberId, name: r.name ?? "", relationshipType: r.relationshipType ?? "", clubId: r.clubId, clubName: r.clubName, city: r.city })));
   }, [member]);
 
   const move = (i: number, d: -1 | 1) => setContacts((cs) => {

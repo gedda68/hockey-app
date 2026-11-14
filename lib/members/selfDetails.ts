@@ -97,6 +97,8 @@ export function sanitizeSelfDetails(body: Doc, existing: Doc): SelfDetailsResult
         ...(memberId ? { memberId } : {}),
         name,
         relationshipType: s(r?.relationshipType, 100),
+        // Another club (route fills in clubName/city from the club record; dropped if it's your own club).
+        ...(s(r?.clubId, 80) ? { clubId: s(r?.clubId, 80) } : {}),
       });
     });
     $set["personalInfo.relatedMembers"] = list;
