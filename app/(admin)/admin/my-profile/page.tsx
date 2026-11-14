@@ -18,6 +18,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { toast } from "sonner";
+import MoreDetailsForm from "@/components/member/MoreDetailsForm";
 import {
   User,
   Phone,
@@ -399,7 +400,7 @@ export default function MyProfilePage() {
 
   // ── Render: form ──────────────────────────────────────────────────────────
   return (
-    <div className="max-w-2xl mx-auto space-y-5 pb-12 px-4">
+    <div className="max-w-3xl mx-auto space-y-5 pb-12 px-4">
 
       {/* ── Header ─────────────────────────────────────────────────────────── */}
       <div className="bg-gradient-to-r from-teal-600 to-teal-700 rounded-2xl p-6 text-white shadow-lg">
@@ -407,8 +408,8 @@ export default function MyProfilePage() {
           <div>
             <h1 className="text-2xl font-black mb-1">My Profile</h1>
             <p className="text-sm text-teal-100 max-w-sm">
-              Update your contact details, emergency contact, and medical notes.
-              Name, date of birth, and membership details are managed by your club.
+              Keep your details current: contact, address, emergency contacts, healthcare, medical and blue card.
+              Legal name, date of birth and membership details are managed by your club.
             </p>
           </div>
           <button
@@ -722,6 +723,8 @@ export default function MyProfilePage() {
           )}
         </div>
       </form>
+
+      {member && <MoreDetailsForm member={member as unknown as Record<string, any>} onSaved={() => void loadProfile()} />}
 
       {/* ── Recent change history ────────────────────────────────────────────── */}
       {recentChanges.length > 0 && (
