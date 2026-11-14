@@ -21,16 +21,39 @@ export function keeperScore(d: Doc): number {
   );
 }
 
+/**
+ * The record we keep may lack what a duplicate has (e.g. an imported registration with no fees next to a
+ * priced backfilled one). Fold that in so removing the duplicate loses nothing.
+ */
+export function mergeFields(keeper: Doc, dupes: Doc[]): Doc {
+  const set: Doc = {};
+  const hasFees = Array.isArray(keeper.fees) && keeper.fees.length > 0;
+  if (!hasFees) {
+    const donor = dupes.find((d) => Array.isArray(d.fees) && d.fees.length > 0);
+    if (donor) {
+      for (const k of ["fees", "totalFee", "registrationCategory", "currency"]) if (donor[k] !== undefined) set[k] = donor[k];
+      if (donor.feeChanges) set.feeChanges = donor.feeChanges;
+    }
+  }
+  const roles = [...new Set([...(keeper.roleIds ?? []), ...dupes.flatMap((d) => d.roleIds ?? [])])];
+  if (roles.length !== (keeper.roleIds ?? []).length) set.roleIds = roles;
+  return set;
+}
+
 export function planDedupe(docs: Doc[], kind: "club" | "association") {
   const groups = new Map<string, Doc[]>();
   for (const d of docs) groups.set(naturalKey(d, kind), [...(groups.get(naturalKey(d, kind)) ?? []), d]);
   const remove: Doc[] = [];
+  const updates: { _id: unknown; set: Doc }[] = [];
   let groupsWithDupes = 0;
   for (const g of groups.values()) {
     if (g.length < 2) continue;
     groupsWithDupes++;
     const sorted = [...g].sort((a, b) => keeperScore(b) - keeperScore(a));
-    remove.push(...sorted.slice(1));
+    const [keeper, ...rest] = sorted;
+    remove.push(...rest);
+    const set = mergeFields(keeper, rest);
+    if (Object.keys(set).length) updates.push({ _id: keeper._id, set });
   }
-  return { groupsWithDupes, remove };
+  return { groupsWithDupes, remove, updates };
 }

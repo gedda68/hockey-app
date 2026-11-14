@@ -3,9 +3,9 @@ import { summariseFees, limitForAdmin, type RegistrationSummary } from "@/lib/me
 
 const name = (k: string, id: string) => (k === "club" ? "Commercial" : ({ bha: "Brisbane", hq: "Queensland" } as any)[id] ?? id);
 const regs: any[] = [
-  { season: 2026, levelKind: "club", levelId: "chc", level: "Commercial", category: "junior", status: "active", roles: [], fee: 60,
+  { registrationId: "r1", season: 2026, levelKind: "club", levelId: "chc", level: "Commercial", category: "junior", status: "active", roles: [], fee: 60,
     fees: [{ name: "a", amount: 20, clubId: "chc" }, { name: "b", amount: 20, associationId: "bha" }, { name: "c", amount: 20, associationId: "hq" }] },
-  { season: 2026, levelKind: "association", levelId: "bha", level: "Brisbane", category: "junior", status: "active", roles: [], fee: 20, fees: [{ name: "b", amount: 20, associationId: "bha" }] },
+  { registrationId: "r2", season: 2026, levelKind: "association", levelId: "bha", level: "Brisbane", category: "junior", status: "active", roles: [], fee: 20, fees: [{ name: "b", amount: 20, associationId: "bha" }] },
 ];
 
 describe("summariseFees", () => {
