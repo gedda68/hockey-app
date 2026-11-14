@@ -212,6 +212,7 @@ const ROUTE_RULES: RouteRule[] = [
 
   { pattern: /^\/admin\/members(\/|$)/, allowedRoles: CLUB_MANAGEMENT, scopeCheck: true },
   { pattern: /^\/admin\/club-registrations(\/|$)/, allowedRoles: CLUB_MANAGEMENT, scopeCheck: true },
+  { pattern: /^\/admin\/association-registrations(\/|$)/, allowedRoles: ["super-admin", "association-admin", "assoc-committee", "assoc-registrar"], scopeCheck: true },
 
   { pattern: /^\/admin\/players(\/|$)/, allowedRoles: PLAYER_MANAGEMENT, scopeCheck: true },
   { pattern: /^\/admin\/teams(\/|$)/, allowedRoles: TEAM_STAFF, scopeCheck: true },

@@ -377,6 +377,18 @@ export const menuConfig: MenuItem[] = [
       "club-admin", "club-committee", "registrar",
     ],
   },
+  {
+    label: "Association Registrations",
+    href: "/admin/association-registrations",
+    icon: "📋",
+    description: "Every member registered with the association, by season",
+    color: "from-cyan-500 to-cyan-600",
+    section: "directory",
+    allowedRoles: [
+      "super-admin",
+      "association-admin", "assoc-committee", "assoc-registrar",
+    ],
+  },
 
   // ── Associations ─────────────────────────────────────────────────────────────
   {
