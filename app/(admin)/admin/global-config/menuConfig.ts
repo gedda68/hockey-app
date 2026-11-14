@@ -677,6 +677,22 @@ export const menuConfig: MenuItem[] = [
     section: "personal",
   },
   {
+    label: "My Details",
+    href: "/admin/my-profile",
+    icon: "✏️",
+    description: "View and update your own contact, address and emergency details",
+    color: "from-sky-400 to-sky-500",
+    section: "personal",
+  },
+  {
+    label: "Nominate for a Team",
+    href: "/nominate",
+    icon: "🙋",
+    description: "Nominate for representative teams and positions (player, coach, selector, manager…)",
+    color: "from-yellow-400 to-yellow-500",
+    section: "personal",
+  },
+  {
     label: "Role Requests",
     href: "/admin/my-registrations",
     icon: "🎫",

@@ -2,6 +2,7 @@
  * Shared session creation for password login and OIDC SSO (no password check).
  */
 
+import { normalizeMemberRoles } from "@/lib/auth/memberRoles";
 import { memberStatusString } from "@/lib/members/statusValue";
 import type { Db, Document } from "mongodb";
 import type { SessionData } from "@/lib/auth/session";
@@ -279,13 +280,11 @@ export async function createMemberSession(
   const memberAssocId = member.associationId || null;
   const forcePasswordChange = member.auth?.forcePasswordChange === true;
 
-  const memberDbRoles: RoleAssignment[] = Array.isArray(member.roles)
-    ? (member.roles as RoleAssignment[])
-    : [];
+  // Imported members keep roles as plain strings ("role-player"); convert them to assignments.
+  const memberDbRoles: RoleAssignment[] = normalizeMemberRoles(member.roles, memberClubId);
+  const primary = memberDbRoles.length > 0 ? getPrimaryRole(memberDbRoles) : "";
   const role: string =
-    memberDbRoles.length > 0
-      ? getPrimaryRole(memberDbRoles)
-      : member.auth?.role || "player";
+    primary && primary !== "public" ? primary : member.auth?.role || "member";
   const _memberScopedRoles = toScopedRoles(memberDbRoles);
 
   let clubName: string | undefined;
