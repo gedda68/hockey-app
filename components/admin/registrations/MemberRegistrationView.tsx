@@ -25,13 +25,17 @@ export default function MemberRegistrationView({ memberId }: { memberId?: string
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState("");
   const [error, setError] = useState("");
+  const [noMember, setNoMember] = useState(false);
 
   useEffect(() => {
     const q = memberId ? `?memberId=${encodeURIComponent(memberId)}` : "";
     fetch(`/api/member/registration-summary${q}`)
       .then(async (r) => {
         const j = await r.json();
-        if (!r.ok) throw new Error(j.error || "Failed to load");
+        if (!r.ok) {
+          if (j.code === "NO_MEMBER") { setNoMember(true); return; }
+          throw new Error(j.error || "Failed to load");
+        }
         setData(j);
       })
       .catch((e) => setError(e instanceof Error ? e.message : "Failed to load"));
@@ -47,6 +51,24 @@ export default function MemberRegistrationView({ memberId }: { memberId?: string
       if (!res.ok) throw new Error(j.error || "Failed");
       setTick((t) => t + 1);
     } catch (e) { setNote(e instanceof Error ? e.message : "Failed"); } finally { setBusy(false); }
+  }
+
+  if (noMember) {
+    return (
+      <div className="mx-auto max-w-xl p-8">
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <h1 className="text-xl font-black text-[#06054e]">No member record for this login</h1>
+          <p className="mt-2 text-sm text-slate-600">
+            This is an administrator account that isn&apos;t linked to a member, so there is no personal registration to show.
+            To see a member&apos;s registration, open them from the lists below.
+          </p>
+          <div className="mt-4 flex flex-wrap gap-3 text-sm font-bold">
+            <a href="/admin/club-registrations" className="rounded-xl bg-[#06054e] px-4 py-2 text-white">Club registrations</a>
+            <a href="/admin/members" className="rounded-xl border-2 border-slate-200 px-4 py-2 text-slate-700">All members</a>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   if (error) return <p className="p-8 font-bold text-red-600">{error}</p>;

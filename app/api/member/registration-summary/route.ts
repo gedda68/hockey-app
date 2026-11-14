@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
 
   const asked = new URL(request.url).searchParams.get("memberId")?.trim();
   const memberId = asked || session.memberId || "";
-  if (!memberId) return NextResponse.json({ error: "No member linked to this login" }, { status: 400 });
+  if (!memberId) return NextResponse.json({ error: "No member linked to this login", code: "NO_MEMBER" }, { status: 400 });
 
   const db = (await clientPromise).db(process.env.DB_NAME || "hockey-app");
   const own = !!session.memberId && session.memberId === memberId;
