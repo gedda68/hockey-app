@@ -15,6 +15,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
+import { resolveSessionMemberId } from "@/lib/auth/sessionMember";
 import { getSession } from "@/lib/auth/session";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -118,8 +119,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const memberId = session.memberId;
-  if (!memberId) {
+  if (!session.memberId) {
     // User account with no linked member — return empty state gracefully
     return NextResponse.json<MyFeesResponse>({
       memberId: session.userId ?? "",
@@ -132,6 +132,7 @@ export async function GET(req: NextRequest) {
 
   const client = await clientPromise;
   const db = client.db("hockey-app");
+  const memberId = await resolveSessionMemberId(db, session);
 
   // ── 1. Fetch payments for this member ─────────────────────────────────────
   const payments = await db
