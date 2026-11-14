@@ -99,7 +99,7 @@ export default function MemberRegistrationView({ memberId }: { memberId?: string
                     <thead className="text-xs uppercase text-slate-400"><tr><th className="py-1">Level</th><th>Type</th><th>Roles</th><th>Status</th><th className="text-right">Fee</th></tr></thead>
                     <tbody>
                       {regs.map((r) => (
-                        <tr key={`${r.levelKind}-${r.levelId}`} className="border-t border-slate-100" title={r.fees.map((x) => `${x.name}: ${$(x.amount)}`).join("\n")}>
+                        <tr key={r.registrationId} className="border-t border-slate-100" title={r.fees.map((x) => `${x.name}: ${$(x.amount)}`).join("\n")}>
                           <td className="py-1.5 font-bold">{r.level}</td>
                           <td>{pretty(r.category || "—")}</td>
                           <td>{r.roles.map(pretty).join(", ") || "—"}</td>

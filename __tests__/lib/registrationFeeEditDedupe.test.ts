@@ -41,3 +41,18 @@ describe("planDedupe", () => {
     expect(p.remove.map((d) => d._id).sort()).toEqual([1, 3]);
   });
 });
+
+describe("planDedupe merge", () => {
+  it("folds fees and roles from a priced duplicate into the kept imported record", () => {
+    const docs = [
+      { _id: 1, memberId: "M1", clubId: "c", seasonYear: 2026, source: "altius", status: "active", roleIds: ["role-junior-player"] },
+      { _id: 2, memberId: "M1", clubId: "c", seasonYear: 2026, source: "backfill", status: "active", roleIds: ["role-umpire", "role-junior-player"], fees: [{ amount: 20 }], totalFee: 80, registrationCategory: "junior" },
+    ];
+    const p = planDedupe(docs, "club");
+    expect(p.remove.map((d) => d._id)).toEqual([2]);
+    expect(p.updates).toHaveLength(1);
+    expect(p.updates[0]._id).toBe(1);
+    expect(p.updates[0].set).toMatchObject({ totalFee: 80, registrationCategory: "junior" });
+    expect(p.updates[0].set.roleIds.sort()).toEqual(["role-junior-player", "role-umpire"]);
+  });
+});

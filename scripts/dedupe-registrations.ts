@@ -4,6 +4,8 @@
  * Finds duplicate club and association registrations (same member + same club/association + same season,
  * whatever their registrationId or source) and removes the extras, keeping the best one: records from a
  * real source beat backfilled ones, then active, then ones with fees, then the most recently updated.
+ * If the kept record has no fees but a removed one does (e.g. an imported registration next to a priced
+ * backfilled one), the fees, total, category and roles are merged into the kept record first.
  * A registration an administrator has edited fees on is never discarded in favour of an unedited one.
  *
  *   npm run dedupe:registrations -- [--season 2026] [--apply]
@@ -29,12 +31,12 @@ async function main() {
   const db = client.db(DB_NAME);
   const stamp = new Date().toISOString().replace(/[:.]/g, "-");
 
-  const plans = [] as { col: string; remove: Record<string, any>[]; groups: number }[];
+  const plans = [] as { col: string; remove: Record<string, any>[]; updates: { _id: unknown; set: Record<string, any> }[]; groups: number }[];
   for (const [col, kind] of [["club-registrations", "club"], ["association-registrations", "association"]] as const) {
     const docs = await db.collection(col).find(filter).toArray();
     const p = planDedupe(docs, kind);
-    plans.push({ col, remove: p.remove, groups: p.groupsWithDupes });
-    console.log(`${col}: ${docs.length} records, ${p.groupsWithDupes} duplicated registrations, ${p.remove.length} extra records to remove`);
+    plans.push({ col, remove: p.remove, updates: p.updates, groups: p.groupsWithDupes });
+    console.log(`${col}: ${docs.length} records, ${p.groupsWithDupes} duplicated registrations, ${p.remove.length} extra records to remove, ${p.updates.length} kept records get fees/roles merged in`);
   }
   const total = plans.reduce((n, p) => n + p.remove.length, 0);
 
@@ -53,10 +55,14 @@ async function main() {
   const dir = path.resolve("registration-dedupe-backups");
   fs.mkdirSync(dir, { recursive: true });
   const backup = path.join(dir, `${stamp}.json`);
-  fs.writeFileSync(backup, JSON.stringify(plans.map((p) => ({ collection: p.col, records: p.remove })), null, 2));
+  // Backup the records being removed AND the originals of kept records that get merged into.
+  const keeperIds = new Map<string, unknown[]>(plans.map((p) => [p.col, p.updates.map((u) => u._id)]));
+  const keepers = await Promise.all(plans.map((p) => db.collection(p.col).find({ _id: { $in: keeperIds.get(p.col) as any[] } }).toArray()));
+  fs.writeFileSync(backup, JSON.stringify(plans.map((p, i) => ({ collection: p.col, records: p.remove, keptBeforeMerge: keepers[i] })), null, 2));
   console.log(`\nBackup written: ${backup}`);
   for (const p of plans) {
     if (!p.remove.length) continue;
+    for (const u of p.updates) await db.collection(p.col).updateOne({ _id: u._id as any }, { $set: { ...u.set, updatedAt: new Date() } });
     const r = await db.collection(p.col).deleteMany({ _id: { $in: p.remove.map((d) => d._id) } });
     console.log(`${p.col}: removed ${r.deletedCount}`);
   }

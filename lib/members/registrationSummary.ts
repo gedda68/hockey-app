@@ -23,7 +23,7 @@ export interface RegistrationSummary {
   member: { memberId: string; name: string; dateOfBirth: string; age: number | null; memberNumber: string; status: string };
   levels: LevelInfo[];
   registrations: {
-    season: number; level: string; levelKind: "club" | "association"; levelId: string;
+    registrationId: string; season: number; level: string; levelKind: "club" | "association"; levelId: string;
     category: string; status: string; roles: string[]; fee: number; fees: { itemId: string; name: string; amount: number; associationId?: string; clubId?: string }[];
   }[];
   fees: { bySeason: Record<string, FeeSummary & { byLevel: Record<string, FeeSummary> }>; total: FeeSummary };
@@ -115,6 +115,7 @@ export async function loadRegistrationSummary(db: Db, memberId: string): Promise
     kind === "club" ? clubName.get(id) ?? (id || "Club") : String(assocById.get(id)?.name ?? id);
 
   const toReg = (r: Doc, kind: "club" | "association") => ({
+    registrationId: String(r.registrationId ?? r._id),
     season: Number(r.seasonYear),
     level: levelName(kind, String(kind === "club" ? r.clubId : r.associationId)),
     levelKind: kind,
