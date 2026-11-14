@@ -160,15 +160,19 @@ export default function RelatedPeopleCard({
                         <button key={p.memberId} type="button" onClick={() => addLinked(p)} className="w-full text-left px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-teal-50">{p.name}</button>
                       ))}
                       {!searching && results.length === 0 && <p className="px-3 py-2 text-xs text-slate-400">No members found.</p>}
-                      <button type="button" onClick={() => { onChange([...value, { name: q.trim(), relationshipType: "", ...(otherClub && club ? { clubId: club.id, clubName: club.name, city: club.city } : {}) }]); setQ(""); setResults([]); }}
-                        className="w-full text-left px-3 py-2 text-sm font-bold text-teal-700 hover:bg-teal-50 border-t border-slate-100">
-                        <Plus className="inline h-3.5 w-3.5 mr-1" /> Add &ldquo;{q.trim()}&rdquo; without linking
-                      </button>
                     </div>
                   )}
                 </div>
+                {q.trim().length >= 2 && (
+                  <button type="button" onClick={() => { onChange([...value, { name: q.trim(), relationshipType: "", ...(otherClub && club ? { clubId: club.id, clubName: club.name, city: club.city } : {}) }]); setQ(""); setResults([]); }}
+                    className="mt-2 inline-flex items-center gap-1 rounded-xl border-2 border-teal-200 bg-teal-50 px-3 py-1.5 text-xs font-black text-teal-700 hover:bg-teal-100">
+                    <Plus className="h-3.5 w-3.5" /> Add &ldquo;{q.trim()}&rdquo; without linking
+                  </button>
+                )}
+                <p className="text-[11px] text-slate-400 mt-1">Pick a match to link them, or add the name as typed. You can add as many people as you like.</p>
               </div>
             )}
+            {otherClub && !club && <p className="text-[11px] text-slate-400">Choose the club first, then add the person.</p>}
           </div>
         )}
 
