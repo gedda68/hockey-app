@@ -1,6 +1,9 @@
 /**
  * scripts/backfill-registrations.ts   (DRY-RUN by default — nothing changes without --apply)
  *
+ * Fees come from each club's and association's own fee list (`fees[]`, see npm run seed:fee-lists); a level
+ * with no list yet falls back to the starter list.
+ *
  * Registers every member at the club and at every association above the club (city/region, state,
  * national), with a registration category and itemised fees (see lib/registrations/pricing.ts):
  *   junior (under 18 in the season year) $20 per level · senior $100 per level ·
@@ -32,19 +35,19 @@ async function main() {
   await client.connect();
   const db = client.db(DB_NAME);
 
-  const assocs = await db.collection("associations").find({}, { projection: { associationId: 1, name: 1, parentAssociationId: 1 } }).toArray();
+  const assocs = await db.collection("associations").find({}, { projection: { associationId: 1, name: 1, parentAssociationId: 1, fees: 1 } }).toArray();
   const assocById = new Map(assocs.map((a) => [String(a.associationId), a]));
   const depth = (id: string): number => { let d = 0, cur = assocById.get(id); const seen = new Set<string>(); while (cur?.parentAssociationId && !seen.has(String(cur.associationId))) { seen.add(String(cur.associationId)); d++; cur = assocById.get(String(cur.parentAssociationId)); } return d; };
 
-  const clubs = await db.collection("clubs").find({}, { projection: { id: 1, clubId: 1, name: 1, parentAssociationId: 1 } }).toArray();
+  const clubs = await db.collection("clubs").find({}, { projection: { id: 1, clubId: 1, name: 1, parentAssociationId: 1, fees: 1 } }).toArray();
   const levelsByClub = new Map<string, Level[]>();
   for (const c of clubs) {
-    const levels: Level[] = [{ kind: "club", id: String(c.id ?? c.clubId), name: String(c.name ?? c.id) }];
+    const levels: Level[] = [{ kind: "club", id: String(c.id ?? c.clubId), name: String(c.name ?? c.id), fees: c.fees }];
     let cur = c.parentAssociationId ? assocById.get(String(c.parentAssociationId)) : undefined;
     const seen = new Set<string>();
     while (cur && !seen.has(String(cur.associationId))) {
       seen.add(String(cur.associationId));
-      levels.push({ kind: "association", id: String(cur.associationId), name: String(cur.name ?? cur.associationId), hierarchyLevel: depth(String(cur.associationId)) });
+      levels.push({ kind: "association", id: String(cur.associationId), name: String(cur.name ?? cur.associationId), hierarchyLevel: depth(String(cur.associationId)), fees: cur.fees });
       cur = cur.parentAssociationId ? assocById.get(String(cur.parentAssociationId)) : undefined;
     }
     for (const k of [c.id, c.clubId]) if (k) levelsByClub.set(String(k), levels.map((l) => (l.kind === "club" ? { ...l, id: String(k) } : l)));

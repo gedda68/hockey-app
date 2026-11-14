@@ -43,6 +43,16 @@ describe("buildRegistrations", () => {
     expect(r.club.totalFee).toBe(0);
     expect(r.associations).toEqual([]);
   });
+  it("uses each level's own fee list (added line, changed amount)", () => {
+    const custom = [
+      { feeId: "std-junior", name: "Junior registration", amount: 35, gstIncluded: true, isActive: true, appliesTo: { ageCategories: ["junior"] } },
+      { feeId: "strip", name: "Playing strip", amount: 60, gstIncluded: true, isActive: true, appliesTo: { ageCategories: ["junior", "senior"] } },
+    ];
+    const lv = [{ ...levels[0], fees: custom }, ...levels.slice(1)];
+    const r = buildRegistrations({ ...base, personalInfo: { dateOfBirth: "2010-04-01" } }, { ...o, levelsByClub: new Map([["chc", lv]]) })!;
+    expect(r.club.fees.map((f) => f.amount)).toEqual([35, 60, 20, 20, 20]);
+    expect(r.club.totalFee).toBe(155);
+  });
   it("skips members without a club; inactive status mapped", () => {
     expect(buildRegistrations({ memberId: "M4" }, o)).toBeNull();
     expect(buildRegistrations({ ...base, membership: { clubId: "chc", status: "Lapsed" } }, o)!.club.status).toBe("inactive");
