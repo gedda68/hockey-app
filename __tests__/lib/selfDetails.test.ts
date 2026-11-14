@@ -76,3 +76,13 @@ describe("privacy flag and linked emergency contacts", () => {
     expect((r.$set.emergencyContacts as any[])[0].memberId).toBe("M9");
   });
 });
+
+describe("single emergency contact list", () => {
+  it("keeps the legacy contact in step with priority 1", () => {
+    const r = sanitizeSelfDetails({ emergencyContacts: [{ name: "Ann", relationship: "Mother", mobile: "0400" }, { name: "Bob" }] }, {});
+    expect(r.$set["contact.emergencyContact"]).toMatchObject({ name: "Ann", relationship: "Mother", phone: "0400" });
+    expect(r.touched).toContain("contact.emergencyContact");
+    const none = sanitizeSelfDetails({ emergencyContacts: [] }, {});
+    expect((none.$set["contact.emergencyContact"] as any).name).toBe("");
+  });
+});

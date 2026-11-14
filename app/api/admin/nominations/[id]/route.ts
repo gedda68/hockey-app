@@ -10,6 +10,7 @@
  * DELETE /api/admin/nominations/[id]  — remove (draft / pending only)
  */
 
+import { grantRelease } from "@/lib/members/sharing";
 import { NextRequest, NextResponse } from "next/server";
 import { ObjectId } from "mongodb";
 import clientPromise from "@/lib/mongodb";
@@ -196,6 +197,20 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 
     await db.collection("rep_nominations").updateOne(nominationFilter(id), { $set: update });
     const result = await db.collection("rep_nominations").findOne(nominationFilter(id));
+
+    // Acceptance is when medical / emergency / blue card details become available to the people who
+    // run the team: rep selectors for rep teams, the club for club positions. One season, visible to the member.
+    if (action === "accept" && result) {
+      const memberKey = String((result as any).memberId ?? ((result as any).nomineeType !== "user" ? (result as any).nomineeId : "") ?? "");
+      const seasonYear = parseInt(String((result as any).season ?? new Date().getFullYear()), 10);
+      if (memberKey) {
+        const clubPosition = (result as any).nominationType === "club-position";
+        await grantRelease(db, memberKey, clubPosition
+          ? { purpose: "position-acceptance", audience: "club", scopeId: String((result as any).clubId ?? ""), label: `${(result as any).clubName ?? "Club"} position`, seasonYear, source: String((result as any).nominationId ?? "") }
+          : { purpose: "rep-selection", audience: "association", scopeId: "*", label: `${(result as any).ageGroup ?? ""} representative team`.trim(), seasonYear, source: String((result as any).nominationId ?? "") },
+        ).catch((e) => console.error("grantRelease failed", e));
+      }
+    }
     return NextResponse.json({ ...result, _id: (result as any)?._id?.toString() });
 
   } catch (error: unknown) {

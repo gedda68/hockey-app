@@ -19,15 +19,12 @@ import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { toast } from "sonner";
 import MoreDetailsForm from "@/components/member/MoreDetailsForm";
-import TypeaheadSelect from "@/components/ui/TypeaheadSelect";
-import { resolveSelection, type PickOption } from "@/lib/members/profileOptions";
 import ProfilePhotoControls from "@/components/member/ProfilePhotoControls";
 import ChangePasswordCard from "@/components/member/ChangePasswordCard";
 import {
   User,
   Phone,
   MapPin,
-  Heart,
   Lock,
   Save,
   Loader2,
@@ -213,7 +210,6 @@ export default function MyProfilePage() {
   const { user } = useAuth();
 
   const [member,       setMember]       = useState<MemberProfile | null>(null);
-  const [relOptions,   setRelOptions]   = useState<PickOption[]>([]);
   const [relatedToMe,  setRelatedToMe]  = useState<{ memberId: string; name: string; relationshipType: string }[]>([]);
   const [clubName,     setClubName]     = useState<string | null>(null);
   const [assocName,    setAssocName]    = useState<string | null>(null);
@@ -226,10 +222,6 @@ export default function MyProfilePage() {
   // ── Form state ─────────────────────────────────────────────────────────────
   const [phone,     setPhone]     = useState("");
   const [mobile,    setMobile]    = useState("");
-  const [ecName,    setEcName]    = useState("");
-  const [ecRel,     setEcRel]     = useState("");
-  const [ecPhone,   setEcPhone]   = useState("");
-  const [ecEmail,   setEcEmail]   = useState("");
   const [street,    setStreet]    = useState("");
   const [suburb,    setSuburb]    = useState("");
   const [addrState, setAddrState] = useState("");
@@ -263,10 +255,6 @@ export default function MyProfilePage() {
       const m = data.member;
       setPhone(     m.contact?.phone    ?? "");
       setMobile(    m.contact?.mobile   ?? "");
-      setEcName(    m.contact?.emergencyContact?.name         ?? "");
-      setEcRel(     m.contact?.emergencyContact?.relationship ?? "");
-      setEcPhone(   m.contact?.emergencyContact?.phone        ?? "");
-      setEcEmail(   m.contact?.emergencyContact?.email        ?? "");
       setStreet(    m.address?.street   ?? "");
       setSuburb(    m.address?.suburb   ?? "");
       setAddrState( m.address?.state    ?? "");
@@ -285,21 +273,11 @@ export default function MyProfilePage() {
     void loadProfile();
   }, [loadProfile]);
 
-  useEffect(() => {
-    fetch("/api/member/profile-options", { credentials: "include" })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => d?.relationships && setRelOptions(d.relationships))
-      .catch(() => {});
-  }, []);
 
   // ── Dirty detection ───────────────────────────────────────────────────────
   const dirty = member !== null && (
     phone     !== (member.contact?.phone    ?? "") ||
     mobile    !== (member.contact?.mobile   ?? "") ||
-    ecName    !== (member.contact?.emergencyContact?.name         ?? "") ||
-    ecRel     !== (member.contact?.emergencyContact?.relationship ?? "") ||
-    ecPhone   !== (member.contact?.emergencyContact?.phone        ?? "") ||
-    ecEmail   !== (member.contact?.emergencyContact?.email        ?? "") ||
     street    !== (member.address?.street   ?? "") ||
     suburb    !== (member.address?.suburb   ?? "") ||
     addrState !== (member.address?.state    ?? "") ||
@@ -323,12 +301,6 @@ export default function MyProfilePage() {
           contact: {
             phone:  phone.trim()  || null,
             mobile: mobile.trim() || null,
-            emergencyContact: {
-              name:         ecName.trim(),
-              relationship: ecRel.trim(),
-              phone:        ecPhone.trim(),
-              email:        ecEmail.trim() || null,
-            },
           },
           address: {
             street:   street.trim(),
@@ -610,78 +582,6 @@ export default function MyProfilePage() {
               autoComplete="country-name"
               maxLength={80}
             />
-          </div>
-        </SectionCard>
-
-        {/* ── Emergency contact ───────────────────────────────────────────── */}
-        <SectionCard icon={Heart} title="Emergency contact">
-          <div className="grid sm:grid-cols-2 gap-4">
-            <div>
-              <FieldLabel htmlFor="mp-ec-name" locked={lk("contact.emergencyContact.name")}>
-                Full name
-              </FieldLabel>
-              <FieldInput
-                id="mp-ec-name"
-                value={ecName}
-                onChange={setEcName}
-                locked={lk("contact.emergencyContact.name")}
-                autoComplete="off"
-                maxLength={120}
-              />
-            </div>
-            <div>
-              <FieldLabel htmlFor="mp-ec-rel" locked={lk("contact.emergencyContact.relationship")}>
-                Relationship
-              </FieldLabel>
-{lk("contact.emergencyContact.relationship") ? (
-                <FieldInput id="mp-ec-rel" value={resolveSelection(relOptions, ecRel).options.find((o) => o.value === resolveSelection(relOptions, ecRel).value)?.label ?? ecRel} onChange={() => {}} locked />
-              ) : (
-                (() => {
-                  const r = resolveSelection(relOptions, ecRel);
-                  return (
-                    <TypeaheadSelect
-                      options={r.options}
-                      value={r.value}
-                      onChange={setEcRel}
-                      placeholder="Type to search…"
-                      className="w-full rounded-xl border-2 border-slate-200 bg-white px-3 py-2 pr-9 text-sm font-semibold text-slate-800 outline-none focus:border-teal-400"
-                    />
-                  );
-                })()
-              )}
-            </div>
-            <div>
-              <FieldLabel htmlFor="mp-ec-phone" locked={lk("contact.emergencyContact.phone")}>
-                Phone
-              </FieldLabel>
-              <FieldInput
-                id="mp-ec-phone"
-                type="tel"
-                value={ecPhone}
-                onChange={setEcPhone}
-                locked={lk("contact.emergencyContact.phone")}
-                autoComplete="off"
-                maxLength={40}
-              />
-            </div>
-            <div>
-              <FieldLabel
-                htmlFor="mp-ec-email"
-                locked={lk("contact.emergencyContact.email")}
-                optional
-              >
-                Email
-              </FieldLabel>
-              <FieldInput
-                id="mp-ec-email"
-                type="email"
-                value={ecEmail}
-                onChange={setEcEmail}
-                locked={lk("contact.emergencyContact.email")}
-                autoComplete="off"
-                maxLength={200}
-              />
-            </div>
           </div>
         </SectionCard>
 
