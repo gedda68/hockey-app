@@ -28,9 +28,17 @@ export async function GET() {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
     }
 
-    const db = await getDatabase();
-    const personas = await buildPersonaOptions(db, session);
-    const activePersonaKey = activePersonaKeyFromSession(session);
+    // The persona list is a convenience: if building it fails (odd role data on an imported member, say)
+    // the person must still be recognised, so fall back to no extra personas instead of failing the call.
+    let personas: Awaited<ReturnType<typeof buildPersonaOptions>> = [];
+    let activePersonaKey: string | undefined;
+    try {
+      const db = await getDatabase();
+      personas = await buildPersonaOptions(db, session);
+      activePersonaKey = activePersonaKeyFromSession(session);
+    } catch (e) {
+      console.error("[auth/me] persona list failed:", e);
+    }
 
     return NextResponse.json({
       user: {
@@ -56,7 +64,8 @@ export async function GET() {
         personas,
       },
     });
-  } catch {
+  } catch (e) {
+    console.error("[auth/me] failed:", e);
     return NextResponse.json({ error: "Session error" }, { status: 500 });
   }
 }
