@@ -1,6 +1,7 @@
 // app/api/admin/clubs/[id]/members/route.ts
 // Looks up club by slug or legacy id, then returns its members.
 
+import { isContactPrivate } from "@/lib/members/privacy";
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import {
@@ -52,7 +53,7 @@ export async function GET(
       displayName:
         m.personalInfo?.displayName ||
         `${m.personalInfo?.firstName} ${m.personalInfo?.lastName}`,
-      email: m.contact?.primaryEmail,
+      email: isContactPrivate(m) ? "" : m.contact?.primaryEmail,
       memberNumber: m.memberId,
       roles: m.roles || [],
       teams: m.teams || [],

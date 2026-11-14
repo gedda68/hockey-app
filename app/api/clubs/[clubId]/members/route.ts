@@ -2,6 +2,8 @@
 // Complete API: Create member + List members (with unique ID check)
 // Both methods require authentication and club-level scope validation.
 
+import { redactPrivateContact } from "@/lib/members/privacy";
+import { getSession } from "@/lib/auth/session";
 import { NextRequest, NextResponse } from "next/server";
 import type { Db } from "mongodb";
 import { clubMemberFilter, getClubMemberLinks } from "@/lib/clubs/clubPortalData";
@@ -194,8 +196,9 @@ export async function GET(
 
     // Teams (linked) and positions held, for the members list
     const links = await getClubMemberLinks(db, club, members);
+    const viewer = await getSession().catch(() => null);
     return NextResponse.json(
-      members.map((m) => ({
+      members.map((m) => redactPrivateContact(m, [viewer?.memberId])).map((m) => ({
         ...m,
         clubTeams: links[String(m.memberId)]?.teams ?? [],
         positions: links[String(m.memberId)]?.positions ?? [],

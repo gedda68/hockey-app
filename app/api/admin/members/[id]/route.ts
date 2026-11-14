@@ -1,6 +1,7 @@
 // app/api/admin/members/[id]/route.ts
 // Members API - Get, Update, Delete individual member
 
+import { redactPrivateContact, preservePrivateFields } from "@/lib/members/privacy";
 import { NextRequest, NextResponse } from "next/server";
 import { applyBlueCardUpdate, canVerifyBlueCard, memberClubId } from "@/lib/members/blueCardWorkflow";
 import { notifyBlueCardVerifier } from "@/lib/notifications/blueCardVerification";
@@ -128,8 +129,9 @@ export async function GET(
       for (const d of docs) memberNames[String(d.memberId)] = `${d.personalInfo?.firstName ?? ""} ${d.personalInfo?.lastName ?? ""}`.trim();
     }
 
+    const viewer = await getSession();
     return NextResponse.json({
-      member,
+      member: redactPrivateContact(member, [viewer?.memberId]),
       playerStats,
       teamHistory,
       related: {
@@ -177,6 +179,12 @@ export async function PUT(
 
     // Strip immutable / identity fields that must never appear in $set
     const { _id, memberId: _mid, createdAt, ...updateData } = body;
+
+    // While a member's contact details are private, only they may change them (or the privacy setting).
+    const isOwner = !!session?.memberId && (session.memberId === String(existing._id) || session.memberId === existing.memberId);
+    const guarded = preservePrivateFields(existing, updateData, isOwner);
+    for (const k of Object.keys(updateData)) delete (updateData as Record<string, unknown>)[k];
+    Object.assign(updateData, guarded);
 
     // Update timestamp
     updateData.updatedAt = new Date().toISOString();
@@ -245,7 +253,7 @@ export async function PUT(
 
     return NextResponse.json({
       success: true,
-      member: updatedMember,
+      member: updatedMember ? redactPrivateContact(updatedMember, [session?.memberId]) : updatedMember,
     });
   } catch (error: unknown) {
     logAdminError("admin.member.update.error", traceId, error);

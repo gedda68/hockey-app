@@ -65,6 +65,18 @@ export async function PATCH(request: NextRequest) {
       }
     }
 
+    // A linked emergency contact must be a real member (never yourself).
+    const ecs = $set.emergencyContacts as Record<string, any>[] | undefined;
+    if (ecs) {
+      const ids = ecs.map((c) => c.memberId).filter(Boolean) as string[];
+      if (ids.includes(memberKey)) return NextResponse.json({ error: "You can't list yourself as your emergency contact" }, { status: 400 });
+      if (ids.length) {
+        const found = await db.collection("members").find({ memberId: { $in: ids } }, { projection: { memberId: 1 } }).toArray();
+        const ok = new Set(found.map((m) => m.memberId));
+        for (const c of ecs) if (c.memberId && !ok.has(c.memberId)) delete c.memberId; // fall back to a manual entry
+      }
+    }
+
     // Blue card goes through the verification workflow as a non-verifier.
     let notify: string | null = null;
     const incomingCard = $set.__blueCardIncoming as Record<string, unknown> | undefined;
