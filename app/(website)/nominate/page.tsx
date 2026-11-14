@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { calcAgeForSeason } from "@/types/nominations";
 import type { OpenOpportunity } from "@/types/tournaments";
+import NominationOptions from "@/components/nominations/NominationOptions";
 import NominationWorkflowModal from "@/components/admin/players/NominationWorkflowModal";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -177,6 +178,10 @@ export default function NominatePage() {
   // Open tournaments
   const [opportunities, setOpportunities] = useState<OpenOpportunity[]>([]);
   const [existingNominations, setExistingNominations] = useState<string[]>([]); // ageGroups already nominated
+
+  // From the member options: does the member hold a player role? (hides the player-only list if not)
+  const [memberIsPlayer, setMemberIsPlayer] = useState<boolean | null>(null);
+  const [playerNote, setPlayerNote] = useState<string | null>(null);
 
   // Nomination modal
   const [activeOpportunity, setActiveOpportunity] =
@@ -411,8 +416,25 @@ export default function NominatePage() {
       </div>
 
       <main className="max-w-3xl mx-auto px-4 -mt-12 pb-20">
+        {/* ── Signed-in members: every team and position they may nominate for ── */}
+        {session?.memberId && (
+          <>
+            <NominationOptions
+              onLoaded={({ isPlayer }) => setMemberIsPlayer(isPlayer)}
+              onNominatePlayer={(ageGroup) => {
+                const opp = opportunities.find((o) => o.ageGroup === ageGroup);
+                if (opp && player) { setPlayerNote(null); setActiveOpportunity(opp); }
+                else setPlayerNote(`We couldn't match your player profile to ${ageGroup} (age or gender may not fit). Contact your club if this looks wrong.`);
+              }}
+            />
+            {playerNote && (
+              <div className="mb-6 p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-sm font-bold">{playerNote}</div>
+            )}
+          </>
+        )}
+
         {/* ── STEP 1: Lookup / Login ── */}
-        {lookupState !== "found" && (
+        {lookupState !== "found" && !(session?.memberId && memberIsPlayer === false) && (
           <div className="bg-white rounded-3xl shadow-2xl overflow-hidden mb-6">
             {/* Tab switcher */}
             <div className="flex border-b-2 border-slate-100">
@@ -638,7 +660,8 @@ export default function NominatePage() {
               </div>
             )}
 
-            {/* Eligible tournaments */}
+            {/* Eligible tournaments (player nominations) — hidden for members with no player role */}
+            {!(session?.memberId && memberIsPlayer === false) && (
             <div className="bg-white rounded-3xl shadow-2xl p-8">
               <div className="flex items-center gap-3 mb-6">
                 <Trophy size={22} className="text-[#06054e]" />
@@ -781,6 +804,7 @@ export default function NominatePage() {
                 </button>
               </div>
             </div>
+            )}
           </>
         )}
       </main>
