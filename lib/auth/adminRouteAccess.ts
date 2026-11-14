@@ -234,6 +234,9 @@ const ROUTE_RULES: RouteRule[] = [
   },
 
   { pattern: /^\/admin\/my-registrations(\/|$)/, allowedRoles: PORTAL_ROLES },
+  { pattern: /^\/admin\/my-registration(\/|$)/, allowedRoles: PORTAL_ROLES },
+  // Limited member view for club/association admins — the API enforces scope per member.
+  { pattern: /^\/admin\/registrations(\/|$)/, allowedRoles: ["super-admin", "association-admin", "assoc-committee", "assoc-registrar", "club-admin", "club-committee", "registrar"] },
   { pattern: /^\/admin\/my-fees(\/|$)/, allowedRoles: PORTAL_ROLES },
 
   {

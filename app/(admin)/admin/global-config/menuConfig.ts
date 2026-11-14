@@ -669,10 +669,18 @@ export const menuConfig: MenuItem[] = [
 
   // ── My personal pages (all authenticated users) ──────────────────────────────
   {
-    label: "My Registrations",
+    label: "My Registration",
+    href: "/admin/my-registration",
+    icon: "🪪",
+    description: "Your registrations, fees, teams and history",
+    color: "from-amber-400 to-amber-500",
+    section: "personal",
+  },
+  {
+    label: "Role Requests",
     href: "/admin/my-registrations",
     icon: "🎫",
-    description: "View and submit your role registration requests",
+    description: "Apply for extra roles (coach, umpire, official…)",
     color: "from-amber-400 to-amber-500",
     section: "personal",
   },
