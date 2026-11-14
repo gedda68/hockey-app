@@ -65,7 +65,8 @@ function mapMePayload(raw: Record<string, unknown>): User {
       (raw.lastName as string) ||
       String(raw.name || "").split(" ").slice(1).join(" ") ||
       "",
-    role: (raw.role as string) || "player",
+    // "public" is the anonymous visitor role; a signed-in person with no better role is a member.
+    role: !raw.role || raw.role === "public" ? "member" : (raw.role as string),
     scopedRoles: Array.isArray(raw.scopedRoles)
       ? (raw.scopedRoles as ScopedRole[])
       : [],
