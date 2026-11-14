@@ -1,11 +1,27 @@
 // lib/auth/roleRedirects.ts
 // Role-based navigation helper
 
+import { evaluateAdminRouteAccess, SELF_SERVICE_LANDING } from "@/lib/auth/adminRouteAccess";
+
 /**
  * Get the appropriate dashboard path for a user based on their role.
  * The returned path MUST exist in the app/(admin)/admin/ or app/(website)/ directory.
  */
 export function getRoleDashboard(
+  role: string,
+  clubSlugOrId?: string | null,
+  associationId?: string | null,
+): string {
+  const target = roleLanding(role, clubSlugOrId, associationId);
+  // Never send someone to a page their role is not allowed to open (e.g. a volunteer's club editor):
+  // fall back to their own self-service page instead of an "Access denied" screen.
+  if (target !== SELF_SERVICE_LANDING && evaluateAdminRouteAccess(target, { role }) === "deny") {
+    return SELF_SERVICE_LANDING;
+  }
+  return target;
+}
+
+function roleLanding(
   role: string,
   clubSlugOrId?: string | null,
   associationId?: string | null

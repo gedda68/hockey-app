@@ -9,3 +9,13 @@ describe("getRoleDashboard", () => {
     expect(getRoleDashboard("super-admin")).toBe("/admin/dashboard");
   });
 });
+
+describe("getRoleDashboard falls back when the landing is not permitted", () => {
+  it("never lands a role on a page it is denied", async () => {
+    const { evaluateAdminRouteAccess } = await import("@/lib/auth/adminRouteAccess");
+    for (const r of ["coach", "manager", "team-selector", "umpire", "volunteer", "player", "member", "parent", "public", "junior"]) {
+      const path = getRoleDashboard(r, "some-club", "some-assoc");
+      expect(evaluateAdminRouteAccess(path, { role: r })).toBe("allow");
+    }
+  });
+});
