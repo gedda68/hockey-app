@@ -57,11 +57,25 @@ export async function PATCH(request: NextRequest) {
         const found = await db.collection("members")
           .find({ memberId: { $in: ids } }, { projection: { memberId: 1, personalInfo: 1 } }).toArray();
         const names = new Map(found.map((m) => [m.memberId, `${m.personalInfo?.firstName ?? ""} ${m.personalInfo?.lastName ?? ""}`.trim()]));
+        const clubOf = new Map(found.map((m) => [m.memberId, String(m.membership?.clubId ?? m.clubId ?? "")]));
         for (const r of related) {
           if (!r.memberId) continue;
           if (!names.has(r.memberId)) return NextResponse.json({ error: `Member ${r.memberId} was not found` }, { status: 400 });
           r.name = names.get(r.memberId) || r.name;
+          r.clubId = clubOf.get(r.memberId) || r.clubId; // a linked person's club is authoritative
         }
+      }
+      // Same club → just name + relationship. Other club → club name and city inherited from the club record.
+      const ownClub = String(existing.membership?.clubId ?? existing.clubId ?? "");
+      const clubIds = [...new Set(related.map((r) => r.clubId).filter((c) => c && c !== ownClub))] as string[];
+      const clubDocs = clubIds.length
+        ? await db.collection("clubs").find({ id: { $in: clubIds } }, { projection: { _id: 0, id: 1, name: 1, city: 1, suburb: 1 } }).toArray()
+        : [];
+      const clubInfo = new Map(clubDocs.map((c) => [String(c.id), { clubName: String(c.name ?? ""), city: String(c.city ?? c.suburb ?? "") }]));
+      for (const r of related) {
+        const info = r.clubId && r.clubId !== ownClub ? clubInfo.get(r.clubId) : undefined;
+        if (info) Object.assign(r, info);
+        else { delete r.clubId; delete r.clubName; delete r.city; }
       }
     }
 

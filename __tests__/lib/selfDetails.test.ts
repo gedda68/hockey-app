@@ -64,6 +64,16 @@ describe("related people", () => {
   });
 });
 
+describe("related people from another club", () => {
+  it("keeps only the club id (name/city are filled in by the server)", () => {
+    const r = sanitizeSelfDetails({ relatedMembers: [{ name: "Sam", relationshipType: "Friend", clubId: "club-9", clubName: "Spoofed", city: "Nowhere" }] }, {});
+    const e = (r.$set["personalInfo.relatedMembers"] as any[])[0];
+    expect(e.clubId).toBe("club-9");
+    expect(e.clubName).toBeUndefined();
+    expect(e.city).toBeUndefined();
+  });
+});
+
 describe("privacy flag and linked emergency contacts", () => {
   it("accepts the contact privacy toggle", () => {
     const r = sanitizeSelfDetails({ privacy: { contactPrivate: true } }, {});
