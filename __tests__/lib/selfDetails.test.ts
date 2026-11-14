@@ -86,3 +86,12 @@ describe("single emergency contact list", () => {
     expect((none.$set["contact.emergencyContact"] as any).name).toBe("");
   });
 });
+
+describe("medical notes", () => {
+  it("accepts notes and the opt-out flag", () => {
+    const r = sanitizeSelfDetails({ medical: { notes: " asthma ", optOut: true } }, {});
+    expect(r.$set["medical.notes"]).toBe("asthma");
+    expect(r.$set["medical.optOut"]).toBe(true);
+    expect(r.touched).toEqual(expect.arrayContaining(["medical.notes", "medical.optOut"]));
+  });
+});

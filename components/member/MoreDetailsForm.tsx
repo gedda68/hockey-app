@@ -6,7 +6,7 @@
 
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Loader2, Save, Plus, Trash2, Lock, ArrowUp, ArrowDown } from "lucide-react";
+import { Loader2, Save, Plus, Trash2, Lock, ArrowUp, ArrowDown, ShieldCheck } from "lucide-react";
 import MemberNameSearch, { type FoundPerson } from "@/components/member/MemberNameSearch";
 import RelatedPeopleCard, { type Related, type RelatedToMe } from "@/components/member/RelatedPeopleCard";
 import TypeaheadSelect from "@/components/ui/TypeaheadSelect";
@@ -31,6 +31,22 @@ function Card({ title, locked, children }: { title: string; locked?: boolean; ch
         )}
       </div>
       <div className="p-5 grid grid-cols-1 sm:grid-cols-2 gap-4">{children}</div>
+    </div>
+  );
+}
+
+function Sub({ title, locked, children }: { title: string; locked?: boolean; children: React.ReactNode }) {
+  return (
+    <div className="p-5">
+      <div className="flex items-center gap-2 mb-3">
+        <h3 className="text-xs font-black uppercase tracking-wide text-slate-500">{title}</h3>
+        {locked && (
+          <span className="inline-flex items-center gap-0.5 text-[10px] font-bold uppercase text-amber-700 bg-amber-100 border border-amber-300 rounded-full px-1.5 py-0.5">
+            <Lock className="h-2.5 w-2.5" /> Locked
+          </span>
+        )}
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">{children}</div>
     </div>
   );
 }
@@ -93,6 +109,8 @@ export default function MoreDetailsForm({ member, relatedToMe = [], onSaved }: {
   const [phProvider, setPhProvider] = useState(""); const [phNumber, setPhNumber] = useState(""); const [phExpiry, setPhExpiry] = useState("");
   const [conditions, setConditions] = useState(""); const [medications, setMedications] = useState(""); const [allergies, setAllergies] = useState("");
   const [bc, setBc] = useState<Doc>({});
+  const [medNotes, setMedNotes] = useState("");
+  const [medOptOut, setMedOptOut] = useState(false);
   const [related, setRelated] = useState<Related[]>([]);
   const [contactPrivate, setContactPrivate] = useState(false);
   const [privateNote, setPrivateNote] = useState<Record<number, boolean>>({});
@@ -126,6 +144,8 @@ export default function MoreDetailsForm({ member, relatedToMe = [], onSaved }: {
     setConditions(member.medical?.conditions ?? ""); setMedications(member.medical?.medications ?? ""); setAllergies(member.medical?.allergies ?? "");
     setBc(member.blueCard ?? {});
     setContactPrivate(member.privacy?.contactPrivate === true);
+    setMedNotes(member.medical?.notes ?? "");
+    setMedOptOut(member.medical?.optOut === true);
     setRelated((Array.isArray(member.personalInfo?.relatedMembers) ? member.personalInfo.relatedMembers : []).map((r: Doc) => ({ id: r.id, memberId: r.memberId, name: r.name ?? "", relationshipType: r.relationshipType ?? "" })));
   }, [member]);
 
@@ -156,7 +176,7 @@ export default function MoreDetailsForm({ member, relatedToMe = [], onSaved }: {
           privateHealth: { provider: phProvider, membershipNumber: phNumber, expiryDate: phExpiry },
         };
       }
-      body.medical = { conditions, medications, allergies };
+      body.medical = { conditions, medications, allergies, notes: medNotes, optOut: medOptOut };
       if (!isLocked("blueCard")) body.blueCard = bc;
 
       const res = await fetch("/api/member/my-profile/details", {
@@ -234,7 +254,32 @@ export default function MoreDetailsForm({ member, relatedToMe = [], onSaved }: {
 
       <RelatedPeopleCard value={related} onChange={setRelated} relationships={opts.relationships} relatedToMe={relatedToMe} locked={isLocked("personalInfo.relatedMembers")} />
 
-      <Card title="Healthcare" locked={isLocked("healthcare")}>
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <div className="px-5 py-4 border-b border-slate-100 bg-slate-50">
+          <div className="flex items-center gap-2">
+            <ShieldCheck className="h-4 w-4 text-teal-600" />
+            <h2 className="text-sm font-black uppercase tracking-wide text-slate-700">Health &amp; safety</h2>
+          </div>
+          <p className="text-[11px] font-medium text-slate-400 mt-0.5">Medical notes and details, healthcare cards and your blue card. All private to you until you&apos;re accepted into a team.</p>
+        </div>
+        <div className="divide-y divide-slate-100">
+      <Sub title="Medical notes">
+        <div className="sm:col-span-2">
+          <label className={labelCls}>Notes for your team staff <span className="normal-case text-slate-300">(optional)</span></label>
+          <textarea rows={3} maxLength={2000} value={medNotes} onChange={(e) => setMedNotes(e.target.value)} disabled={isLocked("medical.notes")}
+            placeholder="Anything your team staff should know about…"
+            className="w-full rounded-xl border-2 border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 outline-none focus:border-teal-400 resize-none disabled:bg-amber-50" />
+        </div>
+        <label className="sm:col-span-2 flex items-start gap-3 cursor-pointer">
+          <input type="checkbox" className="mt-0.5 h-4 w-4 accent-teal-600" checked={!medOptOut} disabled={isLocked("medical.optOut")} onChange={(e) => setMedOptOut(!e.target.checked)} />
+          <span>
+            <span className="block text-sm font-bold text-slate-700">Share these notes with team coaches and managers</span>
+            <span className="block text-xs text-slate-400">Notes are only shared once you&apos;re accepted into a team. Uncheck to keep them private even then.</span>
+          </span>
+        </label>
+      </Sub>
+
+      <Sub title="Healthcare" locked={isLocked("healthcare")}>
         <Field label="Medicare number" value={mcNumber} onChange={setMcNumber} disabled={isLocked("healthcare")} />
         <Field label="Position on card" value={mcPos} onChange={setMcPos} disabled={isLocked("healthcare")} />
         <Field label="Expiry month" value={mcMonth} onChange={setMcMonth} disabled={isLocked("healthcare")} placeholder="MM" />
@@ -242,15 +287,15 @@ export default function MoreDetailsForm({ member, relatedToMe = [], onSaved }: {
         <Field label="Private health provider" value={phProvider} onChange={setPhProvider} disabled={isLocked("healthcare")} />
         <Field label="Membership number" value={phNumber} onChange={setPhNumber} disabled={isLocked("healthcare")} />
         <Field label="Private health expiry" type="date" value={phExpiry} onChange={setPhExpiry} disabled={isLocked("healthcare")} />
-      </Card>
+      </Sub>
 
-      <Card title="Medical details">
+      <Sub title="Medical details">
         <Field label="Conditions" span2 value={conditions} onChange={setConditions} disabled={isLocked("medical.conditions")} />
         <Field label="Medications" span2 value={medications} onChange={setMedications} disabled={isLocked("medical.medications")} />
         <Field label="Allergies" span2 value={allergies} onChange={setAllergies} disabled={isLocked("medical.allergies")} />
-      </Card>
+      </Sub>
 
-      <Card title="Blue card (working with children)" locked={isLocked("blueCard")}>
+      <Sub title="Blue card (working with children)" locked={isLocked("blueCard")}>
         <div className="sm:col-span-2 text-sm font-semibold text-slate-600">
           Status: <span className="font-black text-slate-800">{status.label}</span>
           {bc.lastVerifiedDate ? <span className="text-green-700"> · verified {String(bc.lastVerifiedDate).slice(0, 10)}</span> : <span className="text-slate-400"> · not yet verified by your club</span>}
@@ -264,7 +309,10 @@ export default function MoreDetailsForm({ member, relatedToMe = [], onSaved }: {
         <Select label="Issuing state" value={bc.issuingState ?? ""} onChange={(v) => bcSet("issuingState", v)} options={ISSUING_STATES} disabled={isLocked("blueCard")} />
         <Field label="Issue date" type="date" value={String(bc.issueDate ?? "").slice(0, 10)} onChange={(v) => bcSet("issueDate", v)} disabled={isLocked("blueCard")} />
         <Field label="Expiry date" type="date" value={String(bc.expiryDate ?? "").slice(0, 10)} onChange={(v) => bcSet("expiryDate", v)} disabled={isLocked("blueCard")} />
-      </Card>
+      </Sub>
+
+        </div>
+      </div>
 
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="px-5 py-4 border-b border-slate-100 bg-slate-50">

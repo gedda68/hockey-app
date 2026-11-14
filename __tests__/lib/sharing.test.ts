@@ -58,3 +58,13 @@ describe("sensitive data is private unless released", () => {
     expect(out.notes).toBe("n");
   });
 });
+
+describe("medical notes opt-out", () => {
+  it("keeps free-text notes private from released staff, but not from the owner", () => {
+    const m: any = { ...base(), medical: { conditions: "asthma", notes: "private note", optOut: true } };
+    const staff: any = redactSensitive(m, { role: "coach", clubSlug: "chc" });
+    expect(staff.medical.conditions).toBe("asthma");
+    expect(staff.medical.notes).toBeNull();
+    expect((redactSensitive(m, { memberId: "M1" }) as any).medical.notes).toBe("private note");
+  });
+});
