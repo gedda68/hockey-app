@@ -62,6 +62,22 @@ interface Pick {
 
 const keyOf = (p: Player) => p.memberId || p.playerId;
 
+type SortBy = "surname" | "number";
+const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: "base" });
+export function sortPlayers<T extends { firstName: string; lastName: string; memberNumber: string }>(
+  list: T[],
+  by: SortBy,
+): T[] {
+  return [...list].sort((a, b) =>
+    by === "number"
+      ? collator.compare(a.memberNumber, b.memberNumber) ||
+        collator.compare(a.lastName, b.lastName)
+      : collator.compare(a.lastName, b.lastName) ||
+        collator.compare(a.firstName, b.firstName) ||
+        collator.compare(a.memberNumber, b.memberNumber),
+  );
+}
+
 export default function AddPlayerModal({
   roster,
   teamIndex,
@@ -73,6 +89,7 @@ export default function AddPlayerModal({
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [picks, setPicks] = useState<Record<string, Pick>>({});
   const [submitting, setSubmitting] = useState(false);
+  const [sortBy, setSortBy] = useState<SortBy>("surname");
 
   useEffect(() => {
     const load = async () => {
@@ -137,12 +154,12 @@ export default function AddPlayerModal({
 
   const options = useMemo(
     () =>
-      allowed.map((p) => ({
+      sortPlayers(allowed, sortBy).map((p) => ({
         value: keyOf(p),
-        label: `${p.firstName} ${p.lastName}${p.preferredName ? ` "${p.preferredName}"` : ""} · #${p.memberNumber}`,
+        label: `${p.lastName}, ${p.firstName}${p.preferredName ? ` "${p.preferredName}"` : ""} · #${p.memberNumber}`,
         hint: p.primaryPosition,
       })),
-    [allowed],
+    [allowed, sortBy],
   );
 
   const handleSelect = (ids: string[]) => {
@@ -165,9 +182,12 @@ export default function AddPlayerModal({
   const setPick = (id: string, patch: Partial<Pick>) =>
     setPicks((prev) => ({ ...prev, [id]: { ...prev[id], ...patch } }));
 
-  const selected = selectedIds
-    .map((id) => players.find((p) => keyOf(p) === id))
-    .filter((p): p is Player => !!p);
+  const selected = sortPlayers(
+    selectedIds
+      .map((id) => players.find((p) => keyOf(p) === id))
+      .filter((p): p is Player => !!p),
+    sortBy,
+  );
 
   const numberCounts = new Map<string, number>();
   for (const id of selectedIds) {
@@ -233,9 +253,22 @@ export default function AddPlayerModal({
                 </button>
               </div>
 
-              <label className="block text-xs font-black uppercase text-slate-400 tracking-wider mb-2">
-                Players
-              </label>
+              <div className="mb-2 flex items-center justify-between">
+                <label className="block text-xs font-black uppercase text-slate-400 tracking-wider">
+                  Players
+                </label>
+                <label className="flex items-center gap-2 text-xs font-bold text-slate-500">
+                  Order by
+                  <select
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value as SortBy)}
+                    className="rounded-lg border-2 border-slate-300 bg-white px-2 py-1 text-xs font-bold"
+                  >
+                    <option value="surname">Surname</option>
+                    <option value="number">Member number</option>
+                  </select>
+                </label>
+              </div>
               <TypeaheadMultiSelect
                 options={options}
                 values={selectedIds}
