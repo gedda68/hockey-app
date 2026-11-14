@@ -22,6 +22,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
+import { resolveSessionMemberId } from "@/lib/auth/sessionMember";
 import { getSession } from "@/lib/auth/session";
 
 // ── Allowed self-editable fields ─────────────────────────────────────────────
@@ -61,8 +62,9 @@ export async function GET() {
 
     const client = await clientPromise;
     const db = client.db("hockey-app");
+    const memberKey = await resolveSessionMemberId(db, session);
 
-    const member = await db.collection("members").findOne({ memberId: session.memberId });
+    const member = await db.collection("members").findOne({ memberId: memberKey });
     if (!member) {
       return NextResponse.json({ error: "Member record not found" }, { status: 404 });
     }
@@ -71,7 +73,7 @@ export async function GET() {
     // so the page can render an audit trail without a second request.
     const recentChanges = await db
       .collection("member_change_logs")
-      .find({ memberId: session.memberId })
+      .find({ memberId: memberKey })
       .sort({ timestamp: -1 })
       .limit(5)
       .toArray();
@@ -128,8 +130,9 @@ export async function PATCH(request: NextRequest) {
 
     const client = await clientPromise;
     const db = client.db("hockey-app");
+    const memberKey = await resolveSessionMemberId(db, session);
 
-    const existing = await db.collection("members").findOne({ memberId: session.memberId });
+    const existing = await db.collection("members").findOne({ memberId: memberKey });
     if (!existing) {
       return NextResponse.json({ error: "Member record not found" }, { status: 404 });
     }
@@ -223,12 +226,12 @@ export async function PATCH(request: NextRequest) {
     }
 
     // ── Persist changes ───────────────────────────────────────────────────────
-    await db.collection("members").updateOne({ memberId: session.memberId }, { $set });
+    await db.collection("members").updateOne({ memberId: memberKey }, { $set });
 
     // ── Audit log ─────────────────────────────────────────────────────────────
     const now = new Date().toISOString();
     await db.collection("member_change_logs").insertOne({
-      memberId:    session.memberId,
+      memberId:    memberKey,
       section:     "self-service",
       changes,
       timestamp:   now,
@@ -238,7 +241,7 @@ export async function PATCH(request: NextRequest) {
       selfService: true,   // distinguishes self-edits from admin edits in history view
     });
 
-    const updated = await db.collection("members").findOne({ memberId: session.memberId });
+    const updated = await db.collection("members").findOne({ memberId: memberKey });
     return NextResponse.json({ success: true, member: updated });
   } catch (error: unknown) {
     console.error("💥 my-profile PATCH error:", error);

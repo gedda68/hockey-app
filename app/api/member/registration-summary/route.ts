@@ -5,6 +5,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
+import { resolveSessionMemberId } from "@/lib/auth/sessionMember";
 import { getSession } from "@/lib/auth/session";
 import { userCanAccessAssociationResource, userCanAccessClubResource } from "@/lib/auth/resourceAccessDb";
 import { ADMIN_VIEW_ROLES, limitForAdmin, loadRegistrationSummary } from "@/lib/members/registrationSummary";
@@ -13,12 +14,13 @@ export async function GET(request: NextRequest) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+  const db = (await clientPromise).db(process.env.DB_NAME || "hockey-app");
+  const mine = await resolveSessionMemberId(db, session);
   const asked = new URL(request.url).searchParams.get("memberId")?.trim();
-  const memberId = asked || session.memberId || "";
+  const memberId = asked || mine;
   if (!memberId) return NextResponse.json({ error: "No member linked to this login", code: "NO_MEMBER" }, { status: 400 });
 
-  const db = (await clientPromise).db(process.env.DB_NAME || "hockey-app");
-  const own = !!session.memberId && session.memberId === memberId;
+  const own = !!mine && mine === memberId;
 
   const summary = await loadRegistrationSummary(db, memberId);
   if (!summary) return NextResponse.json({ error: "Member not found" }, { status: 404 });
