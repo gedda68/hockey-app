@@ -9,6 +9,7 @@
  * and whether a `users` account with the same username/email would take priority.
  */
 import "./load-env";
+import { memberStatusString } from "../lib/members/statusValue";
 import bcrypt from "bcryptjs";
 import { MongoClient } from "mongodb";
 
@@ -32,7 +33,8 @@ async function main() {
   console.log(`members with auth.username "${username}": ${members.length}`);
   for (const m of members) {
     const hash: string = m.auth?.passwordHash ?? "";
-    const status = (m.status ?? m.membership?.status ?? "").toString();
+    const status = memberStatusString(m);
+    if (m.status && typeof m.status === "object") console.log(`  note: member.status is an object with keys: ${Object.keys(m.status).join(", ")}`);
     console.log(`\n${m.memberId}  ${m.personalInfo?.firstName} ${m.personalInfo?.lastName}`);
     console.log(`  auth.role: ${m.auth?.role}   forcePasswordChange: ${m.auth?.forcePasswordChange}`);
     console.log(`  hash present: ${!!hash}   looks like bcrypt: ${/^\$2[aby]\$\d\d\$/.test(hash)}`);

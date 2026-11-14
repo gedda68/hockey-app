@@ -2,6 +2,7 @@
  * Shared session creation for password login and OIDC SSO (no password check).
  */
 
+import { memberStatusString } from "@/lib/members/statusValue";
 import type { Db, Document } from "mongodb";
 import type { SessionData } from "@/lib/auth/session";
 import { generateSlug } from "@/lib/utils/slug";
@@ -247,9 +248,7 @@ export async function createMemberSession(
   db: Db,
   member: Document,
 ): Promise<SessionEstablishResult> {
-  const memberStatus =
-    member.status?.toLowerCase() ||
-    member.membership?.status?.toLowerCase();
+  const memberStatus = memberStatusString(member);
   if (memberStatus && memberStatus !== "active") {
     return {
       ok: false,
