@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { calcAgeForSeason } from "@/types/nominations";
 import type { OpenOpportunity } from "@/types/tournaments";
+import ClubPositionOptions from "@/components/nominations/ClubPositionOptions";
 import NominationOptions from "@/components/nominations/NominationOptions";
 import NominationWorkflowModal from "@/components/admin/players/NominationWorkflowModal";
 
@@ -427,6 +428,7 @@ export default function NominatePage() {
                 else setPlayerNote(`We couldn't match your player profile to ${ageGroup} (age or gender may not fit). Contact your club if this looks wrong.`);
               }}
             />
+            <ClubPositionOptions />
             {playerNote && (
               <div className="mb-6 p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-sm font-bold">{playerNote}</div>
             )}
