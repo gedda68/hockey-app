@@ -4,6 +4,8 @@
 export interface PickOption {
   value: string;
   label: string;
+  /** Other ids a stored value may use for this option (e.g. a Mongo _id, or "sal-mr"). */
+  aliases?: string[];
 }
 
 export const DEFAULT_SALUTATIONS = ["Mr", "Mrs", "Ms", "Miss", "Mx", "Dr", "Prof"];
@@ -17,7 +19,7 @@ export const namesToOptions = (names: string[]): PickOption[] => names.map((n) =
 
 /** Configured {id,name} rows first (de-duplicated by name); defaults only when nothing is configured. */
 export function mergeOptions(
-  configured: { id?: unknown; name?: unknown }[],
+  configured: { id?: unknown; name?: unknown; aliases?: unknown[] }[],
   defaults: string[],
 ): PickOption[] {
   const seen = new Set<string>();
@@ -26,7 +28,9 @@ export function mergeOptions(
     const label = String(row?.name ?? "").trim();
     if (!label || seen.has(label.toLowerCase())) continue;
     seen.add(label.toLowerCase());
-    out.push({ value: String(row?.id ?? "").trim() || label, label });
+    const value = String(row?.id ?? "").trim() || label;
+    const aliases = (row?.aliases ?? []).map((a) => String(a ?? "").trim()).filter((a) => a && a !== value);
+    out.push({ value, label, ...(aliases.length ? { aliases } : {}) });
   }
   return out.length ? out : namesToOptions(defaults);
 }
@@ -40,8 +44,22 @@ export function resolveSelection(options: PickOption[], stored: string): { optio
   if (!c) return { options, value: "" };
   const hit =
     options.find((o) => o.value === c) ??
+    options.find((o) => o.aliases?.some((a) => a === c || a.toLowerCase() === c.toLowerCase())) ??
     options.find((o) => o.label.toLowerCase() === c.toLowerCase()) ??
     options.find((o) => o.value.toLowerCase() === c.toLowerCase());
   if (hit) return { options, value: hit.value };
-  return { options: [{ value: c, label: c }, ...options], value: c };
+  // Unknown id like "sal-mr" / "gender-male": show a readable name instead of the raw id.
+  const nice = /^(sal|gender)[-_]/i.test(c) ? c.replace(/^(sal|gender)[-_]/i, "").replace(/[-_]+/g, " ") : c;
+  const label = nice.replace(/\b\w/g, (m) => m.toUpperCase());
+  return { options: [{ value: c, label }, ...options], value: c };
 }
+
+/** Defaults that carry the ids this system has always used, so old stored ids resolve even with no config rows. */
+export const DEFAULT_SALUTATION_ROWS = ["Mr", "Mrs", "Ms", "Miss", "Mx", "Dr", "Prof"].map((name) => ({
+  id: `sal-${name.toLowerCase()}`, name,
+}));
+export const DEFAULT_GENDER_ROWS = [
+  { id: "gender-male", name: "Male" }, { id: "gender-female", name: "Female" },
+  { id: "gender-non-binary", name: "Non-binary" }, { id: "gender-other", name: "Other" },
+  { id: "gender-undisclosed", name: "Prefer not to say" },
+];
