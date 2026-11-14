@@ -2,6 +2,7 @@
 // Public endpoint — find a player by first name + last name + date of birth.
 // Returns only the fields needed for a public nomination flow (no sensitive admin data).
 
+import { isContactPrivate } from "@/lib/members/privacy";
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import { escapeRegex } from "@/lib/utils/regex";
@@ -35,7 +36,7 @@ export async function GET(request: NextRequest) {
     }
 
     const pi = member.personalInfo ?? {};
-    const ct = member.contact ?? {};
+    const ct = isContactPrivate(member) ? {} : (member.contact ?? {});
 
     // Return fields needed for nomination.
     return NextResponse.json({

@@ -63,6 +63,7 @@ export function sanitizeSelfDetails(body: Doc, existing: Doc): SelfDetailsResult
       const contactId = s(c?.contactId, 60) || prev[i]?.contactId || `EC-${Date.now().toString(36)}-${i + 1}`;
       list.push({
         contactId,
+        ...(s(c?.memberId, 60) ? { memberId: s(c?.memberId, 60) } : {}),
         priority: list.length + 1,
         name,
         relationship: s(c?.relationship, 80),
@@ -95,6 +96,11 @@ export function sanitizeSelfDetails(body: Doc, existing: Doc): SelfDetailsResult
     });
     $set["personalInfo.relatedMembers"] = list;
     touched.push("personalInfo.relatedMembers");
+  }
+
+  if (typeof body.privacy?.contactPrivate === "boolean") {
+    $set["privacy.contactPrivate"] = body.privacy.contactPrivate;
+    touched.push("privacy.contactPrivate");
   }
 
   const hc = body.healthcare;

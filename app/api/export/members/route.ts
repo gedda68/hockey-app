@@ -7,6 +7,7 @@
  * Query params: clubId?, associationId?, status?, membershipType?, search?
  */
 
+import { redactPrivateContact } from "@/lib/members/privacy";
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import { getSession } from "@/lib/auth/session";
@@ -81,11 +82,12 @@ export async function GET(req: NextRequest) {
       "membership.joinDate":     1,
       "membership.expiryDate":   1,
       roles:                     1,
+      "privacy.contactPrivate":   1,
     })
     .toArray();
 
   // Flatten nested fields for easy CSV/table consumption
-  const rows = members.map((m) => ({
+  const rows = members.map((m0) => { const m = redactPrivateContact(m0 as Record<string, any>) as Record<string, any>; return {
     memberId:        m.memberId ?? "",
     clubId:          m.clubId ?? "",
     firstName:       m.personalInfo?.firstName ?? "",
@@ -105,7 +107,7 @@ export async function GET(req: NextRequest) {
       .filter((r: Record<string, unknown>) => r.active !== false)
       .map((r: Record<string, unknown>) => r.role)
       .join(", "),
-  }));
+  }; });
 
   return NextResponse.json({ rows, total: rows.length });
 }

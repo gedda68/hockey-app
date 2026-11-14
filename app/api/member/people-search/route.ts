@@ -2,12 +2,14 @@
  * GET /api/member/people-search?q=smi
  * Name look-up for linking related people (parent, child, partner…). Limited on purpose:
  * signed-in members only, at least 3 characters, only members of the SAME club, and only
- * id + name come back (no contact details, dates of birth or addresses).
+ * id + name come back, plus phone/email ONLY for members who have not made their contact details private
+ * (used to pre-fill an emergency contact). Never dates of birth or addresses.
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import { getSession } from "@/lib/auth/session";
+import { isContactPrivate, shareableContact } from "@/lib/members/privacy";
 import { resolveSessionMemberId } from "@/lib/auth/sessionMember";
 
 const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -32,13 +34,19 @@ export async function GET(request: NextRequest) {
         memberId: { $ne: memberKey },
         $or: [{ clubId: clubRef }, { "membership.clubId": clubRef }],
         $and: parts.map((re) => ({ $or: [{ "personalInfo.firstName": re }, { "personalInfo.lastName": re }, { "personalInfo.displayName": re }] })),
-      }, { projection: { memberId: 1, "personalInfo.firstName": 1, "personalInfo.lastName": 1 } })
+      }, { projection: { memberId: 1, "personalInfo.firstName": 1, "personalInfo.lastName": 1, contact: 1, privacy: 1 } })
       .sort({ "personalInfo.lastName": 1, "personalInfo.firstName": 1 })
       .limit(10)
       .toArray();
 
     return NextResponse.json({
-      people: people.map((m) => ({ memberId: m.memberId, name: `${m.personalInfo?.firstName ?? ""} ${m.personalInfo?.lastName ?? ""}`.trim() })),
+      people: people.map((m) => ({
+        memberId: m.memberId,
+        name: `${m.personalInfo?.firstName ?? ""} ${m.personalInfo?.lastName ?? ""}`.trim(),
+        // Only offered when that member hasn't made their contact details private.
+        contact: shareableContact(m),
+        contactPrivate: isContactPrivate(m),
+      })),
     });
   } catch (e) {
     console.error("people-search error:", e);

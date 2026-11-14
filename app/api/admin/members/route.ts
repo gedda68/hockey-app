@@ -1,6 +1,7 @@
 // app/api/admin/members/route.ts
 // Members API - List and Create
 
+import { redactPrivateContact } from "@/lib/members/privacy";
 import { memberBelongsToClubFilter } from "@/lib/rosters/memberClubQuery";
 import { NextRequest, NextResponse } from "next/server";
 import type { Db } from "mongodb";
@@ -233,7 +234,7 @@ export async function GET(request: NextRequest) {
     }
 
     return NextResponse.json({
-      members,
+      members: members.map((m) => redactPrivateContact(m, [session.memberId])),
       pagination: {
         page,
         limit,

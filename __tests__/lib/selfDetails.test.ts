@@ -63,3 +63,16 @@ describe("related people", () => {
     expect(r.touched).toContain("personalInfo.relatedMembers");
   });
 });
+
+describe("privacy flag and linked emergency contacts", () => {
+  it("accepts the contact privacy toggle", () => {
+    const r = sanitizeSelfDetails({ privacy: { contactPrivate: true } }, {});
+    expect(r.$set["privacy.contactPrivate"]).toBe(true);
+    expect(r.touched).toContain("privacy.contactPrivate");
+    expect(sanitizeSelfDetails({ privacy: { contactPrivate: "yes" } }, {}).touched).toHaveLength(0);
+  });
+  it("keeps the member link on an emergency contact", () => {
+    const r = sanitizeSelfDetails({ emergencyContacts: [{ name: "Lee", memberId: "M9", relationshipType: "x" }] }, {});
+    expect((r.$set.emergencyContacts as any[])[0].memberId).toBe("M9");
+  });
+});

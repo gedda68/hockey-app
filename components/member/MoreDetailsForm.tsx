@@ -7,13 +7,14 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Loader2, Save, Plus, Trash2, Lock } from "lucide-react";
+import MemberNameSearch, { type FoundPerson } from "@/components/member/MemberNameSearch";
 import RelatedPeopleCard, { type Related, type RelatedToMe } from "@/components/member/RelatedPeopleCard";
 import TypeaheadSelect from "@/components/ui/TypeaheadSelect";
 import { resolveSelection, type PickOption } from "@/lib/members/profileOptions";
 import { CARD_TYPES, CARD_CATEGORIES, CARD_STATUSES, ISSUING_STATES, blueCardStatus } from "@/lib/members/blueCard";
 
 type Doc = Record<string, any>;
-type Contact = { contactId?: string; name: string; relationship: string; phone: string; mobile: string; email: string };
+type Contact = { contactId?: string; memberId?: string; name: string; relationship: string; phone: string; mobile: string; email: string };
 
 const inputCls = "w-full rounded-xl border-2 border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 outline-none focus:border-teal-400 disabled:bg-amber-50 disabled:text-amber-800";
 const labelCls = "block text-xs font-black uppercase tracking-wide text-slate-400 mb-1";
@@ -91,6 +92,8 @@ export default function MoreDetailsForm({ member, relatedToMe = [], onSaved }: {
   const [conditions, setConditions] = useState(""); const [medications, setMedications] = useState(""); const [allergies, setAllergies] = useState("");
   const [bc, setBc] = useState<Doc>({});
   const [related, setRelated] = useState<Related[]>([]);
+  const [contactPrivate, setContactPrivate] = useState(false);
+  const [privateNote, setPrivateNote] = useState<Record<number, boolean>>({});
   const [saving, setSaving] = useState(false);
   const [opts, setOpts] = useState<{ salutations: PickOption[]; genders: PickOption[]; relationships: PickOption[] }>({
     salutations: [], genders: [], relationships: [],
@@ -109,13 +112,14 @@ export default function MoreDetailsForm({ member, relatedToMe = [], onSaved }: {
     setGender(member.personalInfo?.gender ?? "");
     setEmail(member.contact?.primaryEmail ?? member.contact?.email ?? "");
     const list: Doc[] = Array.isArray(member.emergencyContacts) ? member.emergencyContacts : [];
-    setContacts(list.map((c) => ({ contactId: c.contactId, name: c.name ?? "", relationship: c.relationship ?? "", phone: c.phone ?? "", mobile: c.mobile ?? "", email: c.email ?? "" })));
+    setContacts(list.map((c) => ({ contactId: c.contactId, memberId: c.memberId, name: c.name ?? "", relationship: c.relationship ?? "", phone: c.phone ?? "", mobile: c.mobile ?? "", email: c.email ?? "" })));
     const mc = member.healthcare?.medicare ?? {};
     setMcNumber(mc.number ?? ""); setMcPos(mc.position ?? ""); setMcMonth(mc.expiryMonth ?? ""); setMcYear(mc.expiryYear ?? "");
     const ph = member.healthcare?.privateHealth ?? {};
     setPhProvider(ph.provider ?? ""); setPhNumber(ph.membershipNumber ?? ""); setPhExpiry(ph.expiryDate ?? "");
     setConditions(member.medical?.conditions ?? ""); setMedications(member.medical?.medications ?? ""); setAllergies(member.medical?.allergies ?? "");
     setBc(member.blueCard ?? {});
+    setContactPrivate(member.privacy?.contactPrivate === true);
     setRelated((Array.isArray(member.personalInfo?.relatedMembers) ? member.personalInfo.relatedMembers : []).map((r: Doc) => ({ id: r.id, memberId: r.memberId, name: r.name ?? "", relationshipType: r.relationshipType ?? "" })));
   }, [member]);
 
@@ -130,6 +134,7 @@ export default function MoreDetailsForm({ member, relatedToMe = [], onSaved }: {
       if (!isLocked("personalInfo.salutation")) body.personalInfo = { salutation, displayName, gender };
       if (!isLocked("contact.primaryEmail")) body.contact = { primaryEmail: email };
       if (!isLocked("emergencyContacts")) body.emergencyContacts = contacts;
+      body.privacy = { contactPrivate };
       if (!isLocked("personalInfo.relatedMembers")) body.relatedMembers = related;
       if (!isLocked("healthcare")) {
         body.healthcare = {
@@ -165,7 +170,7 @@ export default function MoreDetailsForm({ member, relatedToMe = [], onSaved }: {
 
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="px-5 py-4 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
-          <h2 className="text-sm font-black uppercase tracking-wide text-slate-700">Emergency contacts &amp; relations</h2>
+          <div><h2 className="text-sm font-black uppercase tracking-wide text-slate-700">Emergency contacts</h2><p className="text-[11px] font-medium text-slate-400 normal-case tracking-normal">People we call in an emergency. They don&apos;t have to be related to you (see Related people below).</p></div>
           <button type="button" disabled={isLocked("emergencyContacts") || contacts.length >= 5}
             onClick={() => setContacts((c) => [...c, blankContact()])}
             className="inline-flex items-center gap-1 text-xs font-bold text-teal-700 hover:underline disabled:opacity-40">
@@ -176,7 +181,20 @@ export default function MoreDetailsForm({ member, relatedToMe = [], onSaved }: {
           {contacts.length === 0 && <p className="text-sm text-slate-400">No contacts yet — add a parent, partner or friend we can call.</p>}
           {contacts.map((c, i) => (
             <div key={c.contactId ?? i} className="grid grid-cols-1 sm:grid-cols-2 gap-3 border border-slate-100 rounded-xl p-4">
-              <Field label={`Contact ${i + 1} name`} value={c.name} onChange={(v) => setContact(i, { name: v })} disabled={isLocked("emergencyContacts")} />
+              <div>
+                <label className={labelCls}>{`Contact ${i + 1} name`}</label>
+                <MemberNameSearch name={c.name} linkedMemberId={c.memberId} disabled={isLocked("emergencyContacts")}
+                  onTyped={(v) => setContact(i, { name: v })}
+                  onUnlink={() => setContact(i, { memberId: undefined })}
+                  onPick={(p: FoundPerson) => {
+                    setContact(i, {
+                      memberId: p.memberId, name: p.name,
+                      ...(p.contact ? { phone: c.phone || p.contact.phone, mobile: c.mobile || p.contact.mobile, email: c.email || p.contact.email } : {}),
+                    });
+                    setPrivateNote((n) => ({ ...n, [i]: p.contactPrivate }));
+                  }} />
+                {privateNote[i] && <p className="text-[11px] text-amber-700 mt-1">This member keeps their contact details private — enter a number for them yourself.</p>}
+              </div>
               <TypeaheadField label="Relationship" value={c.relationship} onChange={(v) => setContact(i, { relationship: v })} options={opts.relationships} disabled={isLocked("emergencyContacts")} />
               <Field label="Phone" value={c.phone} onChange={(v) => setContact(i, { phone: v })} disabled={isLocked("emergencyContacts")} />
               <Field label="Mobile" value={c.mobile} onChange={(v) => setContact(i, { mobile: v })} disabled={isLocked("emergencyContacts")} />
@@ -223,6 +241,23 @@ export default function MoreDetailsForm({ member, relatedToMe = [], onSaved }: {
         <Field label="Issue date" type="date" value={String(bc.issueDate ?? "").slice(0, 10)} onChange={(v) => bcSet("issueDate", v)} disabled={isLocked("blueCard")} />
         <Field label="Expiry date" type="date" value={String(bc.expiryDate ?? "").slice(0, 10)} onChange={(v) => bcSet("expiryDate", v)} disabled={isLocked("blueCard")} />
       </Card>
+
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <div className="px-5 py-4 border-b border-slate-100 bg-slate-50">
+          <h2 className="text-sm font-black uppercase tracking-wide text-slate-700">Privacy</h2>
+        </div>
+        <label className="p-5 flex items-start gap-3 cursor-pointer">
+          <input type="checkbox" className="mt-1 h-4 w-4 accent-teal-600" checked={contactPrivate} onChange={(e) => setContactPrivate(e.target.checked)} />
+          <span>
+            <span className="block text-sm font-black text-slate-800">Keep all my contact details private</span>
+            <span className="block text-xs font-medium text-slate-500 mt-0.5">
+              Your phone numbers, email and address won&apos;t be shown to other members, clubs, associations, public pages or exports,
+              and can&apos;t be used to pre-fill anyone else&apos;s forms. Your name and your emergency contacts are not affected.
+              Only you can change this setting.
+            </span>
+          </span>
+        </label>
+      </div>
 
       <button type="button" onClick={() => void save()} disabled={saving}
         className="w-full inline-flex items-center justify-center gap-2 bg-teal-600 hover:bg-teal-700 disabled:opacity-60 text-white font-black rounded-xl py-3 text-sm">
