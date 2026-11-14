@@ -20,6 +20,8 @@
     "possible:duplicates": "tsx scripts/possible-duplicates.ts",
     "move:team": "tsx scripts/move-team.ts",
     "backfill:registrations": "tsx scripts/backfill-registrations.ts",
+    "seed:fee-lists": "tsx scripts/seed-fee-lists.ts",
+    "create:member-logins": "tsx scripts/create-member-logins.ts",
     "seed:public-demo": "tsx scripts/seed-public-demo.ts",
     "seed:tiered-demo": "tsx scripts/seed-tiered-demo-accounts.ts",
     "create:club-user": "tsx scripts/create-club-user.ts",
