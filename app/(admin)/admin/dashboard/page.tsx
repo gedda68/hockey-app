@@ -115,7 +115,7 @@ export default function DashboardPage() {
   const isAssoc     = ASSOC_ROLES.includes(user?.role ?? "");
   const isSuperAdmin= user?.role === "super-admin";
   // Plain members have no organisation-wide numbers to see — show their own stats instead.
-  const isMember    = user?.role === "member";
+  const isMember    = ["member", "player", "parent"].includes(user?.role ?? "");
 
   const scope   = isClub ? "club" : isAssoc ? "association" : "global";
   const scopeId = isClub ? (user?.clubId ?? null) : isAssoc ? (user?.associationId ?? null) : null;
