@@ -58,3 +58,25 @@ export function itemsFromMedical(medical: any): MedicalItem[] {
   }
   return items;
 }
+
+export interface UpsertResult { items: MedicalItem[]; error?: string }
+
+/** Add (no id) or replace (matching id) one condition/allergy row. */
+export function upsertMedicalItem(current: MedicalItem[], input: unknown): UpsertResult {
+  const [clean] = sanitizeMedicalItems([input]);
+  const rawName = String((input as any)?.name ?? "").trim();
+  if (!clean || !rawName) return { items: current, error: "Enter the condition or allergy name" };
+  const id = String((input as any)?.id ?? "").trim();
+  const idx = id ? current.findIndex((i) => i.id === id) : -1;
+  if (id && idx === -1) return { items: current, error: "That entry no longer exists" };
+  if (idx === -1) {
+    if (current.length >= MAX_MEDICAL_ITEMS) return { items: current, error: `You can record up to ${MAX_MEDICAL_ITEMS} entries` };
+    return { items: [...current, clean] };
+  }
+  return { items: current.map((i, j) => (j === idx ? { ...clean, id: current[idx].id } : i)) };
+}
+
+export function removeMedicalItem(current: MedicalItem[], id: string): UpsertResult {
+  if (!current.some((i) => i.id === id)) return { items: current, error: "That entry no longer exists" };
+  return { items: current.filter((i) => i.id !== id) };
+}

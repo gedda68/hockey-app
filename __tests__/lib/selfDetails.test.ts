@@ -1,4 +1,4 @@
-import { itemsFromMedical, UNASSIGNED_LABEL } from "@/lib/members/medicalItems";
+import { itemsFromMedical, UNASSIGNED_LABEL, upsertMedicalItem, removeMedicalItem } from "@/lib/members/medicalItems";
 import { describe, it, expect } from "vitest";
 import { sanitizeSelfDetails, blockedByLocks } from "@/lib/members/selfDetails";
 
@@ -85,6 +85,24 @@ describe("medical items", () => {
     expect(one.find((i) => i.name === "Asthma")?.medications[0].name).toBe("Ventolin");
     const many = itemsFromMedical({ conditions: "Asthma\nDiabetes", medications: "Insulin" });
     expect(many.some((i) => i.name === UNASSIGNED_LABEL && i.medications[0].name === "Insulin")).toBe(true);
+  });
+});
+
+describe("single-row condition/allergy edits", () => {
+  it("adds, edits and deletes a row with several medications", () => {
+    const added = upsertMedicalItem([], { kind: "condition", name: "Heart", medications: [{ name: "Aspirin" }, { name: "Ramipril" }, { name: "Atenolol" }] });
+    expect(added.error).toBeUndefined();
+    expect(added.items[0].medications).toHaveLength(3);
+    const id = added.items[0].id;
+    const edited = upsertMedicalItem(added.items, { id, kind: "condition", name: "Heart disease", medications: [{ name: "Aspirin" }] });
+    expect(edited.items).toHaveLength(1);
+    expect(edited.items[0]).toMatchObject({ id, name: "Heart disease" });
+    expect(removeMedicalItem(edited.items, id).items).toHaveLength(0);
+  });
+  it("rejects a blank name and unknown ids", () => {
+    expect(upsertMedicalItem([], { kind: "allergy", name: "  ", medications: [] }).error).toBeTruthy();
+    expect(upsertMedicalItem([], { id: "nope", name: "X" }).error).toBeTruthy();
+    expect(removeMedicalItem([], "nope").error).toBeTruthy();
   });
 });
 

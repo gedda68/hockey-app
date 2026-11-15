@@ -9,7 +9,7 @@ import { toast } from "sonner";
 import { Loader2, Save, Plus, Trash2, Lock, ArrowUp, ArrowDown, ShieldCheck } from "lucide-react";
 import MemberNameSearch, { type FoundPerson } from "@/components/member/MemberNameSearch";
 import RelatedPeopleCard, { type Related, type RelatedToMe } from "@/components/member/RelatedPeopleCard";
-import MedicalItemsEditor from "@/components/member/MedicalItemsEditor";
+import MedicalConditionsCard from "@/components/member/MedicalConditionsCard";
 import { itemsFromMedical, type MedicalItem } from "@/lib/members/medicalItems";
 import TypeaheadSelect from "@/components/ui/TypeaheadSelect";
 import { resolveSelection, type PickOption } from "@/lib/members/profileOptions";
@@ -178,7 +178,7 @@ export default function MoreDetailsForm({ member, relatedToMe = [], onSaved }: {
           privateHealth: { provider: phProvider, membershipNumber: phNumber, expiryDate: phExpiry },
         };
       }
-      body.medical = { items: medItems, notes: medNotes, optOut: medOptOut };
+      body.medical = { notes: medNotes, optOut: medOptOut };
       if (!isLocked("blueCard")) body.blueCard = bc;
 
       const res = await fetch("/api/member/my-profile/details", {
@@ -256,13 +256,15 @@ export default function MoreDetailsForm({ member, relatedToMe = [], onSaved }: {
 
       <RelatedPeopleCard value={related} onChange={setRelated} relationships={opts.relationships} relatedToMe={relatedToMe} locked={isLocked("personalInfo.relatedMembers")} />
 
+      <MedicalConditionsCard items={medItems} onChanged={setMedItems} locked={isLocked("medical.conditions") || isLocked("medical.medications") || isLocked("medical.allergies")} />
+
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="px-5 py-4 border-b border-slate-100 bg-slate-50">
           <div className="flex items-center gap-2">
             <ShieldCheck className="h-4 w-4 text-teal-600" />
             <h2 className="text-sm font-black uppercase tracking-wide text-slate-700">Health &amp; safety</h2>
           </div>
-          <p className="text-[11px] font-medium text-slate-400 mt-0.5">Medical notes and details, healthcare cards and your blue card. All private to you until you&apos;re accepted into a team.</p>
+          <p className="text-[11px] font-medium text-slate-400 mt-0.5">Medical notes, healthcare cards and your blue card. All private to you until you&apos;re accepted into a team.</p>
         </div>
         <div className="divide-y divide-slate-100">
       <Sub title="Medical notes">
@@ -289,10 +291,6 @@ export default function MoreDetailsForm({ member, relatedToMe = [], onSaved }: {
         <Field label="Private health provider" value={phProvider} onChange={setPhProvider} disabled={isLocked("healthcare")} />
         <Field label="Membership number" value={phNumber} onChange={setPhNumber} disabled={isLocked("healthcare")} />
         <Field label="Private health expiry" type="date" value={phExpiry} onChange={setPhExpiry} disabled={isLocked("healthcare")} />
-      </Sub>
-
-      <Sub title="Medical details">
-        <MedicalItemsEditor value={medItems} onChange={setMedItems} disabled={isLocked("medical.conditions") || isLocked("medical.medications") || isLocked("medical.allergies")} />
       </Sub>
 
       <Sub title="Blue card (working with children)" locked={isLocked("blueCard")}>
