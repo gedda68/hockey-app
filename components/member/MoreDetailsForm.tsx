@@ -9,6 +9,8 @@ import { toast } from "sonner";
 import { Loader2, Save, Plus, Trash2, Lock, ArrowUp, ArrowDown, ShieldCheck } from "lucide-react";
 import MemberNameSearch, { type FoundPerson } from "@/components/member/MemberNameSearch";
 import RelatedPeopleCard, { type Related, type RelatedToMe } from "@/components/member/RelatedPeopleCard";
+import MedicalItemsEditor from "@/components/member/MedicalItemsEditor";
+import { itemsFromMedical, type MedicalItem } from "@/lib/members/medicalItems";
 import TypeaheadSelect from "@/components/ui/TypeaheadSelect";
 import { resolveSelection, type PickOption } from "@/lib/members/profileOptions";
 import { CARD_TYPES, CARD_CATEGORIES, CARD_STATUSES, ISSUING_STATES, blueCardStatus } from "@/lib/members/blueCard";
@@ -47,34 +49,6 @@ function Sub({ title, locked, children }: { title: string; locked?: boolean; chi
         )}
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">{children}</div>
-    </div>
-  );
-}
-
-/** Several entries in one stored string (one per line): add as many as needed. */
-function MultiField({ label, value, onChange, disabled, placeholder }: { label: string; value: string; onChange: (v: string) => void; disabled?: boolean; placeholder?: string }) {
-  const items = value === "" ? [""] : value.split("\n");
-  const set = (next: string[]) => onChange(next.join("\n"));
-  return (
-    <div className="sm:col-span-2">
-      <label className={labelCls}>{label}</label>
-      <div className="space-y-2">
-        {items.map((it, i) => (
-          <div key={i} className="flex gap-2">
-            <input className={inputCls} value={it} disabled={disabled} placeholder={placeholder}
-              onChange={(e) => set(items.map((x, j) => (j === i ? e.target.value : x)))} />
-            {!disabled && items.length > 1 && (
-              <button type="button" aria-label={`Remove ${label} entry`} onClick={() => set(items.filter((_, j) => j !== i))}
-                className="shrink-0 rounded-xl border-2 border-slate-200 px-3 text-red-600 hover:bg-red-50"><Trash2 className="h-4 w-4" /></button>
-            )}
-          </div>
-        ))}
-      </div>
-      {!disabled && (
-        <button type="button" onClick={() => set([...items, ""])} className="mt-2 inline-flex items-center gap-1 text-xs font-bold text-teal-700 hover:underline">
-          <Plus className="h-3.5 w-3.5" /> Add another
-        </button>
-      )}
     </div>
   );
 }
@@ -135,7 +109,7 @@ export default function MoreDetailsForm({ member, relatedToMe = [], onSaved }: {
   const [mcNumber, setMcNumber] = useState(""); const [mcPos, setMcPos] = useState("");
   const [mcMonth, setMcMonth] = useState(""); const [mcYear, setMcYear] = useState("");
   const [phProvider, setPhProvider] = useState(""); const [phNumber, setPhNumber] = useState(""); const [phExpiry, setPhExpiry] = useState("");
-  const [conditions, setConditions] = useState(""); const [medications, setMedications] = useState(""); const [allergies, setAllergies] = useState("");
+  const [medItems, setMedItems] = useState<MedicalItem[]>([]);
   const [bc, setBc] = useState<Doc>({});
   const [medNotes, setMedNotes] = useState("");
   const [medOptOut, setMedOptOut] = useState(false);
@@ -169,7 +143,7 @@ export default function MoreDetailsForm({ member, relatedToMe = [], onSaved }: {
     setMcNumber(mc.number ?? ""); setMcPos(mc.position ?? ""); setMcMonth(mc.expiryMonth ?? ""); setMcYear(mc.expiryYear ?? "");
     const ph = member.healthcare?.privateHealth ?? {};
     setPhProvider(ph.provider ?? ""); setPhNumber(ph.membershipNumber ?? ""); setPhExpiry(ph.expiryDate ?? "");
-    setConditions(member.medical?.conditions ?? ""); setMedications(member.medical?.medications ?? ""); setAllergies(member.medical?.allergies ?? "");
+    setMedItems(itemsFromMedical(member.medical));
     setBc(member.blueCard ?? {});
     setContactPrivate(member.privacy?.contactPrivate === true);
     setMedNotes(member.medical?.notes ?? "");
@@ -204,7 +178,7 @@ export default function MoreDetailsForm({ member, relatedToMe = [], onSaved }: {
           privateHealth: { provider: phProvider, membershipNumber: phNumber, expiryDate: phExpiry },
         };
       }
-      body.medical = { conditions, medications, allergies, notes: medNotes, optOut: medOptOut };
+      body.medical = { items: medItems, notes: medNotes, optOut: medOptOut };
       if (!isLocked("blueCard")) body.blueCard = bc;
 
       const res = await fetch("/api/member/my-profile/details", {
@@ -318,9 +292,7 @@ export default function MoreDetailsForm({ member, relatedToMe = [], onSaved }: {
       </Sub>
 
       <Sub title="Medical details">
-        <MultiField label="Conditions" value={conditions} onChange={setConditions} disabled={isLocked("medical.conditions")} />
-        <MultiField label="Medications" value={medications} onChange={setMedications} disabled={isLocked("medical.medications")} />
-        <MultiField label="Allergies" value={allergies} onChange={setAllergies} disabled={isLocked("medical.allergies")} />
+        <MedicalItemsEditor value={medItems} onChange={setMedItems} disabled={isLocked("medical.conditions") || isLocked("medical.medications") || isLocked("medical.allergies")} />
       </Sub>
 
       <Sub title="Blue card (working with children)" locked={isLocked("blueCard")}>

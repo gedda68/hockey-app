@@ -1,3 +1,4 @@
+import { itemsFromMedical, UNASSIGNED_LABEL } from "@/lib/members/medicalItems";
 import { describe, it, expect } from "vitest";
 import { sanitizeSelfDetails, blockedByLocks } from "@/lib/members/selfDetails";
 
@@ -64,10 +65,26 @@ describe("related people", () => {
   });
 });
 
-describe("medical lists", () => {
-  it("keeps one entry per line, dropping blanks and duplicates", () => {
-    const r = sanitizeSelfDetails({ medical: { conditions: "Asthma\n\n Diabetes \nAsthma" } }, {});
-    expect(r.$set["medical.conditions"]).toBe("Asthma\nDiabetes");
+describe("medical items", () => {
+  it("links medications to a condition/allergy and syncs the legacy strings", () => {
+    const r = sanitizeSelfDetails({ medical: { items: [
+      { kind: "condition", name: "Asthma", medications: [{ name: "Ventolin", dose: "as needed" }, { name: "Flixotide", dose: "" }, { name: "" }] },
+      { kind: "allergy", name: "Peanuts", medications: [{ name: "EpiPen" }] },
+      { name: "", medications: [] },
+    ] } }, {});
+    const items = r.$set["medical.items"] as any[];
+    expect(items).toHaveLength(2);
+    expect(items[0].medications).toHaveLength(2);
+    expect(r.$set["medical.conditions"]).toBe("Asthma");
+    expect(r.$set["medical.allergies"]).toBe("Peanuts");
+    expect(r.$set["medical.medications"]).toBe("Ventolin (as needed) — for Asthma\nFlixotide — for Asthma\nEpiPen — for Peanuts");
+    expect(r.touched).toEqual(expect.arrayContaining(["medical.items", "medical.conditions", "medical.medications", "medical.allergies"]));
+  });
+  it("builds items from legacy strings", () => {
+    const one = itemsFromMedical({ conditions: "Asthma", medications: "Ventolin", allergies: "Peanuts" });
+    expect(one.find((i) => i.name === "Asthma")?.medications[0].name).toBe("Ventolin");
+    const many = itemsFromMedical({ conditions: "Asthma\nDiabetes", medications: "Insulin" });
+    expect(many.some((i) => i.name === UNASSIGNED_LABEL && i.medications[0].name === "Insulin")).toBe(true);
   });
 });
 
