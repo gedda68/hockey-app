@@ -142,7 +142,9 @@ export function sanitizeSelfDetails(body: Doc, existing: Doc): SelfDetailsResult
     }
     for (const f of ["conditions", "medications", "allergies"] as const) {
       if (med[f] !== undefined) {
-        $set[`medical.${f}`] = s(med[f], 1000);
+        // One entry per line (several conditions / medications / allergies); blanks and duplicates dropped.
+        const lines = String(med[f] ?? "").split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+        $set[`medical.${f}`] = [...new Set(lines)].slice(0, 30).join("\n").slice(0, 2000);
         touched.push(`medical.${f}`);
       }
     }
