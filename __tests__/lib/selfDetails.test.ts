@@ -64,6 +64,13 @@ describe("related people", () => {
   });
 });
 
+describe("medical lists", () => {
+  it("keeps one entry per line, dropping blanks and duplicates", () => {
+    const r = sanitizeSelfDetails({ medical: { conditions: "Asthma\n\n Diabetes \nAsthma" } }, {});
+    expect(r.$set["medical.conditions"]).toBe("Asthma\nDiabetes");
+  });
+});
+
 describe("related people from another club", () => {
   it("keeps only the club id (name/city are filled in by the server)", () => {
     const r = sanitizeSelfDetails({ relatedMembers: [{ name: "Sam", relationshipType: "Friend", clubId: "club-9", clubName: "Spoofed", city: "Nowhere" }] }, {});

@@ -51,6 +51,34 @@ function Sub({ title, locked, children }: { title: string; locked?: boolean; chi
   );
 }
 
+/** Several entries in one stored string (one per line): add as many as needed. */
+function MultiField({ label, value, onChange, disabled, placeholder }: { label: string; value: string; onChange: (v: string) => void; disabled?: boolean; placeholder?: string }) {
+  const items = value === "" ? [""] : value.split("\n");
+  const set = (next: string[]) => onChange(next.join("\n"));
+  return (
+    <div className="sm:col-span-2">
+      <label className={labelCls}>{label}</label>
+      <div className="space-y-2">
+        {items.map((it, i) => (
+          <div key={i} className="flex gap-2">
+            <input className={inputCls} value={it} disabled={disabled} placeholder={placeholder}
+              onChange={(e) => set(items.map((x, j) => (j === i ? e.target.value : x)))} />
+            {!disabled && items.length > 1 && (
+              <button type="button" aria-label={`Remove ${label} entry`} onClick={() => set(items.filter((_, j) => j !== i))}
+                className="shrink-0 rounded-xl border-2 border-slate-200 px-3 text-red-600 hover:bg-red-50"><Trash2 className="h-4 w-4" /></button>
+            )}
+          </div>
+        ))}
+      </div>
+      {!disabled && (
+        <button type="button" onClick={() => set([...items, ""])} className="mt-2 inline-flex items-center gap-1 text-xs font-bold text-teal-700 hover:underline">
+          <Plus className="h-3.5 w-3.5" /> Add another
+        </button>
+      )}
+    </div>
+  );
+}
+
 function Field({ label, value, onChange, disabled, type = "text", span2 = false, placeholder }: {
   label: string; value: string; onChange: (v: string) => void; disabled?: boolean; type?: string; span2?: boolean; placeholder?: string;
 }) {
@@ -290,9 +318,9 @@ export default function MoreDetailsForm({ member, relatedToMe = [], onSaved }: {
       </Sub>
 
       <Sub title="Medical details">
-        <Field label="Conditions" span2 value={conditions} onChange={setConditions} disabled={isLocked("medical.conditions")} />
-        <Field label="Medications" span2 value={medications} onChange={setMedications} disabled={isLocked("medical.medications")} />
-        <Field label="Allergies" span2 value={allergies} onChange={setAllergies} disabled={isLocked("medical.allergies")} />
+        <MultiField label="Conditions" value={conditions} onChange={setConditions} disabled={isLocked("medical.conditions")} />
+        <MultiField label="Medications" value={medications} onChange={setMedications} disabled={isLocked("medical.medications")} />
+        <MultiField label="Allergies" value={allergies} onChange={setAllergies} disabled={isLocked("medical.allergies")} />
       </Sub>
 
       <Sub title="Blue card (working with children)" locked={isLocked("blueCard")}>
