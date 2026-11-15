@@ -686,7 +686,7 @@ export const menuConfig: MenuItem[] = [
   },
   {
     label: "Nominate for a Team",
-    href: "/nominate",
+    href: "/admin/nominate",
     icon: "🙋",
     description: "Nominate for representative teams and positions (player, coach, selector, manager…)",
     color: "from-yellow-400 to-yellow-500",

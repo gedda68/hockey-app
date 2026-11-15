@@ -22,6 +22,12 @@ function session(partial: {
 }
 
 describe("evaluateAdminRouteAccess", () => {
+  it("lets every signed-in role open /admin/nominate", () => {
+    for (const role of ["member", "registrar", "club-admin"]) {
+      expect(evaluateAdminRouteAccess("/admin/nominate", session({ role }))).not.toBe("deny");
+    }
+  });
+
   it("denies club registrar access to super-admin-only /admin/users", () => {
     expect(
       evaluateAdminRouteAccess("/admin/users", session({ role: "registrar" })),

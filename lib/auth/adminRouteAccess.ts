@@ -176,6 +176,7 @@ const ROUTE_RULES: RouteRule[] = [
   { pattern: /^\/admin\/dashboard(\/|$)/, allowedRoles: ANY_ADMIN },
   { pattern: /^\/admin\/profile(\/|$)/, allowedRoles: SELF_SERVICE },
   { pattern: /^\/admin\/my-profile(\/|$)/, allowedRoles: SELF_SERVICE },
+  { pattern: /^\/admin\/nominate(\/|$)/, allowedRoles: SELF_SERVICE },
   { pattern: /^\/admin\/reports(\/|$)/, allowedRoles: ANY_ADMIN },
 
   { pattern: /^\/admin\/settings(\/|$)/, allowedRoles: SETTINGS_ROLES, scopeCheck: true },
