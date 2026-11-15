@@ -6,6 +6,7 @@
 // Blue card: members enter their own card details, but verification fields are protected
 // (see applyBlueCardUpdate) so a self-edit can never mark a card as verified.
 
+import { sanitizeMedicalItems, legacyFromItems } from "@/lib/members/medicalItems";
 import { CARD_TYPES, CARD_CATEGORIES, CARD_STATUSES, ISSUING_STATES } from "@/lib/members/blueCard";
 
 type Doc = Record<string, any>;
@@ -140,12 +141,19 @@ export function sanitizeSelfDetails(body: Doc, existing: Doc): SelfDetailsResult
       $set["medical.optOut"] = med.optOut;
       touched.push("medical.optOut");
     }
-    for (const f of ["conditions", "medications", "allergies"] as const) {
-      if (med[f] !== undefined) {
-        // One entry per line (several conditions / medications / allergies); blanks and duplicates dropped.
-        const lines = String(med[f] ?? "").split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
-        $set[`medical.${f}`] = [...new Set(lines)].slice(0, 30).join("\n").slice(0, 2000);
-        touched.push(`medical.${f}`);
+    if (Array.isArray(med.items)) {
+      const items = sanitizeMedicalItems(med.items);
+      $set["medical.items"] = items;
+      const flat = legacyFromItems(items);
+      for (const f of ["conditions", "medications", "allergies"] as const) $set[`medical.${f}`] = flat[f];
+      touched.push("medical.items", "medical.conditions", "medical.medications", "medical.allergies");
+    } else {
+      for (const f of ["conditions", "medications", "allergies"] as const) {
+        if (med[f] !== undefined) {
+          const ls = String(med[f] ?? "").split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+          $set[`medical.${f}`] = [...new Set(ls)].slice(0, 30).join("\n").slice(0, 2000);
+          touched.push(`medical.${f}`);
+        }
       }
     }
   }
