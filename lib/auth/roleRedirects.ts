@@ -71,11 +71,11 @@ function roleLanding(
     case "volunteer":
       return clubId ? `/admin/clubs/${clubId}/edit` : "/admin/clubs";
 
-    // ── Portal (no admin area): their own registration, fees and details ─────
+    // ── Portal (no admin area): personal dashboard (own stats and shortcuts) ──
     case "player":
     case "member":
     case "parent":
-      return "/admin/my-registration";
+      return "/admin/dashboard";
 
     // Unrecognised roles (e.g. imported staff) get the self-service page, not an admin dashboard.
     default:

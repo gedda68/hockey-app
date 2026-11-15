@@ -38,22 +38,42 @@ const record = (t: PlayingStats["allTime"]) => (t.wins + t.draws + t.losses > 0 
 
 export default function MyPlayingStats() {
   const [d, setD] = useState<Resp | null>(null);
+  const [state, setState] = useState<"loading" | "ok" | "error">("loading");
+  const [errMsg, setErrMsg] = useState("");
 
   useEffect(() => {
     let live = true;
     fetch("/api/member/my-stats", { credentials: "include" })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((j) => { if (live) setD(j); })
-      .catch(() => {});
+      .then(async (r) => {
+        const j = await r.json().catch(() => ({}));
+        if (!live) return;
+        if (!r.ok) { setErrMsg(j?.error ? `${j.error} (${r.status})` : `Request failed (${r.status})`); setState("error"); return; }
+        setD(j); setState("ok");
+      })
+      .catch((e) => { if (live) { setErrMsg(e instanceof Error ? e.message : "Network error"); setState("error"); } });
     return () => { live = false; };
   }, []);
 
-  if (!d || (!d.isPlayer && d.allTime.games === 0)) return null;
+  if (state === "loading") return <p className="text-xs font-bold text-slate-400">Loading your playing stats…</p>;
+  if (state === "error" || !d) {
+    return (
+      <div className="space-y-2">
+        <h2 className="text-xs font-black uppercase text-slate-400 tracking-widest">My playing stats</h2>
+        <p className="text-sm text-slate-500">We couldn&apos;t load your playing stats{errMsg ? ` — ${errMsg}` : ""}.</p>
+      </div>
+    );
+  }
   const { allTime: a, thisSeason: s } = d;
 
   return (
     <div className="space-y-4">
       <h2 className="text-xs font-black uppercase text-slate-400 tracking-widest">My playing stats</h2>
+
+      {a.games === 0 && (
+        <p className="text-sm text-slate-500 bg-slate-50 border border-slate-100 rounded-xl px-4 py-3">
+          No games are recorded for you yet. Games and goals appear here once you&apos;re named in a match line-up and the result is entered.
+        </p>
+      )}
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <Tile label="Games · all time" value={a.games} />

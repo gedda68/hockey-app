@@ -151,7 +151,7 @@ export const menuConfig: MenuItem[] = [
     description: "Overview and quick stats",
     color: "from-blue-500 to-blue-600",
     section: "overview",
-    allowedRoles: ALL_ADMIN,
+    allowedRoles: [...ALL_ADMIN, "member", "player", "parent"],
   },
 
   // ── Teams ────────────────────────────────────────────────────────────────────

@@ -173,7 +173,8 @@ const ROUTE_RULES: RouteRule[] = [
   { pattern: /^\/admin\/global-config(\/|$)/, allowedRoles: SUPER_ADMIN },
   { pattern: /^\/admin\/config(\/|$)/, allowedRoles: SUPER_ADMIN },
 
-  { pattern: /^\/admin\/dashboard(\/|$)/, allowedRoles: ANY_ADMIN },
+  // Members, players and parents get a personal dashboard (their own playing stats and shortcuts).
+  { pattern: /^\/admin\/dashboard(\/|$)/, allowedRoles: [...ANY_ADMIN, "member", "player", "parent"] },
   { pattern: /^\/admin\/profile(\/|$)/, allowedRoles: SELF_SERVICE },
   { pattern: /^\/admin\/my-profile(\/|$)/, allowedRoles: SELF_SERVICE },
   { pattern: /^\/admin\/nominate(\/|$)/, allowedRoles: SELF_SERVICE },
