@@ -5,6 +5,7 @@
 
 "use client";
 
+import MyPlayingStats from "@/components/member/MyPlayingStats";
 import Link from "next/link";
 import { useState, useEffect, useCallback } from "react";
 import { getErrorMessage } from "@/lib/utils/errors";
@@ -113,6 +114,8 @@ export default function DashboardPage() {
   const isClub      = CLUB_ROLES.includes(user?.role  ?? "");
   const isAssoc     = ASSOC_ROLES.includes(user?.role ?? "");
   const isSuperAdmin= user?.role === "super-admin";
+  // Plain members have no organisation-wide numbers to see — show their own stats instead.
+  const isMember    = user?.role === "member";
 
   const scope   = isClub ? "club" : isAssoc ? "association" : "global";
   const scopeId = isClub ? (user?.clubId ?? null) : isAssoc ? (user?.associationId ?? null) : null;
@@ -123,6 +126,7 @@ export default function DashboardPage() {
     : "Global";
 
   const fetchAnalytics = useCallback(async () => {
+    if (isMember) { setLoading(false); return; }
     setLoading(true);
     setError("");
     try {
@@ -136,7 +140,7 @@ export default function DashboardPage() {
     } finally {
       setLoading(false);
     }
-  }, [scope, scopeId, season]);
+  }, [scope, scopeId, season, isMember]);
 
   useEffect(() => { fetchAnalytics(); }, [fetchAnalytics]);
 
@@ -206,6 +210,7 @@ export default function DashboardPage() {
           </div>
         ) : (
           <>
+            {!isMember && (<>
             {/* ── Entity counts (associations/clubs/teams) ───────────────── */}
             {(isSuperAdmin || isAssoc) && (
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -395,6 +400,10 @@ export default function DashboardPage() {
                 </div>
               </div>
             )}
+
+            </>)}
+
+            <MyPlayingStats />
 
             {/* ── Quick access tiles ─────────────────────────────────────── */}
             <div>
