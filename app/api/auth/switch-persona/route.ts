@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { ObjectId } from "mongodb";
 import { getDatabase } from "@/lib/mongodb";
 import { getSession, attachSessionCookie } from "@/lib/auth/session";
 import {
@@ -39,6 +40,14 @@ export async function POST(request: NextRequest) {
         { error: "Could not apply persona" },
         { status: 400 },
       );
+    }
+
+    // Remember the choice so the next login can open the same organisation.
+    if (session.memberId && ObjectId.isValid(String(session.memberId))) {
+      await db
+        .collection("members")
+        .updateOne({ _id: new ObjectId(String(session.memberId)) }, { $set: { "preferences.lastPersonaKey": personaKey } })
+        .catch(() => undefined);
     }
 
     const res = NextResponse.json({

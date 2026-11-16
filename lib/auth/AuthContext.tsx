@@ -30,6 +30,8 @@ export interface User {
   scopedRoles?: ScopedRole[];
   /** Switchable personas when the user has more than one role scope. */
   personas?: PersonaOption[];
+  /** The organisation the person last worked in (restored after login). */
+  lastPersonaKey?: string;
   /** Roles & Access Matrix result for the organisation the user is working in (null until loaded). */
   access?: AccessPayload | null;
   /** Matches JWT active scope (from session cookie). */
@@ -73,6 +75,7 @@ function mapMePayload(raw: Record<string, unknown>): User {
     scopedRoles: Array.isArray(raw.scopedRoles)
       ? (raw.scopedRoles as ScopedRole[])
       : [],
+    lastPersonaKey: typeof raw.lastPersonaKey === "string" ? raw.lastPersonaKey : undefined,
     personas: Array.isArray(raw.personas)
       ? (raw.personas as PersonaOption[])
       : undefined,
