@@ -2,6 +2,8 @@
 // Members API - Get, Update, Delete individual member
 
 import { areaGuard, memberRecordGuard } from "@/lib/access/enforce";
+import { sectionsForViewer } from "@/lib/access/profileSectionsServer";
+import { redactBySections, preserveBySections } from "@/lib/access/profileSections";
 import { preservePrivateFields } from "@/lib/members/privacy";
 import { protectMember, preserveSensitiveFields } from "@/lib/members/sharing";
 import { NextRequest, NextResponse } from "next/server";
@@ -141,8 +143,11 @@ export async function GET(
     }
 
     const viewer = await getSession();
+    // Roles & Access Matrix: further limit which profile sections this person sees (never adds anything).
+    const sections = await sectionsForViewer(db, viewer, id);
     return NextResponse.json({
-      member: protectMember(member, viewer),
+      sections,
+      member: redactBySections(protectMember(member, viewer), sections),
       playerStats,
       teamHistory,
       related: {
@@ -202,7 +207,8 @@ export async function PUT(
 
     // While a member's contact details are private, only they may change them (or the privacy setting).
     const isOwner = !!session?.memberId && (session.memberId === String(existing._id) || session.memberId === existing.memberId);
-    const guarded = preserveSensitiveFields(existing, preservePrivateFields(existing, updateData, isOwner), session);
+    const __sections = await sectionsForViewer(db, session, String(existing.memberId));
+    const guarded = preserveBySections(existing, preserveSensitiveFields(existing, preservePrivateFields(existing, updateData, isOwner), session), __sections);
     for (const k of Object.keys(updateData)) delete (updateData as Record<string, unknown>)[k];
     Object.assign(updateData, guarded);
 
