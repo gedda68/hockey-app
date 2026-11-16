@@ -180,6 +180,7 @@ const ROUTE_RULES: RouteRule[] = [
   { pattern: /^\/admin\/nominate(\/|$)/, allowedRoles: SELF_SERVICE },
   // Who may appoint which role is decided by the matrix in the API; the page just needs to open.
   { pattern: /^\/admin\/role-appointments(\/|$)/, allowedRoles: ANY_ADMIN },
+  { pattern: /^\/admin\/role-holders(\/|$)/, allowedRoles: ANY_ADMIN },
   { pattern: /^\/admin\/reports(\/|$)/, allowedRoles: ANY_ADMIN },
 
   { pattern: /^\/admin\/settings(\/|$)/, allowedRoles: SETTINGS_ROLES, scopeCheck: true },

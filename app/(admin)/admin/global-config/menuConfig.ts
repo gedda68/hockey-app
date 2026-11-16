@@ -545,6 +545,16 @@ export const menuConfig: MenuItem[] = [
     allowedRoles: ALL_ADMIN,
   },
   {
+    label: "Role Holders",
+    href: "/admin/role-holders",
+    icon: "👥",
+    description: "See who holds which role, change what it covers, or end it",
+    color: "from-teal-500 to-teal-600",
+    section: "governance",
+    allowedRoles: ALL_ADMIN,
+    areas: ["usersRoles"],
+  },
+  {
     label: "Role Approvals",
     href: "/admin/role-requests",
     areas: ["usersRoles"],

@@ -9,7 +9,8 @@ import { getDatabase } from "@/lib/mongodb";
 import { getSession } from "@/lib/auth/session";
 import { resolveSessionMemberId } from "@/lib/auth/sessionMember";
 import { getMatrixRole } from "@/lib/access/matrix";
-import { holdingFromAppointment, hasHolding, type RoleAppointment } from "@/lib/access/appointments";
+import { effectiveAccess } from "@/lib/access/memberAccess";
+import { holdingFromAppointment, hasHolding, canAppoint, type RoleAppointment } from "@/lib/access/appointments";
 import { blueCardStatus } from "@/lib/members/blueCard";
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -30,9 +31,14 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const now = new Date().toISOString();
 
     if (action === "withdraw") {
-      if (!(session.role === "super-admin" || (me && appt.sentByMemberId === me))) {
-        return NextResponse.json({ error: "Only the sender can withdraw this invitation" }, { status: 403 });
+      let allowed = session.role === "super-admin" || (!!me && appt.sentByMemberId === me);
+      if (!allowed) {
+        // Anyone with the authority to appoint this role in that organisation may withdraw it too.
+        const role = getMatrixRole(appt.roleKey);
+        const access = await effectiveAccess(db, session);
+        allowed = !!role && access.context.kind === "org" && access.context.orgId === appt.orgId && canAppoint({ access }, role).ok;
       }
+      if (!allowed) return NextResponse.json({ error: "You don't have permission to withdraw this invitation" }, { status: 403 });
       await db.collection("role_appointments").updateOne({ appointmentId: id }, { $set: { status: "withdrawn", respondedAt: now } });
       return NextResponse.json({ success: true, status: "withdrawn" });
     }
