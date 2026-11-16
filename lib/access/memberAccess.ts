@@ -55,3 +55,20 @@ export async function accessForSession(db: Db, session: SessionData): Promise<Ac
     contexts: contextOptions(holdings, { blueCardValid }),
   };
 }
+
+/**
+ * Access for the person's current organisation. People who hold no matrix roles there but are legacy
+ * administrators (super-admin, club-admin, association-admin) are treated as top-level in their organisation,
+ * so the existing admins keep working until everything is on matrix roles.
+ */
+export async function effectiveAccess(db: Db, session: SessionData) {
+  const { holdings, blueCardValid } = await loadMemberHoldings(db, session);
+  const context = contextFromSession(session);
+  const res = resolveAccess(holdings, context, { blueCardValid });
+  const legacyAdmin = ["super-admin", "club-admin", "association-admin"].includes(session.role);
+  if (res.roles.length === 0 && legacyAdmin && context.kind === "org") {
+    const areas = Object.fromEntries(Object.keys(res.areas).map((k) => [k, "A" as AccessCode]));
+    return { ...res, areas, level: session.role === "super-admin" ? 6 : 5, synthetic: true as const, holdings };
+  }
+  return { ...res, synthetic: false as const, holdings };
+}
