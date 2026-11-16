@@ -2,6 +2,7 @@
 // GET: current session as a user object for the client.
 // PATCH: update own staff account name, email, phone (session cookie refreshed).
 
+import { ObjectId } from "mongodb";
 import { accessForSession } from "@/lib/access/memberAccess";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
@@ -34,11 +35,17 @@ export async function GET() {
     let personas: Awaited<ReturnType<typeof buildPersonaOptions>> = [];
     let activePersonaKey: string | undefined;
     let access: Awaited<ReturnType<typeof accessForSession>> | null = null;
+    let lastPersonaKey: string | undefined;
     try {
       const db = await getDatabase();
       personas = await buildPersonaOptions(db, session);
       activePersonaKey = activePersonaKeyFromSession(session);
       access = await accessForSession(db, session);
+      if (session.memberId && ObjectId.isValid(String(session.memberId))) {
+        const m = await db.collection("members").findOne({ _id: new ObjectId(String(session.memberId)) }, { projection: { "preferences.lastPersonaKey": 1 } });
+        const k = (m as any)?.preferences?.lastPersonaKey;
+        if (typeof k === "string") lastPersonaKey = k;
+      }
     } catch (e) {
       console.error("[auth/me] persona/access list failed:", e);
     }
@@ -64,6 +71,7 @@ export async function GET() {
         forcePasswordChange: session.forcePasswordChange || false,
         portalSubdomain: session.portalSubdomain ?? null,
         activePersonaKey,
+        lastPersonaKey,
         personas,
         access,
       },

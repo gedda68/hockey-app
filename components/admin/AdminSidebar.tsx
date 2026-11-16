@@ -32,7 +32,14 @@ const SIDEBAR_ASSOC_ROLES = [
 function getUserRoles(user: User): string[] {
   const roles = new Set<string>([user.role]);
   for (const sr of user.scopedRoles ?? []) {
-    if (sr?.role) roles.add(sr.role);
+    if (!sr?.role) continue;
+    // Roles held in another organisation don't open menu items here. Roles in the organisation being worked
+    // in (and global / team ones) combine with the active role.
+    if (sr.scopeType === "club" && user.clubId && sr.scopeId && sr.scopeId !== user.clubId) continue;
+    if (sr.scopeType === "association" && user.associationId && sr.scopeId && sr.scopeId !== user.associationId) continue;
+    if (sr.scopeType === "club" && !user.clubId) continue;
+    if (sr.scopeType === "association" && !user.associationId) continue;
+    roles.add(sr.role);
   }
   return Array.from(roles);
 }

@@ -20,7 +20,14 @@ export type PersonaOption = {
   role: string;
   scopeType: ScopedRole["scopeType"];
   scopeId?: string;
+  /** The organisation this persona belongs to ("club:ID", "association:ID", "personal", "platform"). */
+  orgKey?: string;
+  /** The organisation's own name, without the role. */
+  orgLabel?: string;
 };
+
+/** The personal context: own profile, playing stats and invitations, with no organisation. */
+export const PERSONAL_PERSONA_KEY = "member::global::";
 
 export function encodePersonaKey(
   role: string,
@@ -99,6 +106,14 @@ export async function enrichPersonaLabels(
     }
   }
 
+  const teamClub = new Map<string, string>();
+  for (const o of options) {
+    if (o.scopeType === "team" && o.scopeId) {
+      const t = await db.collection("teams").findOne({ teamId: o.scopeId }, { projection: { clubId: 1 } });
+      if (t?.clubId) teamClub.set(o.scopeId, String(t.clubId));
+    }
+  }
+
   const clubMap = new Map<string, string>();
   if (clubIds.size > 0) {
     const clubs = await db
@@ -133,9 +148,23 @@ export async function enrichPersonaLabels(
     } else if (o.scopeType === "team" && o.scopeId) {
       extra = ` — Team ${o.scopeId}`;
     }
+    let orgKey = "personal";
+    let orgLabel = "Personal";
+    if (o.role === "super-admin" && o.scopeType === "global") {
+      orgKey = "platform"; orgLabel = "Platform";
+    } else if (o.scopeType === "club" && o.scopeId) {
+      orgKey = `club:${o.scopeId}`; orgLabel = clubMap.get(o.scopeId) ?? o.scopeId;
+    } else if (o.scopeType === "association" && o.scopeId) {
+      orgKey = `association:${o.scopeId}`; orgLabel = assocMap.get(o.scopeId) ?? o.scopeId;
+    } else if (o.scopeType === "team" && o.scopeId) {
+      const cid = teamClub.get(o.scopeId);
+      if (cid) { orgKey = `club:${cid}`; orgLabel = clubMap.get(cid) ?? cid; }
+    }
     return {
       ...o,
       label: `${humanRole(o.role)}${extra}`,
+      orgKey,
+      orgLabel,
     };
   });
 }
@@ -211,6 +240,13 @@ export async function buildPersonaOptions(
 
   for (const sr of [...(session.scopedRoles ?? []), ...dbScoped]) {
     add(sr.role, sr.scopeType, sr.scopeId);
+  }
+
+  // Personal context (own profile, stats, invitations): offered to members who also work in an organisation
+  // in an operational role. Plain members and players already land there.
+  const PERSONAL_ONLY = new Set(["member", "player", "parent", "volunteer"]);
+  if (session.memberId && raw.some((o) => o.role !== "super-admin" && !PERSONAL_ONLY.has(o.role) && o.scopeType !== "global")) {
+    add("member", "global", "");
   }
 
   return enrichPersonaLabels(db, raw);
