@@ -94,22 +94,25 @@ function groupMenuBySection(items: MenuItem[]): { key: string; label: string; it
  *   2. If item.allowedRoles is absent/empty → visible to all admin-area users.
  *   3. Otherwise → user's role(s) must intersect allowedRoles.
  */
-function canSeeItem(item: MenuItem, userRoles: string[]): boolean {
+function canSeeItem(item: MenuItem, userRoles: string[], areas?: Record<string, string> | null): boolean {
   if (userRoles.includes("super-admin")) return true;
   if (!item.allowedRoles || item.allowedRoles.length === 0) return true;
-  return item.allowedRoles.some((r) => userRoles.includes(r));
+  if (!item.allowedRoles.some((r) => userRoles.includes(r))) return false;
+  // Matrix role holders also need a non "—" code in at least one of the item's areas.
+  if (areas && item.areas && item.areas.length > 0) return item.areas.some((a) => (areas[a] ?? "-") !== "-");
+  return true;
 }
 
 /**
  * Recursively filter the menu tree based on the user's roles.
  * Items with sub-items are only included if at least one sub-item survives.
  */
-function filterMenu(items: MenuItem[], userRoles: string[]): MenuItem[] {
+function filterMenu(items: MenuItem[], userRoles: string[], areas?: Record<string, string> | null): MenuItem[] {
   return items
-    .filter((item) => canSeeItem(item, userRoles))
+    .filter((item) => canSeeItem(item, userRoles, areas))
     .map((item) => {
       if (!item.subItems) return item;
-      const visibleSubs = filterMenu(item.subItems, userRoles);
+      const visibleSubs = filterMenu(item.subItems, userRoles, areas);
       return { ...item, subItems: visibleSubs };
     })
     .filter((item) => !item.subItems || item.subItems.length > 0);
@@ -202,7 +205,9 @@ function buildMenuForUser(user: User | null): MenuItem[] {
   const userRoles = getUserRoles(user);
 
   // ── 1. Filter all items by allowedRoles ─────────────────────────────────────
-  let items = filterMenu(menuConfig, userRoles);
+  // Only people who hold matrix roles in this organisation are filtered by area; everyone else is unchanged.
+  const matrixAreas = user.access && user.access.roles.length > 0 ? user.access.areas : null;
+  let items = filterMenu(menuConfig, userRoles, matrixAreas);
 
   // ── 2. Replace generic Fees / selection policy hrefs with scope-specific ones
   const fees = resolvedFeesItem(role, clubRef, assocId);

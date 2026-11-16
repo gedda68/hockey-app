@@ -23,6 +23,12 @@ export interface MenuItem {
   section?: string;
   /** If present, only users whose primary OR scoped role is in this list can see the item. */
   allowedRoles?: string[];
+  /**
+   * Roles & Access Matrix areas (any of). Applies only to people who hold matrix roles in their current
+   * organisation: they see the item when their code for at least one listed area is not "—".
+   * People without matrix roles keep the allowedRoles behaviour above.
+   */
+  areas?: string[];
   subItems?: MenuItem[];
 }
 
@@ -158,6 +164,7 @@ export const menuConfig: MenuItem[] = [
   {
     label: "Teams",
     href: "/admin/teams",
+    areas: ["teamsSquads"],
     icon: "👥",
     description: "Manage teams and rosters",
     color: "from-sky-500 to-sky-600",
@@ -203,6 +210,7 @@ export const menuConfig: MenuItem[] = [
   {
     label: "Competition panel",
     href: "/admin/competition-panel",
+    areas: ["fixturesResults", "competitionsGrading"],
     icon: "🏆",
     description:
       "Every competition at a glance: fixtures, results awaiting approval, rosters, events and ladders",
@@ -220,6 +228,7 @@ export const menuConfig: MenuItem[] = [
   {
     label: "Representative",
     href: "/admin/representative",
+    areas: ["pathwaysRepTeams"],
     icon: "📋",
     description: "Manage divisions, representative teams, and rosters",
     color: "from-purple-500 to-purple-600",
@@ -299,6 +308,7 @@ export const menuConfig: MenuItem[] = [
   {
     label: "Players",
     href: "/admin/players",
+    areas: ["teamsSquads", "membersRegistrations", "memberRegistry"],
     icon: "⭐",
     description: "Player management and nominations",
     color: "from-yellow-500 to-yellow-600",
@@ -334,6 +344,7 @@ export const menuConfig: MenuItem[] = [
   {
     label: "Members",
     href: "/admin/members",
+    areas: ["membersRegistrations", "memberRegistry"],
     icon: "📝",
     description: "Manage club members and registrations",
     color: "from-cyan-500 to-cyan-600",
@@ -367,6 +378,7 @@ export const menuConfig: MenuItem[] = [
   {
     label: "Club Registrations",
     href: "/admin/club-registrations",
+    areas: ["membersRegistrations"],
     icon: "📋",
     description: "Every member registered with the club, by season",
     color: "from-cyan-500 to-cyan-600",
@@ -380,6 +392,7 @@ export const menuConfig: MenuItem[] = [
   {
     label: "Association Registrations",
     href: "/admin/association-registrations",
+    areas: ["memberRegistry"],
     icon: "📋",
     description: "Every member registered with the association, by season",
     color: "from-cyan-500 to-cyan-600",
@@ -449,6 +462,7 @@ export const menuConfig: MenuItem[] = [
   {
     label: "Clubs",
     href: "/admin/clubs",
+    areas: ["affiliatedClubs", "clubSettings"],
     icon: "🏢",
     description: "Club profiles and management",
     color: "from-indigo-500 to-indigo-600",
@@ -484,6 +498,7 @@ export const menuConfig: MenuItem[] = [
   {
     label: "Fees",
     href: "/admin/fees",
+    areas: ["financeFees", "financeFeesLevies"],
     icon: "💵",
     description: "Fee management for your scope",
     color: "from-green-500 to-green-600",
@@ -493,6 +508,7 @@ export const menuConfig: MenuItem[] = [
   {
     label: "Financials",
     href: "/admin/associations",
+    areas: ["financeFees", "financeFeesLevies"],
     icon: "🧾",
     description: "Chart of accounts and income/expense ledgers",
     color: "from-emerald-600 to-emerald-700",
@@ -522,6 +538,7 @@ export const menuConfig: MenuItem[] = [
   {
     label: "Role Approvals",
     href: "/admin/role-requests",
+    areas: ["usersRoles"],
     icon: "✅",
     description: "Approve or reject role assignment requests",
     color: "from-amber-500 to-amber-600",
@@ -531,6 +548,7 @@ export const menuConfig: MenuItem[] = [
   {
     label: "Role Expiry",
     href: "/admin/role-expiry",
+    areas: ["usersRoles"],
     icon: "⏳",
     description: "Monitor expiring roles and run seasonal cleanup",
     color: "from-red-500 to-red-600",
@@ -546,6 +564,7 @@ export const menuConfig: MenuItem[] = [
   {
     label: "Events",
     href: "/admin/events",
+    areas: ["venuesEvents"],
     icon: "📅",
     description: "Create and manage events for associations, clubs, and teams",
     color: "from-orange-500 to-amber-500",
@@ -609,6 +628,7 @@ export const menuConfig: MenuItem[] = [
   {
     label: "Reports",
     href: "/admin/reports",
+    areas: ["reportsExports"],
     icon: "📈",
     description: "Member counts, gender/age breakdowns, historic trends and more",
     color: "from-teal-500 to-teal-600",

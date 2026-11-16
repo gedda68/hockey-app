@@ -2,6 +2,7 @@
 // GET: current session as a user object for the client.
 // PATCH: update own staff account name, email, phone (session cookie refreshed).
 
+import { accessForSession } from "@/lib/access/memberAccess";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { attachSessionCookie, getSession, type SessionData } from "@/lib/auth/session";
@@ -32,12 +33,14 @@ export async function GET() {
     // the person must still be recognised, so fall back to no extra personas instead of failing the call.
     let personas: Awaited<ReturnType<typeof buildPersonaOptions>> = [];
     let activePersonaKey: string | undefined;
+    let access: Awaited<ReturnType<typeof accessForSession>> | null = null;
     try {
       const db = await getDatabase();
       personas = await buildPersonaOptions(db, session);
       activePersonaKey = activePersonaKeyFromSession(session);
+      access = await accessForSession(db, session);
     } catch (e) {
-      console.error("[auth/me] persona list failed:", e);
+      console.error("[auth/me] persona/access list failed:", e);
     }
 
     return NextResponse.json({
@@ -62,6 +65,7 @@ export async function GET() {
         portalSubdomain: session.portalSubdomain ?? null,
         activePersonaKey,
         personas,
+        access,
       },
     });
   } catch (e) {

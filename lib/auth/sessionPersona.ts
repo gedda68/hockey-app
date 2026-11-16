@@ -1,5 +1,7 @@
 // Build / validate persona switches for multi-role users (JWT session refresh).
 
+import { legacyAssignmentsFor } from "@/lib/access/matrix";
+import { blueCardStatus } from "@/lib/members/blueCard";
 import { normalizeMemberRoles } from "@/lib/auth/memberRoles";
 import type { Db } from "mongodb";
 import { ObjectId } from "mongodb";
@@ -180,10 +182,13 @@ export async function buildPersonaOptions(
       const mid = new ObjectId(String(session.memberId));
       const m = await db
         .collection("members")
-        .findOne({ _id: mid }, { projection: { roles: 1, clubId: 1, "membership.clubId": 1 } });
-      dbScoped = toScopedRoles(
-        normalizeMemberRoles((m as any)?.roles, (m as any)?.membership?.clubId || (m as any)?.clubId || session.clubId),
-      );
+        .findOne({ _id: mid }, { projection: { roles: 1, roleHoldings: 1, blueCard: 1, clubId: 1, "membership.clubId": 1 } });
+      dbScoped = toScopedRoles([
+        ...normalizeMemberRoles((m as any)?.roles, (m as any)?.membership?.clubId || (m as any)?.clubId || session.clubId),
+        ...(legacyAssignmentsFor(Array.isArray((m as any)?.roleHoldings) ? (m as any).roleHoldings : [], {
+          blueCardValid: blueCardStatus((m as any)?.blueCard).ok,
+        }) as RoleAssignment[]),
+      ]);
     } else if (session.userId) {
       const uid = String(session.userId);
       const u = await db.collection("users").findOne(

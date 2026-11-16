@@ -12,6 +12,7 @@ import {
 } from "react";
 import { useRouter } from "next/navigation";
 import type { ScopedRole } from "@/lib/auth/session";
+import type { AccessPayload } from "@/lib/access/memberAccess";
 import type { PersonaOption } from "@/lib/auth/sessionPersona";
 import { syncBrowserToPortalSubdomain } from "@/lib/tenant/clientTenantHost";
 
@@ -29,6 +30,8 @@ export interface User {
   scopedRoles?: ScopedRole[];
   /** Switchable personas when the user has more than one role scope. */
   personas?: PersonaOption[];
+  /** Roles & Access Matrix result for the organisation the user is working in (null until loaded). */
+  access?: AccessPayload | null;
   /** Matches JWT active scope (from session cookie). */
   activePersonaKey?: string;
   associationId?: string | null;
@@ -74,6 +77,7 @@ function mapMePayload(raw: Record<string, unknown>): User {
       ? (raw.personas as PersonaOption[])
       : undefined,
     activePersonaKey: (raw.activePersonaKey as string) || undefined,
+    access: (raw.access as AccessPayload | null) ?? null,
     associationId: (raw.associationId as string) ?? null,
     associationLevel:
       (raw.associationLevel as User["associationLevel"]) ?? null,
