@@ -13,6 +13,7 @@ import { getSession } from "@/lib/auth/session";
 import { resolveSessionMemberId } from "@/lib/auth/sessionMember";
 import { effectiveAccess } from "@/lib/access/memberAccess";
 import { getMatrixRole, codeAtLeast } from "@/lib/access/matrix";
+import { guardianIdsFor, isMinor, MINOR_MAX_ROLE_LEVEL } from "@/lib/access/guardians";
 import { canAppoint, missingScope, cleanIds, hasHolding, type RoleAppointment } from "@/lib/access/appointments";
 
 const COLLECTION = "role_appointments";
@@ -29,7 +30,11 @@ export async function GET(request: NextRequest) {
 
     let filter: Record<string, unknown>;
     if (box === "sent") filter = { sentByMemberId: me };
-    else if (box === "org") {
+    else if (box === "guardian") {
+      // Invitations for children I can approve for.
+      if (!me) return NextResponse.json({ appointments: [] });
+      filter = { status: "pending", "guardianApproval.status": "pending", "guardianApproval.guardianIds": me };
+    } else if (box === "org") {
       const access = await effectiveAccess(db, session);
       if (access.context.kind !== "org" || !(codeAtLeast(access.areas.usersRoles, "R") || access.synthetic)) {
         return NextResponse.json({ error: "Not permitted" }, { status: 403 });
@@ -69,7 +74,7 @@ export async function POST(request: NextRequest) {
 
     const target = await db.collection("members").findOne(
       { memberId: String(body.memberId ?? "") },
-      { projection: { memberId: 1, personalInfo: 1, roleHoldings: 1 } },
+      { projection: { memberId: 1, personalInfo: 1, roleHoldings: 1, family: 1 } },
     );
     if (!target) return NextResponse.json({ error: "Member not found" }, { status: 404 });
 
@@ -87,6 +92,19 @@ export async function POST(request: NextRequest) {
     const missing = missingScope(role, scope);
     if (missing) return NextResponse.json({ error: missing }, { status: 400 });
 
+    // Under-18s: limited to junior-level roles, and a parent/guardian must approve before they can accept.
+    let guardianApproval: RoleAppointment["guardianApproval"];
+    if (isMinor(target.personalInfo?.dateOfBirth)) {
+      if (role.level > MINOR_MAX_ROLE_LEVEL) {
+        return NextResponse.json({ error: "This role isn't available to people under 18" }, { status: 400 });
+      }
+      const guardianIds = await guardianIdsFor(db, target);
+      if (guardianIds.length === 0) {
+        return NextResponse.json({ error: "They're under 18 and have no parent/guardian linked on their record. Link a guardian first." }, { status: 400 });
+      }
+      guardianApproval = { status: "pending", guardianIds };
+    }
+
     const me = await resolveSessionMemberId(db, session);
     const now = new Date().toISOString();
     const appointment: RoleAppointment = {
@@ -103,6 +121,7 @@ export async function POST(request: NextRequest) {
       ...(body.message ? { message: String(body.message).slice(0, 500) } : {}),
       status: "pending",
       createdAt: now,
+      ...(guardianApproval ? { guardianApproval } : {}),
     };
     await db.collection(COLLECTION).insertOne({ ...appointment });
     return NextResponse.json({ success: true, appointment }, { status: 201 });

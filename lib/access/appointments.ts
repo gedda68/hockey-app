@@ -28,6 +28,14 @@ export interface RoleAppointment {
   status: AppointmentStatus;
   createdAt: string;
   respondedAt?: string;
+  /** Present when the nominee is under 18: a parent/guardian must approve before the nominee can accept. */
+  guardianApproval?: {
+    status: "pending" | "approved" | "refused";
+    guardianIds: string[];
+    decidedBy?: string;
+    decidedByName?: string;
+    decidedAt?: string;
+  };
 }
 
 /** Roles that come from registration / membership rather than an appointment. */

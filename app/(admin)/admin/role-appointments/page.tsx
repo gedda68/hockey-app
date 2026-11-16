@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import { Loader2, Search, Send } from "lucide-react";
 
 interface RoleOpt { key: string; name: string; category: string; level: number; scope: string; blueCardRequired: boolean }
-interface Appt { appointmentId: string; roleName: string; memberName?: string; status: string; createdAt: string; season?: string }
+interface Appt { guardianApproval?: { status: string }; appointmentId: string; roleName: string; memberName?: string; status: string; createdAt: string; season?: string }
 interface Person { memberId: string; name: string }
 interface ClubOpt { id: string; name: string; city: string }
 
@@ -208,7 +208,7 @@ export default function RoleAppointmentsPage() {
                 <tr key={a.appointmentId}>
                   <td className="py-2 font-bold text-slate-700">{a.memberName ?? "—"}</td>
                   <td className="text-slate-600">{a.roleName}{a.season ? ` · ${a.season}` : ""}</td>
-                  <td className="capitalize font-semibold text-slate-500">{a.status}</td>
+                  <td className="capitalize font-semibold text-slate-500">{a.status === "pending" && a.guardianApproval?.status === "pending" ? "Awaiting guardian" : a.status}</td>
                   <td className="text-right">{a.status === "pending" && <button onClick={() => withdraw(a.appointmentId)} className="text-xs font-bold text-red-600 hover:underline">Withdraw</button>}</td>
                 </tr>
               ))}
