@@ -536,6 +536,15 @@ export const menuConfig: MenuItem[] = [
 
   // ── Role management ──────────────────────────────────────────────────────────
   {
+    label: "Appoint Roles",
+    href: "/admin/role-appointments",
+    icon: "🪪",
+    description: "Invite members to club and association roles",
+    color: "from-teal-500 to-teal-600",
+    section: "governance",
+    allowedRoles: ALL_ADMIN,
+  },
+  {
     label: "Role Approvals",
     href: "/admin/role-requests",
     areas: ["usersRoles"],

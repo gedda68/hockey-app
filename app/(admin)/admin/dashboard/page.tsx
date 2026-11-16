@@ -5,6 +5,7 @@
 
 "use client";
 
+import RoleInvitations from "@/components/roles/RoleInvitations";
 import MyPlayingStats from "@/components/member/MyPlayingStats";
 import Link from "next/link";
 import { useState, useEffect, useCallback } from "react";
@@ -405,6 +406,8 @@ export default function DashboardPage() {
             )}
 
             </>)}
+
+            <RoleInvitations />
 
             <MyPlayingStats />
 
