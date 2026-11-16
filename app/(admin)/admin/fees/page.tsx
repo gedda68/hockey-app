@@ -24,6 +24,8 @@ import {
   TrendingDown,
 } from "lucide-react";
 import type { EnrichedFeeRecord } from "@/app/api/admin/rep-fees/route";
+import NoAreaAccess from "@/components/admin/NoAreaAccess";
+import { useAreaAccess } from "@/lib/access/useAreaAccess";
 import ExportButton from "@/components/admin/ExportButton";
 import type { ExportColumn } from "@/lib/export";
 
@@ -331,6 +333,10 @@ Representative Hockey Administration`;
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function FeesPage() {
+  const feeArea = useAreaAccess("fees");
+  // Matrix roles: Edit (E) records payments and sends reminders; Admin (A) waives and restores.
+  const canEditFees = !feeArea.enforced || feeArea.canEdit;
+  const canAdminFees = !feeArea.enforced || feeArea.canAdmin;
   const [season, setSeason] = useState(CURRENT_YEAR);
   const [statusFilter, setStatusFilter] = useState<FeeStatus | "all">("all");
   const [ageGroupFilter, setAgeGroupFilter] = useState("all");
@@ -505,6 +511,8 @@ export default function FeesPage() {
   const feeExportRows = filteredFees as unknown as Record<string, unknown>[];
 
   // ── Render ──────────────────────────────────────────────────────────────────
+  if (feeArea.hidden) return <NoAreaAccess what="fees" />;
+
   return (
     <div className="min-h-screen bg-slate-50">
       {/* Header */}
@@ -619,20 +627,20 @@ export default function FeesPage() {
               {selected.size} selected
             </span>
             <div className="flex gap-2 flex-wrap ml-auto">
-              <button
+              {canEditFees && <button
                 onClick={bulkMarkPaid}
                 className="flex items-center gap-1.5 px-4 py-2 bg-green-500 hover:bg-green-400 text-white rounded-xl text-xs font-black uppercase transition-all"
               >
                 <CheckCircle size={13} />
                 Mark Paid (Cash)
-              </button>
-              <button
+              </button>}
+              {canEditFees && <button
                 onClick={() => setShowReminder(true)}
                 className="flex items-center gap-1.5 px-4 py-2 bg-yellow-400 hover:bg-yellow-300 text-[#06054e] rounded-xl text-xs font-black uppercase transition-all"
               >
                 <Mail size={13} />
                 Send Reminders
-              </button>
+              </button>}
               <button
                 onClick={() => setSelected(new Set())}
                 className="flex items-center gap-1.5 px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-xl text-xs font-black uppercase transition-all"
@@ -770,7 +778,7 @@ export default function FeesPage() {
                           {/* Actions */}
                           <td className="px-4 py-3">
                             <div className="flex items-center justify-end gap-1.5">
-                              {isOutstanding && (
+                              {isOutstanding && canEditFees && (
                                 <>
                                   <button
                                     onClick={() => setPaymentForm({
@@ -799,13 +807,13 @@ export default function FeesPage() {
                                       Overdue
                                     </button>
                                   )}
-                                  <button
+                                  {canAdminFees && <button
                                     onClick={() => quickWaive(fee)}
                                     className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg text-[10px] font-black uppercase transition-all"
                                     title="Waive fee"
                                   >
                                     Waive
-                                  </button>
+                                  </button>}
                                   <button
                                     onClick={() => {
                                       setSelected(new Set([key]));
@@ -818,7 +826,7 @@ export default function FeesPage() {
                                   </button>
                                 </>
                               )}
-                              {(fee.status === "paid" || fee.status === "waived" || fee.status === "refunded") && (
+                              {canAdminFees && (fee.status === "paid" || fee.status === "waived" || fee.status === "refunded") && (
                                 <button
                                   onClick={() => quickRestore(fee)}
                                   className="flex items-center gap-1 px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg text-[10px] font-black uppercase transition-all"
@@ -897,7 +905,7 @@ export default function FeesPage() {
         </div>
 
         {/* Reminder shortcut when nothing selected */}
-        {!loading && filteredFees.some((f) => f.status === "pending" || f.status === "overdue") && selected.size === 0 && (
+        {!loading && canEditFees && filteredFees.some((f) => f.status === "pending" || f.status === "overdue") && selected.size === 0 && (
           <div className="flex justify-end">
             <button
               onClick={() => setShowReminder(true)}

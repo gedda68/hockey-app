@@ -1,6 +1,7 @@
 // app/api/admin/members/route.ts
 // Members API - List and Create
 
+import { areaGuard } from "@/lib/access/enforce";
 import { protectMember } from "@/lib/members/sharing";
 import { memberBelongsToClubFilter } from "@/lib/rosters/memberClubQuery";
 import { NextRequest, NextResponse } from "next/server";
@@ -67,6 +68,9 @@ function calculateAge(dateOfBirth: string): number {
 
 // GET - List members with pagination and filtering
 export async function GET(request: NextRequest) {
+  const __areaDenied = await areaGuard("members", "GET", {});
+  if (__areaDenied) return __areaDenied;
+
   try {
     const { user, response: authResponse } = await requirePermission(
       request,
@@ -250,6 +254,9 @@ export async function GET(request: NextRequest) {
 
 // POST - Create new member
 export async function POST(request: NextRequest) {
+  const __areaDenied = await areaGuard("members", "POST", {});
+  if (__areaDenied) return __areaDenied;
+
   const traceId = generateTraceId();
   try {
     const { response: authResponse } = await requirePermission(

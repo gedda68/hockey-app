@@ -294,6 +294,8 @@ interface RosterCardProps {
   onAddTeam: () => void;
   onAddPlayer: (rosterId: string, teamIndex: number) => void;
   onRefresh?: () => void;
+  /** Hide add / edit / remove controls (matrix code R). */
+  readOnly?: boolean;
 }
 
 export default function RosterCard({
@@ -301,6 +303,7 @@ export default function RosterCard({
   onAddTeam,
   onAddPlayer,
   onRefresh,
+  readOnly = false,
 }: RosterCardProps) {
   const [editingPlayer, setEditingPlayer] = useState<{
     player: Player;
@@ -512,6 +515,7 @@ export default function RosterCard({
           </div>
 
           <button
+            style={readOnly ? { display: "none" } : undefined}
             onClick={(e) => {
               e.stopPropagation();
               onAddTeam();
@@ -547,6 +551,7 @@ export default function RosterCard({
                 teamIndex={teamIndex}
                 rosterId={roster.id!}
                 clubId={roster.clubId}
+                readOnly={readOnly}
                 onAddPlayer={onAddPlayer}
                 onEditPlayer={(player: Player) => {
                   setEditingPlayer({ player, teamIndex });
@@ -599,6 +604,7 @@ export default function RosterCard({
               Create your first team to start adding players
             </p>
             <button
+              style={readOnly ? { display: "none" } : undefined}
               onClick={onAddTeam}
               className="px-8 py-4 bg-[#06054e] text-white rounded-xl font-black uppercase text-sm hover:bg-blue-900 transition-all shadow-lg inline-flex items-center gap-2"
             >
@@ -643,6 +649,7 @@ export default function RosterCard({
             />
 
             <button
+              style={readOnly ? { display: "none" } : undefined}
               onClick={onAddTeam}
               className="w-full px-6 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-black uppercase text-sm transition-all border-2 border-dashed border-slate-300"
             >
@@ -709,6 +716,7 @@ function TeamSection({
   onAddStaff,
   onEditStaff,
   onDeleteStaff,
+  readOnly,
 }: any) {
   const players: Player[] = uniquePlayers(team.players);
   const { setNodeRef } = useDroppable({
@@ -730,6 +738,7 @@ function TeamSection({
         </div>
 
         <button
+          style={readOnly ? { display: "none" } : undefined}
           onClick={() => onAddPlayer(rosterId, teamIndex)}
           className="px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-lg font-black uppercase text-sm transition-all flex items-center gap-2"
         >
@@ -775,7 +784,7 @@ function TeamSection({
                   />
 
                   {/* Player Menu */}
-                  <div className="absolute right-2 top-1/2 -translate-y-1/2">
+                  <div className="absolute right-2 top-1/2 -translate-y-1/2" style={readOnly ? { display: "none" } : undefined}>
                     <PlayerMenuDropdown
                       player={player}
                       onEdit={() => onEditPlayer(player)}
@@ -814,6 +823,7 @@ function TeamSection({
           </h5>
 
           <button
+            style={readOnly ? { display: "none" } : undefined}
             onClick={onAddStaff}
             className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-black uppercase text-sm transition-all flex items-center gap-2"
           >
@@ -861,6 +871,7 @@ function TeamSection({
                 <StaffCard
                   key={staff.id}
                   staff={staff}
+                  readOnly={readOnly}
                   onEdit={() => onEditStaff(staff)}
                   onDelete={() => onDeleteStaff(staff.id)}
                 />
@@ -874,7 +885,7 @@ function TeamSection({
 }
 
 // Staff Card Component
-function StaffCard({ staff, onEdit, onDelete }: any) {
+function StaffCard({ staff, onEdit, onDelete, readOnly }: any) {
   const roleIcons: Record<string, string> = {
     head_coach: "🏆",
     assistant_coach: "📋",
@@ -929,7 +940,7 @@ function StaffCard({ staff, onEdit, onDelete }: any) {
         </div>
 
         {/* Actions */}
-        <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity" style={readOnly ? { display: "none" } : undefined}>
           <button
             onClick={onEdit}
             className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-blue-100 text-blue-600"

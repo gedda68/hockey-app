@@ -1,6 +1,7 @@
 // app/api/admin/teams/rosters/[rosterId]/route.ts
 // Update roster WITH MOVE HISTORY - FIXED for Next.js 15
 
+import { areaGuard } from "@/lib/access/enforce";
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import {
@@ -17,6 +18,9 @@ export async function PUT(
   request: NextRequest,
   context: { params: Promise<{ rosterId: string }> },
 ) {
+  const __areaDenied = await areaGuard("teams", "PUT", {});
+  if (__areaDenied) return __areaDenied;
+
   const traceId = generateTraceId();
   try {
     // Await params in Next.js 15
@@ -197,6 +201,9 @@ export async function GET(
   request: NextRequest,
   context: { params: Promise<{ rosterId: string }> },
 ) {
+  const __areaDenied = await areaGuard("teams", "GET", { readNeed: "V" });
+  if (__areaDenied) return __areaDenied;
+
   try {
     // Await params in Next.js 15
     const { rosterId } = await context.params;

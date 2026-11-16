@@ -1,5 +1,6 @@
 // app/api/admin/fees/route.ts
 
+import { areaGuard } from "@/lib/access/enforce";
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import {
@@ -9,6 +10,9 @@ import {
 import { logPlatformAudit } from "@/lib/audit/platformAuditLog";
 
 export async function GET(req: NextRequest) {
+  const __areaDenied = await areaGuard("fees", "GET", {});
+  if (__areaDenied) return __areaDenied;
+
   const { response } = await requirePermission(req, "club.fees");
   if (response) return response;
 
@@ -57,6 +61,9 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const __areaDenied = await areaGuard("fees", "POST", {});
+  if (__areaDenied) return __areaDenied;
+
   const { user, response } = await requirePermission(req, "club.fees");
   if (response) return response;
 

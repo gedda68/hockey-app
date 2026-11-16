@@ -1,6 +1,7 @@
 // app/api/admin/teams/players/eligible/route.ts
 // Fetch eligible players for a club from the members collection.
 
+import { areaGuard } from "@/lib/access/enforce";
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import {
@@ -38,6 +39,9 @@ interface EligiblePlayer {
 }
 
 export async function GET(request: NextRequest) {
+  const __areaDenied = await areaGuard("teams", "GET", { readNeed: "V" });
+  if (__areaDenied) return __areaDenied;
+
   try {
     const { response: authRes } = await requirePermission(request, "team.roster");
     if (authRes) return authRes;

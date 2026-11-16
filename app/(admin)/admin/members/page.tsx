@@ -9,6 +9,8 @@ import {
   ChevronDown, ChevronUp, Download, Upload,
 } from "lucide-react";
 import Link from "next/link";
+import { useAreaAccess } from "@/lib/access/useAreaAccess";
+import NoAreaAccess from "@/components/admin/NoAreaAccess";
 
 interface Member {
   memberId: string;
@@ -83,7 +85,11 @@ export default function MembersPage() {
   const [deleting, setDeleting] = useState<string | null>(null);
   const PER_PAGE = 50;
 
-  const isReadonly = !["super-admin","association-admin","club-admin","registrar","assoc-registrar"].includes(user?.role ?? "");
+  const area = useAreaAccess("members");
+  // Matrix roles: Edit (E) adds/edits, Admin (A) deletes and exports. Everyone else keeps the existing role check.
+  const isReadonly = area.enforced ? !area.canEdit : !["super-admin","association-admin","club-admin","registrar","assoc-registrar"].includes(user?.role ?? "");
+  const canExport = !area.enforced || area.canAdmin;
+  const canDelete = !area.enforced || area.canAdmin;
 
   const fetchMembers = useCallback(async () => {
     setLoading(true);
@@ -171,6 +177,8 @@ export default function MembersPage() {
 
   const totalPages = Math.ceil(total / PER_PAGE);
 
+  if (area.hidden) return <NoAreaAccess what="members" />;
+
   return (
     <div className="min-h-screen bg-slate-50 p-6">
       <div className="max-w-350 mx-auto space-y-5">
@@ -191,13 +199,13 @@ export default function MembersPage() {
             </div>
 
             <div className="flex items-center gap-2 flex-wrap">
-              <button
+              {canExport && <button
                 onClick={exportCSV}
                 className="flex items-center gap-2 px-4 py-2 border-2 border-slate-200 text-slate-700 rounded-xl font-bold text-sm hover:bg-slate-50 transition-all"
               >
                 <Download size={16} />
                 Export CSV
-              </button>
+              </button>}
 
               {!isReadonly && (
                 <>
@@ -398,7 +406,7 @@ export default function MembersPage() {
                                 >
                                   <Edit size={15} className="text-yellow-600" />
                                 </Link>
-                                <button
+                                {canDelete && <button
                                   onClick={() => handleDelete(m.memberId)}
                                   disabled={deleting === m.memberId}
                                   className="p-1.5 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-40"
@@ -407,7 +415,7 @@ export default function MembersPage() {
                                   {deleting === m.memberId
                                     ? <Loader2 size={15} className="animate-spin text-red-500" />
                                     : <Trash2 size={15} className="text-red-500" />}
-                                </button>
+                                </button>}
                               </>
                             )}
                           </div>

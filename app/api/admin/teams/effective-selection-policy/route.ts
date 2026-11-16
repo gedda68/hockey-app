@@ -1,6 +1,7 @@
 // GET — merged team selection policy for a club (national → … → parent association → club).
 // Use from roster move / fixture validation so behaviour matches admin-configured policy.
 
+import { areaGuard } from "@/lib/access/enforce";
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import {
@@ -22,6 +23,9 @@ async function resolveClubCanonicalId(db: Db, clubIdOrSlug: string): Promise<str
 }
 
 export async function GET(request: NextRequest) {
+  const __areaDenied = await areaGuard("teams", "GET", { readNeed: "V" });
+  if (__areaDenied) return __areaDenied;
+
   try {
     const { response: authRes } = await requirePermission(request, "team.roster");
     if (authRes) return authRes;

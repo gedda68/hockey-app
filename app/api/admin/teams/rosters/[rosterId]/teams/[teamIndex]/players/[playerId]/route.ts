@@ -1,6 +1,7 @@
 // app/api/admin/teams/rosters/[rosterId]/teams/[teamIndex]/players/[playerId]/route.ts
 // FIXED: Support leadership object with multiple captains
 
+import { areaGuard } from "@/lib/access/enforce";
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import {
@@ -20,6 +21,9 @@ export async function PATCH(
     params: Promise<{ rosterId: string; teamIndex: string; playerId: string }>;
   },
 ) {
+  const __areaDenied = await areaGuard("teams", "PATCH", {});
+  if (__areaDenied) return __areaDenied;
+
   const traceId = generateTraceId();
   try {
     const {
@@ -144,6 +148,9 @@ export async function DELETE(
     params: Promise<{ rosterId: string; teamIndex: string; playerId: string }>;
   },
 ) {
+  const __areaDenied = await areaGuard("teams", "DELETE", {});
+  if (__areaDenied) return __areaDenied;
+
   const traceId = generateTraceId();
   try {
     const {
