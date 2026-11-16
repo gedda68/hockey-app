@@ -59,9 +59,9 @@ type Doc = Record<string, any>;
 
 /** Top-level member fields (or `parent.child` paths) that belong to each section. */
 const FIELDS: Record<Exclude<ProfileSection, "personal">, string[]> = {
-  contact: ["contact"],
+  contact: ["contact", "socialMedia", "communicationPreferences", "privacy"],
   address: ["address"],
-  membership: ["membership", "memberships", "family"],
+  membership: ["membership", "memberships", "family", "playerInfo"],
   roles: ["roles", "roleHoldings"],
   emergency: ["emergencyContacts", "contact.emergencyContact"],
   medical: ["medical"],

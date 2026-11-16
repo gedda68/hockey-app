@@ -77,6 +77,24 @@ describe("redactBySections", () => {
   });
 });
 
+describe("fields the edit form saves outside the main sections", () => {
+  const m = { ...member, socialMedia: { x: "1" }, communicationPreferences: { sms: true }, privacy: { contactPrivate: true }, playerInfo: { goals: 3 } };
+  it("social, preferences and privacy follow Contact; player info follows Membership", () => {
+    const viewOnly = sectionsFromCodes(codes("R"));
+    const out = preserveBySections(m, { ...m, socialMedia: { x: "hacked" }, privacy: { contactPrivate: false }, playerInfo: { goals: 99 } }, viewOnly);
+    expect(out.socialMedia).toEqual({ x: "1" });
+    expect(out.privacy).toEqual({ contactPrivate: true });
+    expect(out.playerInfo).toEqual({ goals: 3 });
+    const editor = sectionsFromCodes(codes("E"));
+    expect(preserveBySections(m, { ...m, playerInfo: { goals: 5 } }, editor).playerInfo).toEqual({ goals: 5 });
+  });
+  it("are hidden from people who cannot view those sections", () => {
+    const r = redactBySections(m, sectionsFromCodes(codes("V")));
+    expect(r.socialMedia).toBeUndefined();
+    expect(r.playerInfo).toBeUndefined();
+  });
+});
+
 describe("preserveBySections", () => {
   it("restores sections the person may not change, so a save can't wipe or alter them", () => {
     const secs = sectionsFromCodes(codes("E", "R"));

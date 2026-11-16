@@ -32,6 +32,7 @@ import EmergencyContactStep from "@/components/admin/members/wizard/EmergencyCon
 import AddressStep from "@/components/admin/members/wizard/AddressStep";
 import BlueCardSection from "@/components/admin/members/BlueCardSection";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { fullSections, PROFILE_SECTIONS, type SectionMap } from "@/lib/access/profileSections";
 import { requiresBlueCard, hasBlueCardData, nonPlayerRoles } from "@/lib/members/blueCard";
 import SocialPreferences, { mergedSocial } from "@/components/admin/members/SocialPreferences";
 import type { TeamHistoryRow } from "@/lib/members/teamHistory";
@@ -62,6 +63,8 @@ export default function EditMemberPage({
   const [teamHistory, setTeamHistory] = useState<TeamHistoryRow[]>([]);
   const [changeHistory, setChangeHistory] = useState<any[]>([]);
   const [showHistory, setShowHistory] = useState(false);
+  // Which profile sections this person may change (Roles & Access Matrix). Everyone else: all of them.
+  const [sections, setSections] = useState<SectionMap>(fullSections());
 
   useEffect(() => {
     if (!memberId) return;
@@ -71,6 +74,8 @@ export default function EditMemberPage({
         const data = await res.json();
 
         if (!res.ok) throw new Error(data.error || "Failed to load member");
+
+        if (data.sections) setSections(data.sections as SectionMap);
 
         // Normalize data structure
         const member = data.member;
@@ -376,8 +381,16 @@ export default function EditMemberPage({
       )}
 
       {/* Edit Sections */}
+      {PROFILE_SECTIONS.some((k) => !sections[k].edit) && (
+        <p className="text-xs font-semibold text-slate-500 bg-slate-100 rounded-xl px-4 py-2">
+          {PROFILE_SECTIONS.some((k) => sections[k].edit)
+            ? "Sections your role can't change are hidden here. You can still view what your role allows on the member's profile."
+            : "Your role can't change anything on this member. Open the member's profile to view what your role allows."}
+        </p>
+      )}
       <div className="grid gap-6">
         {/* Personal Information */}
+        {sections.personal.edit && (
         <EditCard
           title="Personal Information"
           icon={<User className="text-blue-600" />}
@@ -392,8 +405,10 @@ export default function EditMemberPage({
             errors={{}}
           />
         </EditCard>
+        )}
 
         {/* Contact Information */}
+        {sections.contact.edit && (
         <EditCard
           title="Contact Information"
           icon={<Mail className="text-blue-600" />}
@@ -406,8 +421,10 @@ export default function EditMemberPage({
             errors={{}}
           />
         </EditCard>
+        )}
 
         {/* Emergency Contact */}
+        {sections.emergency.edit && (
         <EditCard
           title="Emergency Contact"
           icon={<AlertCircle className="text-orange-600" />}
@@ -425,8 +442,10 @@ export default function EditMemberPage({
             errors={{}}
           />
         </EditCard>
+        )}
 
         {/* Address */}
+        {sections.address.edit && (
         <EditCard
           title="Address"
           icon={<MapPin className="text-green-600" />}
@@ -439,8 +458,10 @@ export default function EditMemberPage({
             errors={{}}
           />
         </EditCard>
+        )}
 
         {/* Membership Details */}
+        {sections.membership.edit && (
         <EditCard
           title="Membership Details"
           icon={<Shield className="text-purple-600" />}
@@ -454,6 +475,7 @@ export default function EditMemberPage({
               setFormData({ ...formData, membership: val })
             }
             onRolesChange={(val) => {
+              if (!sections.roles.edit) return; // Roles need Users & Roles access
               setRoles(val);
               setFormData({ ...formData, roles: val });
             }}
@@ -461,12 +483,13 @@ export default function EditMemberPage({
             errors={{}}
           />
         </EditCard>
+        )}
 
         {/* Everything else stored on this member (read-only) */}
         <MemberRecordDetails member={formData} related={related} teamHistory={teamHistory} hidePlayerDetails registrationsOnly hideSocial hideBlueCard />
 
         {/* Blue card: only when the member is over 15 with a non-player role (or a card is already on file) */}
-        {(requiresBlueCard(formData) || hasBlueCardData(formData.blueCard)) && (
+        {sections.safeguarding.edit && (requiresBlueCard(formData) || hasBlueCardData(formData.blueCard)) && (
           <EditCard
             title="Blue Card (Working with Children)"
             icon={<ShieldCheck className="text-blue-600" />}
@@ -486,6 +509,7 @@ export default function EditMemberPage({
         )}
 
         {/* Social links and contact preferences, each public or private */}
+        {sections.contact.edit && (
         <EditCard
           title="Social & Preferences"
           icon={<Share2 className="text-pink-600" />}
@@ -510,9 +534,10 @@ export default function EditMemberPage({
             }
           />
         </EditCard>
+        )}
 
         {/* Player details — for anyone who is or was a player */}
-        {hasPlayerHistory(formData, playerStats) && (
+        {sections.membership.edit && hasPlayerHistory(formData, playerStats) && (
           <EditCard
             title="Player Details"
             icon={<Trophy className="text-orange-600" />}
@@ -528,6 +553,7 @@ export default function EditMemberPage({
         )}
 
         {/* Medical Information */}
+        {sections.medical.edit && (
         <EditCard
           title="Medical Information"
           icon={<Heart className="text-red-600" />}
@@ -540,6 +566,7 @@ export default function EditMemberPage({
             errors={{}}
           />
         </EditCard>
+        )}
       </div>
 
       {/* Save All Button
