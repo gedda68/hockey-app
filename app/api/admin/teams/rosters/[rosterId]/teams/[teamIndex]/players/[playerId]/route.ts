@@ -1,7 +1,7 @@
 // app/api/admin/teams/rosters/[rosterId]/teams/[teamIndex]/players/[playerId]/route.ts
 // FIXED: Support leadership object with multiple captains
 
-import { areaGuard } from "@/lib/access/enforce";
+import { areaGuard, rosterScopeGuard } from "@/lib/access/enforce";
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import {
@@ -23,6 +23,12 @@ export async function PATCH(
 ) {
   const __areaDenied = await areaGuard("teams", "PATCH", {});
   if (__areaDenied) return __areaDenied;
+
+  {
+    const __p = (await context.params) as { rosterId: string; teamIndex?: string };
+    const __scopeDenied = await rosterScopeGuard("PATCH", __p.rosterId, __p.teamIndex !== undefined ? parseInt(String(__p.teamIndex), 10) : undefined, { need: "E" });
+    if (__scopeDenied) return __scopeDenied;
+  }
 
   const traceId = generateTraceId();
   try {
@@ -148,8 +154,14 @@ export async function DELETE(
     params: Promise<{ rosterId: string; teamIndex: string; playerId: string }>;
   },
 ) {
-  const __areaDenied = await areaGuard("teams", "DELETE", {});
+  const __areaDenied = await areaGuard("teams", "DELETE", { need: "E" });
   if (__areaDenied) return __areaDenied;
+
+  {
+    const __p = (await context.params) as { rosterId: string; teamIndex?: string };
+    const __scopeDenied = await rosterScopeGuard("DELETE", __p.rosterId, __p.teamIndex !== undefined ? parseInt(String(__p.teamIndex), 10) : undefined, { need: "E" });
+    if (__scopeDenied) return __scopeDenied;
+  }
 
   const traceId = generateTraceId();
   try {

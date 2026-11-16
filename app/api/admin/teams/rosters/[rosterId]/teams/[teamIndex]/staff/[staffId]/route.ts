@@ -1,6 +1,6 @@
 // PATCH/DELETE .../staff/[staffId] — Epic G validated PATCH fields.
 
-import { areaGuard } from "@/lib/access/enforce";
+import { areaGuard, rosterScopeGuard } from "@/lib/access/enforce";
 import { NextRequest, NextResponse } from "next/server";
 import { ZodError } from "zod";
 import clientPromise from "@/lib/mongodb";
@@ -18,6 +18,12 @@ export async function PATCH(
 ) {
   const __areaDenied = await areaGuard("teams", "PATCH", {});
   if (__areaDenied) return __areaDenied;
+
+  {
+    const __p = (await context.params) as { rosterId: string; teamIndex?: string };
+    const __scopeDenied = await rosterScopeGuard("PATCH", __p.rosterId, __p.teamIndex !== undefined ? parseInt(String(__p.teamIndex), 10) : undefined, { need: "E" });
+    if (__scopeDenied) return __scopeDenied;
+  }
 
   try {
     const { rosterId, teamIndex: teamIndexStr, staffId } = await context.params;
@@ -123,8 +129,14 @@ export async function DELETE(
     params: Promise<{ rosterId: string; teamIndex: string; staffId: string }>;
   },
 ) {
-  const __areaDenied = await areaGuard("teams", "DELETE", {});
+  const __areaDenied = await areaGuard("teams", "DELETE", { need: "E" });
   if (__areaDenied) return __areaDenied;
+
+  {
+    const __p = (await context.params) as { rosterId: string; teamIndex?: string };
+    const __scopeDenied = await rosterScopeGuard("DELETE", __p.rosterId, __p.teamIndex !== undefined ? parseInt(String(__p.teamIndex), 10) : undefined, { need: "E" });
+    if (__scopeDenied) return __scopeDenied;
+  }
 
   try {
     const { rosterId, teamIndex: teamIndexStr, staffId } = await context.params;

@@ -10,13 +10,14 @@ import { Loader2, Search, Send } from "lucide-react";
 interface RoleOpt { key: string; name: string; category: string; level: number; scope: string; blueCardRequired: boolean }
 interface Appt { guardianApproval?: { status: string }; appointmentId: string; roleName: string; memberName?: string; status: string; createdAt: string; season?: string }
 interface Person { memberId: string; name: string }
+interface Opt { value: string; label: string }
 interface ClubOpt { id: string; name: string; city: string }
 
 const labelCls = "block text-xs font-black uppercase tracking-wide text-slate-400 mb-1";
 const inputCls = "w-full rounded-xl border-2 border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 outline-none focus:border-teal-400";
 
 const SCOPE_FIELD: Record<string, { key: "teamIds" | "ageGroups" | "repSquadIds" | "fixtureIds"; label: string; hint: string } | undefined> = {
-  team: { key: "teamIds", label: "Team ID(s)", hint: "Comma-separated team ids" },
+  team: { key: "teamIds", label: "Team(s)", hint: "Comma-separated team ids" },
   ageGroup: { key: "ageGroups", label: "Age group(s) / program", hint: "e.g. U12, Women & Girls" },
   repSquad: { key: "repSquadIds", label: "Rep squad id(s)", hint: "Comma-separated" },
   assignedMatches: { key: "fixtureIds", label: "Match (fixture) id(s)", hint: "Comma-separated" },
@@ -30,6 +31,9 @@ export default function RoleAppointmentsPage() {
 
   const [roleKey, setRoleKey] = useState("");
   const [scopeText, setScopeText] = useState("");
+  const [teamOpts, setTeamOpts] = useState<Opt[]>([]);
+  const [ageOpts, setAgeOpts] = useState<Opt[]>([]);
+  const [picked, setPicked] = useState<string[]>([]);
   const [season, setSeason] = useState(String(new Date().getFullYear()));
   const [message, setMessage] = useState("");
 
@@ -55,6 +59,8 @@ export default function RoleAppointmentsPage() {
         setRoles(d.roles ?? []);
         setOrgLabel(d.context?.kind === "org" ? `${d.context.orgType === "club" ? "Club" : "Association"} ${d.context.orgId}` : "");
       }
+      const so = await fetch("/api/member/role-appointments/scope-options", { credentials: "include" });
+      if (so.ok) { const d = await so.json(); setTeamOpts(d.teams ?? []); setAgeOpts(d.ageGroups ?? []); }
       await loadSent();
       setLoading(false);
     })();
@@ -85,13 +91,17 @@ export default function RoleAppointmentsPage() {
     return [...m.entries()];
   }, [roles]);
   const scopeField = role ? SCOPE_FIELD[role.scope] : undefined;
+  // Teams and age groups come from the club's rosters; matches and rep squads are still typed ids.
+  const pickOpts = role?.scope === "team" ? teamOpts : role?.scope === "ageGroup" ? ageOpts : null;
+  const pickList = !!pickOpts && pickOpts.length > 0;
+  const toggle = (v: string) => setPicked((p) => (p.includes(v) ? p.filter((x) => x !== v) : [...p, v]));
 
   const submit = async () => {
     if (!role || !person) { toast.error("Choose a role and a person"); return; }
     setSaving(true);
     try {
       const body: Record<string, unknown> = { roleKey: role.key, memberId: person.memberId, season, message };
-      if (scopeField) body[scopeField.key] = scopeText.split(",").map((s) => s.trim()).filter(Boolean);
+      if (scopeField) body[scopeField.key] = pickList ? picked : scopeText.split(",").map((s) => s.trim()).filter(Boolean);
       const r = await fetch("/api/member/role-appointments", { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       const d = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(d.error || "Failed to send");
@@ -125,7 +135,7 @@ export default function RoleAppointmentsPage() {
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
           <div>
             <label className={labelCls}>Role</label>
-            <select className={inputCls} value={roleKey} onChange={(e) => { setRoleKey(e.target.value); setScopeText(""); }}>
+            <select className={inputCls} value={roleKey} onChange={(e) => { setRoleKey(e.target.value); setScopeText(""); setPicked([]); }}>
               <option value="">Choose a role…</option>
               {grouped.map(([cat, rs]) => (
                 <optgroup key={cat} label={cat}>{rs.map((r) => <option key={r.key} value={r.key}>{r.name}</option>)}</optgroup>
@@ -137,7 +147,17 @@ export default function RoleAppointmentsPage() {
           {scopeField && (
             <div>
               <label className={labelCls}>{scopeField.label}</label>
-              <input className={inputCls} value={scopeText} onChange={(e) => setScopeText(e.target.value)} placeholder={scopeField.hint} />
+              {pickList ? (
+                <div className="max-h-48 overflow-y-auto rounded-xl border-2 border-slate-200 divide-y divide-slate-100">
+                  {pickOpts!.map((o) => (
+                    <label key={o.value} className="flex items-center gap-2 px-3 py-2 text-sm font-semibold text-slate-700 cursor-pointer hover:bg-teal-50">
+                      <input type="checkbox" checked={picked.includes(o.value)} onChange={() => toggle(o.value)} /> {o.label}
+                    </label>
+                  ))}
+                </div>
+              ) : (
+                <input className={inputCls} value={scopeText} onChange={(e) => setScopeText(e.target.value)} placeholder={scopeField.hint} />
+              )}
             </div>
           )}
 
