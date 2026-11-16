@@ -1,5 +1,6 @@
 // POST .../staff — add staff (Epic G: validated body, WWCC + public-contact flags).
 
+import { areaGuard } from "@/lib/access/enforce";
 import { NextRequest, NextResponse } from "next/server";
 import { ZodError } from "zod";
 import clientPromise from "@/lib/mongodb";
@@ -13,6 +14,9 @@ export async function POST(
   request: NextRequest,
   context: { params: Promise<{ rosterId: string; teamIndex: string }> },
 ) {
+  const __areaDenied = await areaGuard("teams", "POST", {});
+  if (__areaDenied) return __areaDenied;
+
   try {
     const { rosterId, teamIndex: teamIndexStr } = await context.params;
     const teamIndex = parseInt(teamIndexStr, 10);

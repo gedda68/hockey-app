@@ -1,6 +1,7 @@
 // app/api/admin/teams/rosters/[rosterId]/teams/[teamIndex]/players/route.ts
 // Add player to a team roster + record selection history on the member.
 
+import { areaGuard } from "@/lib/access/enforce";
 import { grantRelease } from "@/lib/members/sharing";
 import { NextRequest, NextResponse } from "next/server";
 import { ObjectId } from "mongodb";
@@ -25,6 +26,9 @@ export async function POST(
   request: NextRequest,
   context: { params: Promise<{ rosterId: string; teamIndex: string }> },
 ) {
+  const __areaDenied = await areaGuard("teams", "POST", {});
+  if (__areaDenied) return __areaDenied;
+
   const traceId = generateTraceId();
   try {
     const { rosterId, teamIndex: teamIndexStr } = await context.params;

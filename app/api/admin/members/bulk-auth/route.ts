@@ -2,6 +2,7 @@
 // Bulk-provision login accounts for members who don't yet have one.
 // Supports dryRun mode to preview what would be created.
 
+import { areaGuard } from "@/lib/access/enforce";
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import { getSession } from "@/lib/auth/session";
@@ -23,6 +24,9 @@ interface BulkAuthResult {
 }
 
 export async function POST(request: NextRequest) {
+  const __areaDenied = await areaGuard("members", "POST", { need: "A" });
+  if (__areaDenied) return __areaDenied;
+
   try {
     const { response: authRes } = await requirePermission(request, "member.edit");
     if (authRes) return authRes;

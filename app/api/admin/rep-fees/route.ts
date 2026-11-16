@@ -2,6 +2,7 @@
 // GET  — aggregate all nomination fee records from member feeHistory for a season
 // PATCH — update a specific fee record on a member (mark paid, waive, etc.)
 
+import { areaGuard } from "@/lib/access/enforce";
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import { requirePermission } from "@/lib/auth/middleware";
@@ -37,6 +38,9 @@ export interface EnrichedFeeRecord {
 
 // ─── GET /api/admin/rep-fees?season=YYYY&status=&ageGroup= ───────────────────
 export async function GET(request: NextRequest) {
+  const __areaDenied = await areaGuard("fees", "GET", {});
+  if (__areaDenied) return __areaDenied;
+
   try {
     const { response: authRes } = await requirePermission(
       request,
@@ -154,6 +158,9 @@ export async function GET(request: NextRequest) {
 // ─── PATCH /api/admin/rep-fees ───────────────────────────────────────────────
 // Body: { memberId, feeId, status, paymentMethod?, transactionId?, notes?, paidDate? }
 export async function PATCH(request: NextRequest) {
+  const __areaDenied = await areaGuard("fees", "PATCH", {});
+  if (__areaDenied) return __areaDenied;
+
   try {
     const { response: authRes } = await requirePermission(
       request,

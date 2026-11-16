@@ -2,6 +2,7 @@
 // GET  — list rosters (filtered by season / clubId)
 // POST — create a new roster
 
+import { areaGuard } from "@/lib/access/enforce";
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import {
@@ -18,6 +19,9 @@ import {
 } from "@/lib/rosters/associationRosterDivisions";
 
 export async function GET(request: NextRequest) {
+  const __areaDenied = await areaGuard("teams", "GET", { readNeed: "V" });
+  if (__areaDenied) return __areaDenied;
+
   try {
     const { response: authRes } = await requirePermission(request, "team.roster");
     if (authRes) return authRes;
@@ -109,6 +113,9 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const __areaDenied = await areaGuard("teams", "POST", {});
+  if (__areaDenied) return __areaDenied;
+
   try {
     const { response: authRes } = await requirePermission(request, "team.edit");
     if (authRes) return authRes;

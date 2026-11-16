@@ -1,6 +1,7 @@
 // PATCH /api/admin/teams/by-id/[teamId]/lineage
 // Set canonicalTeamId and/or append promotionHistory (A6).
 
+import { areaGuard } from "@/lib/access/enforce";
 import { NextRequest, NextResponse } from "next/server";
 import { z, ZodError } from "zod";
 import clientPromise from "@/lib/mongodb";
@@ -16,6 +17,9 @@ const PatchSchema = z.object({
 type Params = { params: Promise<{ teamId: string }> };
 
 export async function PATCH(request: NextRequest, { params }: Params) {
+  const __areaDenied = await areaGuard("teams", "PATCH", {});
+  if (__areaDenied) return __areaDenied;
+
   const { user, response } = await requirePermission(request, "team.edit");
   if (response) return response;
 

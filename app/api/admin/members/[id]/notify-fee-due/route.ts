@@ -1,6 +1,7 @@
 // POST /api/admin/members/[id]/notify-fee-due
 // J1 — Send a payment-due reminder email to the member (Resend).
 
+import { areaGuard } from "@/lib/access/enforce";
 import { NextRequest, NextResponse } from "next/server";
 import { z, ZodError } from "zod";
 import clientPromise from "@/lib/mongodb";
@@ -32,6 +33,9 @@ export async function POST(
   request: NextRequest,
   context: { params: Promise<{ id: string }> },
 ) {
+  const __areaDenied = await areaGuard("members", "POST", {});
+  if (__areaDenied) return __areaDenied;
+
   const { response: authRes } = await requirePermission(
     request,
     "registration.manage",

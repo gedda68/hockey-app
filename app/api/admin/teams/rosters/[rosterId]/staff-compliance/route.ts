@@ -1,5 +1,6 @@
 // GET .../rosters/[rosterId]/staff-compliance — Epic G2 WWCC / credential overview.
 
+import { areaGuard } from "@/lib/access/enforce";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import clientPromise from "@/lib/mongodb";
@@ -16,6 +17,9 @@ const QuerySchema = z.object({
 });
 
 export async function GET(request: NextRequest, { params }: Params) {
+  const __areaDenied = await areaGuard("teams", "GET", { readNeed: "V" });
+  if (__areaDenied) return __areaDenied;
+
   try {
     const { rosterId } = await params;
     const sp = Object.fromEntries(new URL(request.url).searchParams);

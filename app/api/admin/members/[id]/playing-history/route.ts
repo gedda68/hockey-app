@@ -4,6 +4,7 @@
  * Append a playing-history event (ledger row). Requires club access for the member.
  */
 
+import { areaGuard } from "@/lib/access/enforce";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { getDatabase } from "@/lib/mongodb";
@@ -40,6 +41,9 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const __areaDenied = await areaGuard("members", "POST", {});
+  if (__areaDenied) return __areaDenied;
+
   const { response: permRes } = await requirePermission(request, "member.edit");
   if (permRes) return permRes;
 

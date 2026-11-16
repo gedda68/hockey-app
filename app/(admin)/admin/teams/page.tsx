@@ -18,6 +18,8 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 
+import NoAreaAccess from "@/components/admin/NoAreaAccess";
+import { useAreaAccess } from "@/lib/access/useAreaAccess";
 import RosterCard from "@/components/admin/teams/RosterCard";
 import AddRosterModal from "@/components/admin/teams/modals/AddRosterModal";
 import AddTeamModal from "@/components/admin/teams/modals/AddTeamModal";
@@ -72,6 +74,9 @@ function getDivisionSortOrder(division: string): number {
 }
 
 export default function ClubTeamsPage() {
+  const teamArea = useAreaAccess("teams");
+  // Matrix roles: Read (R) is view only; Edit (E) adds and changes teams and players.
+  const readOnly = teamArea.enforced && !teamArea.canEdit;
   const [rosters, setRosters] = useState<TeamRoster[]>([]);
   const [clubs, setClubs] = useState<any[]>([]);
   const [selectedClubId, setSelectedClubId] = useState<string>("all");
@@ -483,6 +488,8 @@ export default function ClubTeamsPage() {
   const isSuperAdmin = userAccess?.isSuperAdmin || false;
   const userClubId = userAccess?.clubId;
 
+  if (teamArea.hidden) return <NoAreaAccess what="teams" />;
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
       <div className="max-w-7xl mx-auto p-8">
@@ -498,12 +505,14 @@ export default function ClubTeamsPage() {
               </p>
             </div>
 
-            <button
-              onClick={() => setShowAddRoster(true)}
-              className="px-6 py-3 bg-[#06054e] text-white rounded-xl font-black uppercase text-sm hover:bg-blue-900 transition-all shadow-lg"
-            >
-              + Add Team Roster
-            </button>
+            {!readOnly && (
+              <button
+                onClick={() => setShowAddRoster(true)}
+                className="px-6 py-3 bg-[#06054e] text-white rounded-xl font-black uppercase text-sm hover:bg-blue-900 transition-all shadow-lg"
+              >
+                + Add Team Roster
+              </button>
+            )}
           </div>
 
           {/* Controls */}
@@ -552,12 +561,14 @@ export default function ClubTeamsPage() {
         ) : rosters.length === 0 ? (
           <div className="text-center py-12 bg-white rounded-3xl border-2 border-dashed border-slate-300">
             <p className="text-slate-400 font-bold">No rosters found</p>
-            <button
-              onClick={() => setShowAddRoster(true)}
-              className="mt-4 px-6 py-3 bg-[#06054e] text-white rounded-xl font-black uppercase text-sm"
-            >
-              Create First Roster
-            </button>
+            {!readOnly && (
+              <button
+                onClick={() => setShowAddRoster(true)}
+                className="mt-4 px-6 py-3 bg-[#06054e] text-white rounded-xl font-black uppercase text-sm"
+              >
+                Create First Roster
+              </button>
+            )}
           </div>
         ) : (
           <>
@@ -607,6 +618,7 @@ export default function ClubTeamsPage() {
                     }}
                     onAddPlayer={handleAddPlayerClick}
                     onRefresh={fetchRosters}
+                    readOnly={readOnly}
                   />
                 </div>
 

@@ -1,4 +1,5 @@
 // app/api/admin/members/[id]/history/route.ts
+import { areaGuard } from "@/lib/access/enforce";
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import { requirePermission } from "@/lib/auth/middleware";
@@ -11,6 +12,9 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const __areaDenied = await areaGuard("members", "GET", {});
+  if (__areaDenied) return __areaDenied;
+
   const { response: authRes } = await requirePermission(request, "member.view");
   if (authRes) return authRes;
 

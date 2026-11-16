@@ -1,6 +1,7 @@
 // app/api/admin/members/[id]/route.ts
 // Members API - Get, Update, Delete individual member
 
+import { areaGuard } from "@/lib/access/enforce";
 import { preservePrivateFields } from "@/lib/members/privacy";
 import { protectMember, preserveSensitiveFields } from "@/lib/members/sharing";
 import { NextRequest, NextResponse } from "next/server";
@@ -26,6 +27,9 @@ export async function GET(
   request: NextRequest,
   context: { params: Promise<{ id: string }> },
 ) {
+  const __areaDenied = await areaGuard("members", "GET", {});
+  if (__areaDenied) return __areaDenied;
+
   try {
     const { response: authRes } = await requirePermission(request, "member.view");
     if (authRes) return authRes;
@@ -154,6 +158,9 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const __areaDenied = await areaGuard("members", "PUT", {});
+  if (__areaDenied) return __areaDenied;
+
   const traceId = generateTraceId();
   try {
     const { response: authRes } = await requirePermission(request, "member.edit");
@@ -273,6 +280,9 @@ export async function DELETE(
   request: NextRequest,
   context: { params: Promise<{ id: string }> },
 ) {
+  const __areaDenied = await areaGuard("members", "DELETE", {});
+  if (__areaDenied) return __areaDenied;
+
   const traceId = generateTraceId();
   try {
     const { response: authRes } = await requirePermission(request, "member.delete");

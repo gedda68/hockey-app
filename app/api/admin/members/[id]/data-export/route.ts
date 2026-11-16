@@ -1,6 +1,7 @@
 // GET /api/admin/members/[id]/data-export
 // J4 — Subject-access style JSON bundle (no passwords / secrets).
 
+import { areaGuard } from "@/lib/access/enforce";
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import { requirePermission } from "@/lib/auth/middleware";
@@ -30,6 +31,9 @@ export async function GET(
   request: NextRequest,
   context: { params: Promise<{ id: string }> },
 ) {
+  const __areaDenied = await areaGuard("members", "GET", { need: "A" });
+  if (__areaDenied) return __areaDenied;
+
   const { response: authRes } = await requirePermission(request, "member.view");
   if (authRes) return authRes;
 

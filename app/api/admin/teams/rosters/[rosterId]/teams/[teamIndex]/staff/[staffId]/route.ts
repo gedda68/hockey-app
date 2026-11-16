@@ -1,5 +1,6 @@
 // PATCH/DELETE .../staff/[staffId] — Epic G validated PATCH fields.
 
+import { areaGuard } from "@/lib/access/enforce";
 import { NextRequest, NextResponse } from "next/server";
 import { ZodError } from "zod";
 import clientPromise from "@/lib/mongodb";
@@ -15,6 +16,9 @@ export async function PATCH(
     params: Promise<{ rosterId: string; teamIndex: string; staffId: string }>;
   },
 ) {
+  const __areaDenied = await areaGuard("teams", "PATCH", {});
+  if (__areaDenied) return __areaDenied;
+
   try {
     const { rosterId, teamIndex: teamIndexStr, staffId } = await context.params;
     const teamIndex = parseInt(teamIndexStr, 10);
@@ -119,6 +123,9 @@ export async function DELETE(
     params: Promise<{ rosterId: string; teamIndex: string; staffId: string }>;
   },
 ) {
+  const __areaDenied = await areaGuard("teams", "DELETE", {});
+  if (__areaDenied) return __areaDenied;
+
   try {
     const { rosterId, teamIndex: teamIndexStr, staffId } = await context.params;
     const teamIndex = parseInt(teamIndexStr, 10);
