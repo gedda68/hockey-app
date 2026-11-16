@@ -3,6 +3,7 @@
 // Member profile view page — shown after create and accessible from the members list.
 
 import { use, useEffect, useState } from "react";
+import { fullSections, type SectionMap } from "@/lib/access/profileSections";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -95,6 +96,7 @@ export default function MemberViewPage({ params }: { params: Promise<{ id: strin
   const [related, setRelated] = useState<MemberRelated | undefined>(undefined);
   const [playerStats, setPlayerStats] = useState<PlayerStats | null>(null);
   const [teamHistory, setTeamHistory] = useState<TeamHistoryRow[]>([]);
+  const [sections, setSections] = useState<SectionMap>(fullSections());
   const [loading, setLoading] = useState(true);
   const [error,   setError]   = useState<string | null>(null);
 
@@ -107,6 +109,7 @@ export default function MemberViewPage({ params }: { params: Promise<{ id: strin
         setRelated(json.related);
         setPlayerStats(json.playerStats ?? null);
         setTeamHistory(json.teamHistory ?? []);
+        if (json.sections) setSections(json.sections as SectionMap);
       })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
@@ -211,11 +214,17 @@ export default function MemberViewPage({ params }: { params: Promise<{ id: strin
         </div>
       </div>
 
+      {Object.values(sections).some((x) => !x.view) && (
+        <p className="text-xs font-semibold text-slate-500 bg-slate-100 rounded-xl px-4 py-2">
+          Some sections are hidden because your role doesn&apos;t include them.
+        </p>
+      )}
+
       {/* ── Main grid ─────────────────────────────────────────────────────── */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
         {/* Personal Information */}
-        <Section icon={<User size={18} />} title="Personal Information" color="bg-gradient-to-r from-blue-600 to-blue-700">
+        {sections.personal.view && <Section icon={<User size={18} />} title="Personal Information" color="bg-gradient-to-r from-blue-600 to-blue-700">
           <div className="grid grid-cols-2 gap-4">
             <Field label="Salutation"    value={pi.salutation && String(pi.salutation).replace(/^sal-/, "").replace(/^\w/, (c: string) => c.toUpperCase())} />
             <Field label="First Name"    value={pi.firstName} />
@@ -225,30 +234,30 @@ export default function MemberViewPage({ params }: { params: Promise<{ id: strin
             <Field label="Date of Birth" value={pi.dateOfBirth ? `${formatDate(pi.dateOfBirth)}${dobAge ? ` (${dobAge})` : ""}` : undefined} />
             <Field label="Gender"        value={genderLabel(pi.gender)} />
           </div>
-        </Section>
+        </Section>}
 
         {/* Contact */}
-        <Section icon={<Mail size={18} />} title="Contact Details" color="bg-gradient-to-r from-violet-600 to-violet-700">
+        {sections.contact.view && <Section icon={<Mail size={18} />} title="Contact Details" color="bg-gradient-to-r from-violet-600 to-violet-700">
           <div className="space-y-3">
             <Field label="Primary Email" value={(ct.primaryEmail || ct.email) ? <a href={`mailto:${ct.primaryEmail || ct.email}`} className="text-violet-600 hover:underline">{ct.primaryEmail || ct.email}</a> : undefined} />
             <Field label="Email Ownership" value={ct.emailOwnership} />
             <Field label="Phone"  value={ct.phone  || ct.mobile} />
             <Field label="Mobile" value={ct.mobile || ct.phone} />
           </div>
-        </Section>
+        </Section>}
 
         {/* Address */}
-        <Section icon={<MapPin size={18} />} title="Address" color="bg-gradient-to-r from-teal-600 to-teal-700">
+        {sections.address.view && <Section icon={<MapPin size={18} />} title="Address" color="bg-gradient-to-r from-teal-600 to-teal-700">
           <div className="space-y-1">
             {addr.street   && <p className="text-slate-800 font-semibold">{addr.street}</p>}
             {addr.suburb   && <p className="text-slate-700">{addr.suburb} {addr.state} {addr.postcode}</p>}
             {addr.country  && <p className="text-slate-500 text-sm">{addr.country}</p>}
             {!addr.street  && <p className="text-slate-300">—</p>}
           </div>
-        </Section>
+        </Section>}
 
         {/* Membership */}
-        <Section icon={<CreditCard size={18} />} title="Membership" color="bg-gradient-to-r from-amber-500 to-amber-600">
+        {sections.membership.view && <Section icon={<CreditCard size={18} />} title="Membership" color="bg-gradient-to-r from-amber-500 to-amber-600">
           <div className="grid grid-cols-2 gap-4">
             <Field label="Status"          value={<StatusBadge status={mem.status} />} />
             <Field label="Type"            value={mem.membershipType} />
@@ -258,10 +267,10 @@ export default function MemberViewPage({ params }: { params: Promise<{ id: strin
             <Field label="Season"          value={mem.seasonYear} />
             <Field label="Club"            value={mem.clubName || related?.clubNames?.[mem.clubId || member.clubId] || mem.clubId || member.clubId} />
           </div>
-        </Section>
+        </Section>}
 
         {/* Roles */}
-        {roles.length > 0 && (
+        {sections.roles.view && roles.length > 0 && (
           <Section icon={<Shield size={18} />} title="Roles" color="bg-gradient-to-r from-indigo-600 to-indigo-700">
             <div className="flex flex-wrap gap-2">
               {roles.map((r) => <RolePill key={r} role={r} />)}
@@ -271,7 +280,7 @@ export default function MemberViewPage({ params }: { params: Promise<{ id: strin
 
 
         {/* Emergency Contact */}
-        <Section icon={<Phone size={18} />} title="Emergency Contact" color="bg-gradient-to-r from-rose-600 to-rose-700">
+        {sections.emergency.view && <Section icon={<Phone size={18} />} title="Emergency Contact" color="bg-gradient-to-r from-rose-600 to-rose-700">
           {ec.name ? (
             <div className="space-y-3">
               <Field label="Name"         value={ec.name} />
@@ -282,10 +291,10 @@ export default function MemberViewPage({ params }: { params: Promise<{ id: strin
           ) : (
             <p className="text-slate-400 text-sm italic">No emergency contact recorded.</p>
           )}
-        </Section>
+        </Section>}
 
         {/* Medical */}
-        <Section icon={<Heart size={18} />} title="Medical" color="bg-gradient-to-r from-red-600 to-red-700">
+        {sections.medical.view && <Section icon={<Heart size={18} />} title="Medical" color="bg-gradient-to-r from-red-600 to-red-700">
           <div className="space-y-3">
             <Field label="Conditions"  value={med.conditions} />
             <Field label="Allergies"   value={med.allergies} />
@@ -296,10 +305,10 @@ export default function MemberViewPage({ params }: { params: Promise<{ id: strin
               </div>
             )}
           </div>
-        </Section>
+        </Section>}
 
         {/* Healthcare */}
-        {(hc.medicare?.number || hc.privateHealth?.provider) && (
+        {sections.healthcare.view && (hc.medicare?.number || hc.privateHealth?.provider) && (
           <Section icon={<Shield size={18} />} title="Healthcare" color="bg-gradient-to-r from-cyan-600 to-cyan-700">
             <div className="space-y-4">
               {hc.medicare?.number && (
@@ -327,7 +336,7 @@ export default function MemberViewPage({ params }: { params: Promise<{ id: strin
         )}
 
         {/* Notes */}
-        {member.notes && (
+        {sections.notes.view && member.notes && (
           <Section icon={<Hash size={18} />} title="Notes" color="bg-gradient-to-r from-slate-600 to-slate-700">
             <p className="text-slate-700 whitespace-pre-wrap text-sm">{member.notes}</p>
           </Section>
@@ -343,12 +352,12 @@ export default function MemberViewPage({ params }: { params: Promise<{ id: strin
           <ArrowLeft size={16} /> Back to Members
         </Link>
         <div className="flex items-center gap-3">
-          <Link
+          {Object.values(sections).some((x) => x.edit) && <Link
             href={`/admin/members/${id}/edit`}
             className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold transition-colors"
           >
             <Pencil size={16} /> Edit Member
-          </Link>
+          </Link>}
         </div>
       </div>
     </div>
