@@ -2,6 +2,8 @@
  * Shared session creation for password login and OIDC SSO (no password check).
  */
 
+import { legacyAssignmentsFor, type RoleHolding } from "@/lib/access/matrix";
+import { blueCardStatus } from "@/lib/members/blueCard";
 import { normalizeMemberRoles } from "@/lib/auth/memberRoles";
 import { memberStatusString } from "@/lib/members/statusValue";
 import type { Db, Document } from "mongodb";
@@ -281,7 +283,12 @@ export async function createMemberSession(
   const forcePasswordChange = member.auth?.forcePasswordChange === true;
 
   // Imported members keep roles as plain strings ("role-player"); convert them to assignments.
-  const memberDbRoles: RoleAssignment[] = normalizeMemberRoles(member.roles, memberClubId);
+  // Roles held through the Roles & Access Matrix (accepted appointments) add their nearest coarse role.
+  const matrixHoldings = Array.isArray(member.roleHoldings) ? (member.roleHoldings as RoleHolding[]) : [];
+  const memberDbRoles: RoleAssignment[] = [
+    ...normalizeMemberRoles(member.roles, memberClubId),
+    ...(legacyAssignmentsFor(matrixHoldings, { blueCardValid: blueCardStatus(member.blueCard).ok }) as RoleAssignment[]),
+  ];
   const primary = memberDbRoles.length > 0 ? getPrimaryRole(memberDbRoles) : "";
   const role: string =
     primary && primary !== "public" ? primary : member.auth?.role || "member";
