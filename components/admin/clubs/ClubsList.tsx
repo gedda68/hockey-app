@@ -168,9 +168,9 @@ export default function ClubsList() {
     if (!search) return true;
     const searchLower = search.toLowerCase();
     return (
-      club.name.toLowerCase().includes(searchLower) ||
-      club.shortName.toLowerCase().includes(searchLower) ||
-      club.address.suburb.toLowerCase().includes(searchLower)
+      (club.name ?? "").toLowerCase().includes(searchLower) ||
+      (club.shortName ?? "").toLowerCase().includes(searchLower) ||
+      (club.address?.suburb ?? "").toLowerCase().includes(searchLower)
     );
   });
 
@@ -331,7 +331,7 @@ export default function ClubsList() {
                 <div
                   className="h-24 relative"
                   style={{
-                    background: `linear-gradient(135deg, ${club.colors.primary} 0%, ${club.colors.accent} 20%, ${club.colors.secondary} 100%)`,
+                    background: `linear-gradient(135deg, ${club.colors?.primary ?? "#06054e"} 0%, ${club.colors?.accent ?? "#facc15"} 20%, ${club.colors?.secondary ?? "#1e293b"} 100%)`,
                   }}
                 >
                   <div className="absolute inset-0 flex items-center justify-between p-6">
@@ -368,12 +368,14 @@ export default function ClubsList() {
                       </div>
                     )}
 
-                    <div className="flex items-center gap-2 text-slate-600">
-                      <Building2 size={16} className="flex-shrink-0" />
-                      <span className="font-bold">
-                        {club.address.suburb}, {club.address.state}
-                      </span>
-                    </div>
+                    {(club.address?.suburb || club.address?.state) && (
+                      <div className="flex items-center gap-2 text-slate-600">
+                        <Building2 size={16} className="flex-shrink-0" />
+                        <span className="font-bold">
+                          {[club.address?.suburb, club.address?.state].filter(Boolean).join(", ")}
+                        </span>
+                      </div>
+                    )}
 
                     {club.established && (
                       <div className="flex items-center gap-2 text-slate-600">
