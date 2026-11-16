@@ -1,7 +1,7 @@
 // app/api/admin/members/[id]/route.ts
 // Members API - Get, Update, Delete individual member
 
-import { areaGuard } from "@/lib/access/enforce";
+import { areaGuard, memberRecordGuard } from "@/lib/access/enforce";
 import { preservePrivateFields } from "@/lib/members/privacy";
 import { protectMember, preserveSensitiveFields } from "@/lib/members/sharing";
 import { NextRequest, NextResponse } from "next/server";
@@ -29,6 +29,12 @@ export async function GET(
 ) {
   const __areaDenied = await areaGuard("members", "GET", {});
   if (__areaDenied) return __areaDenied;
+
+  {
+    const __m = await context.params;
+    const __recDenied = await memberRecordGuard(__m.id, "R");
+    if (__recDenied) return __recDenied;
+  }
 
   try {
     const { response: authRes } = await requirePermission(request, "member.view");
@@ -161,6 +167,12 @@ export async function PUT(
   const __areaDenied = await areaGuard("members", "PUT", {});
   if (__areaDenied) return __areaDenied;
 
+  {
+    const __m = await params;
+    const __recDenied = await memberRecordGuard(__m.id, "E");
+    if (__recDenied) return __recDenied;
+  }
+
   const traceId = generateTraceId();
   try {
     const { response: authRes } = await requirePermission(request, "member.edit");
@@ -282,6 +294,12 @@ export async function DELETE(
 ) {
   const __areaDenied = await areaGuard("members", "DELETE", {});
   if (__areaDenied) return __areaDenied;
+
+  {
+    const __m = await context.params;
+    const __recDenied = await memberRecordGuard(__m.id, "A");
+    if (__recDenied) return __recDenied;
+  }
 
   const traceId = generateTraceId();
   try {

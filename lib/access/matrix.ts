@@ -244,11 +244,26 @@ export interface ScopeTarget {
   childMemberIds?: string[];
   clubId?: string;
   associationId?: string;
+  /** A record can be known by several ids (team id, roster id, name…); any match counts. */
   teamId?: string;
+  teamIds?: string[];
   ageGroup?: string;
+  ageGroups?: string[];
   repSquadId?: string;
+  repSquadIds?: string[];
   fixtureId?: string;
+  fixtureIds?: string[];
 }
+
+const norm = (v: string) => v.trim().toLowerCase();
+function anyMatch(held: string[] | undefined, one: string | undefined, many: string[] | undefined): boolean {
+  const have = new Set((held ?? []).map(norm));
+  if (have.size === 0) return false;
+  return [one, ...(many ?? [])].some((x) => !!x && have.has(norm(x)));
+}
+
+/** Roles whose reach is the whole organisation (or public) rather than particular teams, age groups or matches. */
+export const isBroadScope = (role: MatrixRole) => role.scope === "club" || role.scope === "ownClub" || role.scope === "association" || role.scope === "public";
 
 /** Does this holding's scope cover the target record? (Org match is checked by resolveAccess.) */
 export function scopeCovers(role: MatrixRole, h: RoleHolding, t: ScopeTarget): boolean {
@@ -257,14 +272,39 @@ export function scopeCovers(role: MatrixRole, h: RoleHolding, t: ScopeTarget): b
     case "self": return !!t.selfMemberId && t.memberId === t.selfMemberId;
     case "selfChildren":
       return !!t.memberId && (t.memberId === t.selfMemberId || (t.childMemberIds ?? []).includes(t.memberId));
-    case "team": return !!t.teamId && (h.teamIds ?? []).includes(t.teamId);
-    case "ageGroup": return !!t.ageGroup && (h.ageGroups ?? []).includes(t.ageGroup);
-    case "assignedMatches": return !!t.fixtureId && (h.fixtureIds ?? []).includes(t.fixtureId);
-    case "repSquad": return !!t.repSquadId && (h.repSquadIds ?? []).includes(t.repSquadId);
+    case "team": return anyMatch(h.teamIds, t.teamId, t.teamIds);
+    case "ageGroup": return anyMatch(h.ageGroups, t.ageGroup, t.ageGroups);
+    case "assignedMatches": return anyMatch(h.fixtureIds, t.fixtureId, t.fixtureIds);
+    case "repSquad": return anyMatch(h.repSquadIds, t.repSquadId, t.repSquadIds);
     case "club":
     case "ownClub": return !t.clubId || t.clubId === h.orgId;
     case "association": return !t.associationId || t.associationId === h.orgId;
   }
+}
+
+/**
+ * The person's code in an area for ONE record: the highest code among the active roles whose scope covers it.
+ * (resolveAccess gives the highest code anywhere in the organisation, which is right for menus but too generous
+ * for a record outside a Team / Age-group / Match scope.)
+ */
+export function codeForTarget(res: ResolvedAccess, area: string, target: ScopeTarget): AccessCode {
+  let best: AccessCode = "-";
+  for (const { role, holding } of res.roles) {
+    const code = role.access[area];
+    if (!code || !scopeCovers(role, holding, target)) continue;
+    best = higherCode(best, code);
+  }
+  return best;
+}
+
+/**
+ * When every role that grants at least `min` in this area is narrowly scoped, the holdings that do (their teams,
+ * age groups…). Returns null when some role covers the whole organisation (no narrowing needed).
+ */
+export function narrowHoldings(res: ResolvedAccess, area: string, min: AccessCode): { role: MatrixRole; holding: RoleHolding }[] | null {
+  const granting = res.roles.filter((r) => codeAtLeast(r.role.access[area], min));
+  if (granting.length === 0 || granting.some((r) => isBroadScope(r.role))) return null;
+  return granting;
 }
 
 // ── Compatibility with the existing (coarse) roles ───────────────────────────

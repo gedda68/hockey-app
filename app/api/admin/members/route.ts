@@ -2,6 +2,7 @@
 // Members API - List and Create
 
 import { areaGuard } from "@/lib/access/enforce";
+import { allowedMemberIds } from "@/lib/access/memberScope";
 import { protectMember } from "@/lib/members/sharing";
 import { memberBelongsToClubFilter } from "@/lib/rosters/memberClubQuery";
 import { NextRequest, NextResponse } from "next/server";
@@ -170,6 +171,10 @@ export async function GET(request: NextRequest) {
     }
 
     const filterParts: Record<string, unknown>[] = [...scopeParts];
+
+    // Roles scoped to particular teams / age groups (e.g. Head Coach) only see the people on them.
+    const __allowed = await allowedMemberIds(db, session);
+    if (__allowed) filterParts.push({ memberId: { $in: __allowed } });
 
     if (status) filterParts.push({ "membership.status": status });
     if (membershipType) {

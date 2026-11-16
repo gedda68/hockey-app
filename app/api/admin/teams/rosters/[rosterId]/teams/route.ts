@@ -1,6 +1,6 @@
 // POST — append a new team row to a roster (was missing; duplicate PUT lived here by mistake).
 
-import { areaGuard } from "@/lib/access/enforce";
+import { areaGuard, rosterScopeGuard } from "@/lib/access/enforce";
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import {
@@ -22,6 +22,12 @@ export async function POST(
 ) {
   const __areaDenied = await areaGuard("teams", "POST", {});
   if (__areaDenied) return __areaDenied;
+
+  {
+    const __p = (await context.params) as { rosterId: string; teamIndex?: string };
+    const __scopeDenied = await rosterScopeGuard("POST", __p.rosterId, undefined, { need: "E", newTeam: true });
+    if (__scopeDenied) return __scopeDenied;
+  }
 
   try {
     const { rosterId } = await context.params;

@@ -56,3 +56,27 @@ export function needForMethod(method: string, readNeed: AccessCode = "R"): Acces
   if (m === "DELETE") return "A";
   return "E";
 }
+
+// ── Scope: Team / Age group / Assigned matches / Rep squad ───────────────────
+
+import { resolveAccess, codeForTarget, type RoleHolding, type ScopeTarget } from "@/lib/access/matrix";
+
+/**
+ * Like `decideArea`, but for one record: a Head Coach with Edit on Teams only gets Edit on THEIR team.
+ * `holdings` are the person's matrix role holdings (any organisation); the current organisation comes from `access.context`.
+ */
+export function decideAreaForTarget(
+  access: AccessLike | null | undefined,
+  holdings: RoleHolding[],
+  blueCardValid: boolean,
+  sessionRole: string | undefined,
+  area: LogicalArea,
+  need: AccessCode,
+  target: ScopeTarget,
+): AreaDecision {
+  const base = decideArea(access, sessionRole, area, need);
+  if (!base.enforced || !access || access.context.kind !== "org" || !access.context.orgType) return base;
+  const res = resolveAccess(holdings, access.context as never, { blueCardValid });
+  const code = codeForTarget(res, areaKey(area, access.context.orgType), { clubId: access.context.orgId, ...target });
+  return { enforced: true, code, allowed: codeAtLeast(code, need) };
+}

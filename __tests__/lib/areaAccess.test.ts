@@ -19,8 +19,10 @@ describe("decideArea", () => {
     expect(decideArea(payload("club:player"), "club-admin", "members", "A").enforced).toBe(false);
   });
   it("enforces the area code for matrix-derived roles", () => {
-    const reg = payload("club:club-registrar");
-    expect(decideArea(reg, "registrar", "members", "E").allowed).toBe(true);
+    const reg = payload("club:registrar-membership-secretary");
+    const rd = decideArea(reg, "registrar", "members", "E");
+    expect(rd.enforced).toBe(true);
+    expect(rd.allowed).toBe(true);
     const coach = payload("club:head-coach");
     const d = decideArea(coach, "coach", "fees", "R");
     expect(d.enforced).toBe(true);
