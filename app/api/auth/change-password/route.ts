@@ -44,8 +44,8 @@ export async function POST(request: NextRequest) {
 
     const isForced = session.forcePasswordChange === true;
 
-    // ── Path A: member account (has memberId) ────────────────────────────────
-    if (session.memberId) {
+    // ── Path A: member account (has memberId). A staff login linked to a member record is still a staff account. ──
+    if (session.memberId && !session.staffUser) {
       let memberId: ObjectId;
       try {
         memberId = new ObjectId(session.memberId);

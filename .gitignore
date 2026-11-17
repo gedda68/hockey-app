@@ -74,3 +74,5 @@ next-env.d.ts
 /registration-dedupe-backups/
 /matrix-backfill-output/
 /matrix-backfill-backups/
+/user-link-output/
+/user-link-backups/

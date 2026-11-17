@@ -49,7 +49,8 @@ export interface FreshnessResult {
 export async function refreshStaleSession(db: Db, session: SessionData, now = Date.now()): Promise<FreshnessResult> {
   const unchanged = { session, changed: false };
   const memberId = session.memberId ? String(session.memberId) : "";
-  if (!memberId || !ObjectId.isValid(memberId) || session.role === "super-admin") return unchanged;
+  // Staff logins keep the roles on their own account; only member logins are rebuilt from the member record.
+  if (!memberId || !ObjectId.isValid(memberId) || session.role === "super-admin" || session.staffUser) return unchanged;
 
   const have = session.roleVersion ?? 0;
   const cached = versionCache.get(memberId);
