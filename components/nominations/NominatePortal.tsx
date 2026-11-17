@@ -392,7 +392,7 @@ export default function NominatePortal({ embedded = false }: { embedded?: boolea
               Logged in as {session.username}
               <button
                 onClick={() => {
-                  fetch("/api/auth/logout", { method: "POST" }).then(() => {
+                  fetch("/api/auth/logout", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ to: "home" }) }).then(() => {
                     setSession(null);
                     setLookupState("idle");
                     setPlayer(null);
