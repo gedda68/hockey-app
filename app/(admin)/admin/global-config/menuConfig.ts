@@ -55,7 +55,7 @@ const ASSOC_ROLES = [
 /** Roles that manage players */
 const PLAYER_MGMT = [
   "super-admin",
-  "association-admin", "assoc-committee", "assoc-coach", "assoc-selector", "assoc-registrar",
+  "association-admin", "assoc-committee", "assoc-coach", "assoc-selector", "assoc-registrar", "assoc-competition",
   "club-admin", "club-committee", "registrar", "coach", "manager", "team-selector",
 ];
 
@@ -106,7 +106,10 @@ const CLUBS_ROLES = [
   "super-admin",
   "association-admin",
   "assoc-committee",
+  "assoc-coach",
+  "assoc-selector",
   "assoc-registrar",
+  "assoc-competition",
   "club-admin",
   "club-committee",
   "registrar",
@@ -360,7 +363,7 @@ export const menuConfig: MenuItem[] = [
     section: "directory",
     allowedRoles: [
       "super-admin",
-      "association-admin", "assoc-committee", "assoc-registrar",
+      "association-admin", "assoc-committee", "assoc-coach", "assoc-selector", "assoc-registrar", "assoc-competition",
       "club-admin", "club-committee", "registrar",
     ],
     subItems: [
@@ -371,7 +374,7 @@ export const menuConfig: MenuItem[] = [
         description: "Member directory",
         allowedRoles: [
           "super-admin",
-          "association-admin", "assoc-committee", "assoc-registrar",
+          "association-admin", "assoc-committee", "assoc-coach", "assoc-selector", "assoc-registrar", "assoc-competition",
           "club-admin", "club-committee", "registrar",
         ],
       },

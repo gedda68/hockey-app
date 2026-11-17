@@ -57,6 +57,18 @@ const BULK_IMPORT_PAGE_ROLES = [
   "team-selector",
 ];
 
+/**
+ * Association staff who can look (not change) at clubs, members and players for oversight. The APIs scope them
+ * to their own association and give them view-only permissions; media/marketing is left out.
+ */
+const ASSOC_OVERSIGHT = [
+  "assoc-committee",
+  "assoc-coach",
+  "assoc-selector",
+  "assoc-registrar",
+  "assoc-competition",
+];
+
 const CLUB_MANAGEMENT = [
   "super-admin",
   "association-admin",
@@ -226,6 +238,23 @@ const ROUTE_RULES: RouteRule[] = [
   {
     pattern: /^\/admin\/clubs\/[^/]+\/match-rosters(\/|$)/,
     allowedRoles: [...CLUB_MANAGEMENT, "coach", "manager", "team-selector"],
+    scopeCheck: true,
+  },
+
+  /** Read-only oversight: association staff may open the lists and detail pages, never create/edit pages. */
+  {
+    pattern: /^\/admin\/clubs\/?$|^\/admin\/clubs\/(?!new\/?$|selection-policy\/?$)[^/]+\/?$/,
+    allowedRoles: [...CLUB_MANAGEMENT, ...ASSOC_OVERSIGHT],
+    scopeCheck: true,
+  },
+  {
+    pattern: /^\/admin\/members\/?$|^\/admin\/members\/(?!create\/?$)[^/]+\/?$/,
+    allowedRoles: [...CLUB_MANAGEMENT, ...ASSOC_OVERSIGHT],
+    scopeCheck: true,
+  },
+  {
+    pattern: /^\/admin\/players\/?$|^\/admin\/players\/(?!new\/?$)[^/]+\/?$/,
+    allowedRoles: [...PLAYER_MANAGEMENT, ...ASSOC_OVERSIGHT],
     scopeCheck: true,
   },
 
