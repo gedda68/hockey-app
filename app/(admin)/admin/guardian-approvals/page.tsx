@@ -2,17 +2,19 @@
 
 "use client";
 
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/lib/auth/AuthContext";
 import RoleInvitations from "@/components/roles/RoleInvitations";
 
+import PageHeader from "@/components/admin/PageHeader";
 export default function GuardianApprovalsPage() {
+  const router = useRouter();
+  const { user } = useAuth();
+  useEffect(() => { if (user?.family && !user.family.hasChildren) router.replace("/admin/dashboard"); }, [user?.family, router]);
   return (
     <div className="mx-auto max-w-3xl space-y-6 p-6">
-      <div>
-        <h1 className="text-3xl font-black text-[#06054e]">Guardian approvals</h1>
-        <p className="mt-1 text-sm font-semibold text-slate-500">
-          People under 18 need a parent/guardian to approve a role before it goes ahead. Anything waiting for you is here.
-        </p>
-      </div>
+      <PageHeader eyebrow="Family" title="Guardian approvals" subtitle="People under 18 need a parent/guardian to approve a role before it goes ahead. Anything waiting for you is here." />
       <RoleInvitations mode="guardian" showEmpty />
     </div>
   );

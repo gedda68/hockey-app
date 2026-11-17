@@ -214,6 +214,10 @@ function buildMenuForUser(user: User | null): MenuItem[] {
   // Only people who hold matrix roles in this organisation are filtered by area; everyone else is unchanged.
   const matrixAreas = user.access && user.access.roles.length > 0 ? user.access.areas : null;
   let items = filterMenu(menuConfig, userRoles, matrixAreas);
+  // The family pages are for recorded parents/guardians only (unknown = leave them visible).
+  if (user.family && !user.family.hasChildren) {
+    items = items.filter((i) => i.href !== "/admin/my-children" && i.href !== "/admin/guardian-approvals");
+  }
 
   // ── 2. Replace generic Fees / selection policy hrefs with scope-specific ones
   const fees = resolvedFeesItem(role, clubRef, assocId);

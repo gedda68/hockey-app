@@ -18,6 +18,7 @@ import { ROLE_DEFINITIONS } from "@/lib/types/roles";
 import ExportButton from "@/components/admin/ExportButton";
 import type { ExportColumn } from "@/lib/export";
 
+import PageHeader from "@/components/admin/PageHeader";
 // ── Status config ───────────────────────────────────────────────────────────���─
 
 const STATUS_CONFIG: Record<
@@ -510,18 +511,12 @@ export default function RoleRequestsPage() {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      {/* Header */}
-      <div className="bg-gradient-to-r from-amber-500 to-amber-600 px-6 py-8">
-        <div className="max-w-6xl mx-auto">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-black text-white uppercase tracking-wide">
-                Role Approvals
-              </h1>
-              <p className="text-amber-100 mt-1 font-semibold text-sm">
-                Review and approve role assignment requests for your {user?.associationId ? "association and clubs" : "club"}
-              </p>
-            </div>
+      <div className="max-w-6xl mx-auto px-6 pt-4">
+      <PageHeader
+        eyebrow="Approvals"
+        title="Role Approvals"
+        subtitle={<>Review and approve role assignment requests for your {user?.associationId ? "association and clubs" : "club"}</>}
+        aside={
             <div className="flex items-center gap-2">
               <ExportButton
                 rows={[]}
@@ -539,8 +534,8 @@ export default function RoleRequestsPage() {
                 <RefreshCw size={15} /> Refresh
               </button>
             </div>
-          </div>
-
+        }
+      >
           {/* Summary stats */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-6">
             {[
@@ -555,7 +550,7 @@ export default function RoleRequestsPage() {
               </div>
             ))}
           </div>
-        </div>
+      </PageHeader>
       </div>
 
       <div className="max-w-6xl mx-auto px-6 py-6 space-y-5">

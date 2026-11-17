@@ -15,6 +15,8 @@ import {
 } from "@/lib/auth/sessionPersona";
 import { requirePermission } from "@/lib/auth/middleware";
 import { escapeRegex } from "@/lib/utils/regex";
+import { resolveSessionMemberId } from "@/lib/auth/sessionMember";
+import { childrenOf } from "@/lib/access/guardians";
 
 const PatchMeSchema = z.object({
   firstName: z.string().trim().min(1).max(80),
@@ -48,11 +50,17 @@ export async function GET() {
     let activePersonaKey: string | undefined;
     let access: Awaited<ReturnType<typeof accessForSession>> | null = null;
     let lastPersonaKey: string | undefined;
+    let family: { hasChildren: boolean } | undefined;
     try {
       const db = await getDatabase();
       personas = await buildPersonaOptions(db, session);
       activePersonaKey = activePersonaKeyFromSession(session);
       access = await accessForSession(db, session);
+      // Only people recorded as a parent/guardian are offered the family pages.
+      try {
+        const me = await resolveSessionMemberId(db, session);
+        family = { hasChildren: me ? (await childrenOf(db, me)).length > 0 : false };
+      } catch { /* leave undefined: the pages stay visible */ }
       if (session.memberId && ObjectId.isValid(String(session.memberId))) {
         const m = await db.collection("members").findOne({ _id: new ObjectId(String(session.memberId)) }, { projection: { "preferences.lastPersonaKey": 1 } });
         const k = (m as any)?.preferences?.lastPersonaKey;
@@ -84,6 +92,7 @@ export async function GET() {
         portalSubdomain: session.portalSubdomain ?? null,
         activePersonaKey,
         lastPersonaKey,
+        family,
         personas,
         access,
       },
