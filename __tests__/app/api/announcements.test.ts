@@ -6,6 +6,7 @@ const h = vi.hoisted(() => ({
   find: vi.fn(),
   clubOk: true,
   assocOk: true,
+  teams: [] as Record<string, unknown>[],
 }));
 vi.mock("@/lib/auth/session", () => ({ getSession: vi.fn(async () => h.session) }));
 vi.mock("@/lib/auth/sessionMember", () => ({ resolveSessionMemberId: vi.fn(async () => "MBR-1") }));
@@ -18,7 +19,13 @@ vi.mock("@/lib/mongodb", () => ({
   getDatabase: async () => ({
     collection: () => ({
       insertOne: h.insertOne,
-      find: (q: unknown) => { h.find(q); return { sort: () => ({ limit: () => ({ toArray: async () => [] }) }) }; },
+      find: (q: unknown) => {
+        h.find(q);
+        const rows = () => h.teams;
+        const chain: Record<string, unknown> = { toArray: async () => rows() };
+        chain.sort = () => chain; chain.limit = () => chain;
+        return chain;
+      },
     }),
   }),
 }));
@@ -31,7 +38,7 @@ const ok = { level: "club", scopeId: "club-1", title: "T", body: "B" };
 
 beforeEach(() => {
   vi.clearAllMocks();
-  h.clubOk = true; h.assocOk = true;
+  h.clubOk = true; h.assocOk = true; h.teams = [];
   h.session = { memberId: "m", userId: "u", name: "Pat", role: "club-admin", clubId: "club-1", associationId: "assoc-1" };
 });
 
@@ -73,5 +80,16 @@ describe("announcements API", () => {
   it("lists only the author's own club and association", async () => {
     await GET(new NextRequest("http://x/api/admin/announcements"));
     expect(h.find).toHaveBeenCalledWith({ $or: [{ level: "club", scopeId: "club-1" }, { level: "association", scopeId: "assoc-1" }] });
+  });
+
+  it("accepts targeting at teams of the club, and rejects other clubs' teams", async () => {
+    h.teams = [{ teamId: "T1", clubId: "club-1" }];
+    const res = await post({ ...ok, targeting: { teamIds: ["T1"], maxAge: 12 } });
+    expect(res.status).toBe(201);
+    expect(h.insertOne).toHaveBeenCalledWith(expect.objectContaining({ targeting: { teamIds: ["T1"], includeGuardians: true, maxAge: 12 } }));
+    h.teams = [{ teamId: "T1", clubId: "club-2" }];
+    expect((await post({ ...ok, targeting: { teamIds: ["T1"] } })).status).toBe(400);
+    h.teams = [];
+    expect((await post({ ...ok, targeting: { teamIds: ["GHOST"] } })).status).toBe(400);
   });
 });

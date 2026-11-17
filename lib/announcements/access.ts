@@ -1,6 +1,7 @@
 // lib/announcements/access.ts
 // Who may write announcements, and to which audiences.
 
+import type { Db } from "mongodb";
 import { getDatabase } from "@/lib/mongodb";
 import type { SessionData } from "@/lib/auth/session";
 import { accessForSession } from "@/lib/access/memberAccess";
@@ -31,3 +32,15 @@ export async function canWriteTo(session: SessionData, level: Audience, scopeId:
   return userCanAccessClubResource(session, scopeId);
 }
 
+
+/** Every team named must belong to the club (or to a club in the association) the announcement is for. */
+export async function teamsBelongTo(db: Db, teamIds: string[], level: Audience, scopeId: string): Promise<boolean> {
+  if (level === "global") return false;
+  const teams = await db.collection("teams").find({ teamId: { $in: teamIds } }, { projection: { teamId: 1, clubId: 1 } }).toArray();
+  if (teams.length !== new Set(teamIds).size) return false;
+  if (level === "club") return teams.every((t) => String(t.clubId) === scopeId);
+  const clubIds = [...new Set(teams.map((t) => String(t.clubId)))];
+  const clubs = await db.collection("clubs").find({ $or: [{ id: { $in: clubIds } }, { clubId: { $in: clubIds } }, { slug: { $in: clubIds } }], parentAssociationId: scopeId }, { projection: { id: 1, clubId: 1, slug: 1 } }).toArray();
+  const ok = new Set(clubs.flatMap((c) => [c.id, c.clubId, c.slug].filter(Boolean).map(String)));
+  return clubIds.every((id) => ok.has(id));
+}

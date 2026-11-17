@@ -5,6 +5,7 @@
 
 import { randomUUID } from "node:crypto";
 import type { Db } from "mongodb";
+import { isTargeted, type Subject } from "@/lib/announcements/targeting";
 import { dayInZone } from "@/lib/member/availability";
 import { childrenOf } from "@/lib/access/guardians";
 import { getMatrixRole } from "@/lib/access/matrix";
@@ -108,7 +109,17 @@ export async function gatherCandidates(db: Db, memberId: string, now: Date): Pro
     .sort({ publishAt: -1 })
     .limit(30)
     .toArray()) as unknown as AnnouncementLike[];
-  out.push(...announcementCandidates(announcements, now));
+  // Targeted ones (specific teams / ages) only reach the people they're aimed at, or their guardians.
+  let who: { me: Subject; kids: Subject[] } | undefined;
+  if (announcements.some((a) => isTargeted(a.targeting))) {
+    const rosterTeams = await db.collection("teams").find({ "roster.memberId": { $in: [memberId, ...kidIds] } }, { projection: { teamId: 1, roster: 1 } }).toArray();
+    const teamsOf = (id: string) => rosterTeams.filter((t) => ((t.roster ?? []) as { memberId?: string }[]).some((r) => r.memberId === id)).map((t) => String(t.teamId));
+    who = {
+      me: { teamIds: teamsOf(memberId), dateOfBirth: member.personalInfo?.dateOfBirth },
+      kids: kids.map((k: any) => ({ teamIds: teamsOf(String(k.memberId)), dateOfBirth: k.personalInfo?.dateOfBirth })),
+    };
+  }
+  out.push(...announcementCandidates(announcements, now, 14, who));
 
   // Waiting on me: invitations, and approvals for my children.
   const [invites, kidAppts, kidReqs] = await Promise.all([
