@@ -27,6 +27,7 @@ import ClubPositionOptions from "@/components/nominations/ClubPositionOptions";
 import NominationOptions from "@/components/nominations/NominationOptions";
 import NominationWorkflowModal from "@/components/admin/players/NominationWorkflowModal";
 
+import NominationSection from "@/components/nominations/NominationSection";
 // ── Types ──────────────────────────────────────────────────────────────────────
 interface FoundPlayer {
   playerId: string;
@@ -116,9 +117,9 @@ function LoginTab({ onSuccess }: { onSuccess: (memberId: string) => void }) {
       </p>
       <form onSubmit={handleLogin} className="space-y-5">
         <div>
-          <label className="block text-xs font-black uppercase text-slate-400 mb-1.5">Username</label>
+          <label className="block text-xs font-black uppercase text-slate-600 mb-1.5">Username</label>
           <div className="relative">
-            <KeyRound size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+            <KeyRound size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600" />
             <input
               type="text"
               value={username}
@@ -131,7 +132,7 @@ function LoginTab({ onSuccess }: { onSuccess: (memberId: string) => void }) {
           </div>
         </div>
         <div>
-          <label className="block text-xs font-black uppercase text-slate-400 mb-1.5">Password</label>
+          <label className="block text-xs font-black uppercase text-slate-600 mb-1.5">Password</label>
           <input
             type="password"
             value={password}
@@ -155,7 +156,7 @@ function LoginTab({ onSuccess }: { onSuccess: (memberId: string) => void }) {
           {loading ? <><Loader2 size={18} className="animate-spin" /> Signing in...</> : <><LogIn size={18} /> Login</>}
         </button>
       </form>
-      <p className="mt-5 text-center text-xs text-slate-400 font-bold">
+      <p className="mt-5 text-center text-xs text-slate-600 font-bold">
         Don&apos;t have an account? Use the &ldquo;Find by Name&rdquo; tab above, or{" "}
         <span className="text-slate-600">contact your club administrator to get login credentials.</span>
       </p>
@@ -345,7 +346,7 @@ export default function NominatePortal({ embedded = false }: { embedded?: boolea
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
-    <div className={embedded ? "rounded-2xl overflow-hidden bg-gradient-to-br from-[#06054e] via-slate-900 to-slate-800 pt-4" : "min-h-screen bg-gradient-to-br from-[#06054e] via-slate-900 to-slate-800"}>
+    <div className={embedded ? "" : "min-h-screen bg-gradient-to-br from-[#06054e] via-slate-900 to-slate-800"}>
       {/* Header (the admin page has its own heading, so the embedded version skips this hero) */}
       {!embedded && <div className="bg-[#06054e] text-white pt-10 pb-24 text-center">
         <div className="max-w-3xl mx-auto px-4">
@@ -438,7 +439,7 @@ export default function NominatePortal({ embedded = false }: { embedded?: boolea
 
         {/* ── STEP 1: Lookup / Login ── */}
         {lookupState !== "found" && !(session?.memberId && memberIsPlayer === false) && (
-          <div className="bg-white rounded-3xl shadow-2xl overflow-hidden mb-6">
+          <div className="bg-slate-100 border border-slate-200 rounded-3xl shadow-sm overflow-hidden mb-6">
             {/* Tab switcher */}
             <div className="flex border-b-2 border-slate-100">
               <button
@@ -446,7 +447,7 @@ export default function NominatePortal({ embedded = false }: { embedded?: boolea
                 className={`flex-1 flex items-center justify-center gap-2 py-4 text-sm font-black uppercase transition-colors ${
                   lookupTab === "login"
                     ? "text-[#06054e] border-b-2 border-[#06054e] -mb-px"
-                    : "text-slate-400 hover:text-slate-600"
+                    : "text-slate-600 hover:text-slate-600"
                 }`}
               >
                 <LogIn size={16} />
@@ -457,7 +458,7 @@ export default function NominatePortal({ embedded = false }: { embedded?: boolea
                 className={`flex-1 flex items-center justify-center gap-2 py-4 text-sm font-black uppercase transition-colors ${
                   lookupTab === "search"
                     ? "text-[#06054e] border-b-2 border-[#06054e] -mb-px"
-                    : "text-slate-400 hover:text-slate-600"
+                    : "text-slate-600 hover:text-slate-600"
                 }`}
               >
                 <Search size={16} />
@@ -484,7 +485,7 @@ export default function NominatePortal({ embedded = false }: { embedded?: boolea
             <form onSubmit={handleLookup} className="space-y-5">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-black uppercase text-slate-400 mb-1.5">
+                  <label className="block text-xs font-black uppercase text-slate-600 mb-1.5">
                     First Name
                   </label>
                   <input
@@ -497,7 +498,7 @@ export default function NominatePortal({ embedded = false }: { embedded?: boolea
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-black uppercase text-slate-400 mb-1.5">
+                  <label className="block text-xs font-black uppercase text-slate-600 mb-1.5">
                     Last Name
                   </label>
                   <input
@@ -512,7 +513,7 @@ export default function NominatePortal({ embedded = false }: { embedded?: boolea
               </div>
 
               <div>
-                <label className="block text-xs font-black uppercase text-slate-400 mb-1.5">
+                <label className="block text-xs font-black uppercase text-slate-600 mb-1.5">
                   Date of Birth
                 </label>
                 <input
@@ -583,7 +584,7 @@ export default function NominatePortal({ embedded = false }: { embedded?: boolea
         {lookupState === "found" && player && (
           <>
             {/* Player card */}
-            <div className="bg-white rounded-3xl shadow-2xl overflow-hidden mb-6">
+            <div className="bg-slate-100 border border-slate-200 rounded-3xl shadow-sm overflow-hidden mb-6">
               {/* Coloured banner */}
               <div className="bg-[#06054e] px-8 py-6 flex items-center gap-4">
                 <div className="w-14 h-14 bg-yellow-400 rounded-2xl flex items-center justify-center flex-shrink-0">
@@ -606,7 +607,7 @@ export default function NominatePortal({ embedded = false }: { embedded?: boolea
 
               <div className="px-8 py-6 grid grid-cols-2 sm:grid-cols-3 gap-4 text-sm">
                 <div>
-                  <p className="text-xs font-black uppercase text-slate-400 mb-1">
+                  <p className="text-xs font-black uppercase text-slate-600 mb-1">
                     Date of Birth
                   </p>
                   <p className="font-black text-slate-900">
@@ -615,7 +616,7 @@ export default function NominatePortal({ embedded = false }: { embedded?: boolea
                 </div>
                 {genderLabel(player.gender) && (
                   <div>
-                    <p className="text-xs font-black uppercase text-slate-400 mb-1">
+                    <p className="text-xs font-black uppercase text-slate-600 mb-1">
                       Gender
                     </p>
                     <p className="font-black text-slate-900">
@@ -625,7 +626,7 @@ export default function NominatePortal({ embedded = false }: { embedded?: boolea
                 )}
                 {player.clubName && (
                   <div>
-                    <p className="text-xs font-black uppercase text-slate-400 mb-1">
+                    <p className="text-xs font-black uppercase text-slate-600 mb-1">
                       Club
                     </p>
                     <p className="font-black text-blue-700">{player.clubName}</p>
@@ -636,7 +637,7 @@ export default function NominatePortal({ embedded = false }: { embedded?: boolea
               <div className="px-8 pb-4">
                 <button
                   onClick={handleReset}
-                  className="text-xs font-black uppercase text-slate-400 hover:text-[#06054e] transition-colors"
+                  className="text-xs font-black uppercase text-slate-600 hover:text-[#06054e] transition-colors"
                 >
                   ← Not you? Search again
                 </button>
@@ -665,26 +666,18 @@ export default function NominatePortal({ embedded = false }: { embedded?: boolea
 
             {/* Eligible tournaments (player nominations) — hidden for members with no player role */}
             {!(session?.memberId && memberIsPlayer === false) && (
-            <div className="bg-white rounded-3xl shadow-2xl p-8">
-              <div className="flex items-center gap-3 mb-6">
-                <Trophy size={22} className="text-[#06054e]" />
-                <h2 className="text-2xl font-black uppercase text-[#06054e]">
-                  Open Nominations
-                </h2>
-                {opportunities.length > 0 && (
-                  <span className="ml-auto px-3 py-1 bg-[#06054e] text-white rounded-full text-xs font-black">
-                    {opportunities.length} eligible
-                  </span>
-                )}
-              </div>
-
+            <NominationSection
+              icon={<Trophy size={22} />}
+              title="Open Nominations"
+              badge={opportunities.length > 0 ? `${opportunities.length} eligible` : undefined}
+            >
               {opportunities.length === 0 ? (
                 <div className="py-12 text-center">
                   <Trophy size={48} className="mx-auto text-slate-200 mb-4" />
-                  <p className="font-black text-slate-400 uppercase text-sm">
+                  <p className="font-black text-slate-600 uppercase text-sm">
                     No open nominations
                   </p>
-                  <p className="text-slate-400 text-xs font-bold mt-2 max-w-xs mx-auto">
+                  <p className="text-slate-600 text-xs font-bold mt-2 max-w-xs mx-auto">
                     There are currently no tournaments open for nomination that
                     match your age group and gender. Check back later.
                   </p>
@@ -749,13 +742,13 @@ export default function NominatePortal({ embedded = false }: { embedded?: boolea
                         <div className="flex flex-wrap gap-x-5 gap-y-1.5 text-xs font-bold text-slate-500">
                           {opp.tournamentLocation && (
                             <span className="flex items-center gap-1.5">
-                              <MapPin size={12} className="text-slate-400" />
+                              <MapPin size={12} className="text-slate-600" />
                               {opp.tournamentLocation}
                             </span>
                           )}
                           {opp.tournamentStartDate && (
                             <span className="flex items-center gap-1.5">
-                              <Calendar size={12} className="text-slate-400" />
+                              <Calendar size={12} className="text-slate-600" />
                               {formatDate(opp.tournamentStartDate)}
                               {opp.tournamentEndDate &&
                               opp.tournamentEndDate !== opp.tournamentStartDate
@@ -788,7 +781,7 @@ export default function NominatePortal({ embedded = false }: { embedded?: boolea
 
                         {/* Eligibility note */}
                         {!nominated && (
-                          <div className="mt-3 pt-3 border-t border-slate-100 text-xs text-slate-400 font-bold">
+                          <div className="mt-3 pt-3 border-t border-slate-100 text-xs text-slate-600 font-bold">
                             Eligible: {opp.eligibilityRange.description}
                           </div>
                         )}
@@ -801,12 +794,12 @@ export default function NominatePortal({ embedded = false }: { embedded?: boolea
               <div className="pt-4 border-t border-slate-100 text-center">
                 <button
                   onClick={handleReset}
-                  className="text-sm font-black uppercase text-slate-400 hover:text-[#06054e] transition-colors"
+                  className="text-sm font-black uppercase text-slate-600 hover:text-[#06054e] transition-colors"
                 >
                   ← Cancel &amp; Search Again
                 </button>
               </div>
-            </div>
+            </NominationSection>
             )}
           </>
         )}
