@@ -21,3 +21,19 @@ describe("rolesInOrg", () => {
     expect(r).toHaveLength(1);
   });
 });
+
+import { profileGroups } from "@/lib/auth/orgPersonas";
+
+describe("profileGroups", () => {
+  it("groups every held role by organisation with Personal last and the active one marked", () => {
+    const personas = [
+      { key: "umpire::club::c1", label: "Umpire", role: "umpire", scopeType: "club" as const, scopeId: "c1", orgKey: "club:c1", orgLabel: "Commercial" },
+      { key: "player::club::c1", label: "Player", role: "player", scopeType: "club" as const, scopeId: "c1", orgKey: "club:c1", orgLabel: "Commercial" },
+      { key: "member::global::", label: "Member", role: "member", scopeType: "global" as const, scopeId: "", orgKey: "personal", orgLabel: "Personal" },
+    ];
+    const g = profileGroups(personas, "player::club::c1");
+    expect(g.map((x) => x.orgLabel)).toEqual(["Commercial", "Personal"]);
+    expect(g[0].roles.map((r) => r.label)).toEqual(["Umpire", "Player"]);
+    expect(g[0].roles.find((r) => r.active)?.label).toBe("Player");
+  });
+});

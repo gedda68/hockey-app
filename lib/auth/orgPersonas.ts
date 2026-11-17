@@ -60,3 +60,14 @@ export function rolesInOrg(personas: PersonaOption[] | undefined, orgKey: string
     .filter((p) => (seen.has(p.role) ? false : (seen.add(p.role), true)))
     .map((p) => ({ key: p.key, label: humanRole(p.role), active: p.key === activeKey }));
 }
+
+export interface ProfileGroup { orgKey: string; orgLabel: string; roles: RoleChoice[] }
+
+/** Every profile the person can swap into, grouped by organisation (organisations first, then Personal, then Platform). */
+export function profileGroups(personas: PersonaOption[] | undefined, activeKey: string | undefined): ProfileGroup[] {
+  return groupPersonasByOrg(personas, activeKey).map((e) => ({
+    orgKey: e.orgKey,
+    orgLabel: e.orgKey === "personal" ? "Personal" : e.label,
+    roles: rolesInOrg(personas, e.orgKey, activeKey),
+  }));
+}
