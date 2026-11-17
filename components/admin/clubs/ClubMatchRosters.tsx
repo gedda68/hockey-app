@@ -108,6 +108,7 @@ export default function ClubMatchRosters({ clubRef }: { clubRef: string }) {
 function Editor({ match: m, players, now, onSaved }: { match: Match; players: Player[]; now: number; onSaved: () => Promise<void> }) {
   const url = `/api/admin/season-competitions/${encodeURIComponent(m.seasonCompetitionId)}/fixtures/${encodeURIComponent(m.fixtureId)}/lineups/${encodeURIComponent(m.teamId)}`;
   const [sel, setSel] = useState<Map<string, LP> | null>(null);
+  const [away, setAway] = useState<Record<string, { from: string; to: string; note?: string }>>({});
   const [win, setWin] = useState<Win>(m.window);
   const [q, setQ] = useState("");
   const [busy, setBusy] = useState(false);
@@ -118,6 +119,7 @@ function Editor({ match: m, players, now, onSaved }: { match: Match; players: Pl
     fetch(url).then((r) => r.json()).then((j) => {
       if (!live) return;
       setWin(j.window ?? m.window);
+      setAway(j.unavailable ?? {});
       setSel(new Map(((j.lineup?.players ?? []) as LP[]).map((p) => [p.memberId, p])));
     }).catch(() => live && setMsg({ ok: false, text: "Could not load roster" }));
     return () => { live = false; };
@@ -172,7 +174,7 @@ function Editor({ match: m, players, now, onSaved }: { match: Match; players: Pl
           <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search players…" aria-label="Search players"
             className="w-full rounded-xl border border-slate-200 py-2 pl-9 pr-3 text-sm focus:border-[#06054e] focus:outline-none focus:ring-2 focus:ring-[#06054e]/20" />
         </div>
-        <span className="shrink-0 text-sm font-bold text-[#06054e]">{sel.size} playing</span>
+        <span className="shrink-0 text-sm font-bold text-[#06054e]">{sel.size} playing{Object.keys(away).length > 0 && <span className="ml-2 text-xs font-semibold text-red-600">{[...sel.keys()].filter((id) => away[id]).length} of them marked unavailable</span>}</span>
       </div>
 
       <div className="max-h-[55vh] overflow-auto">
@@ -186,7 +188,7 @@ function Editor({ match: m, players, now, onSaved }: { match: Match; players: Pl
               return (
                 <tr key={p.memberId} className={row ? "bg-emerald-50/50" : "hover:bg-slate-50"}>
                   <td className="px-3 py-2"><input type="checkbox" checked={!!row} disabled={closed} onChange={() => toggle(p.memberId)} aria-label={`${p.name} playing`} className="h-4 w-4 accent-[#06054e]" /></td>
-                  <td className="px-3 py-2 font-semibold text-slate-800">{p.name}{p.status && p.status.toLowerCase() !== "active" && <span className="ml-2 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold uppercase text-slate-500">{p.status}</span>}</td>
+                  <td className="px-3 py-2 font-semibold text-slate-800">{p.name}{away[p.memberId] && <span title={away[p.memberId].note ? `Marked unavailable: ${away[p.memberId].note}` : "Marked unavailable for this date"} className="ml-2 rounded bg-red-100 px-1.5 py-0.5 text-[10px] font-bold uppercase text-red-700">Unavailable</span>}{p.status && p.status.toLowerCase() !== "active" && <span className="ml-2 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold uppercase text-slate-500">{p.status}</span>}</td>
                   <td className="px-3 py-2"><input type="number" min={0} max={999} disabled={!row || closed} value={row?.shirtNumber ?? ""} aria-label={`${p.name} shirt number`} onChange={(e) => patch(p.memberId, { shirtNumber: e.target.value === "" ? null : Number(e.target.value) })} className="w-16 rounded-lg border border-slate-200 px-2 py-1 text-sm disabled:bg-slate-50" /></td>
                   <td className="px-3 py-2 text-center"><input type="checkbox" disabled={!row || closed} checked={!!row?.isGoalkeeper} onChange={(e) => patch(p.memberId, { isGoalkeeper: e.target.checked })} aria-label={`${p.name} goalkeeper`} /></td>
                   <td className="px-3 py-2 text-center"><button disabled={!row || closed} onClick={() => patch(p.memberId, { isCaptain: !row?.isCaptain })} aria-label={`${p.name} captain`} aria-pressed={!!row?.isCaptain} className="disabled:opacity-30"><Star size={16} className={row?.isCaptain ? "fill-amber-400 text-amber-500" : "text-slate-300"} /></button></td>

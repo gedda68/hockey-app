@@ -93,6 +93,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
         homeTeamId,
         awayTeamId,
         proposedUmpires,
+        scheduledStart: (body.scheduledStart as string | undefined) ?? (existing.scheduledStart as string | null | undefined) ?? null,
       });
       const conflicts = slots.filter((s) => s.blockingIssues.length > 0);
       if (conflicts.length > 0) {

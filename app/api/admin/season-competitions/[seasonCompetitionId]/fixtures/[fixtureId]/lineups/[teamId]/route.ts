@@ -25,6 +25,8 @@ import {
 import { lineupEditWindow, type LineupActor } from "@/lib/lineups/lineupLock";
 import { memberBelongsToClubFilter } from "@/lib/rosters/memberClubQuery";
 import { logPlatformAudit } from "@/lib/audit/platformAuditLog";
+import { dayInZone } from "@/lib/member/availability";
+import { unavailableForClubOnDay } from "@/lib/member/availabilityLookup";
 
 type Params = {
   params: Promise<{
@@ -120,7 +122,15 @@ export async function GET(request: NextRequest, { params }: Params) {
       .collection(FIXTURE_LINEUPS_COLLECTION)
       .findOne({ fixtureId: p.fixtureId, teamId: p.teamId }, { projection: { _id: 0 } });
 
+    // Players of this club who have marked themselves unavailable on match day (a heads-up, not a block).
+    const unavailable = await unavailableForClubOnDay(
+      db,
+      String(ctx.team.clubId ?? ""),
+      dayInZone(fixture.scheduledStart as string | null),
+    );
+
     return NextResponse.json({
+      unavailable,
       lineup: lineup ?? { players: [], staff: [] },
       window: lineupEditWindow({
         scheduledStart: fixture.scheduledStart as string | null,

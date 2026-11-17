@@ -36,3 +36,20 @@ export function cleanAvailability(
 
 /** Whether a given day (YYYY-MM-DD) falls inside an entry. */
 export const coversDay = (e: { from: string; to: string }, day: string) => day >= e.from && day <= e.to;
+
+// ── Days in the app's time zone ───────────────────────────────────────────────
+
+/** Availability dates are calendar days in this zone (the association's playing zone). */
+export const APP_TIME_ZONE = "Australia/Brisbane";
+
+/** YYYY-MM-DD for an instant, in the app's time zone. Null when the value isn't a date. */
+export function dayInZone(value: string | Date | null | undefined): string | null {
+  if (!value) return null;
+  const d = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(d.getTime())) return null;
+  return d.toLocaleDateString("en-CA", { timeZone: APP_TIME_ZONE });
+}
+
+export const todayInZone = (now: Date = new Date()) => dayInZone(now) as string;
+
+export interface UnavailableEntry { from: string; to: string; note?: string }

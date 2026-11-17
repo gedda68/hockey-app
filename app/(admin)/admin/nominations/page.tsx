@@ -1294,6 +1294,14 @@ export default function NominationsPage() {
                                   <p className="font-black text-[#06054e] text-base leading-tight">
                                     {nom.memberName ?? nom.nomineeName}
                                   </p>
+                                  {nom.unavailability && nom.unavailability.length > 0 && (
+                                    <span
+                                      title={nom.unavailability.map((u) => `${u.from === u.to ? u.from : `${u.from} to ${u.to}`}${u.note ? ` (${u.note})` : ""}`).join("\n")}
+                                      className="inline-flex items-center gap-1 px-2 py-0.5 bg-red-100 text-red-700 border border-red-200 rounded-full text-[10px] font-black uppercase"
+                                    >
+                                      Unavailable on {nom.unavailability.length} date range{nom.unavailability.length > 1 ? "s" : ""}
+                                    </span>
+                                  )}
                                   {nom.status === "accepted" && isShadow && (
                                     <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-100 text-amber-700 border border-amber-300 rounded-full text-[10px] font-black uppercase">
                                       <Star size={9} />

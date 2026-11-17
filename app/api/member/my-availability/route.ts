@@ -9,10 +9,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { getDatabase } from "@/lib/mongodb";
 import { getSession } from "@/lib/auth/session";
 import { resolveSessionMemberId } from "@/lib/auth/sessionMember";
-import { cleanAvailability } from "@/lib/member/availability";
+import { cleanAvailability, todayInZone } from "@/lib/member/availability";
 
 const COL = "member_availability";
-const today = () => new Date().toLocaleDateString("en-CA", { timeZone: "Australia/Brisbane" });
+const today = () => todayInZone();
 
 async function who() {
   const session = await getSession();

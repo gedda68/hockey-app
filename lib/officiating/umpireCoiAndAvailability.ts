@@ -1,6 +1,8 @@
 // F2 — Conflict-of-interest (club + immediate family on roster) and register availability.
 
 import type { Db } from "mongodb";
+import { dayInZone } from "@/lib/member/availability";
+import { unavailableOnDay } from "@/lib/member/availabilityLookup";
 
 const REGISTER_COL = "association_official_register";
 
@@ -9,6 +11,7 @@ export type CoiIssueCode =
   | "family_on_roster"
   | "official_unavailable"
   | "limited_availability"
+  | "member_marked_unavailable"
   | "no_register_match"
   | "family_check_skipped";
 
@@ -145,6 +148,8 @@ export async function evaluateFixtureUmpireAssignments(
     homeTeamId: string;
     awayTeamId: string;
     proposedUmpires: ProposedUmpireSlot[];
+    /** The match's start; when given, officials who marked themselves unavailable that day get a warning. */
+    scheduledStart?: string | null;
     now?: Date;
   },
 ): Promise<{ slots: SlotEvaluation[] }> {
@@ -176,6 +181,18 @@ export async function evaluateFixtureUmpireAssignments(
     }
   }
 
+  const matchDay = dayInZone(input.scheduledStart);
+  const markedUnavailable = await unavailableOnDay(
+    db,
+    proposedUmpires.filter((u) => !u.isStandby).map((u) => u.umpireId?.trim() ?? ""),
+    matchDay,
+  );
+  const unavailableWarning = (e: { from: string; to: string; note?: string }): CoiIssue => ({
+    code: "member_marked_unavailable",
+    severity: "warn",
+    message: `Marked themselves unavailable on this date${e.note ? ` (“${e.note}”)` : ""}.`,
+  });
+
   const slots: SlotEvaluation[] = [];
 
   for (let index = 0; index < proposedUmpires.length; index++) {
@@ -195,6 +212,12 @@ export async function evaluateFixtureUmpireAssignments(
     }
 
     const register = await findActiveRegister(db, associationId, umpireId);
+
+    // Self-reported unavailability. The id on the slot is usually the member id; an umpire number is
+    // resolved through the register row's member.
+    const regMember = typeof register?.memberId === "string" ? register.memberId.trim() : "";
+    const own = markedUnavailable.get(umpireId) ?? (regMember && regMember !== umpireId ? (await unavailableOnDay(db, [regMember], matchDay)).get(regMember) : undefined);
+    if (own) warnings.push(unavailableWarning(own));
 
     if (!register) {
       warnings.push({

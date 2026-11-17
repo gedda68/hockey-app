@@ -155,6 +155,7 @@ export async function POST(request: NextRequest) {
       associationId,
       homeTeamId: String(fixture.homeTeamId ?? ""),
       awayTeamId: String(fixture.awayTeamId ?? ""),
+      scheduledStart: (fixture.scheduledStart as string | null | undefined) ?? null,
       proposedUmpires: [
         {
           umpireType: body.umpireType,
