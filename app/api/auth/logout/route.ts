@@ -1,16 +1,13 @@
 // app/api/auth/logout/route.ts
-// Logout endpoint. Replies with where to send the person next: the club / association site they were using
-// (worked out from the session before it is deleted), not the generic base site.
+// Logout endpoint. Replies with where to send the person next: always the top-level site.
 
 import { NextRequest, NextResponse } from "next/server";
-import { deleteSession, getSession } from "@/lib/auth/session";
+import { deleteSession } from "@/lib/auth/session";
 import { logoutDestination, type LogoutTarget } from "@/lib/auth/logoutDestination";
-import { buildTenantOrigin } from "@/lib/tenant/subdomainUrls";
+import { buildApexSiteOrigin } from "@/lib/tenant/subdomainUrls";
 
 export async function POST(request: NextRequest) {
-  const session = await getSession().catch(() => null);
-
-  let body: { to?: string; pathname?: string; search?: string; reason?: string } = {};
+  let body: { to?: string; reason?: string } = {};
   try {
     body = await request.json();
   } catch {
@@ -20,18 +17,8 @@ export async function POST(request: NextRequest) {
 
   const redirectTo = logoutDestination({
     target,
-    hostHeader: request.headers.get("x-forwarded-host") ?? request.headers.get("host"),
-    pathname: typeof body.pathname === "string" ? body.pathname.slice(0, 300) : null,
-    search: typeof body.search === "string" ? body.search.slice(0, 300) : null,
+    apexOrigin: buildApexSiteOrigin(),
     reason: typeof body.reason === "string" ? body.reason.slice(0, 20) : null,
-    session: session
-      ? {
-          portalSubdomain: session.portalSubdomain,
-          clubSlug: session.clubSlug,
-          associationId: session.associationId,
-        }
-      : null,
-    tenantOrigin: buildTenantOrigin,
   });
 
   await deleteSession();
