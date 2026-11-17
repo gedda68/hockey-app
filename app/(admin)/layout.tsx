@@ -8,13 +8,13 @@ import { BrandProvider } from "@/lib/contexts/BrandContext";
 import BrandShell from "@/components/admin/BrandShell";
 import AdminSidebar from "@/components/admin/AdminSidebar";
 import AdminHeader from "@/components/admin/AdminHeader";
-import AdminFooter from "@/components/admin/AdminFooter";
 import {
   AdminEditingScopeProvider,
   AdminScopeMismatchBanner,
 } from "@/components/admin/AdminEditingScopeProvider";
 import RenewalReminderBanner from "@/components/admin/RenewalReminderBanner";
 import ComingUpPanel from "@/components/admin/ComingUpPanel";
+import SponsorBar from "@/components/admin/SponsorBar";
 
 export default function AdminLayout({ children }: { children: ReactNode }) {
   return (
@@ -36,7 +36,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
               </main>
               <ComingUpPanel />
             </div>
-            <AdminFooter />
+            <SponsorBar />
           </div>
         </AdminEditingScopeProvider>
       </BrandShell>

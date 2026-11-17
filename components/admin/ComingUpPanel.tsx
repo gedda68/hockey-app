@@ -67,7 +67,7 @@ export default function ComingUpPanel() {
 
   return (
     <aside aria-label="Coming up" className="hidden w-72 shrink-0 border-l border-slate-200 bg-white xl:block">
-      <div className="sticky top-[var(--admin-header-h,4rem)] max-h-[calc(100vh-var(--admin-header-h,4rem))] space-y-5 overflow-y-auto p-4">
+      <div className="sticky top-[var(--admin-header-h,4rem)] max-h-[calc(100vh-var(--admin-header-h,4rem)-4rem)] space-y-5 overflow-y-auto p-4">
         <h2 className="text-xs font-black uppercase tracking-widest text-slate-500">Coming up</h2>
         {data === null && !failed ? (
           <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin text-slate-400" /></div>
