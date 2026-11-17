@@ -23,8 +23,8 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
           {/* Fixed branded header */}
           <AdminHeader />
 
-          {/* pt-16 clears the fixed header (64 px tall); main gets extra top air below the bar */}
-          <div className="flex flex-col pt-16 min-h-screen">
+          {/* The header publishes its real height (it grows when the club name wraps); 4rem until it has measured */}
+          <div className="flex flex-col pt-[var(--admin-header-h,4rem)] min-h-screen">
             {/* Membership renewal reminder — shown to members with expiring memberships */}
             <RenewalReminderBanner />
             <AdminScopeMismatchBanner />

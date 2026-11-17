@@ -10,7 +10,7 @@ import NotificationBell from "@/components/notifications/NotificationBell";
 import { useRouter } from "next/navigation";
 import { LogOut, User, ChevronDown, Shield } from "lucide-react";
 import { ROLE_DEFINITIONS, type UserRole } from "@/lib/types/roles";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 export default function AdminHeader() {
@@ -19,6 +19,18 @@ export default function AdminHeader() {
   const editingScope = useAdminEditingScope();
   const router = useRouter();
   const [showDropdown, setShowDropdown] = useState(false);
+  const headerRef = useRef<HTMLElement>(null);
+
+  // The header is fixed and can grow (a long club name wraps), so publish its real height for the page offset.
+  useEffect(() => {
+    const el = headerRef.current;
+    if (!el) return;
+    const set = () => document.documentElement.style.setProperty("--admin-header-h", `${el.offsetHeight}px`);
+    set();
+    const ro = new ResizeObserver(set);
+    ro.observe(el);
+    return () => { ro.disconnect(); document.documentElement.style.removeProperty("--admin-header-h"); };
+  }, [user]);
 
   const handleLogout = async () => {
     try {
@@ -68,7 +80,7 @@ export default function AdminHeader() {
   ];
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-[1000] shadow-lg overflow-visible">
+    <header ref={headerRef} className="fixed top-0 left-0 right-0 z-[1000] shadow-lg overflow-visible">
       {useBanner ? (
         <>
           {/* eslint-disable-next-line @next/next/no-img-element -- admin-uploaded or trusted branding URL */}
