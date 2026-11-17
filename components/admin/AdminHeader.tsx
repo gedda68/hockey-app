@@ -59,8 +59,11 @@ export default function AdminHeader() {
   const mutedColor = useBanner
     ? "text-white/75"
     : textColor === "text-white"
-      ? "text-white/70"
-      : "text-gray-500";
+      ? "text-white/80"
+      : "text-gray-700";
+  // The gradient runs from the primary colour to the secondary, and the controls sit at the secondary end,
+  // so they are coloured against that end, not against the primary the title sits on.
+  const rightLight = useBanner || contrastText(secondary) === "text-white";
 
   const editingLineClass = editingScope.savesBlocked
     ? "text-amber-200"
@@ -146,43 +149,43 @@ export default function AdminHeader() {
 
           {/* ── Right: User + Logout ── */}
           <div className="flex items-center gap-3">
-            <NotificationBell tone={useBanner || textColor === "text-white" ? "light" : "dark"} />
+            <NotificationBell tone={rightLight ? "light" : "dark"} />
             <div className="relative">
               <button
                 type="button"
                 onClick={() => setShowDropdown(!showDropdown)}
                 className={`flex items-center gap-2 px-3 py-2 rounded-xl transition-colors ${
-                  useBanner
+                  rightLight
                     ? "bg-white/10 hover:bg-white/20"
                     : "bg-black/5 hover:bg-black/10"
                 }`}
               >
                 <div
                   className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
-                    useBanner ? "bg-white/20" : "bg-black/10"
+                    rightLight ? "bg-white/20" : "bg-black/10"
                   }`}
                 >
                   <User
                     size={16}
-                    className={useBanner ? "text-white" : textColor}
+                    className={rightLight ? "text-white" : "text-gray-900"}
                   />
                 </div>
                 <div className="text-left hidden sm:block">
                   <p
                     className={`text-sm font-black leading-tight drop-shadow-sm ${
-                      useBanner ? "text-white" : textColor
+                      rightLight ? "text-white" : "text-gray-900"
                     }`}
                   >
                     {user.firstName} {user.lastName}
                   </p>
-                  <p className={`text-xs ${useBanner ? "text-white/75" : mutedColor}`}>
+                  <p className={`text-xs ${rightLight ? "text-white/80" : "text-gray-700"}`}>
                     {roleDefinition?.icon} {roleDefinition?.label ?? user.role}
                   </p>
                 </div>
                 <ChevronDown
                   size={14}
                   className={`transition-transform ${
-                    useBanner ? "text-white/70" : "text-gray-600"
+                    rightLight ? "text-white/80" : "text-gray-700"
                   } ${showDropdown ? "rotate-180" : ""}`}
                 />
               </button>
