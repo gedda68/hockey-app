@@ -705,6 +705,16 @@ export const menuConfig: MenuItem[] = [
     allowedRoles: ["super-admin", "association-admin", "club-admin", "club-committee", "registrar"],
   },
   {
+    label: "Social pages",
+    href: "/admin/social",
+    areas: ["commsMedia"],
+    icon: "🌐",
+    description: "Post to your Facebook page: nominations, announcements, news",
+    color: "from-blue-500 to-blue-600",
+    section: "content",
+    allowedRoles: ["super-admin", "association-admin", "club-admin", "club-committee"],
+  },
+  {
     label: "Club health",
     href: "/admin/club-health",
     areas: ["reportsExports"],
