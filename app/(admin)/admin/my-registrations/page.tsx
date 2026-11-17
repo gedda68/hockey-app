@@ -15,6 +15,7 @@ import { Plus, RefreshCw, ChevronDown, CreditCard, Loader2 } from "lucide-react"
 import type { RoleRequest, RoleRequestStatus } from "@/types/roleRequests";
 import type { EnrichedRoleAssignment } from "@/app/api/member/my-roles/route";
 
+import PageHeader from "@/components/admin/PageHeader";
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const REQUESTABLE_ROLES: { value: string; label: string; requiresFee: boolean; scopeTypes: string[] }[] = [
@@ -631,26 +632,22 @@ export default function MyRegistrationsPage() {
 
   return (
     <div className="p-6 max-w-4xl mx-auto">
-      {/* Header */}
-      <div className="bg-gradient-to-r from-amber-500 to-amber-600 rounded-2xl p-6 mb-6 text-white shadow-lg">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-black mb-1">Role Requests</h1>
-            <p className="text-amber-100 text-sm">Submit and track your role registration requests</p>
-          </div>
-          <button
-            onClick={() => setShowSubmit(true)}
-            className="flex items-center gap-2 bg-white text-amber-700 hover:bg-amber-50 px-4 py-2.5 rounded-xl text-sm font-bold transition-colors shadow flex-shrink-0"
-          >
+      <div className="mb-6">
+      <PageHeader
+        eyebrow="Personal"
+        title="Role Requests"
+        subtitle="Submit and track your role registration requests"
+        aside={
+          <button onClick={() => setShowSubmit(true)} className="flex items-center gap-2 bg-white text-slate-800 hover:bg-slate-100 px-4 py-2.5 rounded-xl text-sm font-bold transition-colors shadow flex-shrink-0">
             <Plus size={16} />
             New Request
           </button>
-        </div>
-
+        }
+      >
         {/* Family selector (parents/guardians) */}
         {managedMembers.length > 0 && (
           <div className="mt-4">
-            <label className="block text-xs font-black text-amber-100 uppercase tracking-wide mb-1">
+            <label className="block text-xs font-black opacity-80 uppercase tracking-wide mb-1">
               Viewing registrations for
             </label>
             <div className="flex items-center gap-2">
@@ -673,7 +670,7 @@ export default function MyRegistrationsPage() {
                 <RefreshCw size={16} />
               </button>
             </div>
-            <p className="mt-1 text-xs text-amber-100/90">
+            <p className="mt-1 text-xs opacity-90">
               Parents/guardians can submit requests for linked family members.
             </p>
           </div>
@@ -688,10 +685,11 @@ export default function MyRegistrationsPage() {
           ].map(s => (
             <div key={s.label} className={`${s.color} rounded-xl p-3 text-center`}>
               <div className="text-2xl font-black">{s.value}</div>
-              <div className="text-xs text-amber-100 mt-0.5">{s.label}</div>
+              <div className="text-xs opacity-80 mt-0.5">{s.label}</div>
             </div>
           ))}
         </div>
+      </PageHeader>
       </div>
 
       {/* Renewal banners */}

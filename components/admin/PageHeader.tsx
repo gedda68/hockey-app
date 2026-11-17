@@ -20,9 +20,11 @@ export interface PageHeaderProps {
   aside?: ReactNode;
   /** Override the brand gradient (the registration page uses the member's own club colours). */
   colors?: { primary: string; secondary: string };
+  /** Anything that belongs inside the card under the heading (a selector, a row of figures). */
+  children?: ReactNode;
 }
 
-export default function PageHeader({ eyebrow, title, subtitle, detail, aside, colors }: PageHeaderProps) {
+export default function PageHeader({ eyebrow, title, subtitle, detail, aside, colors, children }: PageHeaderProps) {
   const { brand } = useBrand();
   const primary = colors?.primary ?? brand?.primaryColor ?? "#06054e";
   const secondary = colors?.secondary ?? brand?.secondaryColor ?? "#1a1870";
@@ -41,6 +43,7 @@ export default function PageHeader({ eyebrow, title, subtitle, detail, aside, co
         </div>
         {aside && <div className="flex-shrink-0">{aside}</div>}
       </div>
+      {children}
     </header>
   );
 }

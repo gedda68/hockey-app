@@ -6,6 +6,7 @@ import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Loader2, MapPin } from "lucide-react";
 
+import PageHeader from "@/components/admin/PageHeader";
 interface Duty {
   fixtureId: string; seasonCompetitionId: string; slotIndex: number; umpireType: string;
   allocationStatus?: string; isStandby?: boolean; scheduledStart?: string | null; venueName?: string | null; round?: number;
@@ -77,10 +78,7 @@ export default function MyDutiesPage() {
 
   return (
     <div className="mx-auto max-w-3xl space-y-6 p-6">
-      <div>
-        <h1 className="text-3xl font-black text-[#06054e]">My duties</h1>
-        <p className="mt-1 text-sm font-semibold text-slate-500">Matches you've been allocated to as an umpire or official.</p>
-      </div>
+      <PageHeader eyebrow="Personal" title="My duties" subtitle="Matches you've been allocated to as an umpire or official." />
       {duties === null ? (
         <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-slate-400" /></div>
       ) : duties.length === 0 ? (

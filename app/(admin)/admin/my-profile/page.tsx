@@ -21,6 +21,7 @@ import { toast } from "sonner";
 import MoreDetailsForm from "@/components/member/MoreDetailsForm";
 import ProfilePhotoControls from "@/components/member/ProfilePhotoControls";
 import ChangePasswordCard from "@/components/member/ChangePasswordCard";
+import PageHeader from "@/components/admin/PageHeader";
 import {
   User,
   Phone,
@@ -381,26 +382,16 @@ export default function MyProfilePage() {
   return (
     <div className="max-w-3xl mx-auto space-y-5 pb-12 px-4">
 
-      {/* ── Header ─────────────────────────────────────────────────────────── */}
-      <div className="bg-gradient-to-r from-teal-600 to-teal-700 rounded-2xl p-6 text-white shadow-lg">
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-black mb-1">My Profile</h1>
-            <p className="text-sm text-teal-100 max-w-sm">
-              Keep your details current: contact, address, emergency contacts, related people and your health &amp; safety details.
-              Legal name, date of birth and membership details are managed by your club.
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={() => void loadProfile()}
-            title="Refresh"
-            className="shrink-0 p-2 rounded-xl bg-white/20 hover:bg-white/30 transition-colors"
-          >
-            <RefreshCw className="h-4 w-4 text-white" />
+      <PageHeader
+        eyebrow="Personal"
+        title="My Profile"
+        subtitle="Keep your details current: contact, address, emergency contacts, related people and your health & safety details. Legal name, date of birth and membership details are managed by your club."
+        aside={
+          <button type="button" onClick={() => void loadProfile()} title="Refresh" className="shrink-0 p-2 rounded-xl bg-white/20 hover:bg-white/30 transition-colors">
+            <RefreshCw className="h-4 w-4" />
           </button>
-        </div>
-      </div>
+        }
+      />
 
       {/* ── Identity card (read-only) ───────────────────────────────────────── */}
       {member && (

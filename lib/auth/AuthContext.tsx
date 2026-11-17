@@ -37,6 +37,8 @@ export interface User {
   access?: AccessPayload | null;
   /** Matches JWT active scope (from session cookie). */
   activePersonaKey?: string;
+  /** Whether this person is a recorded parent/guardian (decides if the family pages are offered). */
+  family?: { hasChildren: boolean };
   associationId?: string | null;
   /**
    * Hierarchical tier of the user's primary association.
@@ -81,6 +83,7 @@ function mapMePayload(raw: Record<string, unknown>): User {
       ? (raw.personas as PersonaOption[])
       : undefined,
     activePersonaKey: (raw.activePersonaKey as string) || undefined,
+    family: raw.family && typeof (raw.family as { hasChildren?: unknown }).hasChildren === "boolean" ? { hasChildren: (raw.family as { hasChildren: boolean }).hasChildren } : undefined,
     access: (raw.access as AccessPayload | null) ?? null,
     associationId: (raw.associationId as string) ?? null,
     associationLevel:

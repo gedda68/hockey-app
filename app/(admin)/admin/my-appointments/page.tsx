@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
 import RoleInvitations from "@/components/roles/RoleInvitations";
 
+import PageHeader from "@/components/admin/PageHeader";
 interface Holding {
   roleKey: string; roleName: string; orgType: string; orgId: string; orgName: string; teamIds: string[]; ageGroups: string[];
   season: string | null; expiresAt: string | null; endedAt: string | null; fromOlderRole: boolean; state: "active" | "pending" | "expired" | "ended";
@@ -32,10 +33,7 @@ export default function MyAppointmentsPage() {
   const past = (data?.invitations ?? []).filter((i) => i.status !== "pending");
   return (
     <div className="mx-auto max-w-3xl space-y-6 p-6">
-      <div>
-        <h1 className="text-3xl font-black text-[#06054e]">My appointments</h1>
-        <p className="mt-1 text-sm font-semibold text-slate-500">The roles you hold at your clubs and associations.</p>
-      </div>
+      <PageHeader eyebrow="Personal" title="My appointments" subtitle="The roles you hold at your clubs and associations." />
 
       <RoleInvitations mode="mine" />
 

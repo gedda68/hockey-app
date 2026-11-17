@@ -4,11 +4,18 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/lib/auth/AuthContext";
 import { Loader2 } from "lucide-react";
 
+import PageHeader from "@/components/admin/PageHeader";
 interface Child { memberId: string; name: string; age: number | null; isMinor: boolean; clubName: string | null; status: string | null; roles: string[]; waitingForMe: number }
 
 export default function MyChildrenPage() {
+  const router = useRouter();
+  const { user } = useAuth();
+  // Not a parent/guardian: there is nothing here, so send them to the dashboard.
+  useEffect(() => { if (user?.family && !user.family.hasChildren) router.replace("/admin/dashboard"); }, [user?.family, router]);
   const [children, setChildren] = useState<Child[] | null>(null);
   useEffect(() => {
     fetch("/api/member/my-children", { credentials: "include" })
@@ -19,10 +26,7 @@ export default function MyChildrenPage() {
 
   return (
     <div className="mx-auto max-w-3xl space-y-6 p-6">
-      <div>
-        <h1 className="text-3xl font-black text-[#06054e]">My children</h1>
-        <p className="mt-1 text-sm font-semibold text-slate-500">People you're recorded as a parent/guardian of.</p>
-      </div>
+      <PageHeader eyebrow="Family" title="My children" subtitle="People you're recorded as a parent/guardian of." />
       {children === null ? (
         <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-slate-400" /></div>
       ) : children.length === 0 ? (
