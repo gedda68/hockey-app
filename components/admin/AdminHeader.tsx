@@ -4,7 +4,8 @@
 "use client";
 
 import { useAuth } from "@/lib/auth/AuthContext";
-import { useBrand, contrastText } from "@/lib/contexts/BrandContext";
+import { useBrand } from "@/lib/contexts/BrandContext";
+import { toneAlongGradient } from "@/lib/ui/readableText";
 import { useAdminEditingScope } from "@/components/admin/AdminEditingScopeProvider";
 import NotificationBell from "@/components/notifications/NotificationBell";
 import { useRouter } from "next/navigation";
@@ -55,21 +56,16 @@ export default function AdminHeader() {
   const bannerUrl = brand?.adminHeaderBannerUrl?.trim();
   const useBanner = Boolean(bannerUrl);
 
-  const textColor = useBanner ? "text-white" : contrastText(primary);
-  const mutedColor = useBanner
-    ? "text-white/75"
-    : textColor === "text-white"
-      ? "text-white/80"
-      : "text-gray-700";
-  // The gradient runs from the primary colour to the secondary, and the controls sit at the secondary end,
-  // so they are coloured against that end, not against the primary the title sits on.
-  const rightLight = useBanner || contrastText(secondary) === "text-white";
+  // Text is coloured against the part of the gradient it actually sits on: the title block on the left (about a
+  // third of the way across) and the controls on the right (near the secondary end). A photo banner has a dark scrim.
+  const leftLight = useBanner || toneAlongGradient(primary, secondary, 0.3) === "light";
+  const rightLight = useBanner || toneAlongGradient(primary, secondary, 0.85) === "light";
+  const textColor = leftLight ? "text-white" : "text-gray-900";
+  const mutedColor = leftLight ? "text-white/90" : "text-gray-800";
 
   const editingLineClass = editingScope.savesBlocked
-    ? "text-amber-200"
-    : useBanner || textColor === "text-white"
-      ? "text-yellow-200"
-      : "text-amber-900";
+    ? leftLight ? "text-amber-200" : "text-red-800"
+    : leftLight ? "text-yellow-200" : "text-amber-900";
 
   const CLUB_SCOPED_ROLES = [
     "club-admin",
