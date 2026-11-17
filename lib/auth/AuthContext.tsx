@@ -99,7 +99,7 @@ interface AuthContextType {
   setUser: (user: User | null) => void;
   refreshUser: () => Promise<void>;
   switchPersona: (personaKey: string) => Promise<void>;
-  /** Signs out and returns to the club/association site (to "home") or its sign-in page (to "login"). */
+  /** Signs out and returns to the top-level site (to "home") or its sign-in page (to "login"). */
   logout: (to?: "home" | "login", reason?: string) => Promise<void>;
   hasPermission: (permission: string) => boolean;
   canAccessResource: (type: "association" | "club", id: string) => boolean;
@@ -260,21 +260,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const res = await fetch("/api/auth/logout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          to,
-          reason,
-          pathname: window.location.pathname,
-          search: window.location.search,
-        }),
+        body: JSON.stringify({ to, reason }),
       });
       const data = await res.json().catch(() => ({}));
       if (typeof data.redirectTo === "string" && data.redirectTo) redirectTo = data.redirectTo;
     } catch {
-      // ignore network errors: fall back to the same-host page
+      // ignore network errors: fall back to this host's page
     }
     setUserState(null);
     localStorage.removeItem("user");
-    // Full page load: drops the signed-in client state and keeps the club/association host.
+    // Full page load on the top-level site: drops the signed-in client state and any club/association host.
     window.location.assign(redirectTo);
   }, []);
 
