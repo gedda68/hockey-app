@@ -6,6 +6,7 @@
 import { useAuth } from "@/lib/auth/AuthContext";
 import { useBrand } from "@/lib/contexts/BrandContext";
 import { toneAlongGradient } from "@/lib/ui/readableText";
+import { profileGroups } from "@/lib/auth/orgPersonas";
 import { useAdminEditingScope } from "@/components/admin/AdminEditingScopeProvider";
 import NotificationBell from "@/components/notifications/NotificationBell";
 import { useRouter } from "next/navigation";
@@ -15,11 +16,12 @@ import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 export default function AdminHeader() {
-  const { user, logout } = useAuth();
+  const { user, logout, switchPersona } = useAuth();
   const { brand } = useBrand();
   const editingScope = useAdminEditingScope();
   const router = useRouter();
   const [showDropdown, setShowDropdown] = useState(false);
+  const [switching, setSwitching] = useState(false);
   const headerRef = useRef<HTMLElement>(null);
 
   // The header is fixed and can grow (a long club name wraps), so publish its real height for the page offset.
@@ -33,6 +35,22 @@ export default function AdminHeader() {
     return () => { ro.disconnect(); document.documentElement.style.removeProperty("--admin-header-h"); };
   }, [user]);
 
+  const swapProfile = async (key: string, active: boolean) => {
+    if (active) { setShowDropdown(false); return; }
+    setSwitching(true);
+    try {
+      await switchPersona(key);
+      setShowDropdown(false);
+      toast.success("Switched profile");
+      router.push("/admin");
+      router.refresh();
+    } catch {
+      toast.error("Could not switch profile");
+    } finally {
+      setSwitching(false);
+    }
+  };
+
   const handleLogout = async () => {
     try {
       await logout("home");
@@ -42,6 +60,8 @@ export default function AdminHeader() {
   };
 
   if (!user) return null;
+
+  const profiles = profileGroups(user.personas, user.activePersonaKey);
 
   const roleKey = (
     user.role in ROLE_DEFINITIONS ? user.role : "member"
@@ -219,6 +239,32 @@ export default function AdminHeader() {
                           </p>
                           <p className="font-bold text-slate-700">{brand.name}</p>
                         </div>
+                      )}
+
+                      {profiles.some((g) => g.roles.length > 0) && profiles.reduce((n, g) => n + g.roles.length, 0) > 1 && (
+                        <>
+                          <div className="border-t border-slate-100 my-2" />
+                          <p className="px-4 pt-1 text-xs font-black uppercase text-slate-400">Switch profile</p>
+                          <div className="max-h-56 overflow-y-auto">
+                            {profiles.map((g) => (
+                              <div key={g.orgKey} className="px-2 py-1">
+                                <p className="px-2 text-[11px] font-bold text-slate-400">{g.orgLabel}</p>
+                                {g.roles.map((r) => (
+                                  <button
+                                    key={r.key}
+                                    type="button"
+                                    disabled={switching}
+                                    onClick={() => void swapProfile(r.key, r.active)}
+                                    className={`w-full flex items-center justify-between gap-2 px-2 py-2 rounded-lg text-left text-sm transition-colors disabled:opacity-50 ${r.active ? "bg-slate-100 font-black text-slate-900" : "font-bold text-slate-700 hover:bg-slate-50"}`}
+                                  >
+                                    <span>{r.label}</span>
+                                    {r.active && <span className="text-[10px] font-black uppercase text-teal-600">Current</span>}
+                                  </button>
+                                ))}
+                              </div>
+                            ))}
+                          </div>
+                        </>
                       )}
 
                       <div className="border-t border-slate-100 my-2" />
