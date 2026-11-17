@@ -19,6 +19,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { v4 as uuidv4 } from "uuid";
 import clientPromise from "@/lib/mongodb";
 import { getSession } from "@/lib/auth/session";
+import { resolveSessionMemberId } from "@/lib/auth/sessionMember";
 import { ROLE_DEFINITIONS } from "@/lib/types/roles";
 import { guardianCheckForRequest, type GuardianApproval } from "@/lib/access/guardians";
 import { resolveFeeWithFallback, buildFeeDescription } from "@/lib/fees/feeSchedule";
@@ -149,7 +150,7 @@ export async function POST(request: NextRequest) {
     // ── Under-18s: junior roles only, and a parent/guardian must approve ──────────
     let guardianApproval: GuardianApproval | undefined;
     if (accountType === "member") {
-      const gc = await guardianCheckForRequest(db, account, requestedRole, { memberId: session.memberId, name: session.name });
+      const gc = await guardianCheckForRequest(db, account, requestedRole, { memberId: await resolveSessionMemberId(db, session), name: session.name });
       if (gc.required && !gc.ok) return NextResponse.json({ error: gc.error }, { status: gc.status });
       if (gc.required && gc.ok) guardianApproval = gc.approval;
     }
@@ -330,7 +331,7 @@ export async function GET(request: NextRequest) {
 
     // Requests from the people I'm a parent/guardian for that are waiting on me.
     if (searchParams.get("box") === "guardian") {
-      const me = session.memberId?.trim();
+      const me = await resolveSessionMemberId(db, session);
       if (!me) return NextResponse.json({ requests: [] });
       const requests = await db
         .collection("role_requests")

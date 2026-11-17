@@ -7,14 +7,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDatabase } from "@/lib/mongodb";
 import { getSession } from "@/lib/auth/session";
+import { resolveSessionMemberId } from "@/lib/auth/sessionMember";
 import { applyPrefsPatch, LIVE_CHANNELS } from "@/lib/notifications/prefs";
 import { loadPrefs } from "@/lib/notifications/engine";
 
 async function who(): Promise<{ memberId: string } | NextResponse> {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Authentication required" }, { status: 401 });
-  const memberId = session.memberId?.trim();
-  if (!memberId) return NextResponse.json({ error: "No member profile on this account" }, { status: 400 });
+  if (!session.memberId?.trim()) return NextResponse.json({ error: "No member profile on this account" }, { status: 400 });
+  // Logins hold the member's Mongo _id; preferences live under the member's own memberId ("MBR-…").
+  const memberId = await resolveSessionMemberId(await getDatabase(), session);
   return { memberId };
 }
 

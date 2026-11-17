@@ -8,12 +8,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import { getSession } from "@/lib/auth/session";
+import { resolveSessionMemberId } from "@/lib/auth/sessionMember";
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ requestId: string }> }) {
   try {
     const session = await getSession();
-    const me = session?.memberId?.trim();
-    if (!session || !me) return NextResponse.json({ error: "Authentication required" }, { status: 401 });
+    if (!session || !session.memberId?.trim()) return NextResponse.json({ error: "Authentication required" }, { status: 401 });
 
     const { requestId } = await params;
     const body = await request.json().catch(() => ({}));
@@ -21,6 +21,8 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     if (action !== "approve" && action !== "refuse") return NextResponse.json({ error: "Invalid action" }, { status: 400 });
 
     const db = (await clientPromise).db();
+    // Logins hold the member's Mongo _id; guardians are recorded by their own memberId ("MBR-…").
+    const me = await resolveSessionMemberId(db, session);
     const req = await db.collection("role_requests").findOne({ requestId });
     if (!req) return NextResponse.json({ error: "Request not found" }, { status: 404 });
 
