@@ -148,6 +148,38 @@ export function eventCandidates(events: EventLike[], now: Date, withinDays = 7):
   return out;
 }
 
+// ── Announcements ─────────────────────────────────────────────────────────────
+
+export interface AnnouncementLike {
+  announcementId: string; level: "global" | "association" | "club"; scopeId?: string; title: string; body: string;
+  link?: string | null; status?: string; publishAt: string; expiresAt?: string | null; pinned?: boolean;
+}
+
+/** Published, not yet expired, and already due (scheduled ones wait). Announcements stay visible for 14 days unless they set an end. */
+export function announcementCandidates(rows: AnnouncementLike[], now: Date, keepDays = 14): Candidate[] {
+  const out: Candidate[] = [];
+  for (const a of rows) {
+    if (a.status && a.status !== "published") continue;
+    const at = Date.parse(a.publishAt);
+    if (Number.isNaN(at) || at > now.getTime()) continue;
+    const end = a.expiresAt ? Date.parse(a.expiresAt) : at + keepDays * DAY;
+    if (Number.isNaN(end) || end <= now.getTime()) continue;
+    out.push({
+      dedupeKey: `announcement:${a.announcementId}`,
+      level: a.level,
+      category: "announcements",
+      type: "announcement",
+      title: a.title,
+      message: a.body.length > 160 ? `${a.body.slice(0, 157)}…` : a.body,
+      link: a.link || "/admin/notifications",
+      eventAt: iso(at),
+      expiresAt: iso(end),
+      ...(a.level === "club" && a.scopeId ? { clubId: a.scopeId } : {}),
+    });
+  }
+  return out;
+}
+
 // ── Waiting on you ────────────────────────────────────────────────────────────
 
 export interface WaitingOnMe {
