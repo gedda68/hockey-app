@@ -193,6 +193,7 @@ const ROUTE_RULES: RouteRule[] = [
   // Who may appoint which role is decided by the matrix in the API; the page just needs to open.
   { pattern: /^\/admin\/role-appointments(\/|$)/, allowedRoles: ANY_ADMIN },
   { pattern: /^\/admin\/role-holders(\/|$)/, allowedRoles: ANY_ADMIN },
+  { pattern: /^\/admin\/club-health(\/|$)/, allowedRoles: ["super-admin", "association-admin", "club-admin", "club-committee", "registrar"] },
   { pattern: /^\/admin\/reports(\/|$)/, allowedRoles: ANY_ADMIN },
 
   { pattern: /^\/admin\/settings(\/|$)/, allowedRoles: SETTINGS_ROLES, scopeCheck: true },

@@ -685,6 +685,16 @@ export const menuConfig: MenuItem[] = [
 
   // ── Reports & Analytics ──────────────────────────────────────────────────────
   {
+    label: "Club health",
+    href: "/admin/club-health",
+    areas: ["reportsExports"],
+    icon: "🩺",
+    description: "Missing details, blue cards, duplicates and other data problems",
+    color: "from-emerald-500 to-emerald-600",
+    section: "reporting",
+    allowedRoles: ["super-admin", "association-admin", "club-admin", "club-committee", "registrar"],
+  },
+  {
     label: "Reports",
     href: "/admin/reports",
     areas: ["reportsExports"],
