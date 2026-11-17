@@ -19,14 +19,15 @@ import path from "node:path";
 import { MongoClient } from "mongodb";
 import { planMemberHoldings, type LegacyAssignment, type MigratedHolding } from "../lib/access/legacyMapping";
 import { contextFromTeams, teamClubLookup } from "../lib/access/legacySync";
+import { normalizeMemberRoles } from "../lib/auth/memberRoles";
 
 const DB_NAME = process.env.DB_NAME || "hockey-app";
 const arg = (n: string) => { const i = process.argv.indexOf(`--${n}`); return i >= 0 ? process.argv[i + 1] : undefined; };
 const csv = (rows: unknown[][]) => rows.map((r) => r.map((v) => `"${String(v ?? "").replace(/"/g, '""')}"`).join(",")).join("\n");
 
-/** Imported members can have plain-string roles ("role-player"); only structured assignments are mapped. */
-const structured = (roles: unknown): LegacyAssignment[] =>
-  (Array.isArray(roles) ? roles : []).filter((r): r is LegacyAssignment => !!r && typeof r === "object" && typeof (r as any).role === "string");
+/** Same reading the sign-in uses: structured assignments as-is, plain text roles ("role-player") scoped to the member's club. */
+const clubOf = (m: any): string | null => m.clubId || m.membership?.clubId || null;
+const assignmentsFor = (m: any): LegacyAssignment[] => normalizeMemberRoles(m.roles, clubOf(m)) as unknown as LegacyAssignment[];
 
 async function main() {
   const apply = process.argv.includes("--apply");
@@ -39,11 +40,11 @@ async function main() {
 
   const filter: Record<string, unknown> = { "roles.0": { $exists: true } };
   if (club) filter.clubId = club;
-  let cursor = db.collection("members").find(filter, { projection: { memberId: 1, clubId: 1, roles: 1, roleHoldings: 1, "personalInfo.firstName": 1, "personalInfo.lastName": 1 } });
+  let cursor = db.collection("members").find(filter, { projection: { memberId: 1, clubId: 1, "membership.clubId": 1, roles: 1, roleHoldings: 1, "personalInfo.firstName": 1, "personalInfo.lastName": 1 } });
   if (limit) cursor = cursor.limit(limit);
   const members = await cursor.toArray();
 
-  const teamIds = members.flatMap((m) => structured(m.roles).filter((a) => a.scopeType === "team").map((a) => a.scopeId ?? ""));
+  const teamIds = members.flatMap((m) => assignmentsFor(m).filter((a) => a.scopeType === "team").map((a) => a.scopeId ?? ""));
   const teamClub = await teamClubLookup(db, teamIds);
   const ctxFor = contextFromTeams(teamClub);
 
@@ -56,20 +57,27 @@ async function main() {
 
   for (const m of members) {
     const name = `${m.personalInfo?.firstName ?? ""} ${m.personalInfo?.lastName ?? ""}`.trim();
-    const plan = planMemberHoldings(structured(m.roles), Array.isArray(m.roleHoldings) ? m.roleHoldings : [], ctxFor);
+    const plan = planMemberHoldings(assignmentsFor(m), Array.isArray(m.roleHoldings) ? m.roleHoldings : [], ctxFor);
     alreadyHeld += plan.alreadyHeld;
     for (const h of plan.add) {
       adds.push({ memberId: m.memberId, name, holding: h });
       counts.set(`${h.legacyRole} -> ${h.roleKey}`, (counts.get(`${h.legacyRole} -> ${h.roleKey}`) ?? 0) + 1);
     }
     for (const r of plan.review) {
-      reviews.push([m.memberId, name, m.clubId, r.assignment.role, r.assignment.scopeType, r.assignment.scopeId, r.reason]);
+      reviews.push([m.memberId, name, clubOf(m), r.assignment.role, r.assignment.scopeType, r.assignment.scopeId, r.reason]);
       reviewCounts.set(`${r.assignment.role} (${r.assignment.scopeType}): ${r.reason}`, (reviewCounts.get(`${r.assignment.role} (${r.assignment.scopeType}): ${r.reason}`) ?? 0) + 1);
     }
     for (const s of plan.skipped) skipCounts.set(`${s.assignment.role}: ${s.reason}`, (skipCounts.get(`${s.assignment.role}: ${s.reason}`) ?? 0) + 1);
   }
 
-  console.log(`Members with legacy roles: ${members.length}`);
+  const shape = { structured: 0, text: 0, unreadable: 0 };
+  for (const m of members) {
+    const roles = Array.isArray(m.roles) ? m.roles : [];
+    if (roles.some((r: unknown) => r && typeof r === "object")) shape.structured++;
+    else if (roles.some((r: unknown) => typeof r === "string")) shape.text++;
+    if (assignmentsFor(m).length === 0) shape.unreadable++;
+  }
+  console.log(`Members with a roles list: ${members.length} (structured roles: ${shape.structured}, text-only roles: ${shape.text}, nothing readable: ${shape.unreadable})`);
   console.log(`Holdings to add: ${adds.length} (already held: ${alreadyHeld})`);
   for (const [k, n] of [...counts].sort()) console.log(`  ${String(n).padStart(6)}  ${k}`);
   console.log(`Needs a person to decide: ${reviews.length}`);
