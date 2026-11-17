@@ -8,6 +8,7 @@ import { useCallback, useEffect, useState } from "react";
 import { CheckCircle, Loader2, Calendar, MapPin, Clock, Lock, Trophy } from "lucide-react";
 import { toast } from "sonner";
 
+import NominationSection from "@/components/nominations/NominationSection";
 interface Verdict {
   position: string;
   label: string;
@@ -82,25 +83,23 @@ export default function NominationOptions({
   if (error) return null; // the existing player flow below still works; don't block the page
   if (!data) {
     return (
-      <div className="bg-white rounded-3xl shadow-2xl p-8 mb-6 flex items-center gap-3 text-slate-400">
+      <div className="mb-6 flex items-center gap-3 rounded-3xl border border-slate-200 bg-slate-100 p-8 text-slate-600">
         <Loader2 className="h-5 w-5 animate-spin" /> Loading your nomination options…
       </div>
     );
   }
 
   return (
-    <div className="bg-white rounded-3xl shadow-2xl p-8 mb-6">
-      <div className="flex items-center gap-3 mb-1">
-        <Trophy size={22} className="text-[#06054e]" />
-        <h2 className="text-2xl font-black uppercase text-[#06054e]">Teams you can nominate for</h2>
-      </div>
-      <p className="text-xs font-bold text-slate-400 mb-6">
+    <NominationSection
+      icon={<Trophy size={22} />}
+      title="Teams you can nominate for"
+      subtitle={<>
         {data.season} season{data.ageInSeason != null ? ` · you are ${data.ageInSeason} this season` : ""}
         {data.isPlayer ? "" : " · no player role on your record, so player nominations aren't offered"}
-      </p>
-
+      </>}
+    >
       {data.options.length === 0 ? (
-        <p className="py-8 text-center text-sm font-black uppercase text-slate-400">No teams are open for nomination right now</p>
+        <p className="py-8 text-center text-sm font-black uppercase text-slate-600">No teams are open for nomination right now</p>
       ) : (
         <div className="space-y-4">
           {data.options.map((o) => {
@@ -108,7 +107,7 @@ export default function NominationOptions({
             const done = o.positions.filter((p) => p.alreadyNominated);
             const blocked = o.positions.filter((p) => !p.allowed && !p.alreadyNominated);
             return (
-              <div key={o.ageGroup} className="rounded-2xl border-2 border-slate-200 p-5">
+              <div key={o.ageGroup} className="rounded-2xl border-2 border-slate-200 bg-white p-5">
                 <div className="flex flex-wrap items-center gap-2 mb-1">
                   <span className="px-2.5 py-0.5 bg-[#06054e] text-white rounded-lg text-xs font-black uppercase">{o.ageGroup}</span>
                   <span className="px-2.5 py-0.5 bg-slate-100 text-slate-600 rounded-lg text-xs font-black uppercase">
@@ -116,7 +115,7 @@ export default function NominationOptions({
                   </span>
                 </div>
                 <h3 className="font-black text-[#06054e] text-lg leading-tight">{o.tournamentTitle}</h3>
-                <div className="flex flex-wrap gap-x-5 gap-y-1 text-xs font-bold text-slate-500 mt-1">
+                <div className="flex flex-wrap gap-x-5 gap-y-1 text-xs font-bold text-slate-600 mt-1">
                   {o.tournamentLocation && <span className="flex items-center gap-1"><MapPin size={12} />{o.tournamentLocation}</span>}
                   {o.tournamentStartDate && <span className="flex items-center gap-1"><Calendar size={12} />{o.tournamentStartDate}</span>}
                   <span className="flex items-center gap-1"><Clock size={12} />{o.daysRemaining === 0 ? "Closes today" : `${o.daysRemaining} day${o.daysRemaining === 1 ? "" : "s"} left`}</span>
@@ -143,15 +142,15 @@ export default function NominationOptions({
                     ))}
                   </div>
                 ) : done.length === 0 ? (
-                  <p className="mt-4 text-xs font-bold text-slate-400">You aren&apos;t eligible for any position in this team.</p>
+                  <p className="mt-4 text-xs font-bold text-slate-600">You aren&apos;t eligible for any position in this team.</p>
                 ) : null}
 
                 {blocked.length > 0 && (
                   <ul className="mt-3 space-y-1">
                     {blocked.map((p) => (
-                      <li key={p.position} className="flex items-start gap-1.5 text-[11px] font-bold text-slate-400">
+                      <li key={p.position} className="flex items-start gap-1.5 text-[11px] font-bold text-slate-600">
                         <Lock size={11} className="mt-0.5 shrink-0" />
-                        <span><span className="text-slate-500">{p.label}:</span> {p.reason}</span>
+                        <span><span className="text-slate-600">{p.label}:</span> {p.reason}</span>
                       </li>
                     ))}
                   </ul>
@@ -161,6 +160,6 @@ export default function NominationOptions({
           })}
         </div>
       )}
-    </div>
+    </NominationSection>
   );
 }
