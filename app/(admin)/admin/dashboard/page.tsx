@@ -13,7 +13,7 @@ import { useState, useEffect, useCallback } from "react";
 import { getErrorMessage } from "@/lib/utils/errors";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { useBrand } from "@/lib/contexts/BrandContext";
-import { filterMenuForRole } from "@/app/(admin)/admin/global-config/menuConfig";
+import { buildMenuForUser } from "@/lib/admin/buildMenu";
 import {
   Users, Building2, TrendingUp, Shield, Trophy,
   AlertCircle, Loader2, ChevronRight,
@@ -151,7 +151,7 @@ export default function DashboardPage() {
 
   // Role-filtered quick-access tiles
   const quickTiles = user
-    ? filterMenuForRole(user.role)
+    ? buildMenuForUser(user)
         .filter(i => i.color && i.href !== "/admin/dashboard")
         .map(i =>
           i.label === "Match rosters" && (user.clubSlug || user.clubId)
