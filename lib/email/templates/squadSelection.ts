@@ -35,7 +35,7 @@ export function buildSquadSelectionEmail(
     isShadow = false,
   } = opts;
 
-  const portalUrl = `${APP_URL}/my-nominations`;
+  const portalUrl = `${APP_URL}/admin/nominate`;
 
   const subject = isShadow
     ? `You have been selected as a train-on player — ${ageGroup} ${seasonYear}`

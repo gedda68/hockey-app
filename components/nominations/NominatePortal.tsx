@@ -345,9 +345,9 @@ export default function NominatePortal({ embedded = false }: { embedded?: boolea
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
-    <div className={embedded ? "mx-3 md:mx-6 rounded-2xl overflow-hidden bg-gradient-to-br from-[#06054e] via-slate-900 to-slate-800" : "min-h-screen bg-gradient-to-br from-[#06054e] via-slate-900 to-slate-800"}>
-      {/* Header */}
-      <div className="bg-[#06054e] text-white pt-10 pb-24 text-center">
+    <div className={embedded ? "rounded-2xl overflow-hidden bg-gradient-to-br from-[#06054e] via-slate-900 to-slate-800 pt-4" : "min-h-screen bg-gradient-to-br from-[#06054e] via-slate-900 to-slate-800"}>
+      {/* Header (the admin page has its own heading, so the embedded version skips this hero) */}
+      {!embedded && <div className="bg-[#06054e] text-white pt-10 pb-24 text-center">
         <div className="max-w-3xl mx-auto px-4">
           <div className="flex items-center justify-center gap-6 mb-8">
             <Link
@@ -415,9 +415,9 @@ export default function NominatePortal({ embedded = false }: { embedded?: boolea
             </Link>
           </div>
         </div>
-      </div>
+      </div>}
 
-      <main className="max-w-3xl mx-auto px-4 -mt-12 pb-20">
+      <main className={embedded ? "max-w-3xl mx-auto px-4 pb-6" : "max-w-3xl mx-auto px-4 -mt-12 pb-20"}>
         {/* ── Signed-in members: every team and position they may nominate for ── */}
         {session?.memberId && (
           <>
@@ -655,7 +655,7 @@ export default function NominatePortal({ embedded = false }: { embedded?: boolea
                   </p>
                 </div>
                 <Link
-                  href="/nomination-status"
+                  href={embedded ? "#my-nominations" : "/nomination-status"}
                   className="flex-shrink-0 px-4 py-2 bg-white text-green-700 rounded-xl text-xs font-black uppercase hover:bg-green-50 transition-colors"
                 >
                   View Status →
