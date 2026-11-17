@@ -45,6 +45,6 @@ export async function syncMatrixHoldingsForGrant(
   if (!plan.add.length) return 0;
   await db
     .collection("members")
-    .updateOne({ memberId }, { $push: { roleHoldings: { $each: plan.add } } as never }, session ? { session } : undefined);
+    .updateOne({ memberId }, { $push: { roleHoldings: { $each: plan.add } } as never, $inc: { roleVersion: 1 } }, session ? { session } : undefined);
   return plan.add.length;
 }

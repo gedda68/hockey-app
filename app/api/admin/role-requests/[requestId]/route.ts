@@ -410,7 +410,7 @@ export async function PATCH(
 
       const updateResult = await db.collection(targetCollection).updateOne(
         { [idField]: req.memberId },
-        { $push: { roles: assignment } } as unknown as import("mongodb").UpdateFilter<
+        { $push: { roles: assignment }, $inc: { roleVersion: 1 } } as unknown as import("mongodb").UpdateFilter<
           import("mongodb").Document
         >,
       );

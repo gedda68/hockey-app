@@ -131,7 +131,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 
         await db.collection(targetCollection).updateOne(
           { [idField]: nom.nomineeId },
-          { $push: { roles: assignment as any } }
+          { $push: { roles: assignment as any }, $inc: { roleVersion: 1 } }
         );
 
         update.roleAssignedAt = now;

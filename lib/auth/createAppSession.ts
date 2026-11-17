@@ -400,6 +400,7 @@ export async function createMemberSession(
     username: member.auth?.username,
     forcePasswordChange,
     portalSubdomain: memberPortalSubdomain,
+    roleVersion: typeof member.roleVersion === "number" ? member.roleVersion : 0,
   };
 
   await db.collection("members").updateOne(

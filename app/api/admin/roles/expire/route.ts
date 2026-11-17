@@ -112,7 +112,7 @@ export async function POST(req: NextRequest) {
     if (!dryRun && changed) {
       await db.collection("members").updateOne(
         { memberId: member.memberId },
-        { $set: { roles: updatedRoles, updatedAt: now } }
+        { $set: { roles: updatedRoles, updatedAt: now }, $inc: { roleVersion: 1 } }
       );
     }
   }
