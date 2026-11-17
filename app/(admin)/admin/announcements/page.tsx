@@ -33,6 +33,8 @@ export default function AnnouncementsPage() {
   const [defaults, setDefaults] = useState({ clubId: "", associationId: "" });
   const [form, setForm] = useState({ level: "club" as Audience, title: "", body: "", link: "", publishAt: "", expiresAt: "" });
   const [busy, setBusy] = useState(false);
+  const [pages, setPages] = useState<{ ownerLevel: string; ownerId: string }[]>([]);
+  const [toSocial, setToSocial] = useState(false);
   const [reach, setReach] = useState<Reach | null>(null);
   const [log, setLog] = useState<Record<string, Deliveries | "loading">>({});
 
@@ -47,6 +49,7 @@ export default function AnnouncementsPage() {
     } catch (e) { setRows([]); toast.error(e instanceof Error ? e.message : "Couldn't load"); }
   }, []);
   useEffect(() => { load(); }, [load]);
+  useEffect(() => { api("/api/admin/social/accounts").then((d) => setPages(d.accounts ?? [])).catch(() => setPages([])); }, []);
 
   // How many people it would reach, updated as the author changes the audience or narrows it.
   useEffect(() => {
@@ -78,14 +81,19 @@ export default function AnnouncementsPage() {
     catch (e) { setLog((l) => { const n = { ...l }; delete n[a.announcementId]; return n; }); toast.error(e instanceof Error ? e.message : "Couldn't load"); }
   };
 
+  const targeted = target.teamIds.length > 0 || !!target.maxAge;
+  const scopeForPost = form.level === "club" ? defaults.clubId : form.level === "association" ? defaults.associationId : "";
+  const canPost = form.level !== "global" && !targeted && pages.some((p) => p.ownerLevel === form.level && p.ownerId === scopeForPost);
+
   const publish = async () => {
     setBusy(true);
     try {
       const scopeId = form.level === "club" ? defaults.clubId : form.level === "association" ? defaults.associationId : "";
-      await api("/api/admin/announcements", { method: "POST", body: JSON.stringify({ ...form, scopeId, targeting: form.level === "global" ? undefined : { teamIds: form.level === "club" ? target.teamIds : [], maxAge: target.maxAge ? Number(target.maxAge) : null, includeGuardians: target.includeGuardians }, link: form.link || null, publishAt: form.publishAt || null, expiresAt: form.expiresAt || null }) });
+      await api("/api/admin/announcements", { method: "POST", body: JSON.stringify({ ...form, scopeId, postToSocial: canPost && toSocial, targeting: form.level === "global" ? undefined : { teamIds: form.level === "club" ? target.teamIds : [], maxAge: target.maxAge ? Number(target.maxAge) : null, includeGuardians: target.includeGuardians }, link: form.link || null, publishAt: form.publishAt || null, expiresAt: form.expiresAt || null }) });
       toast.success("Announcement published");
       setForm({ ...form, title: "", body: "", link: "", publishAt: "", expiresAt: "" });
       setTarget({ teamIds: [], maxAge: "", includeGuardians: true });
+      setToSocial(false);
       await load();
     } catch (e) { toast.error(e instanceof Error ? e.message : "Failed"); } finally { setBusy(false); }
   };
@@ -136,6 +144,11 @@ export default function AnnouncementsPage() {
           <div><label className={labelCls}>Publish at (blank = now)</label><input type="datetime-local" className={inputCls} value={form.publishAt} onChange={(e) => setForm({ ...form, publishAt: e.target.value })} /></div>
           <div><label className={labelCls}>Remove after (blank = 14 days)</label><input type="datetime-local" className={inputCls} value={form.expiresAt} onChange={(e) => setForm({ ...form, expiresAt: e.target.value })} /></div>
         </div>
+        {canPost ? (
+          <label className="flex items-center gap-2 text-sm font-bold text-slate-600"><input type="checkbox" checked={toSocial} onChange={(e) => setToSocial(e.target.checked)} /> Also post this publicly to our Facebook page</label>
+        ) : form.level !== "global" && pages.some((p) => p.ownerLevel === form.level && p.ownerId === scopeForPost) && targeted ? (
+          <p className="text-xs font-semibold text-slate-400">Announcements aimed at particular teams or ages stay private, so they can't be posted to the page.</p>
+        ) : null}
         {reach && (
           <div className="rounded-xl bg-teal-50 p-3 text-sm font-semibold text-teal-900">
             <span className="font-black">{reach.capped ? "At least " : "About "}{reach.total.toLocaleString("en-AU")} {reach.total === 1 ? "person" : "people"}</span> would get this.
