@@ -641,7 +641,7 @@ export const menuConfig: MenuItem[] = [
       "super-admin",
       "association-admin", "assoc-committee", "media-marketing",
       "club-admin", "club-committee",
-    ],
+    ],    areas: ["commsMedia"],
   },
   {
     label: "Home page gallery",

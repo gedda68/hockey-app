@@ -1,6 +1,7 @@
 // app/api/admin/competitions/route.ts
 // Competition + SeasonCompetition admin API (association-owned).
 
+import { areaGuard } from "@/lib/access/enforce";
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import { requireAnyPermission, requirePermission } from "@/lib/auth/middleware";
@@ -32,6 +33,9 @@ function newId(prefix: string) {
  * - include=base|season|all (default: all)
  */
 export async function GET(request: NextRequest) {
+  const areaDenied = await areaGuard("competitions", "GET");
+  if (areaDenied) return areaDenied;
+
   const { user, response } = await requireAnyPermission(request, [
     "competitions.manage",
     "competitions.fixtures",
@@ -131,6 +135,9 @@ export async function GET(request: NextRequest) {
  * i.e. the association creating the SeasonCompetition is the owningAssociationId.
  */
 export async function POST(request: NextRequest) {
+  const areaDenied = await areaGuard("competitions", "POST");
+  if (areaDenied) return areaDenied;
+
   const { user, response } = await requirePermission(
     request,
     "competitions.manage",

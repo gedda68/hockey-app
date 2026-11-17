@@ -15,6 +15,7 @@
  *   { deactivated: number, dryRun: boolean, details: DeactivatedRole[] }
  */
 
+import { areaGuard } from "@/lib/access/enforce";
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import { getSession } from "@/lib/auth/session";
@@ -33,6 +34,9 @@ interface DeactivatedRole {
 }
 
 export async function POST(req: NextRequest) {
+  const areaDenied = await areaGuard("roles", "POST");
+  if (areaDenied) return areaDenied;
+
   const { response } = await requireRole(req, ALLOWED_ROLES);
   if (response) return response;
 

@@ -1,5 +1,6 @@
 // GET/POST — Epic V1 association venue + pitch master data.
 
+import { areaGuard } from "@/lib/access/enforce";
 import { NextRequest, NextResponse } from "next/server";
 import { ZodError } from "zod";
 import clientPromise from "@/lib/mongodb";
@@ -38,6 +39,9 @@ function normalizePitchesForCreate(
 }
 
 export async function GET(request: NextRequest, { params }: Params) {
+  const areaDenied = await areaGuard("venues", "GET");
+  if (areaDenied) return areaDenied;
+
   const { response } = await requireAnyPermission(request, [...VENUE_PERMS]);
   if (response) return response;
 
@@ -88,6 +92,9 @@ export async function GET(request: NextRequest, { params }: Params) {
 }
 
 export async function POST(request: NextRequest, { params }: Params) {
+  const areaDenied = await areaGuard("venues", "POST");
+  if (areaDenied) return areaDenied;
+
   const { user, response } = await requireAnyPermission(request, [...VENUE_PERMS]);
   if (response) return response;
 

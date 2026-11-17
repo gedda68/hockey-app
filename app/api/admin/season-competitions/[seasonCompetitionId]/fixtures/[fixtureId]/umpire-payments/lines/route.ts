@@ -1,5 +1,6 @@
 // POST .../umpire-payments/lines — create pending ledger rows from fixture + schedule.
 
+import { areaGuard } from "@/lib/access/enforce";
 import { NextRequest, NextResponse } from "next/server";
 import { randomUUID } from "crypto";
 import { ZodError } from "zod";
@@ -22,6 +23,9 @@ const SCHEDULE_COL = "association_umpire_payment_schedules";
 const LINES_COL = "umpire_match_payment_lines";
 
 export async function POST(request: NextRequest, { params }: Params) {
+  const areaDenied = await areaGuard("fees", "POST");
+  if (areaDenied) return areaDenied;
+
   const { user, response } = await requireAuth(request);
   if (response) return response;
 

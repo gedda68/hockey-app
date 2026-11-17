@@ -1,6 +1,7 @@
 // app/api/admin/season-competitions/[seasonCompetitionId]/route.ts
 // Manage a SeasonCompetition lifecycle + configuration (divisions/eligibility source-of-truth).
 
+import { areaGuard } from "@/lib/access/enforce";
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import {
@@ -51,6 +52,9 @@ const VALID_TRANSITIONS: Record<string, string[]> = {
 };
 
 export async function GET(request: NextRequest, { params }: Params) {
+  const areaDenied = await areaGuard("fixtures", "GET");
+  if (areaDenied) return areaDenied;
+
   const { response } = await requireAnyPermission(request, [
     "competitions.manage",
     "competitions.fixtures",
@@ -90,6 +94,9 @@ export async function GET(request: NextRequest, { params }: Params) {
 }
 
 export async function PATCH(request: NextRequest, { params }: Params) {
+  const areaDenied = await areaGuard("fixtures", "PATCH");
+  if (areaDenied) return areaDenied;
+
   const { user, response } = await requirePermission(
     request,
     "competitions.manage",

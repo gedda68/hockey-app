@@ -1,6 +1,7 @@
 // Association registrations list (association-registrations collection) with member names.
 // Association users see their own association; super-admin may see all or pick one with ?associationId=.
 
+import { areaGuard } from "@/lib/access/enforce";
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import { getSession } from "@/lib/auth/session";
@@ -9,6 +10,9 @@ import { requireResourceAccess } from "@/lib/auth/middleware";
 const PAGE = 100;
 
 export async function GET(request: NextRequest) {
+  const areaDenied = await areaGuard("members", "GET");
+  if (areaDenied) return areaDenied;
+
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 

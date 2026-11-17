@@ -1,6 +1,7 @@
 // PATCH /api/admin/season-competitions/[seasonCompetitionId]/fixtures/[fixtureId]
 // Update venue, schedule, publish state (E2).
 
+import { scopeGuard } from "@/lib/access/enforce";
 import { NextRequest, NextResponse } from "next/server";
 import { ZodError } from "zod";
 import clientPromise from "@/lib/mongodb";
@@ -38,6 +39,11 @@ type Params = {
 };
 
 export async function PATCH(request: NextRequest, { params }: Params) {
+  // A scorer / umpire appointed to specific matches may only change those matches.
+  const { fixtureId: scopedFixtureId } = await params;
+  const areaDenied = await scopeGuard("fixtures", "PATCH", { fixtureId: scopedFixtureId });
+  if (areaDenied) return areaDenied;
+
   const { user, response } = await requireAnyPermission(request, [
     "competitions.manage",
     "competitions.fixtures",

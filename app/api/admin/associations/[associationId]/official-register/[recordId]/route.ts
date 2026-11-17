@@ -1,5 +1,6 @@
 // PATCH/DELETE .../official-register/[recordId]
 
+import { areaGuard } from "@/lib/access/enforce";
 import { NextRequest, NextResponse } from "next/server";
 import { ZodError } from "zod";
 import clientPromise from "@/lib/mongodb";
@@ -17,6 +18,9 @@ type Params = {
 const COL = "association_official_register";
 
 export async function PATCH(request: NextRequest, { params }: Params) {
+  const areaDenied = await areaGuard("fees", "PATCH");
+  if (areaDenied) return areaDenied;
+
   try {
     const { associationId, recordId } = await params;
 
@@ -138,6 +142,9 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 }
 
 export async function DELETE(request: NextRequest, { params }: Params) {
+  const areaDenied = await areaGuard("fees", "DELETE");
+  if (areaDenied) return areaDenied;
+
   try {
     const { associationId, recordId } = await params;
 

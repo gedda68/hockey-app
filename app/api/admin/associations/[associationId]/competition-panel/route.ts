@@ -1,6 +1,7 @@
 // GET /api/admin/associations/[associationId]/competition-panel?season=2026
 // Overview of every competition the association runs in a season.
 
+import { areaGuard } from "@/lib/access/enforce";
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import { requireAnyPermission, requireResourceAccess } from "@/lib/auth/middleware";
@@ -10,6 +11,9 @@ import { summariseFixtures, type PanelFixture } from "@/lib/competitions/panelOv
 type Params = { params: Promise<{ associationId: string }> };
 
 export async function GET(request: NextRequest, { params }: Params) {
+  const areaDenied = await areaGuard("competitions", "GET");
+  if (areaDenied) return areaDenied;
+
   try {
     const { associationId } = await params;
     const { response } = await requireAnyPermission(request, [

@@ -1,6 +1,7 @@
 // GET /api/admin/season-competitions/[seasonCompetitionId]/standings
 // Admin standings preview (includes unpublished fixtures too by default) (E4, E5, E8).
 
+import { areaGuard } from "@/lib/access/enforce";
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import {
@@ -12,6 +13,9 @@ import { getSeasonCompetitionStandingsReadBundle } from "@/lib/competitions/stan
 type Params = { params: Promise<{ seasonCompetitionId: string }> };
 
 export async function GET(request: NextRequest, { params }: Params) {
+  const areaDenied = await areaGuard("fixtures", "GET");
+  if (areaDenied) return areaDenied;
+
   const { response } = await requireAnyPermission(request, [
     "competitions.manage",
     "competitions.fixtures",

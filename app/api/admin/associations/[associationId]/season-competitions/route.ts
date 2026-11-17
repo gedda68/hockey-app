@@ -1,6 +1,7 @@
 // GET /api/admin/associations/[associationId]/season-competitions
 // Minimal list for treasurer / honoraria UI (association.fees).
 
+import { areaGuard } from "@/lib/access/enforce";
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import { formatSeasonLabel } from "@/lib/competitions/seasonLabel";
@@ -12,6 +13,9 @@ import {
 type Params = { params: Promise<{ associationId: string }> };
 
 export async function GET(request: NextRequest, { params }: Params) {
+  const areaDenied = await areaGuard("competitions", "GET");
+  if (areaDenied) return areaDenied;
+
   try {
     const { associationId } = await params;
 

@@ -8,6 +8,7 @@
 //   "association"  — scoped to one association + its child clubs
 //   "club"         — scoped to one club
 
+import { areaGuard } from "@/lib/access/enforce";
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import { requireAnalyticsAccess } from "@/lib/auth/analyticsScope";
@@ -52,6 +53,9 @@ function isMemberActive(m: Record<string, any>): boolean {
 
 // ── Main handler ─────────────────────────────────────────────────────────────
 export async function GET(request: NextRequest) {
+  const areaDenied = await areaGuard("reports", "GET");
+  if (areaDenied) return areaDenied;
+
   try {
     const auth = await requireAnalyticsAccess(request);
     if (auth.response) return auth.response;

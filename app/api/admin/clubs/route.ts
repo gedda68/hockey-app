@@ -1,6 +1,7 @@
 // app/api/admin/clubs/route.ts
 // Clubs API with hierarchical filtering + change logging + clubId mapping
 
+import { areaGuard } from "@/lib/access/enforce";
 import { NextRequest, NextResponse } from "next/server";
 import type { Db } from "mongodb";
 import clientPromise from "@/lib/mongodb";
@@ -402,6 +403,9 @@ export async function GET(request: NextRequest) {
 
 // --- POST: CREATE CLUB ---
 export async function POST(request: NextRequest) {
+  const areaDenied = await areaGuard("settings", "POST");
+  if (areaDenied) return areaDenied;
+
   try {
     const { response: authRes } = await requirePermission(request, "club.create");
     if (authRes) return authRes;
@@ -477,6 +481,9 @@ export async function POST(request: NextRequest) {
 
 // --- PUT: UPDATE CLUB ---
 export async function PUT(request: NextRequest) {
+  const areaDenied = await areaGuard("settings", "PUT");
+  if (areaDenied) return areaDenied;
+
   try {
     const { response: authRes } = await requirePermission(request, "club.edit");
     if (authRes) return authRes;
@@ -570,6 +577,9 @@ export async function PUT(request: NextRequest) {
 
 // --- DELETE: REMOVE CLUB ---
 export async function DELETE(request: NextRequest) {
+  const areaDenied = await areaGuard("settings", "DELETE");
+  if (areaDenied) return areaDenied;
+
   try {
     const { response: authRes } = await requirePermission(request, "club.delete");
     if (authRes) return authRes;

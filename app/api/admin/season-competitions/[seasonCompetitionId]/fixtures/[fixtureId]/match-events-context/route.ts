@@ -1,6 +1,7 @@
 // GET .../fixtures/[fixtureId]/match-events-context
 // Roster options + labels for the match-events admin UI (E6).
 
+import { areaGuard } from "@/lib/access/enforce";
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import {
@@ -14,6 +15,9 @@ type Params = {
 };
 
 export async function GET(request: NextRequest, { params }: Params) {
+  const areaDenied = await areaGuard("fixtures", "GET");
+  if (areaDenied) return areaDenied;
+
   const { response } = await requirePermission(request, "results.manage");
   if (response) return response;
 

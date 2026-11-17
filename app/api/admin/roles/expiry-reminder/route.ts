@@ -49,6 +49,7 @@
  *   401 / 403 auth
  */
 
+import { areaGuard } from "@/lib/access/enforce";
 import { NextRequest, NextResponse } from "next/server";
 import { requirePermission } from "@/lib/auth/middleware";
 import { sendEmail } from "@/lib/email/client";
@@ -78,6 +79,9 @@ function weeksLabelFor(days: number): "6w" | "2w" {
 // ── Handler ───────────────────────────────────────────────────────────────────
 
 export async function POST(request: NextRequest) {
+  const areaDenied = await areaGuard("roles", "POST");
+  if (areaDenied) return areaDenied;
+
   const { response } = await requirePermission(request, "registration.manage");
   if (response) return response;
 

@@ -1,5 +1,6 @@
 // POST .../official-register/import — bulk create (F1 follow-up).
 
+import { areaGuard } from "@/lib/access/enforce";
 import { NextRequest, NextResponse } from "next/server";
 import { randomUUID } from "crypto";
 import { ZodError } from "zod";
@@ -52,6 +53,9 @@ function toDoc(
 }
 
 export async function POST(request: NextRequest, { params }: Params) {
+  const areaDenied = await areaGuard("fees", "POST");
+  if (areaDenied) return areaDenied;
+
   try {
     const { associationId } = await params;
 

@@ -1,6 +1,7 @@
 // app/api/admin/clubs/[id]/members/route.ts
 // Looks up club by slug or legacy id, then returns its members.
 
+import { areaGuard } from "@/lib/access/enforce";
 import { isContactPrivate } from "@/lib/members/privacy";
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
@@ -13,6 +14,9 @@ export async function GET(
   request: NextRequest,
   context: { params: Promise<{ id: string }> },
 ) {
+  const areaDenied = await areaGuard("members", "GET");
+  if (areaDenied) return areaDenied;
+
   try {
     const { id } = await context.params;
 

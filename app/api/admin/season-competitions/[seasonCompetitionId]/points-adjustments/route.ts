@@ -1,6 +1,7 @@
 // GET/POST/DELETE /api/admin/season-competitions/[seasonCompetitionId]/points-adjustments
 // Ladder penalties / bonuses. Every change needs a reason and is audited.
 
+import { areaGuard } from "@/lib/access/enforce";
 import { NextRequest, NextResponse } from "next/server";
 import { ZodError, z } from "zod";
 import clientPromise from "@/lib/mongodb";
@@ -34,6 +35,9 @@ async function ctx(request: NextRequest, p: Awaited<Params["params"]>) {
 }
 
 export async function GET(request: NextRequest, { params }: Params) {
+  const areaDenied = await areaGuard("fixtures", "GET");
+  if (areaDenied) return areaDenied;
+
   try {
     const c = await ctx(request, await params);
     if ("error" in c) return c.error;
@@ -45,6 +49,9 @@ export async function GET(request: NextRequest, { params }: Params) {
 }
 
 export async function POST(request: NextRequest, { params }: Params) {
+  const areaDenied = await areaGuard("fixtures", "POST");
+  if (areaDenied) return areaDenied;
+
   try {
     const p = await params;
     const c = await ctx(request, p);
@@ -75,6 +82,9 @@ export async function POST(request: NextRequest, { params }: Params) {
 }
 
 export async function DELETE(request: NextRequest, { params }: Params) {
+  const areaDenied = await areaGuard("fixtures", "DELETE");
+  if (areaDenied) return areaDenied;
+
   try {
     const p = await params;
     const c = await ctx(request, p);

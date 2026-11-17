@@ -13,6 +13,7 @@
  * Scope: caller must have access to the specified club.
  */
 
+import { areaGuard } from "@/lib/access/enforce";
 import { NextRequest, NextResponse } from "next/server";
 import { randomBytes } from "crypto";
 import { v4 as uuidv4 } from "uuid";
@@ -32,6 +33,9 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const areaDenied = await areaGuard("members", "POST");
+  if (areaDenied) return areaDenied;
+
   try {
     const { response: authRes } = await requirePermission(
       request,
@@ -151,6 +155,9 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const areaDenied = await areaGuard("members", "GET");
+  if (areaDenied) return areaDenied;
+
   try {
     const { response: authRes } = await requirePermission(
       request,
@@ -220,6 +227,9 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const areaDenied = await areaGuard("members", "DELETE");
+  if (areaDenied) return areaDenied;
+
   try {
     const { response: authRes } = await requirePermission(
       request,

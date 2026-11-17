@@ -2,6 +2,7 @@
 // Looks up clubs by slug (preferred) or legacy id.
 // Auto-generates + persists slug if the club record doesn't have one yet.
 
+import { areaGuard } from "@/lib/access/enforce";
 import { NextRequest, NextResponse } from "next/server";
 import type { Db } from "mongodb";
 import clientPromise from "@/lib/mongodb";
@@ -78,6 +79,9 @@ export async function GET(req: NextRequest, ctx: Ctx) {
 }
 
 export async function PUT(req: NextRequest, ctx: Ctx) {
+  const areaDenied = await areaGuard("settings", "PUT");
+  if (areaDenied) return areaDenied;
+
   try {
     const { id } = await ctx.params;
 

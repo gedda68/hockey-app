@@ -14,6 +14,7 @@
  *   super-admin can act on everything.
  */
 
+import { areaGuard } from "@/lib/access/enforce";
 import { syncMatrixHoldingsForGrant } from "@/lib/access/legacySync";
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
@@ -135,6 +136,9 @@ export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ requestId: string }> }
 ) {
+  const areaDenied = await areaGuard("roles", "GET");
+  if (areaDenied) return areaDenied;
+
   const traceId = generateTraceId();
   try {
     const { response } = await requirePermission(_request, "registration.manage");
@@ -170,6 +174,9 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ requestId: string }> }
 ) {
+  const areaDenied = await areaGuard("roles", "PATCH");
+  if (areaDenied) return areaDenied;
+
   const traceId = generateTraceId();
   try {
     const { response } = await requirePermission(request, "registration.manage");

@@ -1,5 +1,6 @@
 // GET/POST — O3 club volunteer duty roster (CRM list + manual lead).
 
+import { areaGuard } from "@/lib/access/enforce";
 import { NextRequest, NextResponse } from "next/server";
 import { randomUUID } from "crypto";
 import { ZodError } from "zod";
@@ -24,6 +25,9 @@ function stripDoc(doc: Record<string, unknown>) {
 }
 
 export async function GET(request: NextRequest, { params }: Params) {
+  const areaDenied = await areaGuard("volunteers", "GET");
+  if (areaDenied) return areaDenied;
+
   const { response } = await requireAnyPermission(request, [...READ_PERMS]);
   if (response) return response;
 
@@ -60,6 +64,9 @@ export async function GET(request: NextRequest, { params }: Params) {
 }
 
 export async function POST(request: NextRequest, { params }: Params) {
+  const areaDenied = await areaGuard("volunteers", "POST");
+  if (areaDenied) return areaDenied;
+
   const { user, response } = await requireAnyPermission(request, [...WRITE_PERMS]);
   if (response) return response;
 

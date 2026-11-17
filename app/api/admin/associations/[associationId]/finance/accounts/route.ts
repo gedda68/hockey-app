@@ -1,3 +1,4 @@
+import { areaGuard } from "@/lib/access/enforce";
 import { NextRequest, NextResponse } from "next/server";
 import { v4 as uuidv4 } from "uuid";
 import clientPromise from "@/lib/mongodb";
@@ -10,6 +11,9 @@ const COL = "finance_accounts";
 type Params = { params: Promise<{ associationId: string }> };
 
 export async function GET(request: NextRequest, { params }: Params) {
+  const areaDenied = await areaGuard("fees", "GET");
+  if (areaDenied) return areaDenied;
+
   const { response: authRes } = await requirePermission(request, "reports.financial");
   if (authRes) return authRes;
 
@@ -33,6 +37,9 @@ export async function GET(request: NextRequest, { params }: Params) {
 }
 
 export async function POST(request: NextRequest, { params }: Params) {
+  const areaDenied = await areaGuard("fees", "POST");
+  if (areaDenied) return areaDenied;
+
   const { user, response: authRes } = await requirePermission(request, "reports.financial");
   if (authRes) return authRes;
 

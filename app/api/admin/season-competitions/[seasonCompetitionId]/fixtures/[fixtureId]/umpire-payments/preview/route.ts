@@ -1,6 +1,7 @@
 // GET .../fixtures/[fixtureId]/umpire-payments/preview
 // Preview honoraria from association schedule × fixture matchLevel × slot qualification.
 
+import { areaGuard } from "@/lib/access/enforce";
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import { requireAuth, requireResourceAccess } from "@/lib/auth/middleware";
@@ -18,6 +19,9 @@ type Params = {
 const SCHEDULE_COL = "association_umpire_payment_schedules";
 
 export async function GET(request: NextRequest, { params }: Params) {
+  const areaDenied = await areaGuard("fees", "GET");
+  if (areaDenied) return areaDenied;
+
   const { user, response } = await requireAuth(request);
   if (response) return response;
 
