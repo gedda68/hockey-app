@@ -72,3 +72,5 @@ next-env.d.ts
 /dedupe-output/
 /move-team-backups/
 /registration-dedupe-backups/
+/matrix-backfill-output/
+/matrix-backfill-backups/

@@ -24,6 +24,7 @@ import {
 } from "@/lib/types/roles";
 import type { SessionData } from "@/lib/auth/session";
 import type { RoleRequest } from "@/types/roleRequests";
+import { syncMatrixHoldingsForGrant } from "@/lib/access/legacySync";
 
 /** Map `member_roles.category` (registration picker) → platform `UserRole`. */
 const MEMBER_ROLE_CATEGORY_TO_USER_ROLE: Record<string, UserRole> = {
@@ -225,4 +226,7 @@ export async function applyApprovedClubRegistrationRoles(
     { $push: { roles: { $each: toAdd } } as never },
     { session: mongoSession },
   );
+
+  // Keep the Roles & Access Matrix in step with the roles just granted.
+  await syncMatrixHoldingsForGrant(db, registration.memberId, toAdd, mongoSession);
 }
