@@ -32,6 +32,8 @@ export interface MenuItem {
   subItems?: MenuItem[];
 }
 
+import { canOpenAdminPath } from "@/lib/auth/adminRouteAccess";
+
 // ── Shared role sets (keep in sync with lib/auth/adminRouteAccess.ts + middleware) ─
 
 /** Every role that grants any admin-area access */
@@ -136,6 +138,13 @@ const SELECTION_POLICY_ROLES = [
   "assoc-competition",
   "media-marketing",
   "club-admin", "club-committee", "registrar", "coach", "manager", "team-selector",
+];
+
+/** Who is offered Appoint Roles / Role Holders (the matrix still decides which roles each person may appoint). */
+const ROLE_MANAGERS = [
+  "super-admin",
+  "association-admin", "assoc-committee", "assoc-registrar",
+  "club-admin", "club-committee", "registrar",
 ];
 
 /** Role-approval / expiry management */
@@ -542,7 +551,8 @@ export const menuConfig: MenuItem[] = [
     description: "Invite members to club and association roles",
     color: "from-teal-500 to-teal-600",
     section: "governance",
-    allowedRoles: ALL_ADMIN,
+    allowedRoles: ROLE_MANAGERS,
+    areas: ["usersRoles"],
   },
   {
     label: "Role Holders",
@@ -551,7 +561,7 @@ export const menuConfig: MenuItem[] = [
     description: "See who holds which role, change what it covers, or end it",
     color: "from-teal-500 to-teal-600",
     section: "governance",
-    allowedRoles: ALL_ADMIN,
+    allowedRoles: ROLE_MANAGERS,
     areas: ["usersRoles"],
   },
   {
@@ -848,18 +858,23 @@ export function filterMenuForRole(role: string, scopedRoles: string[] = []): Men
   const allRoles = new Set([role, ...scopedRoles]);
   if (allRoles.has("super-admin")) return menuConfig;
 
+  const roleList = [...allRoles];
+  // An entry shows only if its roles allow it AND the page itself would open for them, so the menu can never
+  // offer a link the route rules refuse. Section headers without a page (href "#") are left to allowedRoles.
+  const opens = (href: string) =>
+    !href || href === "#" || /^https?:/.test(href) || canOpenAdminPath(href.split("?")[0], roleList);
+  const visible = (it: MenuItem) =>
+    (!it.allowedRoles || it.allowedRoles.length === 0 || it.allowedRoles.some((r) => allRoles.has(r))) &&
+    opens(it.href);
+
   return menuConfig
-    .filter((item) => {
-      if (!item.allowedRoles || item.allowedRoles.length === 0) return true;
-      return item.allowedRoles.some((r) => allRoles.has(r));
-    })
+    .filter((item) => (item.subItems?.length ? !item.allowedRoles?.length || item.allowedRoles.some((r) => allRoles.has(r)) : visible(item)))
     .map((item) => {
       if (!item.subItems) return item;
-      const visibleSubs = item.subItems.filter((sub) => {
-        if (!sub.allowedRoles || sub.allowedRoles.length === 0) return true;
-        return sub.allowedRoles.some((r) => allRoles.has(r));
-      });
-      return { ...item, subItems: visibleSubs };
+      const subItems = item.subItems.filter(visible);
+      // A group whose own page is closed to this person links to its first open page instead.
+      const href = opens(item.href) || subItems.length === 0 ? item.href : subItems[0].href;
+      return { ...item, href, subItems };
     })
     .filter((item) => !item.subItems || item.subItems.length > 0);
 }
