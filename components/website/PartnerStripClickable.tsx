@@ -2,7 +2,7 @@
 
 import type { PublicSitePartner } from "@/lib/tenant/tenantPartners";
 
-function recordPartnerStripClick(
+export function recordPartnerStripClick(
   scopeType: "association" | "club",
   scopeId: string,
   slot: number,
