@@ -170,7 +170,7 @@ export default function NotificationsPage() {
                 ))}
               </tbody>
             </table>
-            <p className="mt-3 text-xs font-semibold text-slate-400">Email, SMS and social aren't switched on yet. Your choices there will be remembered for when they are.</p>
+            <p className="mt-3 text-xs font-semibold text-slate-400">Email, SMS and WhatsApp aren't switched on yet. Your choices there will be remembered for when they are.</p>
           </div>
         </div>
       )}
