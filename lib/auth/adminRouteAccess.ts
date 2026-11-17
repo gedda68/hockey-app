@@ -290,6 +290,7 @@ const ROUTE_RULES: RouteRule[] = [
   // Limited member view for club/association admins — the API enforces scope per member.
   { pattern: /^\/admin\/registrations(\/|$)/, allowedRoles: ["super-admin", "association-admin", "assoc-committee", "assoc-registrar", "club-admin", "club-committee", "registrar"] },
   { pattern: /^\/admin\/my-fees(\/|$)/, allowedRoles: SELF_SERVICE },
+  { pattern: /^\/admin\/(my-appointments|my-duties|my-availability|my-children|guardian-approvals)(\/|$)/, allowedRoles: SELF_SERVICE },
 
   {
     pattern: /^\/admin\/role-requests(\/|$)/,

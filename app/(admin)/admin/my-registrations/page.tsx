@@ -92,6 +92,17 @@ function RequestCard({
         <StatusBadge status={req.status} />
       </div>
 
+      {req.guardianApproval?.status === "pending" && (
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-3 text-xs text-amber-800">
+          Waiting for a parent/guardian to approve this request before an administrator can review it.
+        </div>
+      )}
+      {req.guardianApproval?.status === "approved" && req.status !== "approved" && (
+        <div className="bg-teal-50 border border-teal-200 rounded-lg p-3 mb-3 text-xs text-teal-800">
+          A parent/guardian has approved this request.
+        </div>
+      )}
+
       {/* Fee status */}
       {req.requiresFee && (
         <div className={`flex items-center gap-2 text-xs px-3 py-2 rounded-lg mb-3 ${req.feePaid ? "bg-green-50 text-green-700" : "bg-orange-50 text-orange-700"}`}>
