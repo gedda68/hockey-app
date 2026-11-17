@@ -6,6 +6,7 @@
 import { useAuth } from "@/lib/auth/AuthContext";
 import { useBrand, contrastText } from "@/lib/contexts/BrandContext";
 import { useAdminEditingScope } from "@/components/admin/AdminEditingScopeProvider";
+import NotificationBell from "@/components/notifications/NotificationBell";
 import { useRouter } from "next/navigation";
 import { LogOut, User, ChevronDown, Shield } from "lucide-react";
 import { ROLE_DEFINITIONS, type UserRole } from "@/lib/types/roles";
@@ -133,6 +134,7 @@ export default function AdminHeader() {
 
           {/* ── Right: User + Logout ── */}
           <div className="flex items-center gap-3">
+            <NotificationBell tone={useBanner || textColor === "text-white" ? "light" : "dark"} />
             <div className="relative">
               <button
                 type="button"
