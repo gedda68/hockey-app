@@ -291,6 +291,8 @@ const ROUTE_RULES: RouteRule[] = [
   { pattern: /^\/admin\/registrations(\/|$)/, allowedRoles: ["super-admin", "association-admin", "assoc-committee", "assoc-registrar", "club-admin", "club-committee", "registrar"] },
   { pattern: /^\/admin\/my-fees(\/|$)/, allowedRoles: SELF_SERVICE },
   { pattern: /^\/admin\/(my-appointments|my-duties|my-availability|my-children|guardian-approvals|notifications)(\/|$)/, allowedRoles: SELF_SERVICE },
+  // Levels (none/own/read/edit/admin) are checked inside the /api/records routes, so the pages open to everyone signed in.
+  { pattern: /^\/admin\/(training|injuries|incidents)(\/|$)/, allowedRoles: SELF_SERVICE },
 
   {
     pattern: /^\/admin\/role-requests(\/|$)/,

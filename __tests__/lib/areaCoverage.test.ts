@@ -12,7 +12,7 @@ const payload = (roleKey: string, orgType: "club" | "association" = "club") => {
 
 describe("area keys", () => {
   it("every logical area maps to a real matrix area for the org types that have it", () => {
-    const areas: LogicalArea[] = ["members", "teams", "fees", "fixtures", "competitions", "settings", "comms", "reports", "roles", "venues", "volunteers"];
+    const areas: LogicalArea[] = ["members", "teams", "fees", "fixtures", "competitions", "settings", "comms", "reports", "roles", "venues", "volunteers", "training", "injuries", "incidents"];
     const club = new Set(Object.keys(payload("club:president").areas));
     const assoc = new Set(Object.keys(payload("association:president-chair", "association").areas));
     for (const a of areas) {
