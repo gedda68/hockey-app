@@ -12,7 +12,8 @@ import { codeAtLeast, getMatrixRole, legacyRoleFor, type AccessCode, type OrgTyp
 
 export type LogicalArea =
   | "members" | "teams" | "fees"
-  | "fixtures" | "competitions" | "settings" | "comms" | "reports" | "roles" | "venues" | "volunteers";
+  | "fixtures" | "competitions" | "settings" | "comms" | "reports" | "roles" | "venues" | "volunteers"
+  | "training" | "injuries" | "incidents";
 
 /** Matrix area key per organisation type. null = the matrix has no such area there, so nothing is enforced. */
 const AREA_KEY: Record<LogicalArea, Record<OrgType, string | null>> = {
@@ -27,6 +28,9 @@ const AREA_KEY: Record<LogicalArea, Record<OrgType, string | null>> = {
   roles: { club: "usersRoles", association: "usersRoles" },
   venues: { club: "facilitiesEquipment", association: "venuesEvents" },
   volunteers: { club: "volunteersRosters", association: null },
+  training: { club: "trainingCoaching", association: "coachAccreditation" },
+  injuries: { club: "medicalInjury", association: "medicalInjury" },
+  incidents: { club: "childSafetyIncidents", association: "integrityChildSafety" },
 };
 
 export function areaKey(area: LogicalArea, orgType: OrgType): string | null {
