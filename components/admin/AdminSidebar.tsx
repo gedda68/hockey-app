@@ -8,7 +8,6 @@ import { menuConfig, MenuItem } from "../../app/(admin)/admin/global-config/menu
 import { useAuth } from "@/lib/auth/AuthContext";
 import { User } from "@/lib/auth/AuthContext";
 import { useBrand } from "@/lib/contexts/BrandContext";
-import { toast } from "sonner";
 import AdminPersonaSwitcher from "@/components/admin/AdminPersonaSwitcher";
 
 // Roles that are scoped to a club
@@ -324,8 +323,7 @@ export default function AdminSidebar() {
     );
 
   const handleLogout = async () => {
-    await logout();
-    toast.success("Logged out");
+    await logout("home");
   };
 
   const visibleMenu  = groupMenuBySection(buildMenuForUser(user));

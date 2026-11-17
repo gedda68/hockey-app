@@ -21,9 +21,7 @@ export default function AdminHeader() {
 
   const handleLogout = async () => {
     try {
-      await logout();
-      toast.success("Logged out successfully");
-      router.push("/");
+      await logout("home");
     } catch {
       toast.error("Logout failed");
     }

@@ -4,7 +4,7 @@
 import { useState, useEffect, useRef, useId } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import {
   Calendar,
   Shield,
@@ -76,7 +76,6 @@ export default function TopNavbar({ clubs, tickerLines = [] }: TopNavbarProps) {
   const [openDesktopMenu, setOpenDesktopMenu] = useState<string | null>(null);
   const [clubsDrawerOpen, setClubsDrawerOpen] = useState(false);
   const pathname = usePathname();
-  const router = useRouter();
   const { user, logout } = useAuth();
   const { tenant: portalTenant } = usePublicTenant();
   const publicHeaderBannerUrl = portalTenant?.publicHeaderBannerUrl?.trim();
@@ -128,9 +127,7 @@ export default function TopNavbar({ clubs, tickerLines = [] }: TopNavbarProps) {
 
   const handleLogout = async () => {
     try {
-      await logout();
-      toast.success("Logged out successfully");
-      router.push("/");
+      await logout("home");
     } catch (error) {
       toast.error("Logout failed");
     }

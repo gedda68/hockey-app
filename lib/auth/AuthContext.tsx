@@ -99,7 +99,8 @@ interface AuthContextType {
   setUser: (user: User | null) => void;
   refreshUser: () => Promise<void>;
   switchPersona: (personaKey: string) => Promise<void>;
-  logout: () => Promise<void>;
+  /** Signs out and returns to the club/association site (to "home") or its sign-in page (to "login"). */
+  logout: (to?: "home" | "login", reason?: string) => Promise<void>;
   hasPermission: (permission: string) => boolean;
   canAccessResource: (type: "association" | "club", id: string) => boolean;
 }
@@ -251,29 +252,42 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const logout = useCallback(async () => {
+  /** Sign out on the server (which says where to go next), clear local state, then do a full navigation. */
+  const signOut = useCallback(async (to: "home" | "login", reason?: string) => {
     if (idleTimer.current) clearTimeout(idleTimer.current);
+    let redirectTo = to === "login" ? "/login" : "/";
     try {
-      await fetch("/api/auth/logout", { method: "POST" });
+      const res = await fetch("/api/auth/logout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          to,
+          reason,
+          pathname: window.location.pathname,
+          search: window.location.search,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (typeof data.redirectTo === "string" && data.redirectTo) redirectTo = data.redirectTo;
     } catch {
-      // ignore network errors
+      // ignore network errors: fall back to the same-host page
     }
     setUserState(null);
     localStorage.removeItem("user");
-    router.push("/login");
-  }, [router]);
+    // Full page load: drops the signed-in client state and keeps the club/association host.
+    window.location.assign(redirectTo);
+  }, []);
+
+  const logout = useCallback((to: "home" | "login" = "login", reason?: string) => signOut(to, reason), [signOut]);
 
   // ── 30-minute inactivity timer ───────────────────────────────────────────
   const resetIdleTimer = useCallback(() => {
     if (idleTimer.current) clearTimeout(idleTimer.current);
     idleTimer.current = setTimeout(() => {
       // Auto-logout on 30 min idle
-      fetch("/api/auth/logout", { method: "POST" }).catch(() => {});
-      setUserState(null);
-      localStorage.removeItem("user");
-      router.push("/login?reason=idle");
+      void signOut("login", "idle");
     }, IDLE_TIMEOUT_MS);
-  }, [router]);
+  }, [signOut]);
 
   // Attach / detach activity listeners when user is logged in
   useEffect(() => {
