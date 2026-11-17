@@ -7,6 +7,8 @@
  * playerId is the memberId (e.g. "CHC-0000001").
  */
 
+import { syncMatrixHoldingsForRemoval } from "@/lib/access/legacySync";
+import { normalizeMemberRoles } from "@/lib/auth/memberRoles";
 import { NextRequest, NextResponse } from "next/server";
 import { playerViewFields, playerEditToMemberSet } from "@/lib/players/memberPlayerMap";
 import clientPromise from "@/lib/mongodb";
@@ -200,6 +202,18 @@ export async function PUT(
     if (body.playerInfo)        update.playerInfo        = body.playerInfo;
 
     await db.collection("members").updateOne({ memberId: playerId }, { $set: update });
+
+    // Roles taken off this person also end the matrix holdings that were created from them.
+    if (body.roles) {
+      const clubOf = (existing.membership?.clubId || existing.clubId) as string | undefined;
+      await syncMatrixHoldingsForRemoval(
+        db,
+        playerId,
+        normalizeMemberRoles(existing.roles, clubOf) as never,
+        normalizeMemberRoles(body.roles, clubOf) as never,
+        "player-edit",
+      );
+    }
 
     const updated = await db.collection("members").findOne({ memberId: playerId });
     return NextResponse.json({
