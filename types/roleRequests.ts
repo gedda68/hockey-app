@@ -91,6 +91,15 @@ export interface RoleRequest {
   requestedByName: string;
   requestedAt: string;  // ISO date string
 
+  /** Present when the member is under 18: a parent/guardian must approve before an administrator can. */
+  guardianApproval?: {
+    status: "pending" | "approved" | "refused";
+    guardianIds: string[];
+    decidedBy?: string;
+    decidedByName?: string;
+    decidedAt?: string;
+  };
+
   // ── Fee ───────────────────────────────────────────────────────────────────
   requiresFee: boolean;
   /** Amount in cents to avoid floating-point issues */

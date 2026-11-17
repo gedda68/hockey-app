@@ -20,6 +20,7 @@ import { v4 as uuidv4 } from "uuid";
 import clientPromise from "@/lib/mongodb";
 import { getSession } from "@/lib/auth/session";
 import { ROLE_DEFINITIONS } from "@/lib/types/roles";
+import { guardianCheckForRequest, type GuardianApproval } from "@/lib/access/guardians";
 import { resolveFeeWithFallback, buildFeeDescription } from "@/lib/fees/feeSchedule";
 import { calculateGST } from "@/lib/fees/gst";
 import type { SubmitRoleRequestBody, RoleRequest } from "@/types/roleRequests";
@@ -117,7 +118,7 @@ export async function POST(request: NextRequest) {
     const idField     = accountType === "user" ? "userId" : "memberId";
     const account = await db.collection(collection).findOne(
       { [idField]: memberId },
-      { projection: { personalInfo: 1, firstName: 1, lastName: 1, username: 1 } }
+      { projection: { memberId: 1, personalInfo: 1, family: 1, firstName: 1, lastName: 1, username: 1 } }
     );
 
     if (!account) {
@@ -143,6 +144,14 @@ export async function POST(request: NextRequest) {
         { error: "An open request for this role already exists", existingRequestId: duplicate.requestId },
         { status: 409 }
       );
+    }
+
+    // ── Under-18s: junior roles only, and a parent/guardian must approve ──────────
+    let guardianApproval: GuardianApproval | undefined;
+    if (accountType === "member") {
+      const gc = await guardianCheckForRequest(db, account, requestedRole, { memberId: session.memberId, name: session.name });
+      if (gc.required && !gc.ok) return NextResponse.json({ error: gc.error }, { status: gc.status });
+      if (gc.required && gc.ok) guardianApproval = gc.approval;
     }
 
     // ── Resolve scope name + fee schedule ────────────────────────────────────
@@ -261,6 +270,7 @@ export async function POST(request: NextRequest) {
       ...(resolvedGstAmountCents !== undefined
         ? { gstAmountCents: resolvedGstAmountCents }
         : {}),
+      ...(guardianApproval ? { guardianApproval } : {}),
       feePaid:              false,
       status,
       createdAt:            now,
@@ -288,9 +298,13 @@ export async function POST(request: NextRequest) {
         requestId: roleRequest.requestId,
         status,
         requiresFee,
-        message: requiresFee
-          ? "Request submitted. Please complete fee payment to proceed."
-          : "Request submitted and is awaiting admin approval.",
+        guardianApproval: guardianApproval?.status ?? null,
+        message:
+          guardianApproval?.status === "pending"
+            ? "Request submitted. A parent/guardian needs to approve it before it can be approved."
+            : requiresFee
+              ? "Request submitted. Please complete fee payment to proceed."
+              : "Request submitted and is awaiting admin approval.",
       },
       { status: 201 }
     );
@@ -313,6 +327,19 @@ export async function GET(request: NextRequest) {
     const db = client.db();
 
     const { searchParams } = new URL(request.url);
+
+    // Requests from the people I'm a parent/guardian for that are waiting on me.
+    if (searchParams.get("box") === "guardian") {
+      const me = session.memberId?.trim();
+      if (!me) return NextResponse.json({ requests: [] });
+      const requests = await db
+        .collection("role_requests")
+        .find({ "guardianApproval.status": "pending", "guardianApproval.guardianIds": me, status: { $in: ["pending_payment", "awaiting_approval"] } })
+        .sort({ createdAt: -1 })
+        .toArray();
+      return NextResponse.json({ requests });
+    }
+
     const memberId = searchParams.get("memberId");
 
     if (!memberId) {

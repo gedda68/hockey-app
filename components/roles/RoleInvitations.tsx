@@ -9,16 +9,21 @@ import { BadgeCheck } from "lucide-react";
 
 interface Invite { appointmentId: string; roleName: string; orgType: string; orgId: string; sentByName?: string; message?: string; season?: string; status: string; blueCardRequired?: boolean; memberName?: string; guardianApproval?: { status: string } }
 
+interface ChildRequest { requestId: string; memberName: string; requestedRole: string; scopeName?: string; seasonYear?: string; requestedByName?: string; notes?: string }
+
 export default function RoleInvitations() {
+  const [childRequests, setChildRequests] = useState<ChildRequest[]>([]);
   const [items, setItems] = useState<Invite[]>([]);
   const [forChildren, setForChildren] = useState<Invite[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    const [r, g] = await Promise.all([
+    const [r, g, cr] = await Promise.all([
       fetch("/api/member/role-appointments?box=inbox", { credentials: "include" }).catch(() => null),
       fetch("/api/member/role-appointments?box=guardian", { credentials: "include" }).catch(() => null),
+      fetch("/api/role-requests?box=guardian", { credentials: "include" }).catch(() => null),
     ]);
+    if (cr?.ok) setChildRequests((await cr.json()).requests ?? []);
     if (r?.ok) setItems(((await r.json()).appointments ?? []).filter((a: Invite) => a.status === "pending"));
     if (g?.ok) setForChildren((await g.json()).appointments ?? []);
   }, []);
@@ -41,10 +46,39 @@ export default function RoleInvitations() {
     }
   };
 
-  if (items.length === 0 && forChildren.length === 0) return null;
+  const decideRequest = async (id: string, action: "approve" | "refuse") => {
+    setBusy(id);
+    try {
+      const r = await fetch(`/api/role-requests/${id}/guardian`, { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action }) });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.error || "Failed");
+      toast.success(action === "approve" ? "Approved. An administrator can now approve it." : "Declined");
+      await load();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed");
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  if (items.length === 0 && forChildren.length === 0 && childRequests.length === 0) return null;
   return (
     <div className="space-y-3">
       <h2 className="text-xs font-black uppercase text-slate-400 tracking-widest">Role invitations</h2>
+      {childRequests.map((c) => (
+        <div key={c.requestId} className="bg-white rounded-2xl border-2 border-sky-200 shadow-sm p-5 flex flex-col sm:flex-row sm:items-center gap-3">
+          <BadgeCheck className="h-6 w-6 text-sky-500 shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-black text-slate-800">{c.memberName || "Your child"} has asked for: {c.requestedRole}{c.scopeName ? ` · ${c.scopeName}` : ""}{c.seasonYear ? ` · ${c.seasonYear}` : ""}</p>
+            <p className="text-xs font-semibold text-slate-500">Requested by {c.requestedByName || "them"}. As their parent/guardian, your approval is needed before an administrator can approve it.</p>
+            {c.notes && <p className="text-xs text-slate-500 mt-1 italic">&ldquo;{c.notes}&rdquo;</p>}
+          </div>
+          <div className="flex gap-2">
+            <button disabled={busy === c.requestId} onClick={() => decideRequest(c.requestId, "approve")} className="rounded-xl bg-teal-600 px-4 py-2 text-xs font-black text-white hover:bg-teal-700 disabled:opacity-60">Approve</button>
+            <button disabled={busy === c.requestId} onClick={() => decideRequest(c.requestId, "refuse")} className="rounded-xl border-2 border-slate-200 px-4 py-2 text-xs font-black text-slate-600 hover:bg-slate-50 disabled:opacity-60">Refuse</button>
+          </div>
+        </div>
+      ))}
       {forChildren.map((i) => (
         <div key={i.appointmentId} className="bg-white rounded-2xl border-2 border-sky-200 shadow-sm p-5 flex flex-col sm:flex-row sm:items-center gap-3">
           <BadgeCheck className="h-6 w-6 text-sky-500 shrink-0" />

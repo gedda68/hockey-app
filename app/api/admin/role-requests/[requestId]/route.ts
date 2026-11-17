@@ -14,6 +14,7 @@
  *   super-admin can act on everything.
  */
 
+import { guardianCheckForRequest } from "@/lib/access/guardians";
 import { areaGuard } from "@/lib/access/enforce";
 import { syncMatrixHoldingsForGrant } from "@/lib/access/legacySync";
 import { NextRequest, NextResponse } from "next/server";
@@ -338,6 +339,31 @@ export async function PATCH(
     // ── APPROVE ───────────────────────────────────────────────────────────────
     if (action === "approve") {
       const { reviewNotes, waiveFee, waiverReason } = body as ApproveRoleRequestBody;
+
+      // ── Under-18s need a parent/guardian's approval first ─────────────────────
+      if (req.accountType === "member") {
+        const ga = req.guardianApproval;
+        if (ga) {
+          if (ga.status === "pending") {
+            return NextResponse.json({ error: "A parent/guardian needs to approve this request first." }, { status: 409 });
+          }
+          if (ga.status === "refused") {
+            return NextResponse.json({ error: "A parent/guardian declined this request." }, { status: 409 });
+          }
+        } else {
+          // Requests made before this rule: check now, and ask the guardian if one is needed.
+          const target = await db.collection("members").findOne(
+            { memberId: req.memberId },
+            { projection: { memberId: 1, personalInfo: 1, family: 1 } },
+          );
+          const gc = await guardianCheckForRequest(db, target, req.requestedRole);
+          if (gc.required && !gc.ok) return NextResponse.json({ error: gc.error }, { status: 409 });
+          if (gc.required && gc.ok && gc.approval.status !== "approved") {
+            await db.collection("role_requests").updateOne({ requestId }, { $set: { guardianApproval: gc.approval, updatedAt: now } });
+            return NextResponse.json({ error: "They're under 18, so a parent/guardian has been asked to approve this request first." }, { status: 409 });
+          }
+        }
+      }
 
       // ── Fee gate ───────────────────────────────────────────────────────────
       if (req.requiresFee && !req.feePaid) {
