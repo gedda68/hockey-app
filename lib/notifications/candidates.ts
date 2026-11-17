@@ -41,6 +41,8 @@ export function matchCandidates(
   clubOfTeam: Map<string, string>,
   now: Date,
   withinHours = 72,
+  /** For a child's match shown to their guardian: the child's first name. */
+  forChild?: { memberId: string; name: string },
 ): Candidate[] {
   const out: Candidate[] = [];
   const limit = now.getTime() + withinHours * HOUR;
@@ -54,11 +56,11 @@ export function matchCandidates(
     const opp = teamNames.get(String(home ? f.awayTeamId : f.homeTeamId)) ?? "TBC";
     const me = teamNames.get(mine) ?? "Your team";
     out.push({
-      dedupeKey: `match:${f.fixtureId}:${mine}`,
+      dedupeKey: `match:${f.fixtureId}:${mine}${forChild ? `:${forChild.memberId}` : ""}`,
       level: "club",
       category: "matches",
       type: "upcoming_match",
-      title: `${me} ${home ? "v" : "@"} ${opp}`,
+      title: `${forChild ? `${forChild.name}: ` : ""}${me} ${home ? "v" : "@"} ${opp}`,
       message: `${whenText(f.scheduledStart)}${f.venueName ? ` at ${f.venueName}` : ""}${f.round ? ` · Round ${f.round}` : ""}`,
       link: "/admin/my-registration",
       eventAt: f.scheduledStart,

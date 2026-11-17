@@ -42,9 +42,16 @@ export async function gatherCandidates(db: Db, memberId: string, now: Date): Pro
   const birthYear = member.personalInfo?.dateOfBirth ? new Date(String(member.personalInfo.dateOfBirth)).getFullYear() : null;
   const out: Candidate[] = [];
 
-  // Matches: this member's teams, next 3 days.
-  const teams = await db.collection("teams").find({ "roster.memberId": memberId }, { projection: { teamId: 1, clubId: 1, name: 1, displayName: 1 } }).toArray();
-  if (teams.length) {
+  // Matches: this member's teams, and their children's teams (shown to the guardian), next 3 days.
+  const kids = await childrenOf(db, memberId);
+  const kidIds = kids.map((k) => String(k.memberId));
+  const matchSubjects: { id: string; child?: { memberId: string; name: string } }[] = [
+    { id: memberId },
+    ...kids.map((k: any) => ({ id: String(k.memberId), child: { memberId: String(k.memberId), name: String(k.personalInfo?.firstName ?? k.firstName ?? k.name ?? "Your child").trim() || "Your child" } })),
+  ];
+  for (const subject of matchSubjects) {
+    const teams = await db.collection("teams").find({ "roster.memberId": subject.id }, { projection: { teamId: 1, clubId: 1, name: 1, displayName: 1 } }).toArray();
+    if (!teams.length) continue;
     const myTeamIds = new Set(teams.map((t) => String(t.teamId)));
     const fixtures = (await db
       .collection("league_fixtures")
@@ -58,7 +65,7 @@ export async function gatherCandidates(db: Db, memberId: string, now: Date): Pro
     for (const f of fixtures) { if (f.homeTeamId) ids.add(f.homeTeamId); if (f.awayTeamId) ids.add(f.awayTeamId); }
     const named = await db.collection("teams").find({ teamId: { $in: [...ids] } }, { projection: { teamId: 1, name: 1, displayName: 1 } }).toArray();
     const names = new Map(named.map((t) => [String(t.teamId), String(t.displayName || t.name || "")]));
-    out.push(...matchCandidates(fixtures, myTeamIds, names, new Map(teams.map((t) => [String(t.teamId), String(t.clubId ?? "")])), now));
+    out.push(...matchCandidates(fixtures, myTeamIds, names, new Map(teams.map((t) => [String(t.teamId), String(t.clubId ?? "")])), now, 72, subject.child));
   }
 
   // Nomination deadlines for my club and association.
@@ -104,8 +111,6 @@ export async function gatherCandidates(db: Db, memberId: string, now: Date): Pro
   out.push(...announcementCandidates(announcements, now));
 
   // Waiting on me: invitations, and approvals for my children.
-  const kids = await childrenOf(db, memberId);
-  const kidIds = kids.map((k) => String(k.memberId));
   const [invites, kidAppts, kidReqs] = await Promise.all([
     db.collection("role_appointments").find({ memberId, status: "pending", $or: [{ "guardianApproval.status": { $exists: false } }, { "guardianApproval.status": "approved" }] }).limit(20).toArray(),
     kidIds.length ? db.collection("role_appointments").find({ memberId: { $in: kidIds }, status: "pending", "guardianApproval.status": "pending", "guardianApproval.guardianIds": memberId }).limit(20).toArray() : [],

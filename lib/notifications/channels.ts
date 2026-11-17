@@ -6,19 +6,34 @@
 import type { Db } from "mongodb";
 import { allows, CHANNELS, type Channel, type NotificationPrefs } from "@/lib/notifications/prefs";
 import type { Candidate } from "@/lib/notifications/candidates";
+import { emailConfigured, sendNotificationEmail } from "@/lib/notifications/senders/email";
+import { smsConfigured, sendNotificationSms } from "@/lib/notifications/senders/sms";
 
 export interface Recipient { memberId: string; email?: string | null; mobile?: string | null }
 export type ChannelSender = (n: Candidate, to: Recipient, db: Db) => Promise<void>;
 
-/** Fill in as channels come online, e.g. `SENDERS.email = sendNotificationEmail`. */
+/** Overrides (used by tests). Normally the senders come from {@link senderFor}, based on what's configured. */
 export const SENDERS: Partial<Record<Exclude<Channel, "inApp">, ChannelSender>> = {};
+
+/** The sender for a channel, or undefined when it isn't set up (no API keys). Social has no sender yet. */
+export function senderFor(ch: Exclude<Channel, "inApp">): ChannelSender | undefined {
+  if (SENDERS[ch]) return SENDERS[ch];
+  if (ch === "email" && emailConfigured()) return sendNotificationEmail;
+  if (ch === "sms" && smsConfigured()) return sendNotificationSms;
+  return undefined;
+}
+
+/** Channels that actually deliver right now. */
+export function liveChannels(): Channel[] {
+  return CHANNELS.filter((c) => c === "inApp" || !!senderFor(c));
+}
 
 /** Sends a newly created notification on every extra channel the person has on for it. Never throws. */
 export async function dispatchExtraChannels(db: Db, n: Candidate, to: Recipient, prefs: NotificationPrefs): Promise<Channel[]> {
   const sent: Channel[] = [];
   for (const ch of CHANNELS) {
     if (ch === "inApp") continue;
-    const send = SENDERS[ch];
+    const send = senderFor(ch);
     if (!send || !allows(prefs, n, ch)) continue;
     try {
       await send(n, to, db);

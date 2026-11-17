@@ -8,7 +8,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { getDatabase } from "@/lib/mongodb";
 import { getSession } from "@/lib/auth/session";
 import { resolveSessionMemberId } from "@/lib/auth/sessionMember";
-import { applyPrefsPatch, LIVE_CHANNELS } from "@/lib/notifications/prefs";
+import { applyPrefsPatch } from "@/lib/notifications/prefs";
+import { liveChannels } from "@/lib/notifications/channels";
 import { loadPrefs } from "@/lib/notifications/engine";
 
 async function who(): Promise<{ memberId: string } | NextResponse> {
@@ -25,7 +26,7 @@ export async function GET(): Promise<NextResponse> {
     const w = await who();
     if (w instanceof NextResponse) return w;
     const { prefs } = await loadPrefs(await getDatabase(), w.memberId);
-    return NextResponse.json({ prefs, live: LIVE_CHANNELS });
+    return NextResponse.json({ prefs, live: liveChannels() });
   } catch (e) {
     console.error("notification-preferences GET error:", e);
     return NextResponse.json({ error: "Failed to load" }, { status: 500 });
@@ -43,7 +44,7 @@ export async function PUT(request: NextRequest): Promise<NextResponse> {
     const next = applyPrefsPatch(prefs, patch);
     // Clear the refresh stamp so a switched-on category fills its inbox on the next look.
     await db.collection("members").updateOne({ memberId: w.memberId }, { $set: { notificationPrefs: next, notificationsRefreshedAt: null } });
-    return NextResponse.json({ prefs: next, live: LIVE_CHANNELS });
+    return NextResponse.json({ prefs: next, live: liveChannels() });
   } catch (e) {
     console.error("notification-preferences PUT error:", e);
     return NextResponse.json({ error: "Failed to save" }, { status: 500 });
