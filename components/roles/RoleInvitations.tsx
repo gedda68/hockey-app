@@ -11,7 +11,7 @@ interface Invite { appointmentId: string; roleName: string; orgType: string; org
 
 interface ChildRequest { requestId: string; memberName: string; requestedRole: string; scopeName?: string; seasonYear?: string; requestedByName?: string; notes?: string }
 
-export default function RoleInvitations() {
+export default function RoleInvitations({ mode = "all", showEmpty = false }: { mode?: "all" | "mine" | "guardian"; showEmpty?: boolean }) {
   const [childRequests, setChildRequests] = useState<ChildRequest[]>([]);
   const [items, setItems] = useState<Invite[]>([]);
   const [forChildren, setForChildren] = useState<Invite[]>([]);
@@ -61,11 +61,20 @@ export default function RoleInvitations() {
     }
   };
 
-  if (items.length === 0 && forChildren.length === 0 && childRequests.length === 0) return null;
+  const mine = mode !== "guardian" ? items : [];
+  const kidAppts = mode !== "mine" ? forChildren : [];
+  const kidReqs = mode !== "mine" ? childRequests : [];
+  if (mine.length === 0 && kidAppts.length === 0 && kidReqs.length === 0) {
+    return showEmpty ? (
+      <div className="rounded-2xl border-2 border-dashed border-slate-200 bg-white p-8 text-center text-sm font-semibold text-slate-400">
+        {mode === "guardian" ? "Nothing is waiting for your approval." : "No invitations right now."}
+      </div>
+    ) : null;
+  }
   return (
     <div className="space-y-3">
-      <h2 className="text-xs font-black uppercase text-slate-400 tracking-widest">Role invitations</h2>
-      {childRequests.map((c) => (
+      {mode === "all" && <h2 className="text-xs font-black uppercase text-slate-400 tracking-widest">Role invitations</h2>}
+      {kidReqs.map((c) => (
         <div key={c.requestId} className="bg-white rounded-2xl border-2 border-sky-200 shadow-sm p-5 flex flex-col sm:flex-row sm:items-center gap-3">
           <BadgeCheck className="h-6 w-6 text-sky-500 shrink-0" />
           <div className="flex-1 min-w-0">
@@ -79,7 +88,7 @@ export default function RoleInvitations() {
           </div>
         </div>
       ))}
-      {forChildren.map((i) => (
+      {kidAppts.map((i) => (
         <div key={i.appointmentId} className="bg-white rounded-2xl border-2 border-sky-200 shadow-sm p-5 flex flex-col sm:flex-row sm:items-center gap-3">
           <BadgeCheck className="h-6 w-6 text-sky-500 shrink-0" />
           <div className="flex-1 min-w-0">
@@ -93,7 +102,7 @@ export default function RoleInvitations() {
           </div>
         </div>
       ))}
-      {items.map((i) => (
+      {mine.map((i) => (
         <div key={i.appointmentId} className="bg-white rounded-2xl border-2 border-amber-200 shadow-sm p-5 flex flex-col sm:flex-row sm:items-center gap-3">
           <BadgeCheck className="h-6 w-6 text-amber-500 shrink-0" />
           <div className="flex-1 min-w-0">

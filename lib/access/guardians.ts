@@ -88,3 +88,27 @@ export async function guardianCheckForRequest(
   }
   return { required: true, ok: true, approval: { status: "pending", guardianIds } };
 }
+
+// ── Children (reverse lookup) ─────────────────────────────────────────────────
+
+/** Members I am a recorded parent/guardian of (linked on their record, or primary contact of their family). */
+export async function childrenOf(db: Db, guardianMemberId: string): Promise<any[]> {
+  const me = String(guardianMemberId ?? "").trim();
+  if (!me) return [];
+  const proj = { memberId: 1, personalInfo: 1, family: 1, clubId: 1, "membership.clubId": 1, "membership.status": 1, roleHoldings: 1 };
+  const candidates = new Map<string, any>();
+  const linked = await db.collection("members").find({ "personalInfo.relatedMembers.memberId": me }, { projection: proj }).toArray();
+  for (const c of linked) candidates.set(String(c.memberId), c);
+  const mine = await db.collection("members").findOne({ memberId: me }, { projection: { family: 1 } });
+  const familyId = String((mine as any)?.family?.familyId ?? "").trim();
+  if (familyId && (mine as any)?.family?.isPrimaryContact) {
+    const fam = await db.collection("members").find({ "family.familyId": familyId }, { projection: proj }).toArray();
+    for (const c of fam) candidates.set(String(c.memberId), c);
+  }
+  candidates.delete(me);
+  const out: any[] = [];
+  for (const c of candidates.values()) {
+    if ((await guardianIdsFor(db, c)).includes(me)) out.push(c);
+  }
+  return out;
+}
