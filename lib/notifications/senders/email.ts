@@ -9,7 +9,7 @@ const absolute = (link: string) => (/^https?:\/\//i.test(link) ? link : `${APP_U
 export const emailConfigured = () => !!process.env.RESEND_API_KEY;
 
 export const sendNotificationEmail: ChannelSender = async (n, to) => {
-  if (!to.email) return;
+  if (!to.email) throw new Error("No email address on file");
   const url = absolute(n.link);
   const r = await sendEmail({
     to: to.email,

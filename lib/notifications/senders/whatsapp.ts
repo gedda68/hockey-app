@@ -19,7 +19,8 @@ export const templateField = (s: string, max = 200) => {
 
 export const sendNotificationWhatsApp: ChannelSender = async (n, to) => {
   const phone = toE164(to.mobile);
-  if (!phone || !whatsappConfigured()) return;
+  if (!whatsappConfigured()) return;
+  if (!phone) throw new Error("No valid mobile number on file");
   const res = await fetch(`https://graph.facebook.com/v21.0/${process.env.WHATSAPP_PHONE_NUMBER_ID}/messages`, {
     method: "POST",
     headers: { Authorization: `Bearer ${process.env.WHATSAPP_ACCESS_TOKEN}`, "Content-Type": "application/json" },

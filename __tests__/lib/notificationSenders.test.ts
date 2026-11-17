@@ -38,7 +38,7 @@ describe("email sender", () => {
     expect(arg.html).toContain("https://app.example.com/admin/notifications");
   });
   it("does nothing without an address, and throws when sending fails", async () => {
-    await sendNotificationEmail(n, { memberId: "m", email: null }, db);
+    await expect(sendNotificationEmail(n, { memberId: "m", email: null }, db)).rejects.toThrow(/No email/);
     expect(sendEmail).not.toHaveBeenCalled();
     sendEmail.mockResolvedValueOnce({ success: false });
     await expect(sendNotificationEmail(n, { memberId: "m", email: "a@b.com" }, db)).rejects.toThrow();
@@ -59,7 +59,7 @@ describe("sms sender", () => {
     await sendNotificationSms(n, { memberId: "m", mobile: "0412345678" }, db);
     expect(fetchMock).not.toHaveBeenCalled();
     Object.assign(process.env, { TWILIO_ACCOUNT_SID: "AC1", TWILIO_AUTH_TOKEN: "t", TWILIO_FROM: "+61400000000" });
-    await sendNotificationSms(n, { memberId: "m", mobile: "nope" }, db);
+    await expect(sendNotificationSms(n, { memberId: "m", mobile: "nope" }, db)).rejects.toThrow(/mobile/);
     expect(fetchMock).not.toHaveBeenCalled();
     await sendNotificationSms(n, { memberId: "m", mobile: "0412345678" }, db);
     const [url, init] = fetchMock.mock.calls[0] as unknown as [string, { body: URLSearchParams }];
@@ -94,7 +94,7 @@ describe("whatsapp sender", () => {
     await sendNotificationWhatsApp(n, { memberId: "m", mobile: "0412345678" }, db);
     expect(fetchMock).not.toHaveBeenCalled();
     Object.assign(process.env, { WHATSAPP_PHONE_NUMBER_ID: "999", WHATSAPP_ACCESS_TOKEN: "tok", WHATSAPP_TEMPLATE_NAME: "alert" });
-    await sendNotificationWhatsApp(n, { memberId: "m", mobile: "bad" }, db);
+    await expect(sendNotificationWhatsApp(n, { memberId: "m", mobile: "bad" }, db)).rejects.toThrow(/mobile/);
     expect(fetchMock).not.toHaveBeenCalled();
     await sendNotificationWhatsApp(n, { memberId: "m", mobile: "0412345678" }, db);
     const [url, init] = fetchMock.mock.calls[0] as unknown as [string, { body: string; headers: Record<string, string> }];

@@ -41,10 +41,10 @@ export async function dispatchExtraChannels(db: Db, n: Candidate, to: Recipient,
     try {
       await send(n, to, db);
       sent.push(ch);
-      await logDelivery(db, { memberId: to.memberId, dedupeKey: n.dedupeKey, channel: ch, status: "sent", category: n.category, level: n.level, clubId: n.clubId });
+      await logDelivery(db, { memberId: to.memberId, dedupeKey: n.dedupeKey, channel: ch, status: "sent", category: n.category, level: n.level, clubId: n.clubId, title: n.title });
     } catch (e) {
       console.error(`notification ${ch} send failed:`, e);
-      await logDelivery(db, { memberId: to.memberId, dedupeKey: n.dedupeKey, channel: ch, status: "failed", error: e instanceof Error ? e.message : String(e), category: n.category, level: n.level, clubId: n.clubId });
+      await logDelivery(db, { memberId: to.memberId, dedupeKey: n.dedupeKey, channel: ch, status: "failed", error: e instanceof Error ? e.message : String(e), category: n.category, level: n.level, clubId: n.clubId, title: n.title });
     }
   }
   return sent;
