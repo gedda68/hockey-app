@@ -6,6 +6,7 @@ import { use, useEffect, useState } from "react";
 import { fullSections, type SectionMap } from "@/lib/access/profileSections";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useAuth } from "@/lib/auth/AuthContext";
 import {
   ArrowLeft, Pencil, User, Mail, Phone, MapPin, CreditCard,
   Heart, Shield, AlertCircle, Loader2, Calendar, Hash,
@@ -92,6 +93,7 @@ function RolePill({ role }: { role: string }) {
 export default function MemberViewPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const router  = useRouter();
+  const { hasPermission } = useAuth();
   const [member, setMember]   = useState<any>(null);
   const [related, setRelated] = useState<MemberRelated | undefined>(undefined);
   const [playerStats, setPlayerStats] = useState<PlayerStats | null>(null);
@@ -160,12 +162,12 @@ export default function MemberViewPage({ params }: { params: Promise<{ id: strin
         <Link href="/admin/members" className="flex items-center gap-2 text-slate-600 hover:text-slate-900 font-bold transition-colors">
           <ArrowLeft size={18} /> Back to Members
         </Link>
-        <Link
+        {hasPermission("member.edit") && <Link
           href={`/admin/members/${id}/edit`}
           className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold transition-colors shadow"
         >
           <Pencil size={16} /> Edit Member
-        </Link>
+        </Link>}
       </div>
 
       {/* ── Profile hero ──────────────────────────────────────────────────── */}
@@ -352,7 +354,7 @@ export default function MemberViewPage({ params }: { params: Promise<{ id: strin
           <ArrowLeft size={16} /> Back to Members
         </Link>
         <div className="flex items-center gap-3">
-          {Object.values(sections).some((x) => x.edit) && <Link
+          {hasPermission("member.edit") && Object.values(sections).some((x) => x.edit) && <Link
             href={`/admin/members/${id}/edit`}
             className="flex items-center gap-2 px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold transition-colors"
           >

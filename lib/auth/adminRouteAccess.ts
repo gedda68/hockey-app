@@ -241,9 +241,9 @@ const ROUTE_RULES: RouteRule[] = [
     scopeCheck: true,
   },
 
-  /** Read-only oversight: association staff may open the lists and detail pages, never create/edit pages. */
+  /** Read-only oversight: association staff may open the lists and detail pages (a club's page is its form, shown locked), never create pages. */
   {
-    pattern: /^\/admin\/clubs\/?$|^\/admin\/clubs\/(?!new\/?$|selection-policy\/?$)[^/]+\/?$/,
+    pattern: /^\/admin\/clubs\/?$|^\/admin\/clubs\/(?!new\/?$|selection-policy\/?$)[^/]+(\/edit)?\/?$/,
     allowedRoles: [...CLUB_MANAGEMENT, ...ASSOC_OVERSIGHT],
     scopeCheck: true,
   },

@@ -23,6 +23,7 @@ import {
 import Link from "next/link";
 import { ToastContainer, useToast } from "@/components/ui/Toast";
 import { useAdminEditingScope } from "@/components/admin/AdminEditingScopeProvider";
+import { useAuth } from "@/lib/auth/AuthContext";
 import { getErrorMessage } from "@/lib/utils/errors";
 
 // Types
@@ -133,6 +134,9 @@ export default function ClubForm({
   const router = useRouter();
   const isEdit = Boolean(clubId);
   const editingScope = useAdminEditingScope();
+  const { hasPermission } = useAuth();
+  // Association staff can look at a club but not change it: same form, locked, no Save.
+  const readOnly = isEdit && !hasPermission("club.edit");
   const { toasts, dismiss, success, error: toastError } = useToast();
 
   const [currentSection, setCurrentSection] = useState<SectionId>("identity");
@@ -576,6 +580,7 @@ export default function ClubForm({
 
   return (
     <>
+      <fieldset disabled={readOnly} className="m-0 min-w-0 border-0 p-0">
       <div className="max-w-5xl mx-auto space-y-6 pb-32">
         {/* Header */}
         <div className="bg-white rounded-[2rem] shadow-xl border border-slate-100 p-8">
@@ -586,10 +591,10 @@ export default function ClubForm({
               </div>
               <div>
                 <h1 className="text-4xl font-black text-[#06054e]">
-                  {isEdit ? "Edit Club" : "New Club"}
+                  {readOnly ? "Club" : isEdit ? "Edit Club" : "New Club"}
                 </h1>
                 <p className="text-slate-500 font-bold">
-                  {isEdit ? "Update club details" : "Create a new hockey club"}
+                  {readOnly ? "Club details (view only)" : isEdit ? "Update club details" : "Create a new hockey club"}
                 </p>
               </div>
             </div>
@@ -701,6 +706,7 @@ export default function ClubForm({
           </div>
         )}
       </div>
+      </fieldset>
 
       {/* Action Bar */}
       <div className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t-2 border-slate-100 shadow-2xl">
@@ -711,7 +717,7 @@ export default function ClubForm({
             className="flex items-center gap-2 px-6 py-3 border-2 border-slate-200 text-slate-700 rounded-xl font-bold hover:bg-slate-50"
           >
             <X size={18} />
-            Cancel
+            {readOnly ? "Back" : "Cancel"}
           </button>
 
           <div className="flex-1" />
@@ -738,7 +744,7 @@ export default function ClubForm({
             </button>
           )}
 
-          {(isEdit || isLastSection) && (
+          {!readOnly && (isEdit || isLastSection) && (
             <button
               type="button"
               onClick={handleSave}
