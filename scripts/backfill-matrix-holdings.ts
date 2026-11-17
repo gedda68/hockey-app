@@ -2,7 +2,9 @@
  * scripts/backfill-matrix-holdings.ts   (DRY-RUN by default — nothing is written without --apply)
  *
  * Gives every member the Roles & Access Matrix holdings (members.roleHoldings) that match the older roles
- * they already hold (members.roles[]), so the two systems agree. Existing holdings are never changed, and a
+ * they already hold (members.roles[] and the role on their login, members.auth.role), so the two systems agree.
+ * Club and association administrators are listed for review, not mapped: they keep full access through the
+ * legacy role and the matrix role is narrower. Existing holdings are never changed, and a
  * legacy role is only mapped when the matrix role covers the same ground. Roles that need a person to choose
  * (club-wide coach/manager -> which teams, association selector -> which squads) are listed for review and
  * left exactly as they are.
@@ -17,9 +19,9 @@ import "./load-env";
 import fs from "node:fs";
 import path from "node:path";
 import { MongoClient } from "mongodb";
-import { planMemberHoldings, type LegacyAssignment, type MigratedHolding } from "../lib/access/legacyMapping";
+import { planMemberHoldings, AUTH_ROLES_TO_SYNC, type LegacyAssignment, type MigratedHolding } from "../lib/access/legacyMapping";
+import { legacyAssignmentsOf } from "../lib/access/memberLegacy";
 import { contextFromTeams, teamClubLookup } from "../lib/access/legacySync";
-import { normalizeMemberRoles } from "../lib/auth/memberRoles";
 
 const DB_NAME = process.env.DB_NAME || "hockey-app";
 const arg = (n: string) => { const i = process.argv.indexOf(`--${n}`); return i >= 0 ? process.argv[i + 1] : undefined; };
@@ -27,7 +29,7 @@ const csv = (rows: unknown[][]) => rows.map((r) => r.map((v) => `"${String(v ?? 
 
 /** Same reading the sign-in uses: structured assignments as-is, plain text roles ("role-player") scoped to the member's club. */
 const clubOf = (m: any): string | null => m.clubId || m.membership?.clubId || null;
-const assignmentsFor = (m: any): LegacyAssignment[] => normalizeMemberRoles(m.roles, clubOf(m)) as unknown as LegacyAssignment[];
+const assignmentsFor = (m: any): LegacyAssignment[] => legacyAssignmentsOf(m);
 
 async function main() {
   const apply = process.argv.includes("--apply");
@@ -38,9 +40,10 @@ async function main() {
   const db = client.db(DB_NAME);
   const stamp = new Date().toISOString().replace(/[:.]/g, "-");
 
-  const filter: Record<string, unknown> = { "roles.0": { $exists: true } };
+  // Members with a roles list, plus admin/committee accounts whose role lives on the login (auth.role).
+  const filter: Record<string, unknown> = { $or: [{ "roles.0": { $exists: true } }, { "auth.role": { $in: AUTH_ROLES_TO_SYNC } }] };
   if (club) filter.clubId = club;
-  let cursor = db.collection("members").find(filter, { projection: { memberId: 1, clubId: 1, "membership.clubId": 1, roles: 1, roleHoldings: 1, "personalInfo.firstName": 1, "personalInfo.lastName": 1 } });
+  let cursor = db.collection("members").find(filter, { projection: { memberId: 1, clubId: 1, associationId: 1, "membership.clubId": 1, "membership.associationId": 1, "auth.role": 1, roles: 1, roleHoldings: 1, "personalInfo.firstName": 1, "personalInfo.lastName": 1 } });
   if (limit) cursor = cursor.limit(limit);
   const members = await cursor.toArray();
 
