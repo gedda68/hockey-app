@@ -12,7 +12,7 @@ import { getDatabase } from "@/lib/mongodb";
 import { getSession } from "@/lib/auth/session";
 import { resolveSessionMemberId } from "@/lib/auth/sessionMember";
 import { cleanAnnouncement } from "@/lib/announcements/validate";
-import { canWriteTo, COL, writableAudiences } from "@/lib/announcements/access";
+import { canWriteTo, COL, teamsBelongTo, writableAudiences } from "@/lib/announcements/access";
 
 export async function GET(request: NextRequest): Promise<NextResponse> {
   try {
@@ -28,7 +28,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       if (session.associationId) or.push({ level: "association", scopeId: session.associationId });
     }
     const rows = or.length ? await db.collection(COL).find(or.length === 1 ? or[0] : { $or: or }, { projection: { _id: 0 } }).sort({ publishAt: -1 }).limit(100).toArray() : [];
-    return NextResponse.json({ announcements: rows, audiences, defaults: { clubId: session.clubId ?? "", associationId: session.associationId ?? "" } });
+    const teams = session.clubId
+      ? (await db.collection("teams").find({ clubId: session.clubId, status: { $ne: "archived" } }, { projection: { teamId: 1, name: 1, displayName: 1 } }).limit(200).toArray()).map((t) => ({ teamId: String(t.teamId), name: String(t.displayName || t.name || t.teamId) }))
+      : [];
+    return NextResponse.json({ announcements: rows, audiences, teams, defaults: { clubId: session.clubId ?? "", associationId: session.associationId ?? "" } });
   } catch (e) {
     console.error("announcements GET error:", e);
     return NextResponse.json({ error: "Failed to load" }, { status: 500 });
@@ -49,6 +52,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
 
     const db = await getDatabase();
+    const teamIds = v.value.targeting?.teamIds ?? [];
+    if (teamIds.length && !(await teamsBelongTo(db, teamIds, v.value.level, v.value.scopeId))) {
+      return NextResponse.json({ error: "One of those teams isn't in that club or association" }, { status: 400 });
+    }
     const now = new Date().toISOString();
     const doc = {
       announcementId: `ANN-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`,

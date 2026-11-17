@@ -3,6 +3,7 @@
 // Pure: the engine loads the data and stores what comes out.
 
 import { dayInZone } from "@/lib/member/availability";
+import { isTargeted, reaches, type Subject } from "@/lib/announcements/targeting";
 import type { Category, Level } from "@/lib/notifications/prefs";
 
 export interface Candidate {
@@ -155,13 +156,15 @@ export function eventCandidates(events: EventLike[], now: Date, withinDays = 7):
 export interface AnnouncementLike {
   announcementId: string; level: "global" | "association" | "club"; scopeId?: string; title: string; body: string;
   link?: string | null; status?: string; publishAt: string; expiresAt?: string | null; pinned?: boolean;
+  targeting?: { teamIds?: string[]; includeGuardians?: boolean; maxAge?: number | null };
 }
 
 /** Published, not yet expired, and already due (scheduled ones wait). Announcements stay visible for 14 days unless they set an end. */
-export function announcementCandidates(rows: AnnouncementLike[], now: Date, keepDays = 14): Candidate[] {
+export function announcementCandidates(rows: AnnouncementLike[], now: Date, keepDays = 14, who?: { me: Subject; kids: Subject[] }): Candidate[] {
   const out: Candidate[] = [];
   for (const a of rows) {
     if (a.status && a.status !== "published") continue;
+    if (isTargeted(a.targeting) && !(who && reaches(a.targeting, who.me, who.kids, now))) continue;
     const at = Date.parse(a.publishAt);
     if (Number.isNaN(at) || at > now.getTime()) continue;
     const end = a.expiresAt ? Date.parse(a.expiresAt) : at + keepDays * DAY;

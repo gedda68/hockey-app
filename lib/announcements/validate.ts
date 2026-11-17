@@ -1,11 +1,15 @@
 // lib/announcements/validate.ts
 // Cleaning an announcement from the form, and who may publish to which audience. Pure.
 
+import { cleanTargeting, isTargeted, type Targeting } from "@/lib/announcements/targeting";
+
 export const AUDIENCES = ["global", "association", "club"] as const;
 export type Audience = (typeof AUDIENCES)[number];
 
 export interface AnnouncementInput {
   level: Audience; scopeId: string; title: string; body: string; link: string | null; publishAt: string; expiresAt: string | null;
+  /** Only set when it narrows the audience (never for "everyone"). */
+  targeting?: Targeting;
 }
 
 const str = (v: unknown, max: number) => String(v ?? "").trim().slice(0, max);
@@ -38,7 +42,8 @@ export function cleanAnnouncement(body: unknown, now: Date = new Date()): Cleane
     expiresAt = new Date(String(b.expiresAt)).toISOString();
     if (expiresAt <= publishAt) return { ok: false, error: "It would end before it starts" };
   }
-  return { ok: true, value: { level, scopeId, title, body: text, link, publishAt, expiresAt } };
+  const targeting = level === "global" ? undefined : cleanTargeting(b.targeting);
+  return { ok: true, value: { level, scopeId, title, body: text, link, publishAt, expiresAt, ...(targeting && isTargeted(targeting) ? { targeting } : {}) } };
 }
 
 /** Which audiences a login role may write to when the Roles & Access Matrix doesn't apply to them. */

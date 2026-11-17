@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { Loader2, Megaphone, Trash2 } from "lucide-react";
 
 type Audience = "global" | "association" | "club";
-interface Ann { announcementId: string; level: Audience; scopeId?: string; title: string; body: string; status: string; publishAt: string; expiresAt?: string | null; createdByName?: string }
+interface Ann { targeting?: { teamIds?: string[]; maxAge?: number | null; includeGuardians?: boolean }; announcementId: string; level: Audience; scopeId?: string; title: string; body: string; status: string; publishAt: string; expiresAt?: string | null; createdByName?: string }
 
 const inputCls = "w-full rounded-xl border-2 border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 outline-none focus:border-teal-400";
 const labelCls = "mb-1 block text-xs font-black uppercase tracking-wide text-slate-400";
@@ -24,6 +24,8 @@ async function api(url: string, init?: RequestInit) {
 export default function AnnouncementsPage() {
   const [rows, setRows] = useState<Ann[] | null>(null);
   const [audiences, setAudiences] = useState<Audience[]>([]);
+  const [teams, setTeams] = useState<{ teamId: string; name: string }[]>([]);
+  const [target, setTarget] = useState<{ teamIds: string[]; maxAge: string; includeGuardians: boolean }>({ teamIds: [], maxAge: "", includeGuardians: true });
   const [defaults, setDefaults] = useState({ clubId: "", associationId: "" });
   const [form, setForm] = useState({ level: "club" as Audience, title: "", body: "", link: "", publishAt: "", expiresAt: "" });
   const [busy, setBusy] = useState(false);
@@ -33,6 +35,7 @@ export default function AnnouncementsPage() {
       const d = await api("/api/admin/announcements");
       setRows(d.announcements ?? []);
       setAudiences(d.audiences ?? []);
+      setTeams(d.teams ?? []);
       setDefaults(d.defaults ?? { clubId: "", associationId: "" });
       if (d.audiences?.length && !d.audiences.includes("club")) setForm((f) => ({ ...f, level: d.audiences[0] }));
     } catch (e) { setRows([]); toast.error(e instanceof Error ? e.message : "Couldn't load"); }
@@ -43,9 +46,10 @@ export default function AnnouncementsPage() {
     setBusy(true);
     try {
       const scopeId = form.level === "club" ? defaults.clubId : form.level === "association" ? defaults.associationId : "";
-      await api("/api/admin/announcements", { method: "POST", body: JSON.stringify({ ...form, scopeId, link: form.link || null, publishAt: form.publishAt || null, expiresAt: form.expiresAt || null }) });
+      await api("/api/admin/announcements", { method: "POST", body: JSON.stringify({ ...form, scopeId, targeting: form.level === "global" ? undefined : { teamIds: form.level === "club" ? target.teamIds : [], maxAge: target.maxAge ? Number(target.maxAge) : null, includeGuardians: target.includeGuardians }, link: form.link || null, publishAt: form.publishAt || null, expiresAt: form.expiresAt || null }) });
       toast.success("Announcement published");
       setForm({ ...form, title: "", body: "", link: "", publishAt: "", expiresAt: "" });
+      setTarget({ teamIds: [], maxAge: "", includeGuardians: true });
       await load();
     } catch (e) { toast.error(e instanceof Error ? e.message : "Failed"); } finally { setBusy(false); }
   };
@@ -73,6 +77,24 @@ export default function AnnouncementsPage() {
               {audiences.map((a) => <option key={a} value={a}>{AUDIENCE_LABEL[a]}</option>)}
             </select></div>
           <div><label className={labelCls}>Link (optional)</label><input className={inputCls} placeholder="/events or https://…" value={form.link} onChange={(e) => setForm({ ...form, link: e.target.value })} /></div>
+          {form.level !== "global" && (
+            <div className="space-y-3 rounded-xl bg-slate-50 p-3 sm:col-span-2">
+              <div className="text-xs font-black uppercase tracking-wide text-slate-400">Narrow it down (optional)</div>
+              {form.level === "club" && teams.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {teams.map((t) => {
+                    const on = target.teamIds.includes(t.teamId);
+                    return <button type="button" key={t.teamId} onClick={() => setTarget({ ...target, teamIds: on ? target.teamIds.filter((x) => x !== t.teamId) : [...target.teamIds, t.teamId] })} className={`rounded-lg px-3 py-1 text-xs font-black ${on ? "bg-teal-500 text-white" : "bg-white text-slate-500"}`}>{t.name}</button>;
+                  })}
+                </div>
+              )}
+              <div className="flex flex-wrap items-center gap-4">
+                <label className="flex items-center gap-2 text-xs font-bold text-slate-600">Aged up to <input type="number" min={4} max={99} className="w-20 rounded-lg border-2 border-slate-200 px-2 py-1" value={target.maxAge} onChange={(e) => setTarget({ ...target, maxAge: e.target.value })} /></label>
+                <label className="flex items-center gap-2 text-xs font-bold text-slate-600"><input type="checkbox" checked={target.includeGuardians} onChange={(e) => setTarget({ ...target, includeGuardians: e.target.checked })} /> Also send to parents and guardians</label>
+              </div>
+              <p className="text-xs font-semibold text-slate-400">{target.teamIds.length || target.maxAge ? "Only people who match get it." : "Leave blank to reach everyone in the audience."}</p>
+            </div>
+          )}
           <div className="sm:col-span-2"><label className={labelCls}>Headline</label><input className={inputCls} maxLength={120} value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} /></div>
           <div className="sm:col-span-2"><label className={labelCls}>Message</label><textarea className={inputCls} rows={4} maxLength={2000} value={form.body} onChange={(e) => setForm({ ...form, body: e.target.value })} /></div>
           <div><label className={labelCls}>Publish at (blank = now)</label><input type="datetime-local" className={inputCls} value={form.publishAt} onChange={(e) => setForm({ ...form, publishAt: e.target.value })} /></div>
@@ -92,7 +114,7 @@ export default function AnnouncementsPage() {
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <div className="font-black text-slate-800">{a.title}</div>
-                  <div className="text-xs font-semibold text-slate-500">{AUDIENCE_LABEL[a.level]} · {Date.parse(a.publishAt) > Date.now() ? `goes out ${when(a.publishAt)}` : `sent ${when(a.publishAt)}`}{a.createdByName ? ` · ${a.createdByName}` : ""}</div>
+                  <div className="text-xs font-semibold text-slate-500">{AUDIENCE_LABEL[a.level]} · {Date.parse(a.publishAt) > Date.now() ? `goes out ${when(a.publishAt)}` : `sent ${when(a.publishAt)}`}{a.createdByName ? ` · ${a.createdByName}` : ""}{a.targeting?.teamIds?.length ? ` · ${a.targeting.teamIds.length} team${a.targeting.teamIds.length === 1 ? "" : "s"}` : ""}{a.targeting?.maxAge ? ` · up to age ${a.targeting.maxAge}` : ""}</div>
                   <p className="mt-1 text-sm text-slate-600">{a.body}</p>
                 </div>
                 <div className="flex items-center gap-2">
