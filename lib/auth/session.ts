@@ -86,6 +86,11 @@ export interface SessionData {
    * Used by middleware to keep /admin and /portal on the correct tenant host.
    */
   portalSubdomain?: string | null;
+  /**
+   * Copy of members.roleVersion when the session was built. Every role change bumps it, so a session whose
+   * copy is behind knows its roles may be out of date (see lib/auth/sessionFreshness.ts).
+   */
+  roleVersion?: number;
 }
 
 // Encrypt session data into a JWT

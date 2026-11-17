@@ -1,6 +1,7 @@
 // lib/auth/AuthContext.tsx
 "use client";
 
+import { getRoleDashboard } from "@/lib/auth/roleRedirects";
 import {
   createContext,
   useContext,
@@ -221,6 +222,49 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     void loadUser();
   }, []);
+
+  // Pick up role changes made while this tab was open (e.g. an administrator ends your role): check again
+  // whenever the tab comes back into view, at most every 30 seconds. If the role you were using has ended
+  // the server moves the session, so land on the page that suits your new role.
+  const userRef = useRef<User | null>(null);
+  userRef.current = user;
+  const lastRoleCheck = useRef(0);
+  useEffect(() => {
+    if (!user) return;
+    const check = async () => {
+      if (document.visibilityState !== "visible") return;
+      const now = Date.now();
+      if (now - lastRoleCheck.current < 30_000) return;
+      lastRoleCheck.current = now;
+      try {
+        const res = await fetch("/api/auth/me", { credentials: "include" });
+        if (res.status === 401) return;
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!data.user) return;
+        const next = mapMePayload(data.user as Record<string, unknown>);
+        const prev = userRef.current;
+        setUserState(next);
+        try {
+          localStorage.setItem("user", JSON.stringify(next));
+        } catch {
+          /* ignore */
+        }
+        const moved =
+          !!prev &&
+          (prev.role !== next.role || (prev.clubId ?? null) !== (next.clubId ?? null) || (prev.associationId ?? null) !== (next.associationId ?? null));
+        if (moved) window.location.assign(getRoleDashboard(next.role, next.clubSlug || next.clubId, next.associationId));
+      } catch {
+        /* offline: try again next time */
+      }
+    };
+    document.addEventListener("visibilitychange", check);
+    window.addEventListener("focus", check);
+    return () => {
+      document.removeEventListener("visibilitychange", check);
+      window.removeEventListener("focus", check);
+    };
+  }, [user?.userId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const switchPersona = useCallback(
     async (personaKey: string) => {

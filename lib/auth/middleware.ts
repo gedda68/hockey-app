@@ -2,7 +2,8 @@
 // Permission helpers for API routes — uses the same `session` cookie as lib/auth/session.ts
 
 import { NextRequest, NextResponse } from "next/server";
-import { getSession, type SessionData } from "@/lib/auth/session";
+import { type SessionData } from "@/lib/auth/session";
+import { getFreshSession } from "@/lib/auth/sessionFreshness";
 import { sessionDataToAssignments } from "@/lib/auth/sessionAssignments";
 import {
   userCanAccessAssociationResource,
@@ -37,7 +38,7 @@ export async function sessionToUserSession(s: SessionData): Promise<UserSession>
 export async function getUserFromRequest(
   _request: NextRequest,
 ): Promise<UserSession | null> {
-  const session = await getSession();
+  const session = await getFreshSession();
   if (!session) return null;
   return sessionToUserSession(session);
 }
@@ -123,7 +124,7 @@ export async function requireResourceAccess(
 
   if (response) return { user, response };
 
-  const session = await getSession();
+  const session = await getFreshSession();
   if (!session) {
     return {
       user,

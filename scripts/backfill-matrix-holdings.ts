@@ -107,7 +107,7 @@ async function main() {
   console.log(`\nBackup written: ${backup}`);
   let done = 0;
   for (const [memberId, holdings] of byMember) {
-    await db.collection("members").updateOne({ memberId }, { $push: { roleHoldings: { $each: holdings } } as never, $set: { updatedAt: new Date() } });
+    await db.collection("members").updateOne({ memberId }, { $push: { roleHoldings: { $each: holdings } } as never, $set: { updatedAt: new Date() }, $inc: { roleVersion: 1 } });
     done++;
   }
   console.log(`Updated ${done} members with ${adds.length} holdings.`);

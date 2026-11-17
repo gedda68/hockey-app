@@ -7,6 +7,7 @@ import { accessForSession } from "@/lib/access/memberAccess";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { attachSessionCookie, getSession, type SessionData } from "@/lib/auth/session";
+import { refreshStaleSession } from "@/lib/auth/sessionFreshness";
 import { getDatabase } from "@/lib/mongodb";
 import {
   activePersonaKeyFromSession,
@@ -24,10 +25,21 @@ const PatchMeSchema = z.object({
 
 export async function GET() {
   try {
-    const session = await getSession();
+    const stored = await getSession();
 
-    if (!session) {
+    if (!stored) {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+    }
+
+    // A role may have been ended or granted since this session was issued: bring it up to date.
+    let session = stored;
+    let reissue = false;
+    try {
+      const fresh = await refreshStaleSession(await getDatabase(), stored);
+      session = fresh.session;
+      reissue = fresh.changed;
+    } catch (e) {
+      console.error("[auth/me] freshness check failed:", e);
     }
 
     // The persona list is a convenience: if building it fails (odd role data on an imported member, say)
@@ -50,7 +62,7 @@ export async function GET() {
       console.error("[auth/me] persona/access list failed:", e);
     }
 
-    return NextResponse.json({
+    const res = NextResponse.json({
       user: {
         userId: session.userId,
         memberId: session.memberId || null,
@@ -76,6 +88,8 @@ export async function GET() {
         access,
       },
     });
+    if (reissue) await attachSessionCookie(res, session);
+    return res;
   } catch (e) {
     console.error("[auth/me] failed:", e);
     return NextResponse.json({ error: "Session error" }, { status: 500 });

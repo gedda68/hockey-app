@@ -108,14 +108,14 @@ export async function PATCH(request: NextRequest) {
 
     if (action === "end") {
       after = { status: "ended", endedAt: now, endedBy: me ?? session.name };
-      await db.collection("members").updateOne(match, { $set: { "roleHoldings.$.status": "ended", "roleHoldings.$.endedAt": now, "roleHoldings.$.endedBy": me ?? session.name, updatedAt: now } });
+      await db.collection("members").updateOne(match, { $set: { "roleHoldings.$.status": "ended", "roleHoldings.$.endedAt": now, "roleHoldings.$.endedBy": me ?? session.name, updatedAt: now }, $inc: { roleVersion: 1 } });
     } else {
       const cleaned = cleanHoldingPatch(role, current, body?.patch ?? {});
       if (!cleaned.ok) return NextResponse.json({ error: cleaned.error }, { status: 400 });
       const $set: Record<string, unknown> = { updatedAt: now };
       for (const [k, v] of Object.entries(cleaned.set)) $set[`roleHoldings.$.${k}`] = v;
       after = cleaned.set;
-      await db.collection("members").updateOne(match, { $set });
+      await db.collection("members").updateOne(match, { $set, $inc: { roleVersion: 1 } });
     }
 
     await db.collection("role_holding_log").insertOne({

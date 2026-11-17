@@ -223,7 +223,7 @@ export async function applyApprovedClubRegistrationRoles(
 
   await db.collection("members").updateOne(
     { memberId: registration.memberId },
-    { $push: { roles: { $each: toAdd } } as never },
+    { $push: { roles: { $each: toAdd } } as never, $inc: { roleVersion: 1 } },
     { session: mongoSession },
   );
 

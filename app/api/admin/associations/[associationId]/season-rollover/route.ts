@@ -196,7 +196,7 @@ export async function POST(request: NextRequest, ctx: { params: Promise<{ associ
     if (!dryRun && rolesChanged && memberId) {
       await db.collection("members").updateOne(
         { memberId },
-        { $set: { roles: updatedRoles, updatedAt: new Date() } },
+        { $set: { roles: updatedRoles, updatedAt: new Date() }, $inc: { roleVersion: 1 } },
       );
     }
 

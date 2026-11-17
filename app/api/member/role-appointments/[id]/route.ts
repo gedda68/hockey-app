@@ -76,7 +76,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const member = await db.collection("members").findOne({ memberId: me }, { projection: { roleHoldings: 1, blueCard: 1 } });
     if (!member) return NextResponse.json({ error: "Member record not found" }, { status: 404 });
     if (!hasHolding((member.roleHoldings as any[]) ?? [], appt.roleKey, appt.orgId)) {
-      await db.collection("members").updateOne({ memberId: me }, { $push: { roleHoldings: holdingFromAppointment(appt) } as any, $set: { updatedAt: now } });
+      await db.collection("members").updateOne({ memberId: me }, { $push: { roleHoldings: holdingFromAppointment(appt) } as any, $set: { updatedAt: now }, $inc: { roleVersion: 1 } });
     }
     await db.collection("role_appointments").updateOne({ appointmentId: id }, { $set: { status: "accepted", respondedAt: now } });
 
