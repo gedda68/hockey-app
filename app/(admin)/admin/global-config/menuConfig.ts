@@ -804,10 +804,10 @@ export const menuConfig: MenuItem[] = [
     section: "personal",
   },
   {
-    label: "Nominate for a Team",
+    label: "Nominations",
     href: "/admin/nominate",
     icon: "🙋",
-    description: "Nominate for representative teams and positions (player, coach, selector, manager…)",
+    description: "What you've been nominated for, and nominate for teams and positions",
     color: "from-yellow-400 to-yellow-500",
     section: "personal",
   },
@@ -865,14 +865,6 @@ export const menuConfig: MenuItem[] = [
     icon: "✅",
     description: "Approve roles your children have been asked to take",
     color: "from-teal-400 to-teal-500",
-    section: "personal",
-  },
-  {
-    label: "My Nominations",
-    href: "/nomination-status",
-    icon: "🏆",
-    description: "View your nomination status for teams and positions",
-    color: "from-yellow-400 to-yellow-500",
     section: "personal",
   },
   {
