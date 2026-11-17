@@ -1,6 +1,7 @@
 // GET — N4 registrar view: season competitions, divisions, and teams under member clubs
 // (canonical `seasonCompetitionId` / `competitionDivisionId` vs legacy `competition` string).
 
+import { areaGuard } from "@/lib/access/enforce";
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import {
@@ -18,6 +19,9 @@ const OVERVIEW_PERMS = [
 ] as const;
 
 export async function GET(request: NextRequest, { params }: Params) {
+  const areaDenied = await areaGuard("competitions", "GET");
+  if (areaDenied) return areaDenied;
+
   const { response } = await requireAnyPermission(request, [...OVERVIEW_PERMS]);
   if (response) return response;
 

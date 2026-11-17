@@ -2,6 +2,7 @@
 // Every match in the competition with its umpire slots (names resolved from the
 // association's official register), plus the register itself for assignment.
 
+import { areaGuard } from "@/lib/access/enforce";
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import { requireAnyPermission, requireResourceAccess } from "@/lib/auth/middleware";
@@ -11,6 +12,9 @@ type Params = { params: Promise<{ seasonCompetitionId: string }> };
 export interface OfficialOption { umpireId: string; displayName: string; levelLabel: string | null; available: boolean }
 
 export async function GET(request: NextRequest, { params }: Params) {
+  const areaDenied = await areaGuard("fixtures", "GET");
+  if (areaDenied) return areaDenied;
+
   try {
     const { seasonCompetitionId } = await params;
     const { response } = await requireAnyPermission(request, ["competitions.manage", "competitions.fixtures", "results.manage"]);

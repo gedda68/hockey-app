@@ -1,6 +1,7 @@
 // POST /api/admin/season-competitions/[seasonCompetitionId]/fixtures/generate
 // Round-robin fixture stub generation (E1).
 
+import { areaGuard } from "@/lib/access/enforce";
 import { NextRequest, NextResponse } from "next/server";
 import { z, ZodError } from "zod";
 import clientPromise from "@/lib/mongodb";
@@ -26,6 +27,9 @@ const BodySchema = z.object({
 type Params = { params: Promise<{ seasonCompetitionId: string }> };
 
 export async function POST(request: NextRequest, { params }: Params) {
+  const areaDenied = await areaGuard("fixtures", "POST");
+  if (areaDenied) return areaDenied;
+
   const { user, response } = await requireAnyPermission(request, [
     "competitions.manage",
     "competitions.fixtures",

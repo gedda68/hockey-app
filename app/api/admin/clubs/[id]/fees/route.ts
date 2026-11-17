@@ -1,5 +1,6 @@
 // app/api/admin/clubs/[id]/fees/route.ts
 
+import { areaGuard } from "@/lib/access/enforce";
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import {
@@ -23,6 +24,9 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const areaDenied = await areaGuard("fees", "GET");
+  if (areaDenied) return areaDenied;
+
   try {
     const { id } = await params;
 
@@ -61,6 +65,9 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const areaDenied = await areaGuard("fees", "PUT");
+  if (areaDenied) return areaDenied;
+
   try {
     const { id } = await params;
 

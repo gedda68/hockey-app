@@ -1,5 +1,6 @@
 // PATCH/DELETE — Epic V3 pitch calendar entries (full body replace on PATCH).
 
+import { areaGuard } from "@/lib/access/enforce";
 import { NextRequest, NextResponse } from "next/server";
 import { ZodError } from "zod";
 import clientPromise from "@/lib/mongodb";
@@ -22,6 +23,9 @@ type Params = { params: Promise<{ associationId: string; entryId: string }> };
 const PERMS = ["competitions.manage", "competitions.fixtures"] as const;
 
 export async function PATCH(request: NextRequest, { params }: Params) {
+  const areaDenied = await areaGuard("venues", "PATCH");
+  if (areaDenied) return areaDenied;
+
   const { user, response } = await requireAnyPermission(request, [...PERMS]);
   if (response) return response;
 
@@ -123,6 +127,9 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 }
 
 export async function DELETE(request: NextRequest, { params }: Params) {
+  const areaDenied = await areaGuard("venues", "DELETE");
+  if (areaDenied) return areaDenied;
+
   const { user, response } = await requireAnyPermission(request, [...PERMS]);
   if (response) return response;
 

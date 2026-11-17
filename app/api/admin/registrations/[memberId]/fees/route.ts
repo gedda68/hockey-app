@@ -2,6 +2,7 @@
 // A club administrator can add / edit / remove fee lines for THEIR club on a member's registration;
 // an association administrator for THEIR association. Every change is recorded in `feeChanges`.
 
+import { areaGuard } from "@/lib/access/enforce";
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import { getSession } from "@/lib/auth/session";
@@ -13,6 +14,9 @@ const CLUB_ROLES = ["club-admin", "club-committee", "registrar"];
 const ASSOC_ROLES = ["association-admin", "assoc-committee", "assoc-registrar"];
 
 export async function PUT(request: NextRequest, context: { params: Promise<{ memberId: string }> }) {
+  const areaDenied = await areaGuard("members", "PUT");
+  if (areaDenied) return areaDenied;
+
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { memberId } = await context.params;

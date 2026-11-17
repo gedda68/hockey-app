@@ -1,6 +1,7 @@
 // PATCH .../fixtures/[fixtureId]/match-events
 // Replace fixture.matchEvents (player-level events, E6).
 
+import { scopeGuard } from "@/lib/access/enforce";
 import { NextRequest, NextResponse } from "next/server";
 import { ZodError } from "zod";
 import { v4 as uuidv4 } from "uuid";
@@ -21,6 +22,11 @@ type Params = {
 };
 
 export async function PATCH(request: NextRequest, { params }: Params) {
+  // A scorer / umpire appointed to specific matches may only change those matches.
+  const { fixtureId: scopedFixtureId } = await params;
+  const areaDenied = await scopeGuard("fixtures", "PATCH", { fixtureId: scopedFixtureId });
+  if (areaDenied) return areaDenied;
+
   const { user, response } = await requirePermission(request, "results.manage");
   if (response) return response;
 

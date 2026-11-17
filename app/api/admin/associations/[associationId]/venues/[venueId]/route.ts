@@ -1,5 +1,6 @@
 // GET/PATCH/DELETE — single association venue (Epic V1).
 
+import { areaGuard } from "@/lib/access/enforce";
 import { NextRequest, NextResponse } from "next/server";
 import { ZodError } from "zod";
 import clientPromise from "@/lib/mongodb";
@@ -19,6 +20,9 @@ type Params = { params: Promise<{ associationId: string; venueId: string }> };
 const VENUE_PERMS = ["competitions.manage", "competitions.fixtures"] as const;
 
 export async function GET(request: NextRequest, { params }: Params) {
+  const areaDenied = await areaGuard("venues", "GET");
+  if (areaDenied) return areaDenied;
+
   const { response } = await requireAnyPermission(request, [...VENUE_PERMS]);
   if (response) return response;
 
@@ -56,6 +60,9 @@ export async function GET(request: NextRequest, { params }: Params) {
 }
 
 export async function PATCH(request: NextRequest, { params }: Params) {
+  const areaDenied = await areaGuard("venues", "PATCH");
+  if (areaDenied) return areaDenied;
+
   const { user, response } = await requireAnyPermission(request, [...VENUE_PERMS]);
   if (response) return response;
 
@@ -161,6 +168,9 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 }
 
 export async function DELETE(request: NextRequest, { params }: Params) {
+  const areaDenied = await areaGuard("venues", "DELETE");
+  if (areaDenied) return areaDenied;
+
   const { user, response } = await requireAnyPermission(request, [...VENUE_PERMS]);
   if (response) return response;
 

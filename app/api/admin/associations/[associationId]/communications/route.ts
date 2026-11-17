@@ -1,6 +1,7 @@
 // GET/PATCH /api/admin/associations/[associationId]/communications
 // Epic O2 — per-association communication hub (digest prefs + fixture email supplement + push topics).
 
+import { areaGuard } from "@/lib/access/enforce";
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import {
@@ -31,6 +32,9 @@ const PERMS = [
 type Params = { params: Promise<{ associationId: string }> };
 
 export async function GET(request: NextRequest, { params }: Params) {
+  const areaDenied = await areaGuard("comms", "GET");
+  if (areaDenied) return areaDenied;
+
   const { response } = await requireAnyPermission(request, [...PERMS]);
   if (response) return response;
 
@@ -58,6 +62,9 @@ export async function GET(request: NextRequest, { params }: Params) {
 }
 
 export async function PATCH(request: NextRequest, { params }: Params) {
+  const areaDenied = await areaGuard("comms", "PATCH");
+  if (areaDenied) return areaDenied;
+
   const { user, response } = await requireAnyPermission(request, [...PERMS]);
   if (response) return response;
 

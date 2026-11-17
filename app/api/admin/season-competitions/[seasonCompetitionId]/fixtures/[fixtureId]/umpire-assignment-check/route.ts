@@ -1,5 +1,6 @@
 // POST .../fixtures/[fixtureId]/umpire-assignment-check — F2 preview (no persistence).
 
+import { areaGuard } from "@/lib/access/enforce";
 import { NextRequest, NextResponse } from "next/server";
 import { ZodError } from "zod";
 import { z } from "zod";
@@ -20,6 +21,9 @@ const BodySchema = z.object({
 });
 
 export async function POST(request: NextRequest, { params }: Params) {
+  const areaDenied = await areaGuard("fixtures", "POST");
+  if (areaDenied) return areaDenied;
+
   const { user, response } = await requireAnyPermission(request, [
     "competitions.manage",
     "competitions.fixtures",

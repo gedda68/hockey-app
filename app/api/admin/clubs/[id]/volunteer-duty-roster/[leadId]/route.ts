@@ -1,5 +1,6 @@
 // PATCH/DELETE — O3 volunteer duty lead (CRM).
 
+import { areaGuard } from "@/lib/access/enforce";
 import { NextRequest, NextResponse } from "next/server";
 import { ZodError } from "zod";
 import clientPromise from "@/lib/mongodb";
@@ -16,6 +17,9 @@ const WRITE_PERMS = ["club.edit", "club.members"] as const;
 type Params = { params: Promise<{ id: string; leadId: string }> };
 
 export async function PATCH(request: NextRequest, { params }: Params) {
+  const areaDenied = await areaGuard("volunteers", "PATCH");
+  if (areaDenied) return areaDenied;
+
   const { user, response } = await requireAnyPermission(request, [...WRITE_PERMS]);
   if (response) return response;
 
@@ -120,6 +124,9 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 }
 
 export async function DELETE(request: NextRequest, { params }: Params) {
+  const areaDenied = await areaGuard("volunteers", "DELETE");
+  if (areaDenied) return areaDenied;
+
   const { user, response } = await requireAnyPermission(request, [...WRITE_PERMS]);
   if (response) return response;
 

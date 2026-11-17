@@ -1,5 +1,6 @@
 // GET/POST /api/admin/associations/[associationId]/official-register (F1 baseline).
 
+import { areaGuard } from "@/lib/access/enforce";
 import { NextRequest, NextResponse } from "next/server";
 import { randomUUID } from "crypto";
 import { ZodError } from "zod";
@@ -16,6 +17,9 @@ type Params = { params: Promise<{ associationId: string }> };
 const COL = "association_official_register";
 
 export async function GET(request: NextRequest, { params }: Params) {
+  const areaDenied = await areaGuard("fees", "GET");
+  if (areaDenied) return areaDenied;
+
   try {
     const { associationId } = await params;
 
@@ -60,6 +64,9 @@ export async function GET(request: NextRequest, { params }: Params) {
 }
 
 export async function POST(request: NextRequest, { params }: Params) {
+  const areaDenied = await areaGuard("fees", "POST");
+  if (areaDenied) return areaDenied;
+
   try {
     const { associationId } = await params;
 

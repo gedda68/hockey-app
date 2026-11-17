@@ -1,6 +1,7 @@
 // app/api/admin/associations/[associationId]/colors/route.ts
 // API for updating association brand colors
 
+import { areaGuard } from "@/lib/access/enforce";
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import {
@@ -24,6 +25,9 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ associationId: string }> }
 ) {
+  const areaDenied = await areaGuard("settings", "PUT");
+  if (areaDenied) return areaDenied;
+
   try {
     const { associationId } = await params;
 

@@ -1,5 +1,6 @@
 // GET/PUT — association-published roster division slots for a season (governs which triples clubs may roster).
 
+import { areaGuard } from "@/lib/access/enforce";
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import {
@@ -15,6 +16,9 @@ export async function GET(
   request: NextRequest,
   context: { params: Promise<{ associationId: string }> },
 ) {
+  const areaDenied = await areaGuard("competitions", "GET");
+  if (areaDenied) return areaDenied;
+
   try {
     const { associationId } = await context.params;
     if (!associationId?.trim()) {
@@ -63,6 +67,9 @@ export async function PUT(
   request: NextRequest,
   context: { params: Promise<{ associationId: string }> },
 ) {
+  const areaDenied = await areaGuard("competitions", "PUT");
+  if (areaDenied) return areaDenied;
+
   try {
     const { associationId } = await context.params;
     if (!associationId?.trim()) {

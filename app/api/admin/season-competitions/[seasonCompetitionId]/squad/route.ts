@@ -4,6 +4,7 @@
 // player (active player-members of the team's club, plus anyone already named
 // in one of its match-day lineups here).
 
+import { areaGuard } from "@/lib/access/enforce";
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import { requireAnyPermission, requireResourceAccess } from "@/lib/auth/middleware";
@@ -22,6 +23,9 @@ const isPlayerRole = (m: Record<string, unknown>) =>
   Array.isArray(m.roles) && m.roles.some((r) => typeof r === "string" && /player/i.test(r));
 
 export async function GET(request: NextRequest, { params }: Params) {
+  const areaDenied = await areaGuard("fixtures", "GET");
+  if (areaDenied) return areaDenied;
+
   try {
     const { seasonCompetitionId } = await params;
     const { response } = await requireAnyPermission(request, [

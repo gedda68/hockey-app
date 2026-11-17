@@ -18,6 +18,7 @@
  *   limit    — page size (default 20, max 100)
  */
 
+import { areaGuard } from "@/lib/access/enforce";
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import { getSession } from "@/lib/auth/session";
@@ -31,6 +32,9 @@ const ADMIN_ROLES = [
 ];
 
 export async function GET(request: NextRequest) {
+  const areaDenied = await areaGuard("roles", "GET");
+  if (areaDenied) return areaDenied;
+
   try {
     const { response } = await requirePermission(request, "registration.manage");
     if (response) return response;

@@ -1,6 +1,7 @@
 // Club registrations list (club-registrations collection) with member names.
 // Club users see their own club; super-admin may see all clubs or pick one with ?clubId=.
 
+import { areaGuard } from "@/lib/access/enforce";
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import { getSession } from "@/lib/auth/session";
@@ -9,6 +10,9 @@ import { requireResourceAccess } from "@/lib/auth/middleware";
 const PAGE = 100;
 
 export async function GET(request: NextRequest) {
+  const areaDenied = await areaGuard("members", "GET");
+  if (areaDenied) return areaDenied;
+
   const session = await getSession();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 

@@ -10,15 +10,26 @@
 
 import { codeAtLeast, getMatrixRole, legacyRoleFor, type AccessCode, type OrgType } from "@/lib/access/matrix";
 
-export type LogicalArea = "members" | "teams" | "fees";
+export type LogicalArea =
+  | "members" | "teams" | "fees"
+  | "fixtures" | "competitions" | "settings" | "comms" | "reports" | "roles" | "venues" | "volunteers";
 
-const AREA_KEY: Record<LogicalArea, Record<OrgType, string>> = {
+/** Matrix area key per organisation type. null = the matrix has no such area there, so nothing is enforced. */
+const AREA_KEY: Record<LogicalArea, Record<OrgType, string | null>> = {
   members: { club: "membersRegistrations", association: "memberRegistry" },
   teams: { club: "teamsSquads", association: "pathwaysRepTeams" },
   fees: { club: "financeFees", association: "financeFeesLevies" },
+  fixtures: { club: "fixturesResults", association: "fixturesResults" },
+  competitions: { club: "fixturesResults", association: "competitionsGrading" },
+  settings: { club: "clubSettings", association: "orgSettings" },
+  comms: { club: "commsMedia", association: "commsMedia" },
+  reports: { club: "reportsExports", association: "reportsExports" },
+  roles: { club: "usersRoles", association: "usersRoles" },
+  venues: { club: "facilitiesEquipment", association: "venuesEvents" },
+  volunteers: { club: "volunteersRosters", association: null },
 };
 
-export function areaKey(area: LogicalArea, orgType: OrgType): string {
+export function areaKey(area: LogicalArea, orgType: OrgType): string | null {
   return AREA_KEY[area][orgType];
 }
 
@@ -45,7 +56,9 @@ export function decideArea(access: AccessLike | null | undefined, sessionRole: s
   // Only enforce when the person's current coarse role was derived from one of their matrix roles.
   const derived = new Set(access.roles.map((r) => { const m = getMatrixRole(r.key); return m ? legacyRoleFor(m) : null; }));
   if (!sessionRole || !derived.has(sessionRole as never)) return free;
-  const code = access.areas[areaKey(area, access.context.orgType)] ?? "-";
+  const key = areaKey(area, access.context.orgType);
+  if (!key) return free; // the matrix has no such area for this kind of organisation
+  const code = access.areas[key] ?? "-";
   return { enforced: true, code, allowed: codeAtLeast(code, need) };
 }
 
@@ -76,7 +89,9 @@ export function decideAreaForTarget(
 ): AreaDecision {
   const base = decideArea(access, sessionRole, area, need);
   if (!base.enforced || !access || access.context.kind !== "org" || !access.context.orgType) return base;
+  const key = areaKey(area, access.context.orgType);
+  if (!key) return base;
   const res = resolveAccess(holdings, access.context as never, { blueCardValid });
-  const code = codeForTarget(res, areaKey(area, access.context.orgType), { clubId: access.context.orgId, ...target });
+  const code = codeForTarget(res, key, { clubId: access.context.orgId, ...target });
   return { enforced: true, code, allowed: codeAtLeast(code, need) };
 }

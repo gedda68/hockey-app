@@ -1,3 +1,4 @@
+import { areaGuard } from "@/lib/access/enforce";
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import { requirePermission, requireResourceAccess } from "@/lib/auth/middleware";
@@ -9,6 +10,9 @@ const COL = "finance_cost_centres";
 type Params = { params: Promise<{ associationId: string; costCentreId: string }> };
 
 export async function PATCH(request: NextRequest, { params }: Params) {
+  const areaDenied = await areaGuard("fees", "PATCH");
+  if (areaDenied) return areaDenied;
+
   const { user, response: authRes } = await requirePermission(request, "reports.financial");
   if (authRes) return authRes;
 
@@ -49,6 +53,9 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 }
 
 export async function DELETE(request: NextRequest, { params }: Params) {
+  const areaDenied = await areaGuard("fees", "DELETE");
+  if (areaDenied) return areaDenied;
+
   const { user, response: authRes } = await requirePermission(request, "reports.financial");
   if (authRes) return authRes;
 

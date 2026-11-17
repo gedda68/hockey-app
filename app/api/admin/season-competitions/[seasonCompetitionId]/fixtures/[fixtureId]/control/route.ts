@@ -4,6 +4,7 @@
 //   { action: "void", reason }   — cancels the match and clears any result
 // Both require a written reason and are audited.
 
+import { scopeGuard } from "@/lib/access/enforce";
 import { NextRequest, NextResponse } from "next/server";
 import { ZodError, z } from "zod";
 import clientPromise from "@/lib/mongodb";
@@ -26,6 +27,11 @@ const BodySchema = z.discriminatedUnion("action", [
 ]);
 
 export async function POST(request: NextRequest, { params }: Params) {
+  // A scorer / umpire appointed to specific matches may only change those matches.
+  const { fixtureId: scopedFixtureId } = await params;
+  const areaDenied = await scopeGuard("fixtures", "POST", { fixtureId: scopedFixtureId });
+  if (areaDenied) return areaDenied;
+
   const { user, response } = await requireAnyPermission(request, [
     "competitions.manage",
     "competitions.fixtures",

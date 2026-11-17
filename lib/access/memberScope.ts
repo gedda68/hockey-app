@@ -36,7 +36,9 @@ export async function allowedMemberIds(db: Db, session: SessionData, min: Access
   if (!decideArea(access, session.role, "members", min).enforced || access.context.kind !== "org") return null;
   const { holdings, blueCardValid } = await loadMemberHoldings(db, session);
   const res = resolveAccess(holdings, access.context, { blueCardValid });
-  const narrow = narrowHoldings(res, areaKey("members", access.context.orgType), min);
+  const key = areaKey("members", access.context.orgType);
+  if (!key) return null;
+  const narrow = narrowHoldings(res, key, min);
   if (!narrow) return null;
 
   const teamLike = narrow.filter((n) => n.role.scope === "team" || n.role.scope === "ageGroup").map((n) => n.holding);

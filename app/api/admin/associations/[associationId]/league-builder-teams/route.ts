@@ -1,5 +1,6 @@
 // GET — teams under member clubs of this association (for league fixture generation UI).
 
+import { areaGuard } from "@/lib/access/enforce";
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import {
@@ -10,6 +11,9 @@ import {
 type Params = { params: Promise<{ associationId: string }> };
 
 export async function GET(request: NextRequest, { params }: Params) {
+  const areaDenied = await areaGuard("competitions", "GET");
+  if (areaDenied) return areaDenied;
+
   const { response } = await requireAnyPermission(request, [
     "competitions.manage",
     "competitions.fixtures",

@@ -1,6 +1,7 @@
 // GET /api/admin/season-competitions/[seasonCompetitionId]/fixtures
 // List all fixtures for a season competition (admin).
 
+import { areaGuard } from "@/lib/access/enforce";
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import {
@@ -11,6 +12,9 @@ import {
 type Params = { params: Promise<{ seasonCompetitionId: string }> };
 
 export async function GET(request: NextRequest, { params }: Params) {
+  const areaDenied = await areaGuard("fixtures", "GET");
+  if (areaDenied) return areaDenied;
+
   const { response } = await requireAnyPermission(request, [
     "competitions.manage",
     "competitions.fixtures",

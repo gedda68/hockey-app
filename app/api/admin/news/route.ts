@@ -1,6 +1,7 @@
 // app/api/admin/news/route.ts
 // Admin API for managing news items with image upload (tenant-scoped).
 
+import { areaGuard } from "@/lib/access/enforce";
 import { NextRequest, NextResponse } from "next/server";
 import { ObjectId } from "mongodb";
 import clientPromise from "@/lib/mongodb";
@@ -24,6 +25,9 @@ import { sanitizeRichText } from "@/lib/utils/sanitizeServer";
 
 // GET — list news visible to this admin (portal-scoped)
 export async function GET(request: NextRequest) {
+  const areaDenied = await areaGuard("comms", "GET");
+  if (areaDenied) return areaDenied;
+
   const { user, response } = await requireRole(request, MEDIA_CONTENT_ADMIN_ROLES);
   if (response) return response;
 
@@ -85,6 +89,9 @@ export async function GET(request: NextRequest) {
 
 // POST — create news in allowed scope
 export async function POST(request: NextRequest) {
+  const areaDenied = await areaGuard("comms", "POST");
+  if (areaDenied) return areaDenied;
+
   const { user, response } = await requireRole(request, MEDIA_CONTENT_ADMIN_ROLES);
   if (response) return response;
 

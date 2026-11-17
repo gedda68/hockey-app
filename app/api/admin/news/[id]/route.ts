@@ -1,6 +1,7 @@
 // app/api/admin/news/[id]/route.ts
 // Admin API for updating/deleting news items (tenant-scoped).
 
+import { areaGuard } from "@/lib/access/enforce";
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import { requireRole } from "@/lib/auth/middleware";
@@ -52,6 +53,9 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const areaDenied = await areaGuard("comms", "PUT");
+  if (areaDenied) return areaDenied;
+
   const { user, response } = await requireRole(request, MEDIA_CONTENT_ADMIN_ROLES);
   if (response) return response;
 
@@ -206,6 +210,9 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const areaDenied = await areaGuard("comms", "PATCH");
+  if (areaDenied) return areaDenied;
+
   const { user, response } = await requireRole(request, MEDIA_CONTENT_ADMIN_ROLES);
   if (response) return response;
 
@@ -265,6 +272,9 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const areaDenied = await areaGuard("comms", "DELETE");
+  if (areaDenied) return areaDenied;
+
   const { user, response } = await requireRole(request, MEDIA_CONTENT_ADMIN_ROLES);
   if (response) return response;
 

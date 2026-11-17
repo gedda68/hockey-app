@@ -26,6 +26,7 @@
  *           + resource access to the fixture's owningAssociationId
  */
 
+import { areaGuard } from "@/lib/access/enforce";
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import {
@@ -55,6 +56,9 @@ export interface OfficialEntry {
 }
 
 export async function GET(request: NextRequest) {
+  const areaDenied = await areaGuard("fixtures", "GET");
+  if (areaDenied) return areaDenied;
+
   const { response } = await requireAnyPermission(request, [
     "competitions.manage",
     "competitions.fixtures",

@@ -1,5 +1,6 @@
 // GET/PATCH/DELETE /api/admin/associations/[associationId]/umpire-payment-lines
 
+import { areaGuard } from "@/lib/access/enforce";
 import { NextRequest, NextResponse } from "next/server";
 import { ZodError } from "zod";
 import clientPromise from "@/lib/mongodb";
@@ -20,6 +21,9 @@ type Params = { params: Promise<{ associationId: string }> };
 const LINES_COL = "umpire_match_payment_lines";
 
 export async function GET(request: NextRequest, { params }: Params) {
+  const areaDenied = await areaGuard("fees", "GET");
+  if (areaDenied) return areaDenied;
+
   try {
     const { associationId } = await params;
 
@@ -140,6 +144,9 @@ export async function GET(request: NextRequest, { params }: Params) {
 }
 
 export async function PATCH(request: NextRequest, { params }: Params) {
+  const areaDenied = await areaGuard("fees", "PATCH");
+  if (areaDenied) return areaDenied;
+
   try {
     const { associationId } = await params;
 
@@ -283,6 +290,9 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 }
 
 export async function DELETE(request: NextRequest, { params }: Params) {
+  const areaDenied = await areaGuard("fees", "DELETE");
+  if (areaDenied) return areaDenied;
+
   try {
     const { associationId } = await params;
 

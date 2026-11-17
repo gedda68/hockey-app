@@ -1,6 +1,7 @@
 // app/api/admin/associations/[associationId]/route.ts
 // FINAL FIX: Make fee dates nullable
 
+import { areaGuard } from "@/lib/access/enforce";
 import { NextRequest, NextResponse } from "next/server";
 import type { Db } from "mongodb";
 import clientPromise from "@/lib/mongodb";
@@ -233,6 +234,9 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ associationId: string }> },
 ) {
+  const areaDenied = await areaGuard("settings", "PUT");
+  if (areaDenied) return areaDenied;
+
   const { response: authRes } = await requirePermission(
     request,
     "association.edit",
@@ -352,6 +356,9 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ associationId: string }> },
 ) {
+  const areaDenied = await areaGuard("settings", "DELETE");
+  if (areaDenied) return areaDenied;
+
   const { response: authRes } = await requirePermission(
     request,
     "association.delete",

@@ -24,6 +24,7 @@
  *            scopeName, seasonYear, expiresAt, daysUntilExpiry
  */
 
+import { areaGuard } from "@/lib/access/enforce";
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import { getSession } from "@/lib/auth/session";
@@ -54,6 +55,9 @@ export interface RoleExpirySummary {
 }
 
 export async function GET(req: NextRequest) {
+  const areaDenied = await areaGuard("roles", "GET");
+  if (areaDenied) return areaDenied;
+
   const { response } = await requirePermission(req, "registration.manage");
   if (response) return response;
 

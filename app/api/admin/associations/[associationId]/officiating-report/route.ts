@@ -1,5 +1,6 @@
 // GET /api/admin/associations/[associationId]/officiating-report (F5 + follow-up).
 
+import { areaGuard } from "@/lib/access/enforce";
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import { requireAuth, requireResourceAccess } from "@/lib/auth/middleware";
@@ -14,6 +15,9 @@ function csvEscape(value: string): string {
 }
 
 export async function GET(request: NextRequest, { params }: Params) {
+  const areaDenied = await areaGuard("reports", "GET");
+  if (areaDenied) return areaDenied;
+
   const { user, response } = await requireAuth(request);
   if (response) return response;
 

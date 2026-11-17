@@ -1,5 +1,6 @@
 // GET / POST — list or create awards for a season competition (league).
 
+import { areaGuard } from "@/lib/access/enforce";
 import { NextRequest, NextResponse } from "next/server";
 import { ZodError } from "zod";
 import clientPromise from "@/lib/mongodb";
@@ -26,6 +27,9 @@ import { logPlatformAudit } from "@/lib/audit/platformAuditLog";
 type Params = { params: Promise<{ seasonCompetitionId: string }> };
 
 export async function GET(request: NextRequest, { params }: Params) {
+  const areaDenied = await areaGuard("fixtures", "GET");
+  if (areaDenied) return areaDenied;
+
   const { response } = await requireAnyPermission(request, [
     "competitions.manage",
     "competitions.fixtures",
@@ -79,6 +83,9 @@ export async function GET(request: NextRequest, { params }: Params) {
 }
 
 export async function POST(request: NextRequest, { params }: Params) {
+  const areaDenied = await areaGuard("fixtures", "POST");
+  if (areaDenied) return areaDenied;
+
   const { user, response } = await requireAnyPermission(request, [
     "competitions.manage",
     "results.manage",

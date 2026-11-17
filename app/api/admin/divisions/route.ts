@@ -1,11 +1,15 @@
 // app/api/admin/divisions/route.ts
 // Get divisions by category from database
 
+import { areaGuard } from "@/lib/access/enforce";
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import { requireAnyPermission, requirePermission } from "@/lib/auth/middleware";
 
 export async function GET(request: NextRequest) {
+  const areaDenied = await areaGuard("competitions", "GET");
+  if (areaDenied) return areaDenied;
+
   try {
     const { response: authRes } = await requireAnyPermission(request, [
       "competitions.manage",
@@ -83,6 +87,9 @@ function getDefaultDivisions(category: string): string[] {
 
 // POST - Create or update divisions for a category
 export async function POST(request: NextRequest) {
+  const areaDenied = await areaGuard("competitions", "POST");
+  if (areaDenied) return areaDenied;
+
   try {
     const { response: authRes } = await requirePermission(
       request,

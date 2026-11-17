@@ -33,6 +33,7 @@
  *           + resource access to the fixture's owningAssociationId
  */
 
+import { areaGuard } from "@/lib/access/enforce";
 import { NextRequest, NextResponse } from "next/server";
 import { randomBytes } from "crypto";
 import { randomUUID } from "crypto";
@@ -103,6 +104,9 @@ async function resolveOfficialContact(
 }
 
 export async function POST(request: NextRequest) {
+  const areaDenied = await areaGuard("fixtures", "POST");
+  if (areaDenied) return areaDenied;
+
   const { user, response: authRes } = await requireAnyPermission(request, [
     "competitions.manage",
     "competitions.fixtures",

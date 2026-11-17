@@ -1,6 +1,7 @@
 // GET/PUT /api/admin/associations/[associationId]/umpire-payment-schedule
 // Tiered umpire match fees: qualification × match level (F4).
 
+import { areaGuard } from "@/lib/access/enforce";
 import { NextRequest, NextResponse } from "next/server";
 import { ZodError } from "zod";
 import clientPromise from "@/lib/mongodb";
@@ -27,6 +28,9 @@ function emptySchedule(associationId: string): AssociationUmpirePaymentSchedule 
 }
 
 export async function GET(request: NextRequest, { params }: Params) {
+  const areaDenied = await areaGuard("fees", "GET");
+  if (areaDenied) return areaDenied;
+
   try {
     const { associationId } = await params;
 
@@ -69,6 +73,9 @@ export async function GET(request: NextRequest, { params }: Params) {
 }
 
 export async function PUT(request: NextRequest, { params }: Params) {
+  const areaDenied = await areaGuard("fees", "PUT");
+  if (areaDenied) return areaDenied;
+
   try {
     const { associationId } = await params;
 

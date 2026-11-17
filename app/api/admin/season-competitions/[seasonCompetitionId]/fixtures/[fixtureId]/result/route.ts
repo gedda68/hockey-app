@@ -1,6 +1,7 @@
 // PATCH /api/admin/season-competitions/[seasonCompetitionId]/fixtures/[fixtureId]/result
 // Result entry + (optional) approval workflow (E3, E7, E8).
 
+import { scopeGuard } from "@/lib/access/enforce";
 import { NextRequest, NextResponse } from "next/server";
 import { z, ZodError } from "zod";
 import clientPromise from "@/lib/mongodb";
@@ -41,6 +42,11 @@ const BodySchema = z
   .strict();
 
 export async function PATCH(request: NextRequest, { params }: Params) {
+  // A scorer / umpire appointed to specific matches may only change those matches.
+  const { fixtureId: scopedFixtureId } = await params;
+  const areaDenied = await scopeGuard("fixtures", "PATCH", { fixtureId: scopedFixtureId });
+  if (areaDenied) return areaDenied;
+
   const { user, response } = await requirePermission(request, "results.manage");
   if (response) return response;
 
