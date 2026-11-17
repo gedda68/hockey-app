@@ -3,6 +3,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
+import { guardClubRoute } from "@/lib/clubs/guardClubRoute";
 import { escapeRegex } from "@/lib/utils/regex";
 
 // GET - Search members in club
@@ -22,14 +23,12 @@ export async function GET(
       );
     }
 
+    const guard = await guardClubRoute(request, clubId, ["member.view", "club.members"]);
+    if (guard.response) return guard.response;
+    const club = { id: guard.club.clubId };
+
     const client = await clientPromise;
     const db = client.db("hockey-app");
-
-    // Find club by slug
-    const club = await db.collection("clubs").findOne({ slug: clubId });
-    if (!club) {
-      return NextResponse.json({ error: "Club not found" }, { status: 404 });
-    }
 
     // ✅ Search members using club.id
     const safeQuery = escapeRegex(query);

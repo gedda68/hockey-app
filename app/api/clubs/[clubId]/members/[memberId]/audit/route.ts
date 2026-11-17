@@ -1,8 +1,9 @@
 // app/api/clubs/[clubId]/members/[memberId]/audit/route.ts
-// TEMPORARY - NO AUTH VERSION FOR TESTING
+// Requires sign-in, a member permission and access to the club.
 
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
+import { guardClubRoute } from "@/lib/clubs/guardClubRoute";
 
 export async function GET(
   request: NextRequest,
@@ -11,21 +12,12 @@ export async function GET(
   try {
     const { clubId: clubIdOrSlug, memberId } = await params;
 
-    console.log("⚠️ WARNING: Auth is disabled for testing");
+    const guard = await guardClubRoute(request, clubIdOrSlug, ["member.view", "club.members"]);
+    if (guard.response) return guard.response;
+    const clubId = guard.club.clubId;
 
     const client = await clientPromise;
     const db = client.db("hockey-app");
-
-    // Convert slug to clubId if needed
-    let clubId = clubIdOrSlug;
-    if (!clubIdOrSlug.startsWith("club-")) {
-      const clubsCollection = db.collection("clubs");
-      const club = await clubsCollection.findOne({ slug: clubIdOrSlug });
-      if (club) {
-        clubId = club.id;
-        console.log(`✅ Converted slug "${clubIdOrSlug}" to clubId: ${clubId}`);
-      }
-    }
 
     const searchParams = new URL(request.url).searchParams;
     const action = searchParams.get("action");
