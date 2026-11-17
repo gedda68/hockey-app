@@ -67,6 +67,7 @@ export async function POST(request: NextRequest, { params }: Params) {
       homeTeamId: fixture.homeTeamId as string,
       awayTeamId: fixture.awayTeamId as string,
       proposedUmpires: body.umpires,
+      scheduledStart: (fixture.scheduledStart as string | null | undefined) ?? null,
     });
 
     return NextResponse.json({

@@ -137,6 +137,7 @@ export async function GET(request: NextRequest) {
     homeTeamId,
     awayTeamId,
     proposedUmpires,
+    scheduledStart: (fixture.scheduledStart as string | null | undefined) ?? null,
   });
 
   // ── Build a map from umpireId → issues ─────────────────────────────────────

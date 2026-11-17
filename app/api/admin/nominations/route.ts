@@ -2,6 +2,8 @@
 // GET  - list nominations (filter by season, ageGroup, clubId, status)
 // POST - create a new nomination
 
+import { upcomingUnavailability } from "@/lib/member/availabilityLookup";
+import { todayInZone } from "@/lib/member/availability";
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import {
@@ -57,8 +59,18 @@ export async function GET(request: NextRequest) {
       .sort({ ageGroup: 1, clubName: 1, memberName: 1 })
       .toArray();
 
+    // Dates the nominees have marked themselves unavailable (next ~4 months), so selectors see it up front.
+    const away = await upcomingUnavailability(
+      db,
+      nominations.map((n: any) => String(n.memberId ?? n.nomineeId ?? "")),
+      todayInZone(),
+    );
+
     return NextResponse.json(
-      nominations.map((n) => ({ ...n, _id: n._id.toString() })),
+      nominations.map((n: any) => {
+        const dates = away.get(String(n.memberId ?? n.nomineeId ?? ""));
+        return { ...n, _id: n._id.toString(), ...(dates ? { unavailability: dates } : {}) };
+      }),
     );
   } catch (error: unknown) {
     console.error("GET /api/admin/nominations error:", error);

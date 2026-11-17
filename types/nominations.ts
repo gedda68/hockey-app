@@ -167,6 +167,9 @@ export interface Nomination {
 
   status: NominationStatus;
 
+  /** Added by the list API: upcoming dates the nominee has marked themselves unavailable. */
+  unavailability?: { from: string; to: string; note?: string }[];
+
   // Outcome (approval workflow)
   reviewedBy?: string;
   reviewedByName?: string;
