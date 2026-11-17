@@ -13,15 +13,14 @@ const flat = (m: MenuItem[]): MenuItem[] => m.flatMap((i) => [i, ...(i.subItems 
 
 describe("association staff can look at clubs, members and players", () => {
   it.each(OVERSIGHT)("%s opens the lists and detail pages", (role) => {
-    for (const p of ["/admin/clubs", "/admin/clubs/some-club", "/admin/members", "/admin/members/MEM-1", "/admin/players", "/admin/players/PL-1"]) {
+    for (const p of ["/admin/clubs", "/admin/clubs/some-club", "/admin/clubs/some-club/edit", "/admin/members", "/admin/members/MEM-1", "/admin/players", "/admin/players/PL-1"]) {
       expect(can(role, p), `${role} ${p}`).toBe(true);
     }
   });
 
-  it.each(OVERSIGHT)("%s still can't open create or edit pages", (role) => {
+  it.each(OVERSIGHT)("%s still can't open create or edit pages (a club's page opens locked)", (role) => {
     for (const p of [
       "/admin/clubs/new",
-      "/admin/clubs/some-club/edit",
       "/admin/clubs/some-club/fees",
       "/admin/members/create",
       "/admin/members/MEM-1/edit",

@@ -45,7 +45,9 @@ interface Association {
 
 export default function ClubsList() {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, hasPermission } = useAuth();
+  const canCreateClub = hasPermission("club.create");
+  const canEditClub = hasPermission("club.edit");
   const [clubs, setClubs] = useState<Club[]>([]);
   const [associations, setAssociations] = useState<Association[]>([]);
   const [loading, setLoading] = useState(true);
@@ -205,13 +207,13 @@ export default function ClubsList() {
                 </p>
               </div>
             </div>
-            <button
+            {canCreateClub && <button
               onClick={() => router.push("/admin/clubs/new")}
               className="flex items-center gap-2 px-6 py-3 bg-yellow-400 text-[#06054e] rounded-xl font-black hover:scale-[1.02] active:scale-[0.98] transition-all shadow-lg"
             >
               <Plus size={20} />
               New Club
-            </button>
+            </button>}
           </div>
         </div>
 
@@ -309,7 +311,7 @@ export default function ClubsList() {
                 ? "Try adjusting your filters"
                 : "Get started by creating your first club"}
             </p>
-            {!search && !filterAssociation && (
+            {canCreateClub && !search && !filterAssociation && (
               <button
                 onClick={() => router.push("/admin/clubs/new")}
                 className="inline-flex items-center gap-2 px-6 py-3 bg-[#06054e] text-white rounded-xl font-bold hover:bg-yellow-400 hover:text-[#06054e]"
@@ -342,7 +344,7 @@ export default function ClubsList() {
                         className="w-10 h-10 object-contain"
                       />
                     </div>
-                    <button
+                    {canEditClub && <button
                       onClick={(e) => {
                         e.stopPropagation();
                         router.push(`/admin/clubs/${club.slug || club.id}/edit`);
@@ -350,7 +352,7 @@ export default function ClubsList() {
                       className="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-lg flex items-center justify-center text-white hover:bg-white/30 transition-all"
                     >
                       <Edit size={18} />
-                    </button>
+                    </button>}
                   </div>
                 </div>
 

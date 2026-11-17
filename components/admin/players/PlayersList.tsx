@@ -90,7 +90,9 @@ const CLUB_SCOPED_ROLES = [
 
 export default function PlayersList() {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, hasPermission } = useAuth();
+  const canAddPlayer = hasPermission("member.create");
+  const canEditPlayer = hasPermission("member.edit");
   const isClubScoped = !!(user && CLUB_SCOPED_ROLES.includes(user.role) && user.clubId);
   const [players, setPlayers] = useState<Player[]>([]);
   const [clubs, setClubs] = useState<Club[]>([]);
@@ -271,13 +273,13 @@ export default function PlayersList() {
                 pdfSubtitle={`${statusFilter !== "all" ? statusFilter + " · " : ""}${CURRENT_SEASON}`}
                 pdfOrientation="landscape"
               />
-              <button
+              {canAddPlayer && <button
                 onClick={() => router.push("/admin/players/new")}
                 className="px-6 py-3 bg-white text-blue-600 rounded-xl font-bold hover:bg-blue-50 transition-colors flex items-center gap-2 shadow-lg"
               >
                 <UserPlus size={20} />
                 Add Player
-              </button>
+              </button>}
             </div>
           </div>
         </div>
@@ -433,7 +435,7 @@ export default function PlayersList() {
                 ? "Try adjusting your search or filters"
                 : "Get started by adding your first player"}
             </p>
-            {!search && statusFilter === "all" && clubFilter === "all" && (
+            {canAddPlayer && !search && statusFilter === "all" && clubFilter === "all" && (
               <button
                 onClick={() => router.push("/admin/players/new")}
                 className="px-6 py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-colors inline-flex items-center gap-2"
@@ -475,7 +477,7 @@ export default function PlayersList() {
                   key={player.playerId}
                   className="bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden hover:shadow-2xl hover:scale-[1.02] transition-all cursor-pointer group"
                   onClick={() =>
-                    router.push(`/admin/players/${player.playerId}/edit`)
+                    router.push(`/admin/players/${player.playerId}${canEditPlayer ? "/edit" : ""}`)
                   }
                 >
                   {/* Status Badge - Top Right */}
