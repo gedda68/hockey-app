@@ -35,7 +35,7 @@ export const CATEGORY_LABELS: Record<Category, { label: string; hint: string }> 
   announcements: { label: "Announcements", hint: "Messages written by your club, association or the national body" },
 };
 
-export const CHANNEL_LABELS: Record<Channel, string> = { inApp: "In the app", email: "Email", sms: "SMS", social: "Social" };
+export const CHANNEL_LABELS: Record<Channel, string> = { inApp: "In the app", email: "Email", sms: "SMS", social: "WhatsApp" };
 
 export interface NotificationPrefs {
   /** Master switch: off silences everything. */

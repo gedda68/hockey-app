@@ -1,7 +1,7 @@
 /**
  * GET /api/cron/notifications
  *
- * Hourly job: brings the notifications of everyone who has email or SMS switched on up to date, so those messages
+ * Hourly job: brings the notifications of everyone who has email, SMS or WhatsApp switched on up to date, so those messages
  * go out even if the member hasn't opened the app. (In-app-only members are refreshed when they open the app.)
  * The stalest members go first and a time budget stops the run cleanly, so a big club simply takes a few runs.
  *
