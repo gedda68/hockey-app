@@ -36,8 +36,8 @@ describe("planHoldingEnds", () => {
 
   it("matches team coaches by team", () => {
     const coach: LegacyAssignment = { role: "coach", scopeType: "team", scopeId: "t1" };
-    const h = { roleKey: "club:assistant-coach", orgType: "club", orgId: "c9", teamIds: ["t1"], status: "active", source: "legacy-migration" } as never;
-    expect(planHoldingEnds([coach], [], [{ ...h }], () => ({ teamClubId: "c9" })).indexes).toEqual([0]);
+    const h = { roleKey: "club:assistant-coach", orgType: "club", orgId: "c9", teamIds: ["t1"], status: "active", source: "legacy-migration" } satisfies Record<string, unknown>;
+    expect(planHoldingEnds([coach], [], [h as never], () => ({ teamClubId: "c9" })).indexes).toEqual([0]);
   });
 });
 
