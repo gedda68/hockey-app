@@ -6,6 +6,7 @@ import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Loader2, Lock, Send } from "lucide-react";
 
+import PageHeader from "@/components/admin/PageHeader";
 interface Incident { incidentId: string; occurredAt: string; category: string; severity: string; description: string; location?: string; status: string; confidential: boolean; reportedByName?: string }
 
 const inputCls = "w-full rounded-xl border-2 border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 outline-none focus:border-teal-400";
@@ -50,10 +51,7 @@ export default function IncidentsPage() {
 
   return (
     <div className="mx-auto max-w-4xl space-y-6 p-6">
-      <div>
-        <h1 className="text-3xl font-black text-[#06054e]">Incidents</h1>
-        <p className="mt-1 text-sm font-semibold text-slate-500">Report something that happened. {canEdit ? "You can review and manage every report for your club." : "Only you and the club's administrators can see what you report."}</p>
-      </div>
+      <PageHeader eyebrow="Welfare" title="Incidents" subtitle={<>Report something that happened. {canEdit ? "You can review and manage every report for your club." : "Only you and the club's administrators can see what you report."}</>} />
 
       <div className="space-y-4 rounded-2xl border-2 border-slate-100 bg-white p-5 shadow-sm">
         <div className="grid gap-4 sm:grid-cols-2">

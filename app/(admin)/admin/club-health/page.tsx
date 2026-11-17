@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Loader2 } from "lucide-react";
 
+import PageHeader from "@/components/admin/PageHeader";
 interface Issue { memberId?: string; teamId?: string; name: string; detail: string }
 interface Check { id: string; title: string; severity: "high" | "medium" | "low"; why: string; count: number; issues: Issue[] }
 interface Health { checkedAt: string; score: number; totals: { members: number; activeMembers: number; teams: number }; checks: Check[] }
@@ -29,13 +30,12 @@ export default function ClubHealthPage() {
 
   return (
     <div className="mx-auto max-w-4xl space-y-6 p-6">
-      <div className="flex items-end justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-black text-[#06054e]">Club health</h1>
-          <p className="mt-1 text-sm font-semibold text-slate-500">{data.totals.activeMembers} active members · {data.totals.teams} teams · checked {new Date(data.checkedAt).toLocaleTimeString("en-AU", { hour: "numeric", minute: "2-digit" })}</p>
-        </div>
-        <div className="text-right"><div className="text-4xl font-black text-[#06054e]">{data.score}</div><div className="text-xs font-black uppercase text-slate-400">out of 100</div></div>
-      </div>
+      <PageHeader
+        eyebrow="Data quality"
+        title="Club health"
+        subtitle={<>{data.totals.activeMembers} active members · {data.totals.teams} teams · checked {new Date(data.checkedAt).toLocaleTimeString("en-AU", { hour: "numeric", minute: "2-digit" })}</>}
+        aside={<div className="text-right"><div className="text-4xl font-black">{data.score}</div><div className="text-xs font-black uppercase opacity-80">out of 100</div></div>}
+      />
 
       {problems.length === 0 ? (
         <p className="rounded-2xl border-2 border-emerald-100 bg-emerald-50 p-6 text-center text-sm font-bold text-emerald-700">Nothing to fix. Your club's data looks healthy.</p>

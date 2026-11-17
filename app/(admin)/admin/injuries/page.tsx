@@ -6,6 +6,7 @@ import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Loader2, Plus } from "lucide-react";
 
+import PageHeader from "@/components/admin/PageHeader";
 interface Injury { injuryId: string; memberId: string; memberName: string; occurredAt: string; bodyPart: string; description?: string; severity: string; status: "active" | "recovering" | "cleared"; expectedReturn: string | null; history: { at: string; by: string; status?: string; note?: string }[] }
 
 const inputCls = "w-full rounded-xl border-2 border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 outline-none focus:border-teal-400";
@@ -60,10 +61,7 @@ export default function InjuriesPage() {
 
   return (
     <div className="mx-auto max-w-4xl space-y-6 p-6">
-      <div>
-        <h1 className="text-3xl font-black text-[#06054e]">Injuries</h1>
-        <p className="mt-1 text-sm font-semibold text-slate-500">{canEdit ? "Record injuries and track return to play." : "Injuries recorded for you and your children."}</p>
-      </div>
+      <PageHeader eyebrow="Welfare" title="Injuries" subtitle={canEdit ? "Record injuries and track return to play." : "Injuries recorded for you and your children."} />
 
       {canEdit && (
         <div className="space-y-4 rounded-2xl border-2 border-slate-100 bg-white p-5 shadow-sm">

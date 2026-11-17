@@ -6,6 +6,7 @@ import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Loader2, Send, Trash2 } from "lucide-react";
 
+import PageHeader from "@/components/admin/PageHeader";
 interface Account { accountId: string; pageName: string; ownerLevel: "club" | "association"; ownerId: string }
 interface Post { postId: string; pageName: string; text: string; status: string; postAt: string; error?: string | null; source?: { type: string } }
 interface Owner { level: "club" | "association"; id: string }
@@ -93,10 +94,7 @@ export default function SocialPage() {
 
   return (
     <div className="mx-auto max-w-4xl space-y-6 p-6">
-      <div>
-        <h1 className="text-3xl font-black text-[#06054e]">Social pages</h1>
-        <p className="mt-1 text-sm font-semibold text-slate-500">Post to your Facebook page. Posts are public. Only call-outs for nominations and announcements that aren't aimed at particular teams or ages can be pre-filled; never the names of people nominated or selected.</p>
-      </div>
+      <PageHeader eyebrow="Communication" title="Social pages" subtitle="Post to your Facebook page. Posts are public. Only call-outs for nominations and announcements that aren't aimed at particular teams or ages can be pre-filled; never the names of people nominated or selected." />
 
       {owners.length > 1 && (
         <select className={inputCls} value={owner ? `${owner.level}:${owner.id}` : ""} onChange={(e) => { const [level, ...id] = e.target.value.split(":"); setOwner({ level: level as Owner["level"], id: id.join(":") }); }}>

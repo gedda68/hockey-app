@@ -7,6 +7,7 @@ import Link from "next/link";
 import { toast } from "sonner";
 import { Loader2, X } from "lucide-react";
 import type { InboxNotification } from "@/app/api/member/notifications/route";
+import PageHeader from "@/components/admin/PageHeader";
 import {
   CATEGORIES, CATEGORY_LABELS, CHANNELS, CHANNEL_LABELS, LEVELS, LEVEL_LABELS,
   type Channel, type Level, type NotificationPrefs,
@@ -61,15 +62,14 @@ export default function NotificationsPage() {
 
   return (
     <div className="mx-auto max-w-3xl space-y-6 p-6">
-      <div className="flex items-end justify-between gap-3">
-        <div>
-          <h1 className="text-3xl font-black text-[#06054e]">Notifications</h1>
-          <p className="mt-1 text-sm font-semibold text-slate-500">Upcoming matches, nomination deadlines, events and things waiting on you.</p>
-        </div>
-        {unread > 0 && tab !== "settings" && (
-          <button onClick={() => act({ action: "read-all" })} className="text-xs font-black text-teal-600 hover:underline">Mark all read</button>
-        )}
-      </div>
+      <PageHeader
+        eyebrow="Inbox"
+        title="Notifications"
+        subtitle="Upcoming matches, nomination deadlines, events and things waiting on you."
+        aside={unread > 0 && tab !== "settings" ? (
+          <button onClick={() => act({ action: "read-all" })} className="rounded-xl bg-white/20 px-3 py-1.5 text-xs font-black hover:bg-white/30">Mark all read</button>
+        ) : undefined}
+      />
 
       {prefs && !prefs.enabled && (
         <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800">

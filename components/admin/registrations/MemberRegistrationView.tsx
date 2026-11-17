@@ -4,6 +4,7 @@
 // Used by /admin/my-registration (the member) and /admin/registrations/[memberId] (limited admin view).
 
 import { useEffect, useState } from "react";
+import PageHeader from "@/components/admin/PageHeader";
 import type { RegistrationSummary } from "@/lib/members/registrationSummary";
 
 const pretty = (id: string) => id.replace(/^role-/, "").replace(/[-_]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
@@ -83,17 +84,13 @@ export default function MemberRegistrationView({ memberId }: { memberId?: string
 
   return (
     <div className="mx-auto max-w-5xl space-y-5 p-6">
-      <header className="rounded-3xl p-6 text-white shadow-lg" style={{ background: `linear-gradient(135deg, ${primary}, ${secondary})` }}>
-        <p className="text-xs font-bold uppercase tracking-widest opacity-80">
-          {view === "self" ? "My Registration" : "Member registration (limited view)"}
-        </p>
-        <h1 className="text-3xl font-black">{s.member.name}</h1>
-        <p className="mt-1 text-sm opacity-90">
-          #{s.member.memberNumber} · Born {s.member.dateOfBirth || "—"}
-          {s.member.age !== null && ` · Age ${s.member.age}`} · {s.member.status || "—"}
-        </p>
-        <p className="mt-2 text-sm font-bold opacity-95">{s.levels.map((l) => l.name).join("  ›  ") || "No club"}</p>
-      </header>
+      <PageHeader
+        colors={{ primary, secondary }}
+        eyebrow={view === "self" ? "My Registration" : "Member registration (limited view)"}
+        title={s.member.name}
+        subtitle={<>#{s.member.memberNumber} · Born {s.member.dateOfBirth || "—"}{s.member.age !== null && ` · Age ${s.member.age}`} · {s.member.status || "—"}</>}
+        detail={s.levels.map((l) => l.name).join("  ›  ") || "No club"}
+      />
 
       <div className="grid gap-3 sm:grid-cols-3">
         {[["Fees sent", s.fees.total.sent], ["Paid", s.fees.total.paid], ["Outstanding", s.fees.total.outstanding]].map(([k, v]) => (

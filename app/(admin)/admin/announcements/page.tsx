@@ -6,6 +6,7 @@ import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Loader2, Megaphone, Trash2 } from "lucide-react";
 
+import PageHeader from "@/components/admin/PageHeader";
 type Audience = "global" | "association" | "club";
 interface Reach { total: number; byChannel: Record<string, number>; silenced: number; capped?: boolean }
 interface Deliveries { counts: Record<string, { sent: number; failed: number }>; failures: { memberId: string; name: string; channel: string; error: string }[] }
@@ -109,10 +110,7 @@ export default function AnnouncementsPage() {
 
   return (
     <div className="mx-auto max-w-4xl space-y-6 p-6">
-      <div>
-        <h1 className="text-3xl font-black text-[#06054e]">Announcements</h1>
-        <p className="mt-1 text-sm font-semibold text-slate-500">Write a message for your members. It appears in their notifications (unless they've switched announcements off).</p>
-      </div>
+      <PageHeader eyebrow="Communication" title="Announcements" subtitle="Write a message for your members. It appears in their notifications (unless they've switched announcements off)." />
 
       <div className="space-y-4 rounded-2xl border-2 border-slate-100 bg-white p-5 shadow-sm">
         <div className="grid gap-4 sm:grid-cols-2">
