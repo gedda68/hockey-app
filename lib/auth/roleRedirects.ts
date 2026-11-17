@@ -40,9 +40,16 @@ function roleLanding(
 
     case "assoc-committee":
     case "assoc-coach":
-    case "assoc-selector":
-    case "assoc-registrar":
       return "/admin/representative";
+
+    case "assoc-selector":
+      return "/admin/nominations";
+
+    case "assoc-registrar":
+      return "/admin/association-registrations";
+
+    case "media-marketing":
+      return "/admin/news";
 
     case "assoc-competition":
       return associationId
@@ -55,8 +62,10 @@ function roleLanding(
       return clubId ? `/admin/clubs/${clubId}/edit` : "/admin/clubs";
 
     case "club-committee":
-    case "registrar":
       return "/admin/members";
+
+    case "registrar":
+      return "/admin/club-registrations";
 
     case "coach":
     case "manager":

@@ -222,6 +222,13 @@ const ROUTE_RULES: RouteRule[] = [
     ],
   },
 
+  /** Match rosters: whoever picks teams for a club's matches, not only club management. */
+  {
+    pattern: /^\/admin\/clubs\/[^/]+\/match-rosters(\/|$)/,
+    allowedRoles: [...CLUB_MANAGEMENT, "coach", "manager", "team-selector"],
+    scopeCheck: true,
+  },
+
   /** Club directory + club profile edit — club management roles, not only club-admin. */
   { pattern: /^\/admin\/clubs(\/|$)/, allowedRoles: CLUB_MANAGEMENT, scopeCheck: true },
   { pattern: /^\/admin\/fees(\/|$)/, allowedRoles: FINANCE_ROLES, scopeCheck: true },
@@ -292,6 +299,23 @@ const ROUTE_RULES: RouteRule[] = [
   { pattern: /^\/portal(\/|$)/, allowedRoles: PORTAL_ROLES },
 ];
 
+/**
+ * Fixed pages that live directly under /admin/clubs/ and /admin/associations/. Their first path segment is a
+ * page name, not an organisation id, so the scope check must not treat it as one.
+ */
+const RESERVED_CLUB_SEGMENTS = ["new", "selection-policy"];
+const RESERVED_ASSOC_SEGMENTS = ["new", "selection-policy", "fees", "positions", "hierarchy"];
+
+/** Organisation id in the path, or null for fixed pages such as /admin/associations/fees. */
+export function pathOrgIds(pathname: string): { clubId: string | null; assocId: string | null } {
+  const club = pathname.match(/\/clubs\/([^/?\s]+)/)?.[1] ?? null;
+  const assoc = pathname.match(/\/associations\/([^/?\s]+)/)?.[1] ?? null;
+  return {
+    clubId: club && !RESERVED_CLUB_SEGMENTS.includes(club) ? club : null,
+    assocId: assoc && !RESERVED_ASSOC_SEGMENTS.includes(assoc) ? assoc : null,
+  };
+}
+
 const CLUB_SCOPED_ROLES = [
   "club-admin",
   "club-committee",
@@ -320,19 +344,18 @@ function hasAccessViaScopedRoles(
   scopedRoles: AdminRouteScopedRole[],
 ): boolean {
   if (scopedRoles.length === 0) return false;
-  const clubMatch = currentPath.match(/\/clubs\/([^/?\s]+)/);
-  const assocMatch = currentPath.match(/\/associations\/([^/?\s]+)/);
+  const { clubId: pathClub, assocId: pathAssoc } = pathOrgIds(currentPath);
 
   return scopedRoles.some((sr) => {
     if (!allowedRoles.includes(sr.role)) return false;
     if (sr.scopeType === "global") return true;
 
-    if (assocMatch && assocMatch[1] !== "new") {
-      if (sr.scopeType === "association") return sr.scopeId === assocMatch[1];
+    if (pathAssoc) {
+      if (sr.scopeType === "association") return sr.scopeId === pathAssoc;
       return false;
     }
-    if (clubMatch && clubMatch[1] !== "new") {
-      if (sr.scopeType === "club") return sr.scopeId === clubMatch[1];
+    if (pathClub) {
+      if (sr.scopeType === "club") return sr.scopeId === pathClub;
       if (sr.scopeType === "association") return true;
       return false;
     }
@@ -366,11 +389,10 @@ export function evaluateAdminRouteAccess(
     }
 
     if (rule.scopeCheck) {
-      const clubMatch = pathname.match(/\/clubs\/([^/?\s]+)/);
-      const assocMatch = pathname.match(/\/associations\/([^/?\s]+)/);
+      const { clubId: pathClub, assocId: pathAssoc } = pathOrgIds(pathname);
 
-      if (clubMatch && clubMatch[1] !== "new") {
-        const pathClubId = clubMatch[1];
+      if (pathClub) {
+        const pathClubId = pathClub;
         if (CLUB_SCOPED_ROLES.includes(role)) {
           const matchesById = session.clubId === pathClubId;
           const matchesBySlug = session.clubSlug === pathClubId;
@@ -385,8 +407,8 @@ export function evaluateAdminRouteAccess(
         }
       }
 
-      if (assocMatch && assocMatch[1] !== "new") {
-        const pathAssocId = assocMatch[1];
+      if (pathAssoc) {
+        const pathAssocId = pathAssoc;
         if (ASSOC_SCOPED_ROLES.includes(role)) {
           if (
             session.associationId &&
@@ -406,4 +428,17 @@ export function evaluateAdminRouteAccess(
   }
 
   return "allow";
+}
+
+/**
+ * Menu check: may a person holding any of these roles open this page? Role rules only (organisation ids
+ * in the path are the API's and the page's concern), so the sidebar never offers a link that would be refused.
+ */
+export function canOpenAdminPath(pathname: string, roles: string[]): boolean {
+  const list = roles.filter(Boolean);
+  if (list.length === 0) return false;
+  return evaluateAdminRouteAccess(pathname, {
+    role: list[0],
+    scopedRoles: list.map((role) => ({ role, scopeType: "global" as const })),
+  }) === "allow";
 }
