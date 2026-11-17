@@ -753,6 +753,14 @@ export const menuConfig: MenuItem[] = [
     section: "personal",
   },
   {
+    label: "Notifications",
+    href: "/admin/notifications",
+    icon: "🔔",
+    description: "Upcoming matches, deadlines and events, and what you want to hear about",
+    color: "from-red-400 to-red-500",
+    section: "personal",
+  },
+  {
     label: "My Appointments",
     href: "/admin/my-appointments",
     icon: "🎖️",
