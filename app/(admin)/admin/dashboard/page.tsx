@@ -169,7 +169,8 @@ export default function DashboardPage() {
   const headerBg  = `linear-gradient(135deg, ${primary} 0%, ${secondary} 100%)`;
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    // The admin shell pads the top of <main> (pt-5 / md:pt-7); pull the banner up so only a thin gap shows under the header.
+    <div className="min-h-screen bg-slate-50 -mt-3 md:-mt-5">
 
       {/* Brand banner. Members get a slim one led by their own name: the club is already in the header. */}
       <div className={`text-white shadow-lg ${isMember ? "px-6 py-4" : "px-8 py-8"}`} style={{ background: headerBg }}>
