@@ -20,6 +20,7 @@
     "possible:duplicates": "tsx scripts/possible-duplicates.ts",
     "move:team": "tsx scripts/move-team.ts",
     "backfill:registrations": "tsx scripts/backfill-registrations.ts",
+    "backfill:matrix-holdings": "tsx scripts/backfill-matrix-holdings.ts",
     "seed:fee-lists": "tsx scripts/seed-fee-lists.ts",
     "dedupe:registrations": "tsx scripts/dedupe-registrations.ts",
     "create:member-logins": "tsx scripts/create-member-logins.ts",

@@ -14,6 +14,7 @@
  *   super-admin can act on everything.
  */
 
+import { syncMatrixHoldingsForGrant } from "@/lib/access/legacySync";
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import { getSession } from "@/lib/auth/session";
@@ -412,6 +413,15 @@ export async function PATCH(
           { error: "Target member/user not found — role assignment failed" },
           { status: 404 }
         );
+      }
+
+      // Keep the Roles & Access Matrix in step: add the matching holding (members only).
+      if (req.accountType !== "user") {
+        try {
+          await syncMatrixHoldingsForGrant(db, req.memberId, [assignment]);
+        } catch (e) {
+          logAdminError("admin.role_request.approve.matrix_sync_error", traceId, e, { requestId });
+        }
       }
 
       // ── Mark request as approved — include waiver record if present ─────────
