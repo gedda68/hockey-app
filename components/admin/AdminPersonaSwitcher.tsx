@@ -27,19 +27,6 @@ export default function AdminPersonaSwitcher() {
     return () => document.removeEventListener("mousedown", close);
   }, []);
 
-  // After sign-in, reopen the organisation the person last worked in (once per browser session).
-  useEffect(() => {
-    if (!user?.lastPersonaKey || !user.personas) return;
-    try {
-      if (sessionStorage.getItem("persona-restored") === user.memberId) return;
-      sessionStorage.setItem("persona-restored", user.memberId ?? "1");
-    } catch { /* storage unavailable: just skip */ }
-    const last = user.personas.find((p) => p.key === user.lastPersonaKey);
-    const lastEntry = last ? entries.find((e) => e.orgKey === (last.orgKey ?? "personal")) : null;
-    if (!lastEntry || lastEntry.active) return;
-    void switchPersona(lastEntry.personaKey).then(() => router.refresh()).catch(() => undefined);
-  }, [user?.lastPersonaKey, user?.personas, user?.memberId, entries, switchPersona, router]);
-
   const current = entries.find((e) => e.active) ?? entries[0];
   const roles = useMemo(() => (current ? rolesInOrg(user?.personas, current.orgKey, user?.activePersonaKey) : []), [current, user?.personas, user?.activePersonaKey]);
 
