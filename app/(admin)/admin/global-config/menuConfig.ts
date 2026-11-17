@@ -685,6 +685,16 @@ export const menuConfig: MenuItem[] = [
 
   // ── Reports & Analytics ──────────────────────────────────────────────────────
   {
+    label: "Announcements",
+    href: "/admin/announcements",
+    areas: ["commsMedia"],
+    icon: "📣",
+    description: "Write messages for your members, club, association or everyone",
+    color: "from-fuchsia-500 to-fuchsia-600",
+    section: "content",
+    allowedRoles: ["super-admin", "association-admin", "club-admin", "club-committee"],
+  },
+  {
     label: "Club health",
     href: "/admin/club-health",
     areas: ["reportsExports"],

@@ -11,14 +11,14 @@ import { getMatrixRole } from "@/lib/access/matrix";
 import { allows, mergePrefs, type NotificationPrefs } from "@/lib/notifications/prefs";
 import { dispatchExtraChannels } from "@/lib/notifications/channels";
 import {
-  approvalCandidates, eventCandidates, matchCandidates, nominationCandidates,
-  type Candidate, type EventLike, type FixtureLike, type WaitingOnMe, type WindowLike,
+  announcementCandidates, approvalCandidates, eventCandidates, matchCandidates, nominationCandidates,
+  type AnnouncementLike, type Candidate, type EventLike, type FixtureLike, type WaitingOnMe, type WindowLike,
 } from "@/lib/notifications/candidates";
 
 export const COLLECTION = "member_notifications";
 export const REFRESH_MINUTES = 10;
 /** Categories whose notifications go away by themselves once the thing is done (nominated, accepted…). */
-const SELF_RESOLVING = ["approvals", "nominations"];
+const SELF_RESOLVING = ["approvals", "nominations", "announcements"];
 
 const DAY = 86400000;
 
@@ -90,6 +90,18 @@ export async function gatherCandidates(db: Db, memberId: string, now: Date): Pro
     .limit(50)
     .toArray()) as unknown as EventLike[];
   out.push(...eventCandidates(events, now));
+
+  // Announcements written by admins for everyone, my association or my club.
+  const annScopes: Record<string, unknown>[] = [{ level: "global" }];
+  if (clubRefs.length) annScopes.push({ level: "club", scopeId: { $in: clubRefs } });
+  if (associationId) annScopes.push({ level: "association", scopeId: associationId });
+  const announcements = (await db
+    .collection("announcements")
+    .find({ status: "published", publishAt: { $lte: now.toISOString() }, $or: annScopes })
+    .sort({ publishAt: -1 })
+    .limit(30)
+    .toArray()) as unknown as AnnouncementLike[];
+  out.push(...announcementCandidates(announcements, now));
 
   // Waiting on me: invitations, and approvals for my children.
   const kids = await childrenOf(db, memberId);

@@ -173,7 +173,7 @@ describe("storing notifications", () => {
     const { db, updateMany } = fakeDb();
     await storeCandidates(db, "m1", [cand("keep", "personal", "approvals")], rcpt, defaultPrefs(), NOW);
     const [filter] = updateMany.mock.calls[0] as unknown as [Record<string, any>];
-    expect(filter.category).toEqual({ $in: ["approvals", "nominations"] });
+    expect(filter.category).toEqual({ $in: ["approvals", "nominations", "announcements"] });
     expect(filter.dedupeKey).toEqual({ $nin: ["keep"] });
     expect(filter.memberId).toBe("m1");
   });
