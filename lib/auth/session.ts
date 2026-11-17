@@ -245,6 +245,23 @@ export async function deleteSession(): Promise<void> {
   });
 }
 
+/**
+ * Set-Cookie strings that expire the session cookie both ways it can exist: host-only and domain-scoped.
+ * A cookie set host-only (e.g. by a cross-host sync) isn't removed by a delete that names a Domain, and the
+ * other way round, so logout sends both to be sure the person is really signed out.
+ */
+export function expiredSessionCookieHeaders(): string[] {
+  const secure = process.env.NODE_ENV === "production" ? "; Secure" : "";
+  const base = `=; Path=/; Expires=${new Date(0).toUTCString()}; Max-Age=0; HttpOnly; SameSite=Lax${secure}`;
+  const out = [`${activeSessionCookieName()}${base}`];
+  const domains = new Set<string>();
+  const explicit = process.env.SESSION_COOKIE_DOMAIN?.trim();
+  if (explicit) domains.add(explicit);
+  if (process.env.NODE_ENV === "development" && getPortalRootDomain().split(":")[0].toLowerCase() === "localhost") domains.add(".localhost");
+  for (const d of domains) out.push(`session${base}; Domain=${d}`);
+  return out;
+}
+
 // Helpers
 export async function isAuthenticated(): Promise<boolean> {
   return (await getSession()) !== null;
