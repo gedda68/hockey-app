@@ -1,3 +1,4 @@
+import { ObjectId } from "mongodb";
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -121,9 +122,11 @@ export default async function AdminProfilePage() {
 
   let member: Record<string, unknown> | null = null;
   if (session.memberId) {
+    // Logins store the member's Mongo _id here; older data may hold the MBR-… id.
+    const raw = String(session.memberId);
     member = (await db
       .collection("members")
-      .findOne({ memberId: session.memberId })) as Record<string, unknown> | null;
+      .findOne({ $or: [{ memberId: raw }, ...(ObjectId.isValid(raw) && raw.length === 24 ? [{ _id: new ObjectId(raw) }] : [])] })) as Record<string, unknown> | null;
   }
   if (!member && user?.linkedMembers && Array.isArray(user.linkedMembers)) {
     const first = user.linkedMembers[0] as string | { memberId?: string };

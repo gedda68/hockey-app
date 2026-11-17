@@ -199,6 +199,9 @@ export async function createStaffUserSession(
 
   const sessionData: SessionData = {
     userId: user.userId || user._id.toString(),
+    // Set when this login has been linked to the person's member record (scripts/link-users-to-members.ts).
+    ...(user.memberId ? { memberId: String(user.memberId) } : {}),
+    staffUser: true,
     email: user.email || `${user.username}@local`,
     name: fullName,
     firstName,

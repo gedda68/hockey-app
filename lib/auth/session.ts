@@ -79,6 +79,11 @@ export interface SessionData {
   clubSlug?: string | null;  // URL-safe slug derived from club name
   clubName?: string;
   memberId?: string | null;
+  /**
+   * True for logins from the `users` collection (staff accounts). Such a login may also be linked to a member record
+   * (memberId) so it can hold matrix roles; it still signs in, and changes its password, as a staff account.
+   */
+  staffUser?: boolean;
   username?: string;
   forcePasswordChange?: boolean;
   /**

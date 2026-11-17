@@ -218,7 +218,9 @@ export async function buildPersonaOptions(
           blueCardValid: blueCardStatus((m as any)?.blueCard).ok,
         }) as RoleAssignment[]),
       ]);
-    } else if (session.userId) {
+    }
+    // A staff login also carries the roles on its own account (linked or not).
+    if (session.userId && (!session.memberId || session.staffUser)) {
       const uid = String(session.userId);
       const u = await db.collection("users").findOne(
         {
@@ -232,7 +234,7 @@ export async function buildPersonaOptions(
       const roles = Array.isArray((u as any)?.roles)
         ? ((u as any).roles as RoleAssignment[])
         : [];
-      dbScoped = toScopedRoles(roles);
+      dbScoped = [...dbScoped, ...toScopedRoles(roles)];
     }
   } catch {
     dbScoped = [];
