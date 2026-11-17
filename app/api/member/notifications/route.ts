@@ -32,6 +32,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDatabase } from "@/lib/mongodb";
 import { getSession } from "@/lib/auth/session";
+import { resolveSessionMemberId } from "@/lib/auth/sessionMember";
 import { refreshForMember, loadPrefs } from "@/lib/notifications/engine";
 import { allows, classifyLegacy, type Category, type Level } from "@/lib/notifications/prefs";
 
@@ -72,14 +73,16 @@ export async function GET(request: NextRequest) {
 
     const db  = await getDatabase();
     const now = new Date().toISOString();
+    // Logins hold the member's Mongo _id; notifications are keyed by the member's own memberId ("MBR-…").
+    const me  = await resolveSessionMemberId(db, session);
 
     // Inbox: bring it up to date, then show what their preferences allow.
     if (new URL(request.url).searchParams.get("inbox") === "1") {
-      await refreshForMember(db, session.memberId).catch((e) => console.error("notifications refresh failed:", e));
-      const { prefs } = await loadPrefs(db, session.memberId);
+      await refreshForMember(db, me).catch((e) => console.error("notifications refresh failed:", e));
+      const { prefs } = await loadPrefs(db, me);
       const rows = await db
         .collection("member_notifications")
-        .find({ memberId: session.memberId, dismissedAt: null, expiresAt: { $gt: now } })
+        .find({ memberId: me, dismissedAt: null, expiresAt: { $gt: now } })
         .limit(200)
         .toArray();
       const items: InboxNotification[] = rows
@@ -108,7 +111,7 @@ export async function GET(request: NextRequest) {
     const docs = await db
       .collection("member_notifications")
       .find({
-        memberId:    session.memberId,
+        memberId:    me,
         dismissedAt: null,
         expiresAt:   { $gt: now },
       })
@@ -153,7 +156,7 @@ export async function PATCH(request: NextRequest) {
     if (body?.action) {
       const db = await getDatabase();
       const at = new Date().toISOString();
-      const mine = { memberId: session.memberId };
+      const mine = { memberId: await resolveSessionMemberId(db, session) };
       if (body.action === "read-all") {
         await db.collection("member_notifications").updateMany({ ...mine, readAt: null }, { $set: { readAt: at } });
         return NextResponse.json({ ok: true });
@@ -181,7 +184,7 @@ export async function PATCH(request: NextRequest) {
     // Scope the update to the caller's own memberId — prevents dismissing
     // another member's notifications even if the notificationId is guessed.
     const result = await db.collection("member_notifications").updateOne(
-      { notificationId, memberId: session.memberId },
+      { notificationId, memberId: await resolveSessionMemberId(db, session) },
       { $set: { dismissedAt: new Date().toISOString() } },
     );
 

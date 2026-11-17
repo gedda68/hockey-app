@@ -9,6 +9,8 @@ const h = vi.hoisted(() => ({
   memberUpdate: vi.fn(async () => ({})),
 }));
 vi.mock("@/lib/auth/session", () => ({ getSession: vi.fn(async () => h.session) }));
+// A login holds the member's Mongo _id; the member's own id is "MBR-1".
+vi.mock("@/lib/auth/sessionMember", () => ({ resolveSessionMemberId: vi.fn(async (_db: unknown, s: { memberId?: string }) => (s.memberId === "507f1f77bcf86cd799439011" ? "MBR-1" : s.memberId ?? "")) }));
 vi.mock("@/lib/notifications/engine", async () => {
   const { mergePrefs } = await import("@/lib/notifications/prefs");
   return {
@@ -139,5 +141,22 @@ describe("notification preferences", () => {
     expect((await put({})).status).toBe(400);
     h.session = null;
     expect((await PREFS_GET()).status).toBe(401);
+  });
+});
+
+describe("a real login (Mongo _id) is resolved to the member's own id", () => {
+  const HEX = "507f1f77bcf86cd799439011";
+  beforeEach(() => { h.session = { memberId: HEX }; });
+
+  it("reads and writes notifications under MBR-1", async () => {
+    await patch({ action: "read", notificationId: "n1" });
+    expect((h.updateOne.mock.calls[0] as unknown as [Record<string, unknown>])[0]).toEqual({ memberId: "MBR-1", notificationId: "n1" });
+    await patch({ action: "read-all" });
+    expect((h.updateMany.mock.calls[0] as unknown as [Record<string, unknown>])[0]).toEqual({ memberId: "MBR-1", readAt: null });
+  });
+
+  it("saves preferences under MBR-1", async () => {
+    await PREFS_PUT(new NextRequest("http://x", { method: "PUT", body: JSON.stringify({ enabled: false }), headers: { "content-type": "application/json" } }));
+    expect((h.memberUpdate.mock.calls[0] as unknown as [Record<string, unknown>])[0]).toEqual({ memberId: "MBR-1" });
   });
 });
