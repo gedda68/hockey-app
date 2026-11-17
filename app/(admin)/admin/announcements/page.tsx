@@ -7,6 +7,10 @@ import { toast } from "sonner";
 import { Loader2, Megaphone, Trash2 } from "lucide-react";
 
 type Audience = "global" | "association" | "club";
+interface Reach { total: number; byChannel: Record<string, number>; silenced: number; capped?: boolean }
+interface Deliveries { counts: Record<string, { sent: number; failed: number }>; failures: { memberId: string; name: string; channel: string; error: string }[] }
+const CHANNEL_LABEL: Record<string, string> = { inApp: "In the app", email: "Email", sms: "SMS", social: "WhatsApp" };
+
 interface Ann { targeting?: { teamIds?: string[]; maxAge?: number | null; includeGuardians?: boolean }; announcementId: string; level: Audience; scopeId?: string; title: string; body: string; status: string; publishAt: string; expiresAt?: string | null; createdByName?: string }
 
 const inputCls = "w-full rounded-xl border-2 border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 outline-none focus:border-teal-400";
@@ -29,6 +33,8 @@ export default function AnnouncementsPage() {
   const [defaults, setDefaults] = useState({ clubId: "", associationId: "" });
   const [form, setForm] = useState({ level: "club" as Audience, title: "", body: "", link: "", publishAt: "", expiresAt: "" });
   const [busy, setBusy] = useState(false);
+  const [reach, setReach] = useState<Reach | null>(null);
+  const [log, setLog] = useState<Record<string, Deliveries | "loading">>({});
 
   const load = useCallback(async () => {
     try {
@@ -41,6 +47,27 @@ export default function AnnouncementsPage() {
     } catch (e) { setRows([]); toast.error(e instanceof Error ? e.message : "Couldn't load"); }
   }, []);
   useEffect(() => { load(); }, [load]);
+
+  // How many people it would reach, updated as the author changes the audience or narrows it.
+  useEffect(() => {
+    if (audiences.length === 0) return () => undefined;
+    let live = true;
+    const scopeId = form.level === "club" ? defaults.clubId : form.level === "association" ? defaults.associationId : "";
+    const t = setTimeout(async () => {
+      try {
+        const d = await api("/api/admin/announcements/preview", { method: "POST", body: JSON.stringify({ level: form.level, scopeId, targeting: form.level === "global" ? undefined : { teamIds: form.level === "club" ? target.teamIds : [], maxAge: target.maxAge ? Number(target.maxAge) : null, includeGuardians: target.includeGuardians } }) });
+        if (live) setReach(d);
+      } catch { if (live) setReach(null); }
+    }, 400);
+    return () => { live = false; clearTimeout(t); };
+  }, [form.level, target, defaults, audiences]);
+
+  const showLog = async (a: Ann) => {
+    if (log[a.announcementId] && log[a.announcementId] !== "loading") { setLog((l) => { const n = { ...l }; delete n[a.announcementId]; return n; }); return; }
+    setLog((l) => ({ ...l, [a.announcementId]: "loading" }));
+    try { const d = await api(`/api/admin/announcements/${a.announcementId}/deliveries`); setLog((l) => ({ ...l, [a.announcementId]: d })); }
+    catch (e) { setLog((l) => { const n = { ...l }; delete n[a.announcementId]; return n; }); toast.error(e instanceof Error ? e.message : "Couldn't load"); }
+  };
 
   const publish = async () => {
     setBusy(true);
@@ -100,6 +127,18 @@ export default function AnnouncementsPage() {
           <div><label className={labelCls}>Publish at (blank = now)</label><input type="datetime-local" className={inputCls} value={form.publishAt} onChange={(e) => setForm({ ...form, publishAt: e.target.value })} /></div>
           <div><label className={labelCls}>Remove after (blank = 14 days)</label><input type="datetime-local" className={inputCls} value={form.expiresAt} onChange={(e) => setForm({ ...form, expiresAt: e.target.value })} /></div>
         </div>
+        {reach && (
+          <div className="rounded-xl bg-teal-50 p-3 text-sm font-semibold text-teal-900">
+            <span className="font-black">{reach.capped ? "At least " : "About "}{reach.total.toLocaleString("en-AU")} {reach.total === 1 ? "person" : "people"}</span> would get this.
+            {reach.total > 0 && (
+              <span className="ml-1 text-teal-700">
+                In the app: {reach.byChannel.inApp}
+                {["email", "sms", "social"].filter((c) => reach.byChannel[c] > 0).map((c) => ` · ${CHANNEL_LABEL[c]}: ${reach.byChannel[c]}`).join("")}
+                {reach.silenced > 0 ? ` · ${reach.silenced} have announcements switched off` : ""}
+              </span>
+            )}
+          </div>
+        )}
         <button onClick={publish} disabled={busy || audiences.length === 0} className="inline-flex items-center gap-2 rounded-xl bg-teal-500 px-4 py-2 text-sm font-black text-white disabled:opacity-50">
           {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Megaphone className="h-4 w-4" />} Publish
         </button>
@@ -122,9 +161,29 @@ export default function AnnouncementsPage() {
                   <button onClick={() => remove(a)} aria-label="Delete announcement" className="text-slate-300 hover:text-red-500"><Trash2 className="h-4 w-4" /></button>
                 </div>
               </div>
-              <button onClick={() => setStatus(a, a.status === "published" ? "withdrawn" : "published")} className="mt-3 rounded-lg bg-slate-100 px-3 py-1 text-xs font-black text-slate-600">
-                {a.status === "published" ? "Withdraw" : "Publish again"}
-              </button>
+              <div className="mt-3 flex gap-2">
+                <button onClick={() => setStatus(a, a.status === "published" ? "withdrawn" : "published")} className="rounded-lg bg-slate-100 px-3 py-1 text-xs font-black text-slate-600">
+                  {a.status === "published" ? "Withdraw" : "Publish again"}
+                </button>
+                <button onClick={() => showLog(a)} className="rounded-lg bg-slate-100 px-3 py-1 text-xs font-black text-slate-600">{log[a.announcementId] ? "Hide delivery" : "Delivery"}</button>
+              </div>
+              {log[a.announcementId] === "loading" && <Loader2 className="mt-3 h-4 w-4 animate-spin text-slate-400" />}
+              {log[a.announcementId] && log[a.announcementId] !== "loading" && (() => {
+                const d = log[a.announcementId] as Deliveries;
+                return (
+                  <div className="mt-3 space-y-2 border-t border-slate-100 pt-3 text-sm">
+                    <div className="flex flex-wrap gap-x-5 gap-y-1">
+                      {Object.keys(CHANNEL_LABEL).map((c) => <span key={c} className="font-semibold text-slate-600">{CHANNEL_LABEL[c]}: <b>{d.counts[c]?.sent ?? 0}</b>{(d.counts[c]?.failed ?? 0) > 0 && <b className="text-red-600"> ({d.counts[c].failed} failed)</b>}</span>)}
+                    </div>
+                    {d.failures.length > 0 && (
+                      <ul className="divide-y divide-slate-100 text-xs">
+                        {d.failures.map((f, i) => <li key={`${f.memberId}${f.channel}${i}`} className="flex justify-between gap-3 py-1"><span className="font-bold text-slate-700">{f.name} · {CHANNEL_LABEL[f.channel]}</span><span className="text-red-600">{f.error}</span></li>)}
+                      </ul>
+                    )}
+                    <p className="text-xs font-semibold text-slate-400">People are counted when their notification is created. Anyone who hasn't opened the app and has no email, SMS or WhatsApp switched on is picked up the next time they do.</p>
+                  </div>
+                );
+              })()}
             </li>
           ))}
         </ul>

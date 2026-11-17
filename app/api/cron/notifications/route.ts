@@ -12,6 +12,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDatabase } from "@/lib/mongodb";
 import { refreshForMember } from "@/lib/notifications/engine";
+import { pruneDeliveries } from "@/lib/notifications/deliveryLog";
 import { membersWithExtraChannelsFilter } from "@/lib/notifications/cronFilter";
 
 export const maxDuration = 60;
@@ -52,7 +53,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       try { await refreshForMember(db, String(m.memberId)); refreshed++; }
       catch (e) { failed++; console.error("notification cron: refresh failed for", m.memberId, e); }
     }
-    return NextResponse.json({ ok: true, eligible: members.length, refreshed, failed, stoppedEarly: refreshed + failed < members.length });
+    const pruned = await pruneDeliveries(db).catch(() => 0);
+    return NextResponse.json({ ok: true, pruned, eligible: members.length, refreshed, failed, stoppedEarly: refreshed + failed < members.length });
   } catch (e) {
     console.error("notifications cron error:", e);
     return NextResponse.json({ error: "Job failed" }, { status: 500 });
