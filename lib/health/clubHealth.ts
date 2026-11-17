@@ -64,7 +64,8 @@ export function assessClub(input: { members: Doc[]; teams: Doc[]; openIncidents?
     if (ageOn(dob, now) === null) add("missing-dob", m, "No valid date of birth");
     const minor = isMinor(dob, now);
     if (!minor && blank(m?.contact?.primaryEmail) && blank(m?.contact?.mobile) && blank(m?.contact?.phone)) add("missing-contact", m, "No email or phone");
-    const ec = Array.isArray(m?.emergencyContacts) ? m.emergencyContacts : [];
+    // Newer records keep a list; imports also write a single legacy `contact.emergencyContact`.
+    const ec = [...(Array.isArray(m?.emergencyContacts) ? m.emergencyContacts : []), ...(m?.contact?.emergencyContact ? [m.contact.emergencyContact] : [])];
     if (!ec.some((c: Doc) => !blank(c?.name) && (!blank(c?.phone) || !blank(c?.mobile)))) add("missing-emergency", m, "No emergency contact with a phone number");
     if (minor && !hasGuardian(m)) add("minor-no-guardian", m, "Under 18 with no linked parent or guardian");
     if (requiresBlueCard(m, now)) {

@@ -31,6 +31,7 @@ export default function NotificationsPage() {
   const [items, setItems] = useState<InboxNotification[] | null>(null);
   const [prefs, setPrefs] = useState<NotificationPrefs | null>(null);
   const [live, setLive] = useState<Channel[]>(["inApp"]);
+  const [noProfile, setNoProfile] = useState(false);
 
   const loadItems = useCallback(async () => {
     const r = await fetch("/api/member/notifications?inbox=1", { credentials: "include" }).catch(() => null);
@@ -39,6 +40,7 @@ export default function NotificationsPage() {
   const loadPrefs = useCallback(async () => {
     const r = await fetch("/api/member/notification-preferences", { credentials: "include" }).catch(() => null);
     if (r?.ok) { const d = await r.json(); setPrefs(d.prefs); setLive(d.live ?? ["inApp"]); }
+    else setNoProfile(true);
   }, []);
   useEffect(() => { loadItems(); loadPrefs(); }, [loadItems, loadPrefs]);
 
@@ -109,6 +111,8 @@ export default function NotificationsPage() {
             ))}
           </div>
         )
+      ) : noProfile ? (
+        <p className="rounded-2xl border-2 border-slate-100 bg-white p-5 text-sm font-semibold text-slate-600">Notification settings belong to a member profile, and this login isn't linked to one yet. Ask your administrator to link it, then you can choose what you get and how.</p>
       ) : !prefs ? (
         <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-slate-400" /></div>
       ) : (

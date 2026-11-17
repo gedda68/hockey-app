@@ -19,6 +19,14 @@ describe("assessClub", () => {
     expect(h.checks.every((c) => c.count === 0)).toBe(true);
   });
 
+  it("accepts the legacy single emergency contact written by imports", () => {
+    const h = assessClub({
+      members: [member({ emergencyContacts: undefined, contact: { primaryEmail: "s@x.com", emergencyContact: { name: "Pat", phone: "0400" } } })],
+      teams: [], now: NOW,
+    });
+    expect(count(h, "missing-emergency")).toBe(0);
+  });
+
   it("flags missing basics", () => {
     const h = assessClub({
       members: [member({ memberId: "A", personalInfo: { firstName: "No", lastName: "Dob" }, contact: {}, emergencyContacts: [] })],
