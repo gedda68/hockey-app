@@ -1,6 +1,7 @@
 //app/api/rosters/route.ts
 
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { requireRole } from "@/lib/auth/middleware";
 import { MongoServerError } from "mongodb";
 import clientPromise from "@/lib/mongodb";
 import { sanitizeLegacyRosterTeamsStaff } from "@/lib/coaching/publicStaffContact";
@@ -76,7 +77,14 @@ export async function GET(request: Request) {
   }
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
+  // Writes need an association-level admin; GET stays public for the website.
+  const { response: authRes } = await requireRole(request, [
+    "super-admin",
+    "association-admin",
+  ]);
+  if (authRes) return authRes;
+
   try {
     const client = await clientPromise;
     const db = client.db("hockey-app");

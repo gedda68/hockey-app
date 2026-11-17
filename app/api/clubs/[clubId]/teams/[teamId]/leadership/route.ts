@@ -3,6 +3,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
+import { guardClubRoute } from "@/lib/clubs/guardClubRoute";
 import { UpdateLeadershipRequestSchema } from "@/lib/db/schemas/team.schema";
 import { ZodError } from "zod";
 
@@ -17,6 +18,8 @@ export async function PUT(
 ) {
   try {
     const { clubId, teamId } = await params;
+    const guard = await guardClubRoute(request, clubId, ["team.roster", "team.edit"]);
+    if (guard.response) return guard.response;
     const body = await request.json();
 
     // Validate request body

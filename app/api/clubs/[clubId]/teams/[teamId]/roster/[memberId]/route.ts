@@ -4,6 +4,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
+import { guardClubRoute } from "@/lib/clubs/guardClubRoute";
 import {
   UpdateRosterMemberRequestSchema,
   calculateTeamStatistics,
@@ -23,6 +24,8 @@ export async function PUT(
 ) {
   try {
     const { clubId, teamId, memberId } = await params;
+    const guard = await guardClubRoute(request, clubId, ["team.roster", "team.edit"]);
+    if (guard.response) return guard.response;
     const body = await request.json();
 
     // Validate request body
@@ -191,6 +194,8 @@ export async function DELETE(
 ) {
   try {
     const { clubId, teamId, memberId } = await params;
+    const guard = await guardClubRoute(request, clubId, ["team.roster", "team.edit"]);
+    if (guard.response) return guard.response;
 
     const client = await clientPromise;
     const db = client.db();

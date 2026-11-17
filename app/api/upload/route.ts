@@ -4,8 +4,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { writeFile, mkdir } from "fs/promises";
 import { join } from "path";
+import { requireAuth } from "@/lib/auth/middleware";
 
 export async function POST(request: NextRequest) {
+  // Uploads are only for signed-in users.
+  const { response: authRes } = await requireAuth(request);
+  if (authRes) return authRes;
+
   try {
     const formData = await request.formData();
     const file = formData.get("file") as File;

@@ -1,8 +1,9 @@
 // app/api/clubs/[clubId]/members/[memberId]/route.ts
-// TEMPORARY - NO AUTH VERSION FOR TESTING
+// Requires sign-in, a member permission and access to the club on every method.
 
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
+import { guardClubRoute, stripProtectedMemberFields } from "@/lib/clubs/guardClubRoute";
 
 // GET - View a member
 export async function GET(
@@ -12,40 +13,17 @@ export async function GET(
   try {
     const { clubId: clubIdOrSlug, memberId } = await params;
 
+    const guard = await guardClubRoute(request, clubIdOrSlug, ["member.view", "club.members"]);
+    if (guard.response) return guard.response;
+    const actualClubId = guard.club.clubId;
 
     const client = await clientPromise;
     const db = client.db("hockey-app");
-
-    // Convert slug to clubId if needed
-    let actualClubId = clubIdOrSlug;
-
-    // Check if this is a slug (doesn't start with 'club-')
-    if (!clubIdOrSlug.startsWith("club-")) {
-      const clubsCollection = db.collection("clubs");
-      const club = await clubsCollection.findOne({ slug: clubIdOrSlug });
-
-      if (club) {
-        actualClubId = club.id;
-      } else {
-      }
-    }
 
     const collection = db.collection("members");
     const member = await collection.findOne({ memberId, clubId: actualClubId });
 
     if (!member) {
-      // Check if member exists in a different club
-      const memberInOtherClub = await collection.findOne({ memberId });
-      if (memberInOtherClub) {
-        return NextResponse.json(
-          {
-            error: "Member not found in this club",
-            hint: `This member belongs to club: ${memberInOtherClub.clubId}`,
-          },
-          { status: 404 },
-        );
-      }
-
       return NextResponse.json({ error: "Member not found" }, { status: 404 });
     }
 
@@ -66,21 +44,15 @@ export async function PUT(
 ) {
   try {
     const { clubId: clubIdOrSlug, memberId } = await params;
-    const updates = await request.json();
 
+    const guard = await guardClubRoute(request, clubIdOrSlug, ["member.edit", "club.members"]);
+    if (guard.response) return guard.response;
+    const actualClubId = guard.club.clubId;
+
+    const updates = stripProtectedMemberFields(await request.json());
 
     const client = await clientPromise;
     const db = client.db("hockey-app");
-
-    // Convert slug to clubId if needed
-    let actualClubId = clubIdOrSlug;
-    if (!clubIdOrSlug.startsWith("club-")) {
-      const clubsCollection = db.collection("clubs");
-      const club = await clubsCollection.findOne({ slug: clubIdOrSlug });
-      if (club) {
-        actualClubId = club.id;
-      }
-    }
 
     const collection = db.collection("members");
 
@@ -120,19 +92,12 @@ export async function DELETE(
   try {
     const { clubId: clubIdOrSlug, memberId } = await params;
 
+    const guard = await guardClubRoute(request, clubIdOrSlug, ["member.delete"]);
+    if (guard.response) return guard.response;
+    const actualClubId = guard.club.clubId;
 
     const client = await clientPromise;
     const db = client.db("hockey-app");
-
-    // Convert slug to clubId if needed
-    let actualClubId = clubIdOrSlug;
-    if (!clubIdOrSlug.startsWith("club-")) {
-      const clubsCollection = db.collection("clubs");
-      const club = await clubsCollection.findOne({ slug: clubIdOrSlug });
-      if (club) {
-        actualClubId = club.id;
-      }
-    }
 
     const collection = db.collection("members");
 
