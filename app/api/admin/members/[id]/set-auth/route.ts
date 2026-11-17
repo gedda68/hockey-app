@@ -1,6 +1,8 @@
 // app/api/admin/members/[id]/set-auth/route.ts
 // Admin endpoint to create, reset, or update auth credentials for a member.
 
+import { legacyAssignmentsOf } from "@/lib/access/memberLegacy";
+import { syncMatrixHoldingsForGrant, syncMatrixHoldingsForRemoval } from "@/lib/access/legacySync";
 import { areaGuard, memberRecordGuard } from "@/lib/access/enforce";
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
@@ -126,6 +128,12 @@ export async function POST(
 
       console.log("✅ Created auth for member:", username);
 
+      await syncMatrixHoldingsForGrant(
+        db,
+        String(member.memberId),
+        legacyAssignmentsOf({ ...member, auth: { ...(member.auth ?? {}), role: role || "player" } }),
+      );
+
       return NextResponse.json({
         success: true,
         action: "create",
@@ -191,8 +199,14 @@ export async function POST(
 
       await db.collection("members").updateOne(
         { _id: memberId },
-        { $set: { "auth.role": role } }
+        { $set: { "auth.role": role }, $inc: { roleVersion: 1 } }
       );
+
+      // Keep the matrix in step: end what the old login role gave, add what the new one gives.
+      const before = legacyAssignmentsOf(member);
+      const after = legacyAssignmentsOf({ ...member, auth: { ...(member.auth ?? {}), role } });
+      await syncMatrixHoldingsForRemoval(db, String(member.memberId), before, after, session.userId ?? "admin");
+      await syncMatrixHoldingsForGrant(db, String(member.memberId), after);
 
       console.log(
         "✅ Updated role for member:",

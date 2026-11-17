@@ -74,6 +74,13 @@ const TEAM_MAP: Record<string, string> = {
 /** Legacy roles with no matrix equivalent by design (access, not a position). */
 const NO_EQUIVALENT = new Set(["super-admin", "public", "member"]);
 
+/**
+ * Top administrators keep full access through the legacy role. The matrix "Club Manager / Administrator" and
+ * "CEO / General Manager" roles are narrower (and need a Blue Card), so mapping them would narrow the very people
+ * who run the club or association. They are listed for review instead.
+ */
+const TOP_ADMIN = new Set(["club-admin", "association-admin"]);
+
 /** Needs a person to choose teams / squads; reported, never guessed. */
 const NEEDS_CHOICE: Record<string, string> = {
   coach: "club-wide coach: matrix coach roles are per team, so choose the teams in Role Holders",
@@ -87,6 +94,10 @@ export function mapLegacyAssignment(a: LegacyAssignment, ctx: LegacyContext = {}
   if (a.expiresAt && new Date(a.expiresAt) <= now) return { kind: "skip", reason: "expired" };
   if (NO_EQUIVALENT.has(a.role)) return { kind: "skip", reason: "no matrix equivalent" };
   if (a.scopeType === "global" || !a.scopeId) return { kind: "skip", reason: "not tied to a club or association" };
+
+  if (TOP_ADMIN.has(a.role)) {
+    return { kind: "review", reason: "top administrator: keeps full access through the legacy role (the matrix role is narrower)" };
+  }
 
   const base = {
     status: "active" as const,
@@ -198,4 +209,36 @@ export function planHoldingEnds(
     if (h.source === "legacy-migration" && h.status !== "ended" && gone.has(holdingKey(h))) indexes.push(i);
   });
   return { indexes };
+}
+
+// ── Roles held through the account itself (members.auth.role) ─────────────────
+
+/** Roles worth syncing from members.auth.role. Plain member/player/parent defaults are left out on purpose. */
+const AUTH_ROLE_SYNC = new Set([
+  "club-admin", "club-committee", "registrar", "team-selector", "coach", "manager", "media-marketing",
+  "association-admin", "assoc-committee", "assoc-registrar", "assoc-competition", "assoc-coach", "assoc-selector",
+]);
+const ASSOC_AUTH_ROLES = new Set(["association-admin", "assoc-committee", "assoc-registrar", "assoc-competition", "assoc-coach", "assoc-selector"]);
+
+/** Whether this account role is one the backfill looks at (used to find candidate members). */
+export const AUTH_ROLES_TO_SYNC = [...AUTH_ROLE_SYNC];
+
+/**
+ * The legacy assignment a member's login role stands for. Admin and committee accounts hold their role in
+ * members.auth.role rather than members.roles, so without this they never reach the matrix.
+ */
+export function authRoleAssignment(member: {
+  auth?: { role?: unknown };
+  clubId?: string | null;
+  associationId?: string | null;
+  membership?: { clubId?: string | null; associationId?: string | null };
+}): LegacyAssignment | null {
+  const role = typeof member?.auth?.role === "string" ? member.auth.role : "";
+  if (!AUTH_ROLE_SYNC.has(role)) return null;
+  const clubId = member.clubId || member.membership?.clubId || null;
+  const assocId = member.associationId || member.membership?.associationId || null;
+  if (ASSOC_AUTH_ROLES.has(role)) return assocId ? { role, scopeType: "association", scopeId: String(assocId) } : null;
+  if (clubId) return { role, scopeType: "club", scopeId: String(clubId) };
+  if (role === "media-marketing" && assocId) return { role, scopeType: "association", scopeId: String(assocId) };
+  return null;
 }
