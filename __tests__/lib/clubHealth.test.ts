@@ -70,4 +70,38 @@ describe("assessClub", () => {
     expect(c.count).toBe(80);
     expect(c.issues).toHaveLength(50);
   });
+
+  describe("team staffing", () => {
+    const team = { teamId: "T1", name: "Lions", roster: [{ memberId: "p1", roleId: "role-player" }] };
+    const staffOf = (holdings: any[], t: any = team) => assessClub({ members: [member()], teams: [t], staffHoldings: holdings, now: NOW }).checks.find((c) => c.id === "team-staff")!;
+
+    it("is skipped unless staff holdings are provided", () => {
+      expect(assessClub({ members: [member()], teams: [team], now: NOW }).checks.find((c) => c.id === "team-staff")!.count).toBe(0);
+    });
+    it("flags a team with players but no coach or manager", () => {
+      const c = staffOf([]);
+      expect(c.count).toBe(1);
+      expect(c.issues[0].detail).toBe("No coach or manager");
+    });
+    it("counts roster staff and matrix holdings for that team", () => {
+      expect(staffOf([{ roleKey: "club:head-coach", teamIds: ["T1"] }, { roleKey: "club:team-manager", teamIds: ["T1"] }]).count).toBe(0);
+      const rosterStaff = { ...team, roster: [...team.roster, { memberId: "c", roleId: "role-coach" }, { memberId: "m", roleId: "role-team-manager" }] };
+      expect(staffOf([], rosterStaff).count).toBe(0);
+    });
+    it("says which is missing", () => {
+      expect(staffOf([{ roleKey: "club:assistant-coach", teamIds: ["T1"] }]).issues[0].detail).toBe("No manager");
+      expect(staffOf([{ roleKey: "club:team-manager", teamIds: ["T1"] }]).issues[0].detail).toBe("No coach");
+    });
+    it("ignores holdings for other teams, ended or expired ones, and inactive roster staff", () => {
+      const holdings = [
+        { roleKey: "club:head-coach", teamIds: ["OTHER"] },
+        { roleKey: "club:team-manager", teamIds: ["T1"], status: "ended" },
+        { roleKey: "club:head-coach", teamIds: ["T1"], expiresAt: "2026-01-01" },
+      ];
+      expect(staffOf(holdings, { ...team, roster: [...team.roster, { memberId: "c", roleId: "role-coach", status: "inactive" }] }).issues[0].detail).toBe("No coach or manager");
+    });
+    it("leaves empty teams to the empty-team check", () => {
+      expect(staffOf([], { teamId: "E", name: "Empty", roster: [] }).count).toBe(0);
+    });
+  });
 });

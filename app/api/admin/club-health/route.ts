@@ -23,12 +23,14 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     if ("error" in club) return NextResponse.json({ error: club.error }, { status: club.status });
     const clubId = club.clubId;
 
-    const [members, teams, openIncidents] = await Promise.all([
+    const [members, teams, openIncidents, holders] = await Promise.all([
       db.collection("members").find(memberBelongsToClubFilter(clubId), { projection: { memberId: 1, personalInfo: 1, contact: 1, emergencyContacts: 1, membership: 1, status: 1, roles: 1, blueCard: 1, family: 1 } }).limit(5000).toArray(),
       db.collection("teams").find({ clubId, status: { $ne: "archived" } }, { projection: { teamId: 1, name: 1, displayName: 1, roster: 1 } }).limit(500).toArray(),
       db.collection("club_incidents").countDocuments({ clubId, status: { $ne: "closed" } }),
+      db.collection("members").find({ roleHoldings: { $elemMatch: { orgId: clubId, roleKey: { $in: ["club:head-coach", "club:assistant-coach", "club:team-manager"] } } } }, { projection: { roleHoldings: 1 } }).limit(2000).toArray(),
     ]);
-    return NextResponse.json(assessClub({ members, teams, openIncidents }));
+    const staffHoldings = holders.flatMap((h) => ((h.roleHoldings ?? []) as Record<string, unknown>[]).filter((x) => x.orgId === clubId));
+    return NextResponse.json(assessClub({ members, teams, openIncidents, staffHoldings }));
   } catch (e) {
     console.error("club-health GET error:", e);
     return NextResponse.json({ error: "Failed to run the check" }, { status: 500 });
