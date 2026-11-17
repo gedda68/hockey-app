@@ -130,8 +130,12 @@ export default function DashboardPage() {
     ? (brand?.name ?? "Association")
     : "Global";
 
+  const userReady = !!user;
   const fetchAnalytics = useCallback(async () => {
-    if (isMember) { setLoading(false); return; }
+    // Wait until we know who this is: before the session loads everyone looks like a non-member, which used to
+    // fire a platform-wide request that members aren't allowed, leaving a "Failed to load analytics" banner.
+    if (!userReady) return;
+    if (isMember) { setError(""); setLoading(false); return; }
     setLoading(true);
     setError("");
     try {
@@ -145,7 +149,7 @@ export default function DashboardPage() {
     } finally {
       setLoading(false);
     }
-  }, [scope, scopeId, season, isMember]);
+  }, [scope, scopeId, season, isMember, userReady]);
 
   useEffect(() => { fetchAnalytics(); }, [fetchAnalytics]);
 
