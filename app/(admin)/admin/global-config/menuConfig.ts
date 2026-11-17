@@ -695,6 +695,16 @@ export const menuConfig: MenuItem[] = [
     allowedRoles: ["super-admin", "association-admin", "club-admin", "club-committee"],
   },
   {
+    label: "Delivery log",
+    href: "/admin/deliveries",
+    areas: ["reportsExports"],
+    icon: "📬",
+    description: "What notifications reached members, and who they failed for",
+    color: "from-sky-500 to-sky-600",
+    section: "reporting",
+    allowedRoles: ["super-admin", "association-admin", "club-admin", "club-committee", "registrar"],
+  },
+  {
     label: "Club health",
     href: "/admin/club-health",
     areas: ["reportsExports"],

@@ -194,6 +194,7 @@ const ROUTE_RULES: RouteRule[] = [
   { pattern: /^\/admin\/role-appointments(\/|$)/, allowedRoles: ANY_ADMIN },
   { pattern: /^\/admin\/role-holders(\/|$)/, allowedRoles: ANY_ADMIN },
   { pattern: /^\/admin\/announcements(\/|$)/, allowedRoles: ["super-admin", "association-admin", "club-admin", "club-committee"] },
+  { pattern: /^\/admin\/deliveries(\/|$)/, allowedRoles: ["super-admin", "association-admin", "club-admin", "club-committee", "registrar"] },
   { pattern: /^\/admin\/club-health(\/|$)/, allowedRoles: ["super-admin", "association-admin", "club-admin", "club-committee", "registrar"] },
   { pattern: /^\/admin\/reports(\/|$)/, allowedRoles: ANY_ADMIN },
 

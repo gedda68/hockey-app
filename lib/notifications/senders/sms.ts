@@ -20,7 +20,8 @@ export const smsText = (title: string, message: string, max = 300) => {
 
 export const sendNotificationSms: ChannelSender = async (n, to) => {
   const phone = toE164(to.mobile);
-  if (!phone || !smsConfigured()) return;
+  if (!smsConfigured()) return;
+  if (!phone) throw new Error("No valid mobile number on file");
   const sid = process.env.TWILIO_ACCOUNT_SID!;
   const from = process.env.TWILIO_FROM!;
   const body = new URLSearchParams({ To: phone, Body: smsText(n.title, n.message) });

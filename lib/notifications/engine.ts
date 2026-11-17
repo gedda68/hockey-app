@@ -184,7 +184,7 @@ export async function storeCandidates(
     if (res.upsertedCount) {
       created++;
       // The in-app copy of an announcement counts as a delivery, so authors can see how many people got it.
-      if (c.category === "announcements") await logDelivery(db, { memberId, dedupeKey: c.dedupeKey, channel: "inApp", status: "sent", category: c.category, level: c.level, clubId: c.clubId });
+      if (c.category === "announcements") await logDelivery(db, { memberId, dedupeKey: c.dedupeKey, channel: "inApp", status: "sent", category: c.category, level: c.level, clubId: c.clubId, title: c.title });
       await dispatchExtraChannels(db, c, { memberId, ...recipient }, prefs);
     }
   }

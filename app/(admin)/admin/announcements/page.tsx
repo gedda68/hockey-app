@@ -62,6 +62,15 @@ export default function AnnouncementsPage() {
     return () => { live = false; clearTimeout(t); };
   }, [form.level, target, defaults, audiences]);
 
+  const resendFailed = async (a: Ann) => {
+    try {
+      const d = await api(`/api/admin/announcements/${a.announcementId}/deliveries/resend`, { method: "POST" });
+      toast.success(`Tried ${d.attempted}: ${d.sent} sent, ${d.failed} still failing${d.skipped ? `, ${d.skipped} skipped` : ""}`);
+      const fresh = await api(`/api/admin/announcements/${a.announcementId}/deliveries`);
+      setLog((l) => ({ ...l, [a.announcementId]: fresh }));
+    } catch (e) { toast.error(e instanceof Error ? e.message : "Failed"); }
+  };
+
   const showLog = async (a: Ann) => {
     if (log[a.announcementId] && log[a.announcementId] !== "loading") { setLog((l) => { const n = { ...l }; delete n[a.announcementId]; return n; }); return; }
     setLog((l) => ({ ...l, [a.announcementId]: "loading" }));
@@ -175,6 +184,7 @@ export default function AnnouncementsPage() {
                     <div className="flex flex-wrap gap-x-5 gap-y-1">
                       {Object.keys(CHANNEL_LABEL).map((c) => <span key={c} className="font-semibold text-slate-600">{CHANNEL_LABEL[c]}: <b>{d.counts[c]?.sent ?? 0}</b>{(d.counts[c]?.failed ?? 0) > 0 && <b className="text-red-600"> ({d.counts[c].failed} failed)</b>}</span>)}
                     </div>
+                    {d.failures.length > 0 && <button onClick={() => resendFailed(a)} className="rounded-lg bg-teal-500 px-3 py-1 text-xs font-black text-white">Resend to failures</button>}
                     {d.failures.length > 0 && (
                       <ul className="divide-y divide-slate-100 text-xs">
                         {d.failures.map((f, i) => <li key={`${f.memberId}${f.channel}${i}`} className="flex justify-between gap-3 py-1"><span className="font-bold text-slate-700">{f.name} · {CHANNEL_LABEL[f.channel]}</span><span className="text-red-600">{f.error}</span></li>)}
