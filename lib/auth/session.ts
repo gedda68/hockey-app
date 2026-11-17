@@ -120,21 +120,15 @@ async function decrypt(token: string): Promise<SessionData | null> {
 }
 
 /**
- * `Domain=.localhost` is only applied for tenant-bound sessions in dev. Using it for
- * every login can break host-only cookies on bare `http://localhost` in some browsers
- * (session never stored → `/api/auth/me` 401). Super-admin stays host-only.
+ * Only an explicit SESSION_COOKIE_DOMAIN makes the session cookie domain-scoped. Everything else (including
+ * local development on *.localhost) is host-only, exactly as login writes it, so a login, a profile switch and a
+ * background refresh can never leave two different copies of the cookie. Moving to another tenant host is done
+ * with /api/auth/consume-session instead.
  */
 function resolvedSessionCookieDomain(
-  portalSubdomain: string | null | undefined,
+  _portalSubdomain: string | null | undefined,
 ): string | undefined {
-  const explicit = process.env.SESSION_COOKIE_DOMAIN?.trim();
-  if (explicit) return explicit;
-  if (process.env.NODE_ENV !== "development") return undefined;
-  const rootHost = getPortalRootDomain().split(":")[0].toLowerCase();
-  if (rootHost !== "localhost") return undefined;
-  const sub = portalSubdomain?.trim().toLowerCase();
-  if (sub) return ".localhost";
-  return undefined;
+  return process.env.SESSION_COOKIE_DOMAIN?.trim() || undefined;
 }
 
 function sessionCookieBase(portalSubdomain: string | null | undefined) {

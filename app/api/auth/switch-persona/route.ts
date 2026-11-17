@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ObjectId } from "mongodb";
 import { getDatabase } from "@/lib/mongodb";
-import { getSession, attachSessionCookie } from "@/lib/auth/session";
+import { getSession, attachSessionCookie, createSessionCookieParts } from "@/lib/auth/session";
+import { extractPortalSlugFromHost } from "@/lib/tenant/portalHost";
 import {
   parsePersonaKey,
   buildPersonaOptions,
@@ -50,9 +51,16 @@ export async function POST(request: NextRequest) {
         .catch(() => undefined);
     }
 
+    // A profile that lives on a different tenant host needs the session established there too: the cookie is
+    // host-only, so hand the browser the token to carry across (/api/auth/consume-session on that host).
+    const target = nextSession.portalSubdomain?.trim().toLowerCase() || null;
+    const here = extractPortalSlugFromHost(request.headers.get("host"));
+    const sessionJwt = target && target !== here ? (await createSessionCookieParts(nextSession)).value : undefined;
+
     const res = NextResponse.json({
       success: true,
       portalSubdomain: nextSession.portalSubdomain ?? null,
+      ...(sessionJwt ? { sessionJwt } : {}),
     });
     await attachSessionCookie(res, nextSession);
     return res;
