@@ -2,7 +2,7 @@
 // Logout endpoint. Replies with where to send the person next: always the top-level site.
 
 import { NextRequest, NextResponse } from "next/server";
-import { deleteSession } from "@/lib/auth/session";
+import { deleteSession, expiredSessionCookieHeaders } from "@/lib/auth/session";
 import { logoutDestination, type LogoutTarget } from "@/lib/auth/logoutDestination";
 import { buildApexSiteOrigin } from "@/lib/tenant/subdomainUrls";
 
@@ -22,5 +22,7 @@ export async function POST(request: NextRequest) {
   });
 
   await deleteSession();
-  return NextResponse.json({ success: true, redirectTo });
+  const res = NextResponse.json({ success: true, redirectTo });
+  for (const h of expiredSessionCookieHeaders()) res.headers.append("Set-Cookie", h);
+  return res;
 }
