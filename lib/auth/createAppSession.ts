@@ -296,6 +296,9 @@ export async function createMemberSession(
   const role: string =
     primary && primary !== "public" ? primary : member.auth?.role || "member";
   const _memberScopedRoles = toScopedRoles(memberDbRoles);
+  // A member signs in to their Member profile, in their own club or association. Any other roles they hold
+  // (umpire, coach, administrator...) are one tap away in the profile menu. Platform admins are left as they are.
+  const sessionRole = role === "super-admin" ? role : "member";
 
   let clubName: string | undefined;
   let memberClubSlug: string | undefined;
@@ -388,9 +391,9 @@ export async function createMemberSession(
     name: fullName,
     firstName,
     lastName,
-    role,
+    role: sessionRole,
     scopedRoles: activeScopedRolesForSession({
-      role,
+      role: sessionRole,
       associationId: memberAssocId,
       clubId: memberClubId,
     }),
@@ -424,7 +427,7 @@ export async function createMemberSession(
       email: memberEmail,
       firstName,
       lastName,
-      role,
+      role: sessionRole,
       associationId: memberAssocId,
       clubId: memberClubId,
       clubSlug: memberClubSlug || null,

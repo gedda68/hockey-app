@@ -23,6 +23,8 @@ export function isPersonaStillHeld(
   baselineRoles: string[] = [],
 ): boolean {
   if (session.role === "super-admin") return true;
+  // Everyone is a member of their own club: that profile is never a grant that can be ended.
+  if (session.role === "member") return true;
   // Not working inside an organisation: nothing to have lost.
   if (!session.clubId && !session.associationId) return true;
   // The person's own default role (members.auth.role) is not a grant that can be ended.
