@@ -15,6 +15,7 @@
  *   { deactivated: number, dryRun: boolean, details: DeactivatedRole[] }
  */
 
+import { syncMatrixHoldingsForRemoval } from "@/lib/access/legacySync";
 import { areaGuard } from "@/lib/access/enforce";
 import { NextRequest, NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
@@ -114,6 +115,7 @@ export async function POST(req: NextRequest) {
         { memberId: member.memberId },
         { $set: { roles: updatedRoles, updatedAt: now }, $inc: { roleVersion: 1 } }
       );
+      await syncMatrixHoldingsForRemoval(db, member.memberId as string, roles as never, updatedRoles as never, session.userId ?? "system");
     }
   }
 

@@ -163,3 +163,39 @@ export function planMemberHoldings(
   }
   return plan;
 }
+
+export interface HoldingEndPlan {
+  /** Indexes into the member's roleHoldings that should be ended. */
+  indexes: number[];
+}
+
+/**
+ * When legacy roles are ended or removed, which matrix holdings go with them. Only holdings that were created
+ * from a legacy role (source "legacy-migration") are touched, and only when no remaining legacy role still maps
+ * to the same holding. Appointments made through the matrix flow are never ended here.
+ */
+export function planHoldingEnds(
+  before: LegacyAssignment[],
+  after: LegacyAssignment[],
+  holdings: (RoleHolding & { source?: string })[],
+  ctxFor: (a: LegacyAssignment) => LegacyContext,
+  now: Date = new Date(),
+): HoldingEndPlan {
+  const keysOf = (list: LegacyAssignment[], at: Date) => {
+    const keys = new Set<string>();
+    for (const a of list) {
+      const out = mapLegacyAssignment(a, { ...ctxFor(a), now: at });
+      if (out.kind === "holding") keys.add(holdingKey(out.holding));
+    }
+    return keys;
+  };
+  // "before" is judged as it stood when it was granted, so an already-lapsed expiry doesn't hide it.
+  const was = keysOf(before, new Date(0));
+  const still = keysOf(after, now);
+  const gone = new Set([...was].filter((k) => !still.has(k)));
+  const indexes: number[] = [];
+  holdings.forEach((h, i) => {
+    if (h.source === "legacy-migration" && h.status !== "ended" && gone.has(holdingKey(h))) indexes.push(i);
+  });
+  return { indexes };
+}

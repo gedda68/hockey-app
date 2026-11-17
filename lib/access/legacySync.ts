@@ -3,7 +3,7 @@
 
 import type { ClientSession, Db } from "mongodb";
 import type { RoleHolding } from "@/lib/access/matrix";
-import { planMemberHoldings, type LegacyAssignment, type LegacyContext } from "@/lib/access/legacyMapping";
+import { planMemberHoldings, planHoldingEnds, type LegacyAssignment, type LegacyContext } from "@/lib/access/legacyMapping";
 
 /** Club that owns each team id (one query). */
 export async function teamClubLookup(db: Db, teamIds: string[], session?: ClientSession): Promise<Map<string, string>> {
@@ -47,4 +47,36 @@ export async function syncMatrixHoldingsForGrant(
     .collection("members")
     .updateOne({ memberId }, { $push: { roleHoldings: { $each: plan.add } } as never, $inc: { roleVersion: 1 } }, session ? { session } : undefined);
   return plan.add.length;
+}
+
+/**
+ * After legacy roles are ended or removed, end the matrix holdings that were created from them, so the person
+ * doesn't keep the access. Returns how many holdings were ended.
+ */
+export async function syncMatrixHoldingsForRemoval(
+  db: Db,
+  memberId: string,
+  before: LegacyAssignment[],
+  after: LegacyAssignment[],
+  endedBy: string,
+  session?: ClientSession,
+): Promise<number> {
+  if (!before.length) return 0;
+  const member = await db
+    .collection("members")
+    .findOne({ memberId }, { projection: { roleHoldings: 1 }, ...(session ? { session } : {}) });
+  const holdings = Array.isArray(member?.roleHoldings) ? (member!.roleHoldings as RoleHolding[]) : [];
+  if (!holdings.length) return 0;
+  const teamClub = await teamClubLookup(db, before.filter((a) => a.scopeType === "team").map((a) => a.scopeId ?? ""), session);
+  const { indexes } = planHoldingEnds(before, after, holdings, contextFromTeams(teamClub));
+  if (!indexes.length) return 0;
+  const now = new Date().toISOString();
+  const set: Record<string, unknown> = { updatedAt: now };
+  for (const i of indexes) {
+    set[`roleHoldings.${i}.status`] = "ended";
+    set[`roleHoldings.${i}.endedAt`] = now;
+    set[`roleHoldings.${i}.endedBy`] = endedBy;
+  }
+  await db.collection("members").updateOne({ memberId }, { $set: set, $inc: { roleVersion: 1 } }, session ? { session } : undefined);
+  return indexes.length;
 }

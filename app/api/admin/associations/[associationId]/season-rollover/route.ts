@@ -13,6 +13,7 @@
  * - Dedupes in-flight renewals (won't create duplicates)
  */
 
+import { syncMatrixHoldingsForRemoval } from "@/lib/access/legacySync";
 import { NextRequest, NextResponse } from "next/server";
 import type { Db } from "mongodb";
 import { v4 as uuidv4 } from "uuid";
@@ -198,6 +199,7 @@ export async function POST(request: NextRequest, ctx: { params: Promise<{ associ
         { memberId },
         { $set: { roles: updatedRoles, updatedAt: new Date() }, $inc: { roleVersion: 1 } },
       );
+      await syncMatrixHoldingsForRemoval(db, memberId, roles as never, updatedRoles as never, "season-rollover");
     }
 
     // 2) Create renewal requests for next season, one per seasonal role assignment
