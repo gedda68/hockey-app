@@ -283,9 +283,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       const data = (await res.json().catch(() => ({}))) as {
         portalSubdomain?: string | null;
+        sessionJwt?: string;
       };
+      // A profile on another tenant host: carry the session there and land on its dashboard.
+      if (syncBrowserToPortalSubdomain(data.portalSubdomain, data.sessionJwt)) return;
       await refreshUser();
-      syncBrowserToPortalSubdomain(data.portalSubdomain);
     },
     [refreshUser],
   );
