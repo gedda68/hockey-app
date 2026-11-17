@@ -113,7 +113,8 @@ export default function TrainingPage() {
               <div className="flex items-start justify-between gap-3">
                 <button onClick={() => openSession(s)} className="text-left">
                   <div className="font-black text-slate-800">{s.title}</div>
-                  <div className="text-xs font-semibold text-slate-500">{when(s.startAt)}{s.location ? ` · ${s.location}` : ""} · {s.status}</div>
+                  <div className="text-xs font-semibold text-slate-500">{when(s.startAt)} · {teams.find((t) => t.teamId === s.teamId)?.name ?? (s.teamId ? "Team" : "Whole club")}{s.location ? ` · ${s.location}` : ""} · {s.status}</div>
+                  {canEdit && <div className="mt-1 text-xs font-black text-teal-600">{open === s.sessionId ? "Hide attendance" : "Take attendance ▸"}</div>}
                 </button>
                 {level === "admin" && <button onClick={() => remove(s)} aria-label="Delete session" className="text-slate-300 hover:text-red-500"><Trash2 className="h-4 w-4" /></button>}
               </div>
