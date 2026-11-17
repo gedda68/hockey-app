@@ -5,27 +5,12 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { getDatabase } from "@/lib/mongodb";
-import { getSession } from "@/lib/auth/session";
-import { canWriteTo, COL, writableAudiences } from "@/lib/announcements/access";
+import { COL } from "@/lib/announcements/access";
+import { loadManageable } from "@/lib/announcements/manage";
 
 type Ctx = { params: Promise<{ id: string }> };
 
-type Loaded = { response: NextResponse } | { response?: undefined; db: Awaited<ReturnType<typeof getDatabase>> };
-
-async function load(id: string): Promise<Loaded> {
-  const session = await getSession();
-  if (!session) return { response: NextResponse.json({ error: "Authentication required" }, { status: 401 }) };
-  const audiences = await writableAudiences(session);
-  if (!audiences) return { response: NextResponse.json({ error: "You can't manage announcements" }, { status: 403 }) };
-  const db = await getDatabase();
-  const row = await db.collection(COL).findOne({ announcementId: id });
-  if (!row) return { response: NextResponse.json({ error: "Not found" }, { status: 404 }) };
-  if (!audiences.includes(row.level) || !(await canWriteTo(session, row.level, String(row.scopeId ?? "")))) {
-    return { response: NextResponse.json({ error: "You can't change that announcement" }, { status: 403 }) };
-  }
-  return { db };
-}
+const load = loadManageable;
 
 export async function PATCH(request: NextRequest, { params }: Ctx): Promise<NextResponse> {
   try {

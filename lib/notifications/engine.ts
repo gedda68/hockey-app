@@ -11,6 +11,7 @@ import { childrenOf } from "@/lib/access/guardians";
 import { getMatrixRole } from "@/lib/access/matrix";
 import { allows, mergePrefs, type NotificationPrefs } from "@/lib/notifications/prefs";
 import { dispatchExtraChannels } from "@/lib/notifications/channels";
+import { logDelivery } from "@/lib/notifications/deliveryLog";
 import {
   announcementCandidates, approvalCandidates, eventCandidates, matchCandidates, nominationCandidates,
   type AnnouncementLike, type Candidate, type EventLike, type FixtureLike, type WaitingOnMe, type WindowLike,
@@ -182,6 +183,8 @@ export async function storeCandidates(
     );
     if (res.upsertedCount) {
       created++;
+      // The in-app copy of an announcement counts as a delivery, so authors can see how many people got it.
+      if (c.category === "announcements") await logDelivery(db, { memberId, dedupeKey: c.dedupeKey, channel: "inApp", status: "sent", category: c.category, level: c.level, clubId: c.clubId });
       await dispatchExtraChannels(db, c, { memberId, ...recipient }, prefs);
     }
   }

@@ -5,6 +5,7 @@
 
 import type { Db } from "mongodb";
 import { allows, CHANNELS, type Channel, type NotificationPrefs } from "@/lib/notifications/prefs";
+import { logDelivery } from "@/lib/notifications/deliveryLog";
 import type { Candidate } from "@/lib/notifications/candidates";
 import { emailConfigured, sendNotificationEmail } from "@/lib/notifications/senders/email";
 import { smsConfigured, sendNotificationSms } from "@/lib/notifications/senders/sms";
@@ -40,8 +41,10 @@ export async function dispatchExtraChannels(db: Db, n: Candidate, to: Recipient,
     try {
       await send(n, to, db);
       sent.push(ch);
+      await logDelivery(db, { memberId: to.memberId, dedupeKey: n.dedupeKey, channel: ch, status: "sent", category: n.category, level: n.level, clubId: n.clubId });
     } catch (e) {
       console.error(`notification ${ch} send failed:`, e);
+      await logDelivery(db, { memberId: to.memberId, dedupeKey: n.dedupeKey, channel: ch, status: "failed", error: e instanceof Error ? e.message : String(e), category: n.category, level: n.level, clubId: n.clubId });
     }
   }
   return sent;
