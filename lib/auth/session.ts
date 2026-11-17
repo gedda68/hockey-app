@@ -196,6 +196,9 @@ export async function attachSessionCookie(
   const { value, options } = await createSessionCookieParts(data);
   const name = sessionCookieNameForWrite(options.domain);
   res.cookies.set(name, value, options);
+  // A switch between a club portal (domain-scoped cookie) and the personal view (host-only) changes which
+  // variant is written. Expire the other one, or the browser keeps sending the old one first.
+  for (const h of expiredSessionCookieHeaders({ domain: options.domain })) res.headers.append("Set-Cookie", h);
 }
 
 /** Host-only cookie (no Domain=...), for localhost/subdomain quirks. */
@@ -250,15 +253,17 @@ export async function deleteSession(): Promise<void> {
  * A cookie set host-only (e.g. by a cross-host sync) isn't removed by a delete that names a Domain, and the
  * other way round, so logout sends both to be sure the person is really signed out.
  */
-export function expiredSessionCookieHeaders(): string[] {
+export function expiredSessionCookieHeaders(except?: { domain?: string }): string[] {
   const secure = process.env.NODE_ENV === "production" ? "; Secure" : "";
   const base = `=; Path=/; Expires=${new Date(0).toUTCString()}; Max-Age=0; HttpOnly; SameSite=Lax${secure}`;
-  const out = [`${activeSessionCookieName()}${base}`];
+  const out: string[] = [];
+  // `except` names the variant that was just written, which must be left alone.
+  if (!except || except.domain) out.push(`${activeSessionCookieName()}${base}`);
   const domains = new Set<string>();
   const explicit = process.env.SESSION_COOKIE_DOMAIN?.trim();
   if (explicit) domains.add(explicit);
   if (process.env.NODE_ENV === "development" && getPortalRootDomain().split(":")[0].toLowerCase() === "localhost") domains.add(".localhost");
-  for (const d of domains) out.push(`session${base}; Domain=${d}`);
+  for (const d of domains) if (d !== except?.domain) out.push(`session${base}; Domain=${d}`);
   return out;
 }
 

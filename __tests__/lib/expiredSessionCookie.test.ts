@@ -21,3 +21,18 @@ describe("expiredSessionCookieHeaders", () => {
     expect(h[0]).toMatch(/^__Host-session=;.*Secure/);
   });
 });
+
+describe("expiredSessionCookieHeaders with an exception", () => {
+  afterEach(() => vi.unstubAllEnvs());
+
+  it("leaves the variant just written alone", () => {
+    vi.stubEnv("NODE_ENV", "development");
+    vi.stubEnv("SESSION_COOKIE_DOMAIN", ".example.com");
+    const written = expiredSessionCookieHeaders({ domain: ".example.com" });
+    expect(written.some((x) => /Domain=\.example\.com/.test(x))).toBe(false);
+    expect(written.some((x) => !/Domain=/.test(x))).toBe(true);
+    const hostOnlyWritten = expiredSessionCookieHeaders({});
+    expect(hostOnlyWritten.some((x) => !/Domain=/.test(x))).toBe(false);
+    expect(hostOnlyWritten.some((x) => /Domain=\.example\.com/.test(x))).toBe(true);
+  });
+});
