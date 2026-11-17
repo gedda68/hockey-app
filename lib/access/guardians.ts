@@ -44,3 +44,47 @@ export async function guardianIdsFor(db: Db, member: any): Promise<string[]> {
   ids.delete(String(member?.memberId ?? ""));
   return [...ids];
 }
+
+// ── Role requests (legacy roles) ──────────────────────────────────────────────
+
+/** Roles an under-18 may request: playing, junior officiating and general volunteering. */
+export const MINOR_ALLOWED_LEGACY_ROLES: ReadonlySet<string> = new Set(["player", "member", "volunteer", "umpire", "technical-official"]);
+
+export interface GuardianApproval {
+  status: "pending" | "approved" | "refused";
+  guardianIds: string[];
+  decidedBy?: string;
+  decidedByName?: string;
+  decidedAt?: string;
+}
+
+export type GuardianCheck =
+  | { required: false }
+  | { required: true; ok: false; status: number; error: string }
+  | { required: true; ok: true; approval: GuardianApproval };
+
+/**
+ * What a role request for this member needs. Adults: nothing. Under-18s: only junior-appropriate roles, and a
+ * parent/guardian must approve. A parent/guardian who submits the request themselves approves it as they go.
+ */
+export async function guardianCheckForRequest(
+  db: Db,
+  target: any,
+  role: string,
+  submitter?: { memberId?: string | null; name?: string | null },
+  now: Date = new Date(),
+): Promise<GuardianCheck> {
+  if (!isMinor(target?.personalInfo?.dateOfBirth, now)) return { required: false };
+  if (!MINOR_ALLOWED_LEGACY_ROLES.has(role)) {
+    return { required: true, ok: false, status: 400, error: "Under-18s can only request playing, junior official and volunteer roles." };
+  }
+  const guardianIds = await guardianIdsFor(db, target);
+  if (guardianIds.length === 0) {
+    return { required: true, ok: false, status: 400, error: "They're under 18 and have no parent/guardian linked on their record. Link a guardian first." };
+  }
+  const me = submitter?.memberId ? String(submitter.memberId) : "";
+  if (me && guardianIds.includes(me)) {
+    return { required: true, ok: true, approval: { status: "approved", guardianIds, decidedBy: me, decidedByName: submitter?.name ?? undefined, decidedAt: now.toISOString() } };
+  }
+  return { required: true, ok: true, approval: { status: "pending", guardianIds } };
+}

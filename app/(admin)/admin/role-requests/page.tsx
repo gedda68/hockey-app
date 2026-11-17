@@ -335,6 +335,12 @@ function RequestCard({
             <div className="flex items-center gap-2 flex-wrap mb-1">
               <span className="font-black text-[#06054e] text-base truncate">{req.memberName}</span>
               <StatusBadge status={req.status} />
+              {req.guardianApproval && req.guardianApproval.status === "pending" && (
+                <span className="text-xs font-bold px-2 py-0.5 rounded-lg bg-amber-100 text-amber-700">Waiting for parent/guardian</span>
+              )}
+              {req.guardianApproval && req.guardianApproval.status === "approved" && (
+                <span className="text-xs font-bold px-2 py-0.5 rounded-lg bg-teal-100 text-teal-700">Guardian approved</span>
+              )}
             </div>
             <RoleBadge role={req.requestedRole} />
           </div>
