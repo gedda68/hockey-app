@@ -6,6 +6,7 @@
 "use client";
 
 import RoleInvitations from "@/components/roles/RoleInvitations";
+import PageHeader from "@/components/admin/PageHeader";
 import MyPlayingStats from "@/components/member/MyPlayingStats";
 import Link from "next/link";
 import { useState, useEffect, useCallback } from "react";
@@ -164,53 +165,22 @@ export default function DashboardPage() {
   const totals = analytics?.totals;
   const ec     = analytics?.entityCounts ?? {};
 
-  const primary   = brand?.primaryColor   ?? "#06054e";
-  const secondary = brand?.secondaryColor ?? "#1a1870";
-  const headerBg  = `linear-gradient(135deg, ${primary} 0%, ${secondary} 100%)`;
 
   return (
-    // The admin shell pads the top of <main> (pt-5 / md:pt-7); pull the banner up so only a thin gap shows under the header.
-    <div className="min-h-screen bg-slate-50 -mt-3 md:-mt-5">
+    <div className="min-h-screen bg-slate-50">
 
-      {/* Brand banner. Members get a slim one led by their own name: the club is already in the header. */}
-      <div className={`text-white shadow-lg ${isMember ? "px-6 py-4" : "px-8 py-8"}`} style={{ background: headerBg }}>
-        <div className="max-w-7xl mx-auto">
-          <div className="flex items-center justify-between flex-wrap gap-4">
-            <div>
-              {isMember ? (
-                <>
-                  <h1 className="text-2xl font-black">{[user?.firstName, user?.lastName].filter(Boolean).join(" ") || "My dashboard"}</h1>
-                  <p className="text-white/70 text-sm font-semibold mt-0.5">
-                    {new Date().toLocaleDateString("en-AU", { weekday:"long", day:"numeric", month:"long", year:"numeric" })}
-                    {" · "}{season} Season
-                  </p>
-                </>
-              ) : (
-                <>
-                  <p className="text-white/70 text-sm font-bold uppercase tracking-widest">
-                    {scopeLabel} Dashboard
-                  </p>
-                  <h1 className="text-3xl font-black mt-1">
-                    {brand?.name ?? "Hockey Admin"}
-                  </h1>
-                  <p className="text-white/60 text-sm mt-1">
-                    {new Date().toLocaleDateString("en-AU", { weekday:"long", day:"numeric", month:"long", year:"numeric" })}
-                    {" · "}{season} Season
-                  </p>
-                </>
-              )}
-            </div>
-            {!isMember && (
-              <Link
-                href="/admin/reports"
-                className="flex items-center gap-2 px-5 py-2.5 bg-white/20 hover:bg-white/30 rounded-xl font-bold text-sm transition-all"
-              >
-                <TrendingUp size={16} />
-                Full Reports
-              </Link>
-            )}
-          </div>
-        </div>
+      <div className="max-w-7xl mx-auto px-6 pt-4">
+        <PageHeader
+          eyebrow={isMember ? ([user?.firstName, user?.lastName].filter(Boolean).join(" ") || undefined) : `${scopeLabel}`}
+          title="Dashboard"
+          subtitle={<>{new Date().toLocaleDateString("en-AU", { weekday:"long", day:"numeric", month:"long", year:"numeric" })} · {season} Season</>}
+          aside={!isMember ? (
+            <Link href="/admin/reports" className="flex items-center gap-2 px-5 py-2.5 bg-white/20 hover:bg-white/30 rounded-xl font-bold text-sm transition-all">
+              <TrendingUp size={16} />
+              Full Reports
+            </Link>
+          ) : undefined}
+        />
       </div>
 
       <div className={`max-w-7xl mx-auto px-6 ${isMember ? "py-5 space-y-5" : "py-8 space-y-8"}`}>

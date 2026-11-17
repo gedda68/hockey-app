@@ -6,6 +6,7 @@ import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Loader2, Plus, Trash2 } from "lucide-react";
 
+import PageHeader from "@/components/admin/PageHeader";
 type Att = "present" | "absent" | "excused" | "late";
 interface Row { memberId: string; status: Att; note?: string }
 interface Session { sessionId: string; title: string; teamId: string | null; startAt: string; location?: string; focus?: string; status: string; attendance: Row[] }
@@ -80,10 +81,7 @@ export default function TrainingPage() {
 
   return (
     <div className="mx-auto max-w-4xl space-y-6 p-6">
-      <div>
-        <h1 className="text-3xl font-black text-[#06054e]">Training</h1>
-        <p className="mt-1 text-sm font-semibold text-slate-500">{canEdit ? "Schedule sessions and take attendance." : "Sessions you've been marked in."}</p>
-      </div>
+      <PageHeader eyebrow="Coaching" title="Training" subtitle={canEdit ? "Schedule sessions and take attendance." : "Sessions you've been marked in."} />
 
       {canEdit && (
         <div className="space-y-4 rounded-2xl border-2 border-slate-100 bg-white p-5 shadow-sm">

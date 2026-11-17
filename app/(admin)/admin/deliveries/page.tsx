@@ -6,6 +6,7 @@ import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Loader2, RotateCw } from "lucide-react";
 
+import PageHeader from "@/components/admin/PageHeader";
 interface Row { category: string; channel: string; sent: number; failed: number }
 interface Failure { memberId: string; name: string; channel: string; category: string; title: string; dedupeKey: string; error: string; at: string }
 interface Data { days: number; summary: Row[]; failedTotal: number; failures: Failure[] }
@@ -49,16 +50,17 @@ export default function DeliveriesPage() {
 
   return (
     <div className="mx-auto max-w-5xl space-y-6 p-6">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="text-3xl font-black text-[#06054e]">Delivery log</h1>
-          <p className="mt-1 text-sm font-semibold text-slate-500">What your club's notifications reached people through. Each person is counted once per message and channel.</p>
-        </div>
-        <div className="flex gap-2 text-sm font-bold">
-          <select className="rounded-xl border-2 border-slate-200 px-3 py-2" value={days} onChange={(e) => setDays(Number(e.target.value))}><option value={7}>Last 7 days</option><option value={30}>Last 30 days</option><option value={90}>Last 90 days</option></select>
-          <select className="rounded-xl border-2 border-slate-200 px-3 py-2" value={category} onChange={(e) => setCategory(e.target.value)}><option value="">All types</option>{Object.entries(CATEGORY).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select>
-        </div>
-      </div>
+      <PageHeader
+        eyebrow="Communication"
+        title="Delivery log"
+        subtitle="What your club's notifications reached people through. Each person is counted once per message and channel."
+        aside={
+          <div className="flex gap-2 text-sm font-bold">
+            <select className="rounded-xl border-2 border-white/40 bg-white px-3 py-2 text-slate-800" value={days} onChange={(e) => setDays(Number(e.target.value))}><option value={7}>Last 7 days</option><option value={30}>Last 30 days</option><option value={90}>Last 90 days</option></select>
+            <select className="rounded-xl border-2 border-white/40 bg-white px-3 py-2 text-slate-800" value={category} onChange={(e) => setCategory(e.target.value)}><option value="">All types</option>{Object.entries(CATEGORY).map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select>
+          </div>
+        }
+      />
 
       {data.summary.length === 0 ? (
         <p className="rounded-2xl border-2 border-dashed border-slate-200 p-8 text-center text-sm font-semibold text-slate-400">Nothing has been delivered in this period.</p>

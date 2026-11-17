@@ -30,7 +30,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
             <AdminScopeMismatchBanner />
             <div className="flex flex-1 min-h-0">
               <AdminSidebar />
-              <main className="flex-1 min-h-[calc(100vh-64px)] pt-5 pb-2 md:pt-7 md:pb-4">
+              <main className="flex-1 min-h-[calc(100vh-64px)] pt-2 pb-2 md:pt-3 md:pb-4">
                 {children}
               </main>
             </div>
