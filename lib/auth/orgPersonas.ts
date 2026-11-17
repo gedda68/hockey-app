@@ -48,3 +48,15 @@ export function groupPersonasByOrg(personas: PersonaOption[] | undefined, active
   const order = (e: OrgEntry) => (e.orgKey === "platform" ? 2 : e.orgKey === "personal" ? 1 : 0);
   return entries.sort((a, b) => order(a) - order(b) || a.label.localeCompare(b.label));
 }
+
+export interface RoleChoice { key: string; label: string; active: boolean }
+
+/** The roles the person holds in one organisation, most powerful first, so they can act as any one of them. */
+export function rolesInOrg(personas: PersonaOption[] | undefined, orgKey: string, activeKey: string | undefined): RoleChoice[] {
+  const seen = new Set<string>();
+  return (personas ?? [])
+    .filter((p) => (p.orgKey ?? "personal") === orgKey)
+    .sort((a, b) => rank(a.role) - rank(b.role))
+    .filter((p) => (seen.has(p.role) ? false : (seen.add(p.role), true)))
+    .map((p) => ({ key: p.key, label: humanRole(p.role), active: p.key === activeKey }));
+}

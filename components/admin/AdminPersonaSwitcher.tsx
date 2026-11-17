@@ -7,7 +7,7 @@ import { useState, useRef, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Building2, ChevronDown, User as UserIcon } from "lucide-react";
 import { useAuth } from "@/lib/auth/AuthContext";
-import { groupPersonasByOrg } from "@/lib/auth/orgPersonas";
+import { groupPersonasByOrg, rolesInOrg } from "@/lib/auth/orgPersonas";
 import { toast } from "sonner";
 
 export default function AdminPersonaSwitcher() {
@@ -40,21 +40,23 @@ export default function AdminPersonaSwitcher() {
     void switchPersona(lastEntry.personaKey).then(() => router.refresh()).catch(() => undefined);
   }, [user?.lastPersonaKey, user?.personas, user?.memberId, entries, switchPersona, router]);
 
-  // One organisation (and no personal view) means nothing to choose.
-  if (entries.length <= 1) return null;
-
   const current = entries.find((e) => e.active) ?? entries[0];
+  const roles = useMemo(() => (current ? rolesInOrg(user?.personas, current.orgKey, user?.activePersonaKey) : []), [current, user?.personas, user?.activePersonaKey]);
+
+  // One organisation with one role (and no personal view) means nothing to choose.
+  if (entries.length <= 1 && roles.length <= 1) return null;
+  const activeRole = roles.find((r) => r.active)?.label;
 
   const select = async (personaKey: string, active: boolean) => {
     if (active) { setOpen(false); return; }
     setPending(true);
     try {
       await switchPersona(personaKey);
-      toast.success("Switched organisation");
+      toast.success("Switched");
       setOpen(false);
       router.refresh();
     } catch {
-      toast.error("Could not switch organisation");
+      toast.error("Could not switch");
     } finally {
       setPending(false);
     }
@@ -72,14 +74,32 @@ export default function AdminPersonaSwitcher() {
       >
         <Icon className="h-4 w-4 flex-shrink-0 opacity-90" />
         <div className="flex-1 min-w-0">
-          <div className="text-[10px] font-bold uppercase tracking-wider text-white/50">Working in</div>
+          <div className="text-[10px] font-bold uppercase tracking-wider text-white/50">{activeRole && roles.length > 1 ? `Working in · as ${activeRole}` : "Working in"}</div>
           <div className="font-semibold truncate text-sm">{current.label}</div>
         </div>
         <ChevronDown className={`h-4 w-4 flex-shrink-0 transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
       {open && (
         <ul className="absolute left-0 right-0 bottom-full mb-1 max-h-64 overflow-y-auto rounded-lg bg-[#0f0e3d] border border-white/15 shadow-xl z-[1100] py-1">
-          {entries.map((e) => (
+          {roles.length > 1 && (
+            <>
+              <li className="px-3 pt-1 pb-0.5 text-[10px] font-bold uppercase tracking-wider text-white/40">Act as</li>
+              {roles.map((r) => (
+                <li key={r.key}>
+                  <button
+                    type="button"
+                    disabled={pending}
+                    onClick={() => void select(r.key, r.active)}
+                    className={`w-full text-left px-3 py-2 text-xs hover:bg-white/10 transition-colors ${r.active ? "text-yellow-300" : "text-white/90"}`}
+                  >
+                    <span className="font-bold">{r.label}</span>{r.active && <span className="ml-1 opacity-60">· current</span>}
+                  </button>
+                </li>
+              ))}
+              {entries.length > 1 && <li className="px-3 pt-2 pb-0.5 text-[10px] font-bold uppercase tracking-wider text-white/40">Organisation</li>}
+            </>
+          )}
+          {entries.length > 1 && entries.map((e) => (
             <li key={e.orgKey}>
               <button
                 type="button"
