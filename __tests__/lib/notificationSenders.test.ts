@@ -6,11 +6,12 @@ vi.mock("@/lib/email/client", () => ({ sendEmail, APP_URL: "https://app.example.
 import { liveChannels, senderFor } from "@/lib/notifications/channels";
 import { sendNotificationEmail } from "@/lib/notifications/senders/email";
 import { sendNotificationSms, smsText, toE164 } from "@/lib/notifications/senders/sms";
+import { sendNotificationWhatsApp, templateField } from "@/lib/notifications/senders/whatsapp";
 import { matchCandidates } from "@/lib/notifications/candidates";
 
 const n = { dedupeKey: "k", level: "club", category: "matches", type: "t", title: "Lions v Tigers", message: "Sat 9am <b>", link: "/admin/notifications", eventAt: "", expiresAt: "" } as never;
 const db = {} as never;
-const ENV = ["RESEND_API_KEY", "TWILIO_ACCOUNT_SID", "TWILIO_AUTH_TOKEN", "TWILIO_FROM"];
+const ENV = ["WHATSAPP_PHONE_NUMBER_ID", "WHATSAPP_ACCESS_TOKEN", "WHATSAPP_TEMPLATE_NAME", "WHATSAPP_TEMPLATE_LANG", "RESEND_API_KEY", "TWILIO_ACCOUNT_SID", "TWILIO_AUTH_TOKEN", "TWILIO_FROM"];
 
 beforeEach(() => { vi.clearAllMocks(); ENV.forEach((k) => delete process.env[k]); });
 afterEach(() => vi.unstubAllGlobals());
@@ -23,6 +24,8 @@ describe("channel availability", () => {
     Object.assign(process.env, { TWILIO_ACCOUNT_SID: "AC1", TWILIO_AUTH_TOKEN: "t", TWILIO_FROM: "+61400000000" });
     expect(liveChannels()).toEqual(["inApp", "email", "sms"]);
     expect(senderFor("social")).toBeUndefined();
+    Object.assign(process.env, { WHATSAPP_PHONE_NUMBER_ID: "1", WHATSAPP_ACCESS_TOKEN: "t", WHATSAPP_TEMPLATE_NAME: "alert" });
+    expect(liveChannels()).toEqual(["inApp", "email", "sms", "social"]);
   });
 });
 
@@ -76,5 +79,35 @@ describe("guardian match notifications", () => {
     expect(kid.title).toBe("Sam: Lions v Tigers");
     expect(kid.dedupeKey).not.toBe(mine.dedupeKey);
     expect(kid.dedupeKey.endsWith(":MBR-K")).toBe(true);
+  });
+});
+
+describe("whatsapp sender", () => {
+  it("cleans template fields", () => {
+    expect(templateField("a\nb\t c")).toBe("a b c");
+    expect(templateField("")).toBe("-");
+    expect(templateField("x".repeat(300)).length).toBe(200);
+  });
+  it("sends the template to the number without a plus, only when configured", async () => {
+    const fetchMock = vi.fn(async () => ({ ok: true }));
+    vi.stubGlobal("fetch", fetchMock);
+    await sendNotificationWhatsApp(n, { memberId: "m", mobile: "0412345678" }, db);
+    expect(fetchMock).not.toHaveBeenCalled();
+    Object.assign(process.env, { WHATSAPP_PHONE_NUMBER_ID: "999", WHATSAPP_ACCESS_TOKEN: "tok", WHATSAPP_TEMPLATE_NAME: "alert" });
+    await sendNotificationWhatsApp(n, { memberId: "m", mobile: "bad" }, db);
+    expect(fetchMock).not.toHaveBeenCalled();
+    await sendNotificationWhatsApp(n, { memberId: "m", mobile: "0412345678" }, db);
+    const [url, init] = fetchMock.mock.calls[0] as unknown as [string, { body: string; headers: Record<string, string> }];
+    const body = JSON.parse(init.body);
+    expect(url).toContain("/999/messages");
+    expect(init.headers.Authorization).toBe("Bearer tok");
+    expect(body.to).toBe("61412345678");
+    expect(body.template).toMatchObject({ name: "alert", language: { code: "en_AU" } });
+    expect(body.template.components[0].parameters[0].text).toBe("Lions v Tigers");
+  });
+  it("throws when WhatsApp refuses", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => ({ ok: false, status: 400 })));
+    Object.assign(process.env, { WHATSAPP_PHONE_NUMBER_ID: "999", WHATSAPP_ACCESS_TOKEN: "tok", WHATSAPP_TEMPLATE_NAME: "alert" });
+    await expect(sendNotificationWhatsApp(n, { memberId: "m", mobile: "0412345678" }, db)).rejects.toThrow();
   });
 });
