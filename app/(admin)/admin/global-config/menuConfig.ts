@@ -923,6 +923,14 @@ export const menuConfig: MenuItem[] = [
     allowedRoles: ["super-admin", "association-admin", "club-admin", "club-committee"],
   },
   {
+    label: "Calendar Sync",
+    href: "/admin/my-calendar",
+    icon: "📅",
+    description: "Put your matches and training (and your children's) in Google, Apple or Outlook calendar",
+    color: "from-sky-400 to-sky-500",
+    section: "personal",
+  },
+  {
     label: "My Votes",
     href: "/admin/my-votes",
     icon: "🗳️",

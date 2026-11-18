@@ -18,6 +18,7 @@ export function matches(d: Doc, q: Doc): boolean {
           case "$gte": return val != null && val >= arg;
           case "$lt": return val != null && val < arg;
           case "$lte": return val != null && val <= arg;
+          case "$elemMatch": return Array.isArray(val) && val.some((x: any) => matches(x, arg));
           default: return false;
         }
       });
@@ -42,7 +43,7 @@ export function apply(d: Doc, u: Doc) {
 export function writableDb(t: Record<string, Doc[]>) {
   const col = (name: string) => {
     const rows = (t[name] ??= []);
-    const cur = (l: Doc[]) => ({ sort: () => cur(l), limit: (n: number) => cur(l.slice(0, n)), next: async () => l[0] ?? null, toArray: async () => l.map((x) => x) });
+    const cur = (l: Doc[]) => ({ sort: () => cur(l), project: () => cur(l), limit: (n: number) => cur(l.slice(0, n)), next: async () => l[0] ?? null, toArray: async () => l.map((x) => x) });
     return {
       find: (q: Doc = {}) => cur(rows.filter((d) => matches(d, q))),
       findOne: async (q: Doc) => rows.find((d) => matches(d, q)) ?? null,
