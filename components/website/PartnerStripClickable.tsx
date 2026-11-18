@@ -1,15 +1,48 @@
 "use client";
 
+import { useEffect } from "react";
 import type { PublicSitePartner } from "@/lib/tenant/tenantPartners";
+
+type TrackSource = "site" | "portal";
+
+function post(url: string, payload: string) {
+  try {
+    if (typeof navigator !== "undefined" && navigator.sendBeacon) {
+      const blob = new Blob([payload], { type: "application/json" });
+      if (navigator.sendBeacon(url, blob)) return;
+    }
+  } catch {
+    /* fall through */
+  }
+  void fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: payload, keepalive: true }).catch(() => {});
+}
+
+/**
+ * Tells the club these sponsors were on screen. Once per browser tab and hour for each scope, so moving around the site
+ * doesn't inflate the count. Nothing identifies the visitor.
+ */
+export function recordPartnerImpressions(scopeType: "association" | "club", scopeId: string, slots: number[], source: TrackSource = "site") {
+  const sid = scopeId.trim();
+  if (!sid || !slots.length) return;
+  try {
+    const key = `partner-imp:${source}:${scopeType}:${sid}:${new Date().toISOString().slice(0, 13)}`;
+    if (sessionStorage.getItem(key)) return;
+    sessionStorage.setItem(key, "1");
+  } catch {
+    /* storage unavailable: count it, once per mount */
+  }
+  post("/api/public/partner-strip-impression", JSON.stringify({ scopeType, scopeId: sid, slots, source }));
+}
 
 export function recordPartnerStripClick(
   scopeType: "association" | "club",
   scopeId: string,
   slot: number,
+  source: TrackSource = "site",
 ) {
   const sid = scopeId.trim();
   if (!sid) return;
-  const payload = JSON.stringify({ scopeType, scopeId: sid, slot });
+  const payload = JSON.stringify({ scopeType, scopeId: sid, slot, source });
   const url = "/api/public/partner-strip-click";
   try {
     if (typeof navigator !== "undefined" && navigator.sendBeacon) {
@@ -47,6 +80,11 @@ export default function PartnerStripClickable({
   /** When false, parent supplies the section title (e.g. home sidebar). */
   showHeading?: boolean;
 }) {
+  const count = partners.length;
+  useEffect(() => {
+    if (count) recordPartnerImpressions(scopeType, scopeId, Array.from({ length: count }, (_, i) => i), "site");
+  }, [count, scopeType, scopeId]);
+
   if (!partners.length) return null;
 
   const listWrap =

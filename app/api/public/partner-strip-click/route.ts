@@ -3,6 +3,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import clientPromise from "@/lib/mongodb";
+import { cleanSource, isAutomated } from "@/lib/sponsors/track";
 import {
   loadPartnersForPublicScope,
   partnerRefFromRow,
@@ -14,6 +15,7 @@ const BodySchema = z.object({
   scopeType: z.enum(["association", "club"]),
   scopeId: z.string().min(1).max(200).trim(),
   slot: z.number().int().min(0).max(23),
+  source: z.string().optional(),
 });
 
 export async function POST(request: NextRequest) {
@@ -34,6 +36,8 @@ export async function POST(request: NextRequest) {
     }
 
     const { scopeType, scopeId, slot } = parsed.data;
+    const source = cleanSource(parsed.data.source);
+    if (isAutomated(request.headers.get("user-agent"))) return NextResponse.json({ ok: true });
 
     const client = await clientPromise;
     const db = client.db(process.env.DB_NAME || "hockey-app");
@@ -54,7 +58,7 @@ export async function POST(request: NextRequest) {
     const now = new Date().toISOString();
 
     await db.collection(PARTNER_STRIP_CLICK_COLLECTION).updateOne(
-      { scopeType, scopeId, partnerRef, day },
+      { scopeType, scopeId, partnerRef, day, source },
       {
         $inc: { clicks: 1 },
         $set: { label, updatedAt: now },
