@@ -101,3 +101,12 @@ describe("rsvp notification and email", () => {
     expect(buildRsvpEmail({ name: "A", title: "t", whenText: "w", teamName: "T", token: "x", forChild: "Sam", reminder: true }).subject).toMatch(/^Reminder: Can Sam play/);
   });
 });
+
+import { countAnswers, inNotYetSelected, pickedButOut } from "@/lib/rsvp/lineup";
+
+describe("lineup helpers", () => {
+  const answers = { a: { answer: "in" as const }, b: { answer: "in" as const }, c: { answer: "out" as const }, d: { answer: "maybe" as const }, e: { answer: null } };
+  it("counts each kind of answer", () => expect(countAnswers(answers)).toEqual({ in: 2, maybe: 1, out: 1, none: 1 }));
+  it("offers only the 'in' players not already picked", () => expect(inNotYetSelected(answers, ["a", "z"])).toEqual(["b"]));
+  it("flags anyone picked who said they're out", () => expect(pickedButOut(answers, ["a", "c", "e"])).toEqual(["c"]));
+});
