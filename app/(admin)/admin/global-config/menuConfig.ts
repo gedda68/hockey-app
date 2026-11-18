@@ -887,6 +887,15 @@ export const menuConfig: MenuItem[] = [
     section: "personal",
   },
   {
+    label: "Treasurer's summary",
+    href: "/admin/finance-summary",
+    icon: "💰",
+    description: "Billed, collected and overdue fees, payment plans and family discounts",
+    color: "from-emerald-500 to-emerald-600",
+    section: "finance",
+    allowedRoles: ["super-admin", "association-admin", "club-admin", "club-committee", "registrar"],
+  },
+  {
     label: "My Availability",
     href: "/admin/my-availability",
     icon: "🗓️",

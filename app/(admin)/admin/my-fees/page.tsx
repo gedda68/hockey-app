@@ -45,6 +45,7 @@ import {
 import type { MyFeesResponse, MyFeesYear, MyFeeSection, MyFeeItem } from "@/app/api/member/my-fees/route";
 
 import PageHeader from "@/components/admin/PageHeader";
+import MyPlanCard from "@/components/fees/MyPlanCard";
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const ADMIN_ROLES = new Set([
@@ -1093,6 +1094,8 @@ export default function MyFeesPage() {
           </button>
         ) : undefined}
       />
+
+      <MyPlanCard />
 
       {/* Tab bar */}
       <div className="flex gap-1 bg-gray-100 rounded-xl p-1 w-fit">

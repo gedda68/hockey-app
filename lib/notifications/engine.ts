@@ -16,6 +16,8 @@ import { surveyCandidates, type SurveyInviteLike } from "@/lib/surveys/candidate
 import { rsvpCandidates, type RsvpPendingLike } from "@/lib/rsvp/candidates";
 import { matchStartMs } from "@/lib/rsvp/logic";
 import { shiftCandidates, type MyShiftLike } from "@/lib/volunteers/candidates";
+import { overdueFor } from "@/lib/fees/service";
+import { money } from "@/lib/fees/plans";
 import {
   announcementCandidates, approvalCandidates, eventCandidates, matchCandidates, nominationCandidates,
   type AnnouncementLike, type Candidate, type EventLike, type FixtureLike, type WaitingOnMe, type WindowLike,
@@ -24,7 +26,7 @@ import {
 export const COLLECTION = "member_notifications";
 export const REFRESH_MINUTES = 10;
 /** Categories whose notifications go away by themselves once the thing is done (nominated, accepted…). */
-const SELF_RESOLVING = ["approvals", "nominations", "announcements", "surveys", "availability", "volunteering"];
+const SELF_RESOLVING = ["approvals", "nominations", "announcements", "surveys", "availability", "volunteering", "fees"];
 
 const DAY = 86400000;
 
@@ -174,6 +176,16 @@ export async function gatherCandidates(db: Db, memberId: string, now: Date): Pro
     const rows: MyShiftLike[] = [];
     for (const su of mySignups) { const sh: any = by.get(String(su.shiftId)); if (sh) rows.push({ shiftId: String(sh.shiftId), date: sh.date, startTime: sh.startTime, endTime: sh.endTime, slots: sh.slots, status: sh.status, label: String(sh.label), clubId: sh.clubId, signupId: String(su.signupId), needsCover: su.status === "swap_requested" }); }
     out.push(...shiftCandidates(rows, now));
+  }
+
+  // Fees that are past due (mine, and my children's as their parent).
+  const owing = await overdueFor(db, memberId, dayInZone(now) as string).catch(() => ({ overdueCents: 0, count: 0 }));
+  if (owing.overdueCents > 0) {
+    out.push({
+      dedupeKey: `fees-overdue:${memberId}:${owing.overdueCents}`, level: "personal", category: "fees", type: "fees-overdue",
+      title: `${money(owing.overdueCents)} overdue`, message: `${owing.count} ${owing.count === 1 ? "payment is" : "payments are"} past due. You can pay, or ask for a payment plan.`,
+      link: "/admin/my-fees", eventAt: now.toISOString(), expiresAt: new Date(now.getTime() + 2 * DAY).toISOString(),
+    });
   }
 
   const contact = (member.contact ?? {}) as Record<string, unknown>;
