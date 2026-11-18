@@ -71,6 +71,12 @@ async function main() {
   const blackout = [...new Set([...holidays.map((h) => h.date), ...stateDays])].sort();
   const windows = toWindows(blackout, (d) => dayLabel.get(d) ?? "");
 
+  const norm0 = (x: unknown) => String(x ?? "").toLowerCase().replace(/[^a-z0-9]+/g, "");
+  const existingComps = await db.collection("competitions").find({ owningAssociationId: associationId }).project({ competitionId: 1, name: 1 }).toArray();
+  for (const d of cfg.divisions as { name: string }[]) {
+    const dup = existingComps.filter((c) => norm0(c.name) === norm0(d.name));
+    if (dup.length > 1) problems.push(`${d.name}: ${dup.length} competitions already have this name (${dup.map((c) => c.competitionId).join(", ")}); remove the extras first`);
+  }
   console.log(`Association ${associationId}: ${matches.filter((m) => m.teamId).length}/${matches.length} teams matched, ${shared.length} shared grounds, ${Object.keys(homeVenueByClub).length} club grounds, ${windows.length} blackout windows`);
   if (problems.length) { console.log("\nVenues on file for this association:\n" + (venues.map((v) => `   ${v.name} (${v.venueId}, ${v.pitches.length} pitch${v.pitches.length === 1 ? "" : "es"})`).join("\n") || "   none")); console.log("\nNeeds attention:\n - " + problems.join("\n - ")); if (apply) { console.log("\nNothing was written."); await client.close(); process.exit(1); } }
 
@@ -79,7 +85,10 @@ async function main() {
   const scByDivision = new Map<string, string>();
   for (const d of cfg.divisions as { name: string }[]) {
     const count = matches.filter((m) => m.wanted.division === d.name).length;
-    let comp = await db.collection("competitions").findOne({ owningAssociationId: associationId, name: d.name });
+    // Match ignoring case and spaces, so "BHL 6" finds an existing "BHL6" instead of creating a duplicate.
+    const norm = (x: unknown) => String(x ?? "").toLowerCase().replace(/[^a-z0-9]+/g, "");
+    const sameName = (await db.collection("competitions").find({ owningAssociationId: associationId }).toArray()).filter((c) => norm(c.name) === norm(d.name));
+    let comp = sameName[0] ?? null;
     let sc = comp ? await db.collection("season_competitions").findOne({ competitionId: comp.competitionId, season: cfg.season }) : null;
     console.log(`${d.name}: ${comp ? "competition exists" : "will create competition"}, ${sc ? "season exists" : "will create 2027 season"}, ${count} teams, each pair plays ${legsForTeams(count)}x, finals ${finalsPlan(count).weeks} weeks`);
     if (!apply) { if (sc) scByDivision.set(d.name, String(sc.seasonCompetitionId)); continue; }
