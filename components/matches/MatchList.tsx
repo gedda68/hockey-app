@@ -3,6 +3,7 @@
 import { useState } from "react";
 import MatchCard from "./MatchCard";
 import MatchModal from "./MatchModal";
+import ByeRow, { type ByeItem } from "./ByeRow";
 import type { Match, MatchStats, UmpireDetails } from "../../types";
 
 interface MatchListProps {
@@ -15,6 +16,8 @@ interface MatchListProps {
   umpireList?: UmpireDetails[];
   spoilerFree?: boolean;
   showDivision?: boolean;
+  /** Teams resting in a round: shown as "Team v bye" at the bottom of that round. */
+  byes?: ByeItem[];
 }
 
 export default function MatchList({
@@ -25,6 +28,7 @@ export default function MatchList({
   umpireList = [],
   spoilerFree = false,
   showDivision = false,
+  byes = [],
 }: MatchListProps) {
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
 
@@ -54,7 +58,7 @@ export default function MatchList({
     return primaryUmpires.length > 0 ? primaryUmpires : null;
   };
 
-  if (!matches || matches.length === 0) {
+  if ((!matches || matches.length === 0) && byes.length === 0) {
     return (
       <div className="bg-white rounded-[40px] p-20 text-center border-4 border-dashed border-slate-200">
         <p className="text-slate-400 font-black uppercase italic tracking-widest">
@@ -66,22 +70,29 @@ export default function MatchList({
 
   return (
     <div className="space-y-4">
-      {matches.map((match) => {
-        const umpires = getMatchUmpires(match.matchId);
-
-        return (
+      {(() => {
+        const card = (match: Match) => (
           <MatchCard
             key={match.matchId}
             match={match}
             isUpcoming={isUpcoming}
-            umpires={umpires}
+            umpires={getMatchUmpires(match.matchId)}
             href={`/competitions/matches/${encodeURIComponent(match.matchId)}`}
             onQuickView={() => setSelectedMatch(match)}
             spoilerFree={spoilerFree}
             showDivision={showDivision}
           />
         );
-      })}
+        if (byes.length === 0) return matches.map(card);
+        // Each round's matches, then the teams resting that round.
+        const roundOf = (m: Match) => Number(m.round);
+        const rounds = [...new Set([...matches.map(roundOf), ...byes.map((b) => b.round)])].filter((r) => Number.isFinite(r)).sort((a, b) => a - b);
+        const rest = matches.filter((m) => !Number.isFinite(roundOf(m)));
+        return [
+          ...rounds.flatMap((r) => [...matches.filter((m) => roundOf(m) === r).map(card), ...byes.filter((b) => b.round === r).map((b) => <ByeRow key={b.key} item={b} showDivision={showDivision} />)]),
+          ...rest.map(card),
+        ];
+      })()}
 
       {/* MATCH MODAL */}
       {selectedMatch && (
