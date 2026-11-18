@@ -62,3 +62,29 @@ describe("who can run surveys", () => {
     expect(await manageFilter(s({ role: "member" }), db as never)).toBeNull();
   });
 });
+
+describe("team staff (coach / manager)", () => {
+  const roster = [
+    { teamId: "T-A", clubId: "chc", roster: [{ memberId: "MBR-1", roleId: "role-coach" }, { memberId: "MBR-2", roleId: "role-player" }] },
+    { teamId: "T-C", clubId: "chc", roster: [{ memberId: "MBR-1", roleId: "role-player" }] },
+    { teamId: "T-D", clubId: "chc", roster: [{ memberId: "MBR-3", roleId: "role-team-manager" }] },
+  ];
+  const sdb = {
+    collection: () => ({
+      findOne: async (q: { teamId?: string }) => roster.find((t) => t.teamId === q.teamId) ?? null,
+      find: () => ({ limit: () => ({ toArray: async () => roster }), toArray: async () => roster }),
+    }),
+  };
+  const coach = s({ role: "coach", clubId: "chc", memberId: "MBR-1" });
+
+  it("isTeamStaffRole recognises coaches and managers, not players", async () => {
+    const { isTeamStaffRole } = await import("@/lib/surveys/teamStaff");
+    for (const r of ["role-coach", "role-assistant-coach", "role-team-manager", "role-manager"]) expect(isTeamStaffRole(r)).toBe(true);
+    for (const r of ["role-player", "role-umpire", "", undefined]) expect(isTeamStaffRole(r)).toBe(false);
+  });
+  it("a coach gets the team level only, and only for teams they coach", async () => {
+    const { teamsStaffedBy } = await import("@/lib/surveys/teamStaff");
+    expect(await teamsStaffedBy(coach, sdb as never)).toEqual(["T-A"]);
+    expect(await teamsStaffedBy(s({ role: "coach", memberId: "MBR-9" }), sdb as never)).toEqual([]);
+  });
+});
