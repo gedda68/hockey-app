@@ -13,10 +13,10 @@ describe("session cookie scope", () => {
     expect(options.domain).toBeUndefined();
   });
 
-  it("uses the configured domain when one is set", async () => {
-    vi.stubEnv("SESSION_COOKIE_DOMAIN", ".example.com");
+  it("stays host-only even when SESSION_COOKIE_DOMAIN is configured (it would sit beside the login cookie)", async () => {
+    vi.stubEnv("SESSION_COOKIE_DOMAIN", ".localhost");
     const { options } = await createSessionCookieParts(data);
-    expect(options.domain).toBe(".example.com");
+    expect(options.domain).toBeUndefined();
   });
 });
 
