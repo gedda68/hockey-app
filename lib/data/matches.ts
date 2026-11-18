@@ -365,6 +365,15 @@ export async function getMatchById(
 /**
  * Match centre: fetch one published fixture by fixtureId with tenant gating.
  */
+/** The competition's name for display (the season record's own name, else the competition it points at), never its id. */
+async function competitionNameFor(db: import("mongodb").Db, sc: Record<string, unknown>): Promise<string> {
+  const own = typeof sc.competitionName === "string" ? sc.competitionName.trim() : "";
+  if (own) return own;
+  const c = sc.competitionId ? await db.collection("competitions").findOne({ competitionId: sc.competitionId }, { projection: { name: 1 } }) : null;
+  const name = typeof c?.name === "string" ? c.name.trim() : "";
+  return name || String(sc.competitionId ?? "");
+}
+
 export async function getPublicMatchById(
   fixtureId: string,
   tenant: PublicTenantPayload | null,
@@ -469,7 +478,7 @@ export async function getPublicMatchById(
     seasonCompetitionId: scId,
     season: parseSeasonNumber(sc.season),
     round: Number(fx.round ?? 0),
-    division: String(sc.competitionId ?? ""),
+    division: await competitionNameFor(db, sc as Record<string, unknown>),
     dateTime,
     venue,
     legacyMatchId: fx.legacyMatchId ? String(fx.legacyMatchId) : null,
@@ -620,7 +629,7 @@ export async function getPublicMatchCentreById(
     seasonCompetitionId: scId,
     season: parseSeasonNumber(sc.season),
     round: Number(fx.round ?? 0),
-    division: String(sc.competitionId ?? ""),
+    division: await competitionNameFor(db, sc as Record<string, unknown>),
     dateTime,
     venue,
     legacyMatchId: fx.legacyMatchId ? String(fx.legacyMatchId) : null,
