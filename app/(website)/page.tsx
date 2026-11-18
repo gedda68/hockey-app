@@ -200,25 +200,33 @@ export default async function HomePage({
 
   const associationId = associationPortal?.id;
 
-  const tenantClubRows = associationId
-    ? await listPublicClubsByAssociation(associationId, { limit: 24 })
-    : [];
+  // Everything the page needs is independent: start it all at once instead of one query after another
+  // (this page is the landing spot after sign-out, so its render time is what people wait on).
+  const tenantClubRowsP = associationId
+    ? listPublicClubsByAssociation(associationId, { limit: 24 })
+    : Promise.resolve([] as Awaited<ReturnType<typeof listPublicClubsByAssociation>>);
+  const jsonClubsP = getClubs();
+  const gallerySlidesP = getRandomHomeGallerySlides(7, associationPortal);
+  const sectionsP = Promise.all([
+    getUpcomingMatches(
+      associationId ? { owningAssociationId: associationId } : undefined,
+    ),
+    getCurrentSeasonStandings(),
+    getPublicNewsItems(8, associationPortal),
+  ]);
+  // Avoid unhandled-rejection noise if an earlier await throws before these are read.
+  for (const p of [tenantClubRowsP, jsonClubsP, gallerySlidesP, sectionsP]) p.catch(() => {});
 
-  const jsonClubs = await getClubs();
-  const gallerySlides = await getRandomHomeGallerySlides(7, associationPortal);
+  const tenantClubRows = await tenantClubRowsP;
+  const jsonClubs = await jsonClubsP;
+  const gallerySlides = await gallerySlidesP;
 
   let upcomingMatches: Awaited<ReturnType<typeof getUpcomingMatches>> = [];
   let divisions: Awaited<ReturnType<typeof getCurrentSeasonStandings>> = [];
   let newsItems: Awaited<ReturnType<typeof getPublicNewsItems>> = [];
 
   try {
-    [upcomingMatches, divisions, newsItems] = await Promise.all([
-      getUpcomingMatches(
-        associationId ? { owningAssociationId: associationId } : undefined,
-      ),
-      getCurrentSeasonStandings(),
-      getPublicNewsItems(8, associationPortal),
-    ]);
+    [upcomingMatches, divisions, newsItems] = await sectionsP;
   } catch (e) {
     if (isMongoConnectionError(e)) {
       console.error(
