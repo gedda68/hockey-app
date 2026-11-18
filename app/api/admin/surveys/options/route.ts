@@ -8,6 +8,7 @@ import { NextResponse } from "next/server";
 import { getDatabase } from "@/lib/mongodb";
 import { getSession } from "@/lib/auth/session";
 import { surveyLevels } from "@/lib/surveys/access";
+import { teamsStaffedBy } from "@/lib/surveys/teamStaff";
 import { descendantAssociationIds } from "@/lib/surveys/audience";
 
 export async function GET(): Promise<NextResponse> {
@@ -18,16 +19,18 @@ export async function GET(): Promise<NextResponse> {
     if (!levels) return NextResponse.json({ error: "You can't run surveys" }, { status: 403 });
     const db = await getDatabase();
     const isSuper = session.role === "super-admin";
+    const staffOnly = !levels.includes("club");
 
     const assocRows = await db.collection("associations").find({}, { projection: { associationId: 1, name: 1, parentAssociationId: 1 } }).limit(500).toArray();
-    const myAssocIds = isSuper ? assocRows.map((a) => String(a.associationId)) : session.associationId ? [session.associationId] : [];
+    const myAssocIds = staffOnly ? [] : isSuper ? assocRows.map((a) => String(a.associationId)) : session.associationId ? [session.associationId] : [];
     const associations = assocRows.filter((a) => myAssocIds.includes(String(a.associationId))).map((a) => ({ id: String(a.associationId), name: String(a.name ?? a.associationId) }));
 
-    const clubFilter = isSuper ? {} : session.clubId ? { $or: [{ id: session.clubId }, { clubId: session.clubId }] } : session.associationId ? { parentAssociationId: { $in: descendantAssociationIds(assocRows as any, session.associationId) } } : null;
+    const clubFilter = staffOnly ? null : isSuper ? {} : session.clubId ? { $or: [{ id: session.clubId }, { clubId: session.clubId }] } : session.associationId ? { parentAssociationId: { $in: descendantAssociationIds(assocRows as any, session.associationId) } } : null;
     const clubs = clubFilter ? (await db.collection("clubs").find(clubFilter, { projection: { id: 1, clubId: 1, name: 1 } }).limit(500).toArray()).map((c) => ({ id: String(c.id ?? c.clubId), name: String(c.name) })) : [];
 
     const clubIds = clubs.map((c) => c.id);
-    const teams = clubIds.length ? (await db.collection("teams").find({ clubId: { $in: clubIds }, status: { $ne: "archived" } }, { projection: { teamId: 1, name: 1, displayName: 1, clubId: 1 } }).limit(1000).toArray()).map((t) => ({ id: String(t.teamId), clubId: String(t.clubId), name: String(t.displayName || t.name || t.teamId) })) : [];
+    const staffTeams = staffOnly ? await teamsStaffedBy(session, db) : [];
+    const teams = staffOnly ? (await db.collection("teams").find({ teamId: { $in: staffTeams } }, { projection: { teamId: 1, name: 1, displayName: 1, clubId: 1 } }).toArray()).map((t) => ({ id: String(t.teamId), clubId: String(t.clubId), name: String(t.displayName || t.name || t.teamId) })) : clubIds.length ? (await db.collection("teams").find({ clubId: { $in: clubIds }, status: { $ne: "archived" } }, { projection: { teamId: 1, name: 1, displayName: 1, clubId: 1 } }).limit(1000).toArray()).map((t) => ({ id: String(t.teamId), clubId: String(t.clubId), name: String(t.displayName || t.name || t.teamId) })) : [];
 
     const competitions = (await db.collection("season_competitions").find({}, { projection: { seasonCompetitionId: 1, displayName: 1, competitionName: 1, name: 1, season: 1 } }).sort({ season: -1 }).limit(300).toArray())
       .map((c) => ({ id: String(c.seasonCompetitionId), label: `${String(c.displayName ?? c.competitionName ?? c.name ?? c.seasonCompetitionId)}${c.season ? ` (${c.season})` : ""}` }));

@@ -7,6 +7,7 @@ import { getDatabase } from "@/lib/mongodb";
 import type { SessionData } from "@/lib/auth/session";
 import { canWriteTo, writableAudiences } from "@/lib/announcements/access";
 import { userCanAccessClubResource } from "@/lib/auth/resourceAccessDb";
+import { teamsStaffedBy } from "@/lib/surveys/teamStaff";
 import type { SurveyLevel } from "@/lib/surveys/types";
 
 export const COL = "surveys";
@@ -15,15 +16,17 @@ export const RESPONSES = "survey_responses";
 
 export async function surveyLevels(session: SessionData): Promise<SurveyLevel[] | null> {
   const a = await writableAudiences(session);
-  if (!a) return null;
-  return a.includes("club") ? [...a, "team"] : [...a];
+  if (a) return a.includes("club") ? [...a, "team"] : [...a];
+  // Coaches and team managers: their own teams only.
+  return (await teamsStaffedBy(session)).length ? ["team"] : null;
 }
 
 export async function canRunSurveyAt(session: SessionData, level: SurveyLevel, scopeId: string, db?: Db): Promise<boolean> {
   if (level === "team") {
     const d = db ?? (await getDatabase());
     const team = await d.collection("teams").findOne({ teamId: scopeId }, { projection: { clubId: 1 } });
-    return !!team?.clubId && userCanAccessClubResource(session, String(team.clubId));
+    if (team?.clubId && (await writableAudiences(session))?.includes("club") && (await userCanAccessClubResource(session, String(team.clubId)))) return true;
+    return (await teamsStaffedBy(session, d)).includes(scopeId);
   }
   return canWriteTo(session, level, scopeId);
 }
@@ -31,7 +34,13 @@ export async function canRunSurveyAt(session: SessionData, level: SurveyLevel, s
 /** The surveys this session may see and manage (its own club / association / teams; everything for a super-admin). */
 export async function manageFilter(session: SessionData, db: Db): Promise<Record<string, unknown> | null> {
   if (session.role === "super-admin") return {};
+  const levels = await surveyLevels(session);
+  if (!levels) return null;
   const or: Record<string, unknown>[] = [];
+  if (!levels.includes("club")) {
+    const mine = await teamsStaffedBy(session, db);
+    return mine.length ? { level: "team", scopeId: { $in: mine } } : null;
+  }
   if (session.clubId) {
     or.push({ level: "club", scopeId: session.clubId });
     const teams = await db.collection("teams").find({ clubId: session.clubId }, { projection: { teamId: 1 } }).limit(500).toArray();

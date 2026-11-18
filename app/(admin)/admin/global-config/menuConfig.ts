@@ -697,12 +697,11 @@ export const menuConfig: MenuItem[] = [
   {
     label: "Surveys",
     href: "/admin/surveys",
-    areas: ["commsMedia"],
     icon: "📊",
     description: "Ask teams, clubs, associations or everyone: competitions, events, performance or a decision",
     color: "from-teal-500 to-teal-600",
     section: "content",
-    allowedRoles: ["super-admin", "association-admin", "club-admin", "club-committee"],
+    allowedRoles: ["super-admin", "association-admin", "club-admin", "club-committee", "coach", "manager"],
   },
   {
     label: "Delivery log",
