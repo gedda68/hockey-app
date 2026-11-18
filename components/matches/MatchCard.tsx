@@ -8,10 +8,6 @@ import { Badge } from "@/components/ui/Badge";
 import Text from "@/components/ui/Text";
 import type { Match, UmpireDetails } from "../../types";
 
-const matchMetaVariants = cva(
-  "flex flex-col items-center @xl:items-start @xl:min-w-[120px]",
-);
-
 const scoreVariants = cva(
   "text-2xl md:text-4xl font-black italic tracking-tighter flex items-center gap-2",
   {
@@ -69,26 +65,23 @@ export default function MatchCard({
             className="min-w-0 flex-1 overflow-hidden rounded-2xl outline-none focus:ring-4 ring-yellow-400/20"
             aria-label={`Open match centre: ${match.homeTeam} vs ${match.awayTeam}`}
           >
-      <div className="flex flex-col items-center justify-between gap-4 @xl:flex-row @xl:gap-6">
-        {/* MATCH META (Left) */}
-        <div className={matchMetaVariants()}>
+      <div className="flex flex-col gap-3">
+        {/* ROUND · DATE (top line) */}
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
           <Badge variant="default" size="sm">
             {match.round}
           </Badge>
-          {showDivision && match.division ? <Text variant="tiny" className="mt-1 font-black uppercase text-[#06054e]">{String(match.division)}</Text> : null}
-          <Text variant="tiny" className="mt-1 uppercase">
+          <Text variant="tiny" className="uppercase">
             {new Date(match.dateTime).toLocaleDateString("en-AU", {
               day: "2-digit",
               month: "short",
             })}
           </Text>
-
-          {/* Location for fixtures */}
-          {isUpcoming && match.location && (
-            <Text variant="tiny" className="mt-1 text-center @xl:text-left">
-              📍 {match.location}
+          {showDivision && match.division ? (
+            <Text variant="tiny" className="font-black uppercase text-[#06054e]">
+              {String(match.division)}
             </Text>
-          )}
+          ) : null}
         </div>
 
         {/* TEAMS & SCORE (Center) */}
@@ -97,7 +90,7 @@ export default function MatchCard({
           <div className="flex min-w-0 flex-1 items-center justify-end gap-3">
             <Text
               variant="h4"
-              className="break-words text-right text-sm leading-tight md:text-base"
+              className="break-words text-right text-[13px] leading-tight md:text-sm"
             >
               {match.homeTeam}
             </Text>
@@ -170,12 +163,18 @@ export default function MatchCard({
                 aria-hidden
               />
             )}
-            <Text variant="h4" className="break-words text-sm leading-tight md:text-base">
+            <Text variant="h4" className="break-words text-[13px] leading-tight md:text-sm">
               {match.awayTeam}
             </Text>
           </div>
         </div>
 
+        {/* FIELD (centred under the teams) */}
+        {match.location ? (
+          <Text variant="tiny" className="text-center">
+            📍 {match.location}
+          </Text>
+        ) : null}
       </div>
           </Link>
 
