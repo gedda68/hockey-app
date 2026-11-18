@@ -12,6 +12,7 @@
  */
 
 import { processDueSurveys } from "@/lib/surveys/process";
+import { processDueRsvp } from "@/lib/rsvp/process";
 import { NextRequest, NextResponse } from "next/server";
 import { getDatabase } from "@/lib/mongodb";
 import { refreshForMember } from "@/lib/notifications/engine";
@@ -62,7 +63,8 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const social = await processDuePosts(db).catch(() => ({ posted: 0, failed: 0 }));
     // Surveys that are due to open, need their emails or reminder sent, or have passed their closing time.
     const surveys = await processDueSurveys(db).catch(() => ({ opened: 0, emailed: 0, reminded: 0, closed: 0 }));
-    return NextResponse.json({ ok: true, pruned, social, surveys, eligible: members.length, refreshed, failed, stoppedEarly: refreshed + failed < members.length });
+    const rsvp = await processDueRsvp(db).catch(() => ({ closed: 0, asked: 0, reminded: 0 }));
+    return NextResponse.json({ ok: true, pruned, social, surveys, rsvp, eligible: members.length, refreshed, failed, stoppedEarly: refreshed + failed < members.length });
   } catch (e) {
     console.error("notifications cron error:", e);
     return NextResponse.json({ error: "Job failed" }, { status: 500 });

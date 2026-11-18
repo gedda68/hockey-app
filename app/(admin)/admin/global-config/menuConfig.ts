@@ -861,6 +861,15 @@ export const menuConfig: MenuItem[] = [
     section: "personal",
   },
   {
+    label: "Squad availability",
+    href: "/admin/team-availability",
+    icon: "🙋",
+    description: "Ask your squad who can play, with one-tap answers and automatic reminders",
+    color: "from-emerald-500 to-emerald-600",
+    section: "competition",
+    allowedRoles: ["super-admin", "association-admin", "club-admin", "club-committee", "coach", "manager"],
+  },
+  {
     label: "My Availability",
     href: "/admin/my-availability",
     icon: "🗓️",
