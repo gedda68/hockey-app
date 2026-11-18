@@ -14,6 +14,7 @@ import MatchControlTab from "@/components/admin/associations/MatchControlTab";
 import CompetitionTeamsTab from "@/components/admin/associations/CompetitionTeamsTab";
 import CompetitionOfficialsTab from "@/components/admin/associations/CompetitionOfficialsTab";
 import CompetitionLadderTab from "@/components/admin/associations/CompetitionLadderTab";
+import CompetitionPublishBar from "@/components/admin/associations/CompetitionPublishBar";
 import CompetitionStatsStrip from "@/components/admin/associations/CompetitionStatsStrip";
 
 const TABS = [
@@ -58,6 +59,9 @@ export default async function CompetitionWorkspacePage({
     const c = await db.collection("competitions").findOne({ competitionId: sc.competitionId });
     name = (c?.name as string | undefined) ?? undefined;
   }
+  const fx = await db.collection("league_fixtures").find({ seasonCompetitionId, status: { $nin: ["cancelled"] } }).project({ round: 1, published: 1, matchLevel: 1 }).toArray();
+  const rounds = [...new Set(fx.map((f) => Number(f.round)).filter((n) => Number.isInteger(n)))].sort((a, b) => a - b);
+  const publishedCount = fx.filter((f) => f.published === true).length;
   const label = formatSeasonLabel({ season: sc.season, displayName: sc.displayName, competitionName: name });
   const associationName = association.name as string;
   const primaryColor = (association.branding as { primaryColor?: string } | undefined)?.primaryColor || "#06054e";
@@ -80,6 +84,8 @@ export default async function CompetitionWorkspacePage({
         </div>
         <p className="text-sm text-slate-500">{associationName}</p>
       </div>
+
+      <CompetitionPublishBar seasonCompetitionId={seasonCompetitionId} status={String(sc.status ?? "draft")} rounds={rounds} published={publishedCount} total={fx.length} />
 
       <nav aria-label="Competition sections" className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
         <ul className="flex min-w-max gap-1 border-b border-slate-200">
