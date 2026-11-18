@@ -5,6 +5,7 @@ import { NextRequest, NextResponse } from "next/server";
 import type { Db, Document, WithId } from "mongodb";
 import clientPromise from "@/lib/mongodb";
 import type { FeeLineItem } from "@/types/registration";
+import { withFamilyDiscount } from "@/lib/fees/registrationDiscount";
 import {
   finalizeFeeLineItemsForRegistration,
   feeStackPolicySummary,
@@ -219,7 +220,10 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    const orderedLineItems = finalizeFeeLineItemsForRegistration(lineItems);
+    const stacked = finalizeFeeLineItemsForRegistration(lineItems);
+    // A junior whose brother or sister is already registered here gets the club's family discount (when it has one).
+    const family = await withFamilyDiscount(db, { memberId, clubId: club.id, seasonYear: String(seasonYear), items: stacked as never }).catch(() => null);
+    const orderedLineItems = (family?.items ?? stacked) as FeeLineItem[];
 
     // ========================================================================
     // CALCULATE TOTALS
@@ -252,6 +256,7 @@ export async function POST(request: NextRequest) {
       lineItems: orderedLineItems,
       feeStack: feeStackPolicySummary(),
       feesByType,
+      ...(family?.discount ? { familyDiscount: family.discount } : {}),
       summary: {
         subtotal,
         gst,

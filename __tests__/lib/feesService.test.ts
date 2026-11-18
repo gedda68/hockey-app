@@ -204,3 +204,62 @@ describe("overdue reminders", () => {
     expect(r).toEqual({ overdueCents: 15000, count: 2 });
   });
 });
+
+import { registrationDiscount, withFamilyDiscount } from "@/lib/fees/registrationDiscount";
+
+describe("family discount at registration", () => {
+  const rules = { enabled: true, secondPercent: 10, thirdPlusPercent: 20 };
+  it("first to register pays in full; second and later get their percentage", () => {
+    expect(registrationDiscount(0, 30000, rules)).toBeNull();
+    expect(registrationDiscount(1, 30000, rules)).toEqual({ rank: 2, percent: 10, discountCents: 3000 });
+    expect(registrationDiscount(2, 30000, rules)).toEqual({ rank: 3, percent: 20, discountCents: 6000 });
+    expect(registrationDiscount(5, 30000, rules)).toMatchObject({ rank: 6, percent: 20 });
+  });
+  it("nothing when off, free, or 0%", () => {
+    expect(registrationDiscount(1, 30000, { ...rules, enabled: false })).toBeNull();
+    expect(registrationDiscount(1, 0, rules)).toBeNull();
+    expect(registrationDiscount(1, 30000, { ...rules, secondPercent: 0 })).toBeNull();
+  });
+  it("never takes off more than the fee", () => { expect(registrationDiscount(1, 500, { ...rules, secondPercent: 100 })?.discountCents).toBe(500); });
+
+  let t: Record<string, Doc[]>;
+  const items = () => [{ itemId: "club-1", type: "club", name: "Club fee", amount: 300, gstIncluded: true }, { itemId: "ins", type: "insurance", name: "Insurance", amount: 20, gstIncluded: false }];
+  beforeEach(() => {
+    t = {
+      members: ["kid1", "kid2", "kid3"].map((id) => ({ memberId: id, personalInfo: { firstName: id, dateOfBirth: "minor" } })).concat([{ memberId: "adult", personalInfo: { dateOfBirth: "adult" } } as never]),
+      payments: [], fee_settings: [{ clubId: "chc", dueDays: 30, family: { enabled: true, secondPercent: 10, thirdPlusPercent: 20 } }],
+    };
+  });
+  const run = (memberId: string) => withFamilyDiscount(makeDb(t), { memberId, clubId: "chc", seasonYear: "2027", items: items() });
+
+  it("no discount for the first child; a visible 10% line for the second; 20% for the third", async () => {
+    expect((await run("kid1")).discount).toBeNull();
+    t.payments.push(pay("A", "kid1", 320, { seasonYear: "2027" }));
+    const second = await run("kid2");
+    expect(second.discount).toMatchObject({ rank: 2, discountCents: 3000 });
+    expect(second.items.at(-1)).toMatchObject({ itemId: "family-discount", amount: -30, discount: true, gstIncluded: true });
+    t.payments.push(pay("B", "kid2", 290, { seasonYear: "2027" }));
+    expect((await run("kid3")).discount).toMatchObject({ rank: 3, discountCents: 6000 });
+  });
+  it("the discount applies to the club fee only, not insurance", async () => {
+    t.payments.push(pay("A", "kid1", 320, { seasonYear: "2027" }));
+    expect((await run("kid2")).discount?.discountCents).toBe(3000); // 10% of $300, not of $320
+  });
+  it("only counts brothers and sisters registered this season at this club, and who still hold a fee", async () => {
+    t.payments.push(pay("OLD", "kid1", 320, { seasonYear: "2026" }), pay("OTHER", "kid1", 320, { seasonYear: "2027", clubId: "other" }), pay("GONE", "kid1", 320, { seasonYear: "2027", status: "cancelled" }));
+    expect((await run("kid2")).discount).toBeNull();
+  });
+  it("a paid sibling fee counts too", async () => {
+    t.payments.push(pay("A", "kid1", 320, { seasonYear: "2027", status: "paid" }));
+    expect((await run("kid2")).discount).not.toBeNull();
+  });
+  it("not for adults, when switched off, or when it's already been added", async () => {
+    t.payments.push(pay("A", "kid1", 320, { seasonYear: "2027" }));
+    expect((await run("adult")).discount).toBeNull();
+    t.fee_settings[0].family.enabled = false;
+    expect((await run("kid2")).discount).toBeNull();
+    t.fee_settings[0].family.enabled = true;
+    const again = await withFamilyDiscount(makeDb(t), { memberId: "kid2", clubId: "chc", seasonYear: "2027", items: [...items(), { itemId: "family-discount", type: "club", amount: -30 }] });
+    expect(again.discount).toBeNull();
+  });
+});

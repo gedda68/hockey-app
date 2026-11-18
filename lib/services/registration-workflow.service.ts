@@ -1,6 +1,7 @@
 // lib/services/registration-workflow.service.ts
 // Complete registration workflow service
 
+import { withFamilyDiscount } from "@/lib/fees/registrationDiscount";
 import type {
   RegistrationPayload,
   RegistrationSummary,
@@ -414,12 +415,16 @@ export class RegistrationWorkflowService {
         );
 
         // Calculate and create payment record
-        const lineItems = await this.calculateFees(
+        const baseItems = await this.calculateFees(
           payload.clubId,
           payload.roleIds,
           payload.ageCategory,
           payload.seasonYear
         );
+        // Brothers and sisters registered at the same club this season: take the family discount off the club fee.
+        const lineItems = (
+          await withFamilyDiscount(this.db, { memberId: memberId!, clubId: payload.clubId, seasonYear: String(payload.seasonYear), items: baseItems as never }).catch(() => ({ items: baseItems }))
+        ).items as typeof baseItems;
 
         const totalAmount = lineItems.reduce(
           (sum, item) => sum + item.amount,
@@ -430,7 +435,8 @@ export class RegistrationWorkflowService {
           memberId!,
           lineItems,
           totalAmount,
-          session
+          session,
+          { clubId: payload.clubId, seasonYear: String(payload.seasonYear) }
         );
 
         result = {
@@ -647,7 +653,8 @@ export class RegistrationWorkflowService {
     memberId: string,
     lineItems: FeeLineItem[],
     totalAmount: number,
-    session: any
+    session: any,
+    scope?: { clubId: string; seasonYear: string }
   ): Promise<any> {
     const paymentId = `PAY-${Date.now().toString(36).toUpperCase()}`;
 
@@ -656,6 +663,7 @@ export class RegistrationWorkflowService {
       memberId,
       amount: totalAmount,
       lineItems,
+      ...(scope ?? {}),
       status: "pending",
       createdAt: new Date(),
     };
