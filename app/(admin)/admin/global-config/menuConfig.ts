@@ -695,6 +695,16 @@ export const menuConfig: MenuItem[] = [
     allowedRoles: ["super-admin", "association-admin", "club-admin", "club-committee"],
   },
   {
+    label: "Surveys",
+    href: "/admin/surveys",
+    areas: ["commsMedia"],
+    icon: "📊",
+    description: "Ask teams, clubs, associations or everyone: competitions, events, performance or a decision",
+    color: "from-teal-500 to-teal-600",
+    section: "content",
+    allowedRoles: ["super-admin", "association-admin", "club-admin", "club-committee"],
+  },
+  {
     label: "Delivery log",
     href: "/admin/deliveries",
     areas: ["reportsExports"],
@@ -841,6 +851,14 @@ export const menuConfig: MenuItem[] = [
     icon: "📋",
     description: "Matches you're appointed to, with accept and decline",
     color: "from-emerald-400 to-emerald-500",
+    section: "personal",
+  },
+  {
+    label: "My Surveys",
+    href: "/admin/my-surveys",
+    icon: "📝",
+    description: "Surveys from your team, club or association waiting for your answer",
+    color: "from-teal-400 to-teal-500",
     section: "personal",
   },
   {

@@ -12,6 +12,7 @@ import { getMatrixRole } from "@/lib/access/matrix";
 import { allows, mergePrefs, type NotificationPrefs } from "@/lib/notifications/prefs";
 import { dispatchExtraChannels } from "@/lib/notifications/channels";
 import { logDelivery } from "@/lib/notifications/deliveryLog";
+import { surveyCandidates, type SurveyInviteLike } from "@/lib/surveys/candidates";
 import {
   announcementCandidates, approvalCandidates, eventCandidates, matchCandidates, nominationCandidates,
   type AnnouncementLike, type Candidate, type EventLike, type FixtureLike, type WaitingOnMe, type WindowLike,
@@ -20,7 +21,7 @@ import {
 export const COLLECTION = "member_notifications";
 export const REFRESH_MINUTES = 10;
 /** Categories whose notifications go away by themselves once the thing is done (nominated, accepted…). */
-const SELF_RESOLVING = ["approvals", "nominations", "announcements"];
+const SELF_RESOLVING = ["approvals", "nominations", "announcements", "surveys"];
 
 const DAY = 86400000;
 
@@ -134,6 +135,18 @@ export async function gatherCandidates(db: Db, memberId: string, now: Date): Pro
     guardianRequests: kidReqs.map((r: any) => ({ requestId: r.requestId, memberName: r.memberName, requestedRole: r.requestedRole })),
   };
   out.push(...approvalCandidates(waiting, now));
+
+  // Surveys waiting for an answer from me (or from me as a parent).
+  const pending = await db.collection("survey_invites").find({ memberId, status: "pending" }, { projection: { surveyId: 1, onBehalfOf: 1 } }).limit(50).toArray();
+  if (pending.length) {
+    const surveys = await db.collection("surveys").find({ surveyId: { $in: pending.map((p) => String(p.surveyId)) }, status: "open" }, { projection: { surveyId: 1, title: 1, intro: 1, level: 1, scopeId: 1, opensAt: 1, closesAt: 1, status: 1, anonymous: 1, delivery: 1 } }).toArray();
+    const forms: SurveyInviteLike[] = surveys.map((sv: any) => ({
+      surveyId: String(sv.surveyId), title: String(sv.title), intro: sv.intro, level: sv.level, scopeId: sv.scopeId, opensAt: sv.opensAt, closesAt: sv.closesAt,
+      status: sv.status, anonymous: !!sv.anonymous, inApp: sv.delivery?.inApp !== false, popup: !!sv.delivery?.popup,
+      onBehalfOf: pending.find((p) => String(p.surveyId) === String(sv.surveyId))?.onBehalfOf?.name,
+    }));
+    out.push(...surveyCandidates(forms, now));
+  }
 
   const contact = (member.contact ?? {}) as Record<string, unknown>;
   return { candidates: out, recipient: { email: (contact.primaryEmail ?? contact.email ?? null) as string | null, mobile: (contact.mobile ?? contact.phone ?? null) as string | null } };
