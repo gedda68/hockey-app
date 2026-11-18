@@ -1,14 +1,16 @@
 /** lib/email/templates/matchVote.ts — "vote for your player of the match". */
 import { APP_URL } from "@/lib/email/client";
 
-export interface MatchVoteEmail { name: string; teamName: string; opponent: string; whenText: string; closesText: string }
+export interface MatchVoteEmail { name: string; teamName: string; opponent: string; whenText: string; closesText: string; officials?: boolean }
 const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
 export function buildVoteEmail(o: MatchVoteEmail): { subject: string; html: string; text: string } {
   const url = `${APP_URL.replace(/\/$/, "")}/admin/my-votes`;
   const vs = o.opponent ? ` against ${o.opponent}` : "";
-  const subject = `Who was best on ground? ${o.teamName}, ${o.whenText}`;
-  const lines = [
+  const subject = o.officials ? `Best players on ground: ${o.teamName}` : `Who was best on ground? ${o.teamName}, ${o.whenText}`;
+  const lines = o.officials
+    ? [`Hi ${o.name || "there"},`, `You officiated ${o.teamName} on ${o.whenText}. Vote for the three best players on the ground from either team: 3 points for first, 2 for second and 1 for third.`, `Voting closes ${o.closesText}.`]
+    : [
     `Hi ${o.name || "there"},`,
     `${o.teamName} played${vs} on ${o.whenText}. Vote for your top three players: 3 points for first, 2 for second and 1 for third. You can't vote for yourself.`,
     `Voting closes ${o.closesText}.`,

@@ -47,6 +47,7 @@ export function writableDb(t: Record<string, Doc[]>) {
       find: (q: Doc = {}) => cur(rows.filter((d) => matches(d, q))),
       findOne: async (q: Doc) => rows.find((d) => matches(d, q)) ?? null,
       insertOne: async (d: Doc) => { rows.push(structuredClone(d)); },
+      createIndex: async () => "ok",
       insertMany: async (ds: Doc[]) => { ds.forEach((d) => rows.push(structuredClone(d))); },
       updateOne: async (q: Doc, u: Doc, o?: Doc) => { const d = rows.find((x) => matches(x, q)); if (d) apply(d, u); else if (o?.upsert) { const n = { ...q }; apply(n, u); rows.push(n); } return { matchedCount: d ? 1 : 0 }; },
       updateMany: async (q: Doc, u: Doc) => { const hit = rows.filter((d) => matches(d, q)); hit.forEach((d) => apply(d, u)); return { matchedCount: hit.length }; },
