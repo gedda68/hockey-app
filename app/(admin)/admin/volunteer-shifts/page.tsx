@@ -49,6 +49,8 @@ export default function VolunteerShiftsPage() {
   const [form, setForm] = useState(blank);
   const [showForm, setShowForm] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [auto, setAuto] = useState({ open: false, from: "", to: "", ground_setup: { on: true, slots: "2" }, canteen: { on: true, slots: "2" }, scoring: { on: true, slots: "1" } });
+  const [autoPlan, setAutoPlan] = useState<{ matches: number; days: number; planned: number; alreadyDone: number; preview?: { kind: string; label: string; date: string; startTime: string; endTime: string }[] } | null>(null);
 
   const load = useCallback(async () => {
     try { setData(await call("/api/admin/volunteer-shifts", "GET")); } catch (e) { setError(e instanceof Error ? e.message : "Couldn't load"); }
@@ -64,6 +66,10 @@ export default function VolunteerShiftsPage() {
       await load();
     } catch (e) { toast.error(e instanceof Error ? e.message : "Failed"); } finally { setBusy(false); }
   };
+  const autoBody = (dryRun: boolean) => ({ from: auto.from, to: auto.to, dryRun, templates: (["ground_setup", "canteen", "scoring"] as const).map((k) => ({ kind: k, enabled: auto[k].on, slots: Number(auto[k].slots) })) });
+  const previewAuto = async () => { setBusy(true); try { setAutoPlan(await call("/api/admin/volunteer-shifts/from-fixtures", "POST", autoBody(true))); } catch (e) { setAutoPlan(null); toast.error(e instanceof Error ? e.message : "Failed"); } finally { setBusy(false); } };
+  const createAuto = async () => { setBusy(true); try { const d = await call("/api/admin/volunteer-shifts/from-fixtures", "POST", autoBody(false)); toast.success(`${d.created} shifts created for ${d.days} match ${d.days === 1 ? "day" : "days"}`); setAutoPlan(null); setAuto((a) => ({ ...a, open: false })); await load(); } catch (e) { toast.error(e instanceof Error ? e.message : "Failed"); } finally { setBusy(false); } };
+
   const act = async (fn: () => Promise<unknown>, ok: string) => { try { await fn(); toast.success(ok); await load(); } catch (e) { toast.error(e instanceof Error ? e.message : "Failed"); } };
 
   const upcoming = (data?.shifts ?? []).filter((s) => s.status === "open");
@@ -73,8 +79,34 @@ export default function VolunteerShiftsPage() {
   return (
     <div className="mx-auto max-w-4xl space-y-6 p-4 md:p-6">
       <PageHeader eyebrow="Volunteering" title="Volunteer shifts" subtitle={data ? `${data.club.name}: canteen, scoring and ground set-up. Volunteers sign up themselves and get reminders.` : "Canteen, scoring and ground set-up."}
-        aside={data && <button type="button" onClick={() => setShowForm((s) => !s)} className="inline-flex items-center gap-2 rounded-xl bg-white/95 px-4 py-2 text-sm font-black text-[#06054e] shadow"><Plus size={16} /> New shift</button>} />
+        aside={data && <div className="flex flex-wrap gap-2"><button type="button" onClick={() => setAuto((a) => ({ ...a, open: !a.open }))} className="rounded-xl bg-white/95 px-4 py-2 text-sm font-black text-[#06054e] shadow">From home matches</button><button type="button" onClick={() => setShowForm((s) => !s)} className="inline-flex items-center gap-2 rounded-xl bg-white/95 px-4 py-2 text-sm font-black text-[#06054e] shadow"><Plus size={16} /> New shift</button></div>} />
       {error && <p className="rounded-xl bg-red-50 p-3 text-sm font-bold text-red-700">{error}</p>}
+
+      {auto.open && data && (
+        <section className="space-y-4 rounded-2xl border-2 border-teal-200 bg-white p-5">
+          <h2 className="text-sm font-black text-[#06054e]">Create shifts for your home matches</h2>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div><label className={labelCls}>From</label><input type="date" className={inputCls} min={data.today} value={auto.from} onChange={(e) => { setAuto({ ...auto, from: e.target.value }); setAutoPlan(null); }} /></div>
+            <div><label className={labelCls}>To</label><input type="date" className={inputCls} min={auto.from || data.today} value={auto.to} onChange={(e) => { setAuto({ ...auto, to: e.target.value }); setAutoPlan(null); }} /></div>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-3">
+            {([["ground_setup", "Ground set-up", "An hour before the first match"], ["canteen", "Canteen", "First match to last whistle"], ["scoring", "Scoring", "One shift per match"]] as const).map(([k, label, hint]) => (
+              <div key={k} className={`rounded-xl border-2 p-3 ${auto[k].on ? "border-teal-300" : "border-slate-100 opacity-60"}`}>
+                <label className="flex items-center gap-2 text-sm font-black text-slate-800"><input type="checkbox" checked={auto[k].on} onChange={(e) => { setAuto({ ...auto, [k]: { ...auto[k], on: e.target.checked } }); setAutoPlan(null); }} /> {label}</label>
+                <p className="mb-2 text-xs font-medium text-slate-500">{hint}</p>
+                <label className={labelCls}>People each</label>
+                <input type="number" min={1} max={30} className={inputCls} value={auto[k].slots} onChange={(e) => { setAuto({ ...auto, [k]: { ...auto[k], slots: e.target.value } }); setAutoPlan(null); }} />
+              </div>
+            ))}
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <button type="button" disabled={busy || !auto.from || !auto.to} onClick={previewAuto} className="rounded-xl border-2 border-[#06054e] px-5 py-2 text-sm font-black text-[#06054e] disabled:opacity-50">Preview</button>
+            {autoPlan && <button type="button" disabled={busy || autoPlan.planned === 0} onClick={createAuto} className="inline-flex items-center gap-2 rounded-xl bg-[#06054e] px-5 py-2 text-sm font-black text-white disabled:opacity-50">{busy && <Loader2 className="animate-spin" size={16} />} Create {autoPlan.planned} shifts</button>}
+          </div>
+          {autoPlan && <p className="text-sm font-semibold text-slate-700">{autoPlan.matches === 0 ? "No home matches found in those dates." : `${autoPlan.matches} home ${autoPlan.matches === 1 ? "match" : "matches"} over ${autoPlan.days} ${autoPlan.days === 1 ? "day" : "days"}: ${autoPlan.planned} new shifts${autoPlan.alreadyDone ? `, ${autoPlan.alreadyDone} already created before` : ""}.`}</p>}
+          {autoPlan?.preview && autoPlan.preview.length > 0 && <ul className="max-h-48 space-y-1 overflow-y-auto text-xs font-semibold text-slate-600">{autoPlan.preview.map((p, i) => <li key={i}>{p.date}: {p.label} {p.startTime} to {p.endTime}</li>)}</ul>}
+        </section>
+      )}
 
       {showForm && (
         <section className="space-y-4 rounded-2xl border-2 border-teal-200 bg-white p-5">
