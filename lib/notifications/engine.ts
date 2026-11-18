@@ -17,6 +17,7 @@ import { rsvpCandidates, type RsvpPendingLike } from "@/lib/rsvp/candidates";
 import { matchStartMs } from "@/lib/rsvp/logic";
 import { shiftCandidates, type MyShiftLike } from "@/lib/volunteers/candidates";
 import { overdueFor } from "@/lib/fees/service";
+import { awardProgramCandidates, voteCandidates, type OpenVoteLike, type ProgramLike } from "@/lib/awards/candidates";
 import { money } from "@/lib/fees/plans";
 import {
   announcementCandidates, approvalCandidates, eventCandidates, matchCandidates, nominationCandidates,
@@ -26,7 +27,7 @@ import {
 export const COLLECTION = "member_notifications";
 export const REFRESH_MINUTES = 10;
 /** Categories whose notifications go away by themselves once the thing is done (nominated, accepted…). */
-const SELF_RESOLVING = ["approvals", "nominations", "announcements", "surveys", "availability", "volunteering", "fees"];
+const SELF_RESOLVING = ["approvals", "nominations", "announcements", "surveys", "availability", "volunteering", "fees", "awards"];
 
 const DAY = 86400000;
 
@@ -176,6 +177,25 @@ export async function gatherCandidates(db: Db, memberId: string, now: Date): Pro
     const rows: MyShiftLike[] = [];
     for (const su of mySignups) { const sh: any = by.get(String(su.shiftId)); if (sh) rows.push({ shiftId: String(sh.shiftId), date: sh.date, startTime: sh.startTime, endTime: sh.endTime, slots: sh.slots, status: sh.status, label: String(sh.label), clubId: sh.clubId, signupId: String(su.signupId), needsCover: su.status === "swap_requested" }); }
     out.push(...shiftCandidates(rows, now));
+  }
+
+  // Player-of-the-match votes I haven't cast, and my club's season awards.
+  const openRounds: any[] = await db.collection("match_vote_rounds").find({ voterIds: memberId, status: "open", closesAt: { $gt: now.toISOString() } }, { projection: { roundId: 1, teamName: 1, opponentName: 1, startsAt: 1, closesAt: 1, clubId: 1 } }).limit(20).toArray();
+  if (openRounds.length) {
+    const voted = new Set((await db.collection("match_votes").find({ voterId: memberId, roundId: { $in: openRounds.map((r) => String(r.roundId)) } }, { projection: { roundId: 1 } }).toArray()).map((v: any) => String(v.roundId)));
+    out.push(...voteCandidates(openRounds.filter((r) => !voted.has(String(r.roundId))) as OpenVoteLike[], now));
+  }
+  const myClub = clubRef;
+  if (myClub) {
+    const programs: any[] = await db.collection("award_programs").find({ clubId: myClub, status: { $in: ["open", "announced"] } }, { projection: { programId: 1, title: 1, seasonYear: 1, clubId: 1, closesAt: 1, status: 1, announcedAt: 1, winners: 1, categories: 1 } }).limit(10).toArray();
+    if (programs.length) {
+      const mine = new Set((await db.collection("award_nominations").find({ nominatorId: memberId, withdrawn: { $ne: true }, programId: { $in: programs.map((p) => String(p.programId)) } }, { projection: { programId: 1 } }).toArray()).map((n: any) => String(n.programId)));
+      const rows: ProgramLike[] = programs.map((p) => ({
+        programId: String(p.programId), title: String(p.title), seasonYear: String(p.seasonYear), clubId: String(p.clubId), closesAt: p.closesAt ?? null, status: String(p.status), announcedAt: p.announcedAt ?? null,
+        winnerOf: Object.entries(p.winners ?? {}).filter(([, ids]) => (ids as string[]).includes(memberId)).map(([cat]) => String((p.categories ?? []).find((c: any) => c.categoryId === cat)?.name ?? "an award")),
+      }));
+      out.push(...awardProgramCandidates(rows, mine, now));
+    }
   }
 
   // Fees that are past due (mine, and my children's as their parent).
