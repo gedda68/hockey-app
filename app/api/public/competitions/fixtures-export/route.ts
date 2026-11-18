@@ -1,6 +1,6 @@
 // GET /api/public/competitions/fixtures-export
 //   ?seasonCompetitionId=… (one division)  or  ?season=2027 (every division of the year)
-//   &round=next|week|all|<n>  &clubId=…  &teamId=…  &my=1  &format=xlsx|csv
+//   &round=next|week|all|<n>  &clubId=…  &teamId=…  &my=1  &view=results|upcoming  &status=Final|Live|Scheduled  &format=xlsx|csv
 // Published matches only, in the same order and with the same filters as the Match Day page.
 
 import { NextRequest, NextResponse } from "next/server";
@@ -21,6 +21,13 @@ export async function GET(request: NextRequest) {
     const chosen = scId ? options.filter((o) => o.seasonCompetitionId === scId) : season ? options.filter((o) => o.season === season) : [];
     if (!chosen.length) return NextResponse.json({ error: "Choose a division or a season" }, { status: 400 });
 
+    const view = q.get("view"), status = (q.get("status") ?? "").trim();
+    const statusOk = (m: Record<string, unknown>) => {
+      const st = String(m.status ?? "");
+      if (view === "results" && !(st.startsWith("Final") || st === "Live")) return false;
+      if (view === "upcoming" && st !== "Scheduled") return false;
+      return !status || status === "All" || st === status;
+    };
     const clubId = (q.get("clubId") ?? "").trim(), teamId = (q.get("teamId") ?? "").trim(), roundChoice = q.get("round") ?? "all";
     let myTeamIds: string[] = [];
     if (q.get("my") === "1") {
@@ -37,7 +44,7 @@ export async function GET(request: NextRequest) {
       const metaById = new Map(fixtures.map((f) => [f.match.matchId, f]));
       const inScope = (matches as unknown as Record<string, unknown>[]).filter((m) => {
         const meta = metaById.get(String(m.matchId));
-        if (!meta) return false;
+        if (!meta || !statusOk(m)) return false;
         if (q.get("my") === "1") return Boolean((meta.homeTeamId && myTeamIds.includes(meta.homeTeamId)) || (meta.awayTeamId && myTeamIds.includes(meta.awayTeamId)));
         if (teamId) return meta.homeTeamId === teamId || meta.awayTeamId === teamId;
         if (clubId) return meta.homeClubId === clubId || meta.awayClubId === clubId;

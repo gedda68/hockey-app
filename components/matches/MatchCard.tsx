@@ -9,7 +9,7 @@ import Text from "@/components/ui/Text";
 import type { Match, UmpireDetails } from "../../types";
 
 const matchMetaVariants = cva(
-  "flex flex-col items-center md:items-start min-w-[120px]",
+  "flex flex-col items-center @xl:items-start @xl:min-w-[120px]",
 );
 
 const scoreVariants = cva(
@@ -31,7 +31,7 @@ const scoreVariants = cva(
 
 /** Same size + colour for every card action (navy = former ladder header colour). */
 const actionButtonClass =
-  "inline-flex h-10 flex-1 items-center justify-center whitespace-nowrap rounded-xl bg-[#06054e] px-4 text-xs font-bold uppercase tracking-wider text-white shadow-sm transition hover:bg-[#1a1870] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-sky-300 md:w-full md:flex-none";
+  "inline-flex h-10 flex-1 items-center justify-center whitespace-nowrap rounded-xl bg-[#06054e] px-4 text-xs font-bold uppercase tracking-wider text-white shadow-sm transition hover:bg-[#1a1870] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-sky-300 @2xl:w-full @2xl:flex-none";
 
 interface MatchCardProps {
   match: Match;
@@ -59,14 +59,14 @@ export default function MatchCard({
 
   return (
     <Card variant="default" className="p-0 group">
-      <div className="p-6">
-        <div className="flex flex-col gap-4 md:flex-row md:items-center">
+      <div className="@container p-4 sm:p-6">
+        <div className="flex flex-col gap-4 @2xl:flex-row @2xl:items-center">
           <Link
             href={href}
-            className="min-w-0 flex-1 rounded-2xl outline-none focus:ring-4 ring-yellow-400/20"
+            className="min-w-0 flex-1 overflow-hidden rounded-2xl outline-none focus:ring-4 ring-yellow-400/20"
             aria-label={`Open match centre: ${match.homeTeam} vs ${match.awayTeam}`}
           >
-      <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+      <div className="flex flex-col items-center justify-between gap-4 @xl:flex-row @xl:gap-6">
         {/* MATCH META (Left) */}
         <div className={matchMetaVariants()}>
           <Badge variant="default" size="sm">
@@ -81,7 +81,7 @@ export default function MatchCard({
 
           {/* Location for fixtures */}
           {isUpcoming && match.location && (
-            <Text variant="tiny" className="mt-1 text-center md:text-left">
+            <Text variant="tiny" className="mt-1 text-center @xl:text-left">
               📍 {match.location}
             </Text>
           )}
@@ -93,7 +93,7 @@ export default function MatchCard({
           <div className="flex min-w-0 flex-1 items-center justify-end gap-3">
             <Text
               variant="h4"
-              className="text-sm md:text-base text-right leading-tight"
+              className="break-words text-right text-sm leading-tight md:text-base"
             >
               {match.homeTeam}
             </Text>
@@ -166,7 +166,7 @@ export default function MatchCard({
                 aria-hidden
               />
             )}
-            <Text variant="h4" className="text-sm md:text-base leading-tight">
+            <Text variant="h4" className="break-words text-sm leading-tight md:text-base">
               {match.awayTeam}
             </Text>
           </div>
@@ -176,7 +176,7 @@ export default function MatchCard({
           </Link>
 
           {/* Actions: inside the card, equal size */}
-          <div className="flex shrink-0 gap-2 md:w-40 md:flex-col">
+          <div className="flex shrink-0 gap-2 @2xl:w-40 @2xl:flex-col">
             <Link href={href} className={actionButtonClass}>
               Match centre →
             </Link>
