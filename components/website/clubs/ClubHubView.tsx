@@ -156,10 +156,10 @@ export default async function ClubHubView({
   const firstLeague = leagues[0];
   const clubThisRoundHref =
     firstLeague?.seasonCompetitionId != null
-      ? `/competitions/this-round?seasonCompetitionId=${encodeURIComponent(
+      ? `/competitions/matches?seasonCompetitionId=${encodeURIComponent(
           firstLeague.seasonCompetitionId,
         )}&clubId=${encodeURIComponent(club.id)}`
-      : `/competitions/this-round?clubId=${encodeURIComponent(club.id)}`;
+      : `/competitions/matches?clubId=${encodeURIComponent(club.id)}`;
   const leagueHubHref = firstLeague?.seasonCompetitionId
     ? `/competitions/leagues/${encodeURIComponent(firstLeague.seasonCompetitionId)}`
     : "/competitions/leagues";

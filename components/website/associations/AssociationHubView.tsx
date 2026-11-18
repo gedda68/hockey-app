@@ -129,10 +129,10 @@ export default async function AssociationHubView({
 
   const thisRoundHref =
     leagues[0]?.seasonCompetitionId != null
-      ? `/competitions/this-round?seasonCompetitionId=${encodeURIComponent(
+      ? `/competitions/matches?seasonCompetitionId=${encodeURIComponent(
           leagues[0].seasonCompetitionId,
         )}`
-      : "/competitions/this-round";
+      : "/competitions/matches";
 
   return (
     <div

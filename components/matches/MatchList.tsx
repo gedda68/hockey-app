@@ -14,6 +14,7 @@ interface MatchListProps {
   umpireAllocations?: Record<string, unknown>;
   umpireList?: UmpireDetails[];
   spoilerFree?: boolean;
+  showDivision?: boolean;
 }
 
 export default function MatchList({
@@ -23,6 +24,7 @@ export default function MatchList({
   umpireAllocations = {},
   umpireList = [],
   spoilerFree = false,
+  showDivision = false,
 }: MatchListProps) {
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
 
@@ -76,6 +78,7 @@ export default function MatchList({
             href={`/competitions/matches/${encodeURIComponent(match.matchId)}`}
             onQuickView={() => setSelectedMatch(match)}
             spoilerFree={spoilerFree}
+            showDivision={showDivision}
           />
         );
       })}

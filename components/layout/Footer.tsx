@@ -66,8 +66,8 @@ export default function Footer() {
           <Link href="/competitions" className={linkClass}>
             Competitions
           </Link>
-          <Link href="/competitions/this-round" className={linkClass}>
-            This round
+          <Link href="/competitions/matches" className={linkClass}>
+            Matches
           </Link>
           <Link href="/clubs" className={linkClass}>
             Clubs

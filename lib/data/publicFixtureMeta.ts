@@ -81,7 +81,7 @@ export async function loadFixturesMeta(seasonCompetitionId: string): Promise<{
   for (const c of clubs) {
     const id = typeof c.id === "string" ? c.id : "";
     if (!id) continue;
-    const label = String(c.shortName ?? c.name ?? id).trim() || id;
+    const label = String(c.name ?? c.shortName ?? id).trim() || id;
     clubLabelById.set(id, label);
   }
 

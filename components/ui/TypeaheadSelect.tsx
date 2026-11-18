@@ -33,6 +33,7 @@ export default function TypeaheadSelect({
   className,
   ariaLabel,
   variant = "light",
+  compact = false,
 }: {
   options: TypeaheadOption[];
   value: string;
@@ -42,6 +43,8 @@ export default function TypeaheadSelect({
   ariaLabel?: string;
   /** "dark" for boxes on a dark page. */
   variant?: "light" | "dark";
+  /** Smaller box and text, for filter rows that must fit on one line. */
+  compact?: boolean;
 }) {
   const id = useId();
   const root = useRef<HTMLDivElement>(null);
@@ -110,7 +113,7 @@ export default function TypeaheadSelect({
         placeholder={placeholder}
         autoComplete="off"
         title={shown}
-        className={className ?? (variant === "dark" ? DARK_INPUT : DEFAULT_INPUT)}
+        className={className ?? `${variant === "dark" ? DARK_INPUT : DEFAULT_INPUT}${compact ? " !px-3 !py-2 !pr-8 !text-[13px]" : ""}`}
         onFocus={(e) => {
           setOpen(true);
           e.currentTarget.select();
@@ -142,7 +145,7 @@ export default function TypeaheadSelect({
         <svg
           aria-hidden="true"
           viewBox="0 0 20 20"
-          className={`pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 ${variant === "dark" ? "text-white/70" : "text-slate-500"} transition-transform ${open ? "rotate-180" : ""}`}
+          className={`pointer-events-none absolute ${compact ? "right-2" : "right-3"} top-1/2 h-4 w-4 -translate-y-1/2 ${variant === "dark" ? "text-white/70" : "text-slate-500"} transition-transform ${open ? "rotate-180" : ""}`}
           fill="none"
           stroke="currentColor"
           strokeWidth="2"
@@ -181,7 +184,7 @@ export default function TypeaheadSelect({
                     pick(o);
                   }}
                   onMouseEnter={() => setHi(i)}
-                  className={`cursor-pointer px-3 py-2 text-sm font-bold ${variant === "dark" ? `${i === hi ? "bg-white/15" : ""} ${o.value === value ? "text-white" : "text-white/80"}` : `${i === hi ? "bg-yellow-100" : ""} ${o.value === value ? "text-[#06054e]" : "text-slate-700"}`}`}
+                  className={`cursor-pointer px-3 py-2 ${compact ? "text-[13px]" : "text-sm"} font-bold ${variant === "dark" ? `${i === hi ? "bg-white/15" : ""} ${o.value === value ? "text-white" : "text-white/80"}` : `${i === hi ? "bg-yellow-100" : ""} ${o.value === value ? "text-[#06054e]" : "text-slate-700"}`}`}
                 >
                   {o.label}
                 </li>

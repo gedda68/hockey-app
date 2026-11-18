@@ -24,10 +24,10 @@ export default async function MyFixturesPage({
       <div className="min-h-screen bg-gradient-to-br from-[#06054e] via-slate-900 to-slate-800 px-4 py-10 md:px-8">
         <div className="mx-auto max-w-4xl text-white">
           <Link
-            href="/competitions/this-round"
+            href="/competitions/matches"
             className="inline-flex text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-white"
           >
-            ← Back to match day
+            ← Back to matches
           </Link>
           <h1 className="mt-6 text-2xl font-black uppercase italic tracking-tight">
             My fixtures
@@ -57,10 +57,10 @@ export default async function MyFixturesPage({
       <div className="mx-auto max-w-4xl text-white">
         <div className="flex items-end justify-between gap-4">
           <Link
-            href="/competitions/this-round"
+            href="/competitions/matches"
             className="inline-flex text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-white"
           >
-            ← Back to match day
+            ← Back to matches
           </Link>
           {scopeClubId ? (
             <span className="rounded-full border border-white/15 bg-black/20 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-white/70">

@@ -41,6 +41,8 @@ interface MatchCardProps {
   onQuickView?: () => void;
   /** When true, hide scores until user chooses to reveal (B1 spoiler-free). */
   spoilerFree?: boolean;
+  /** Show the division name (when matches from several divisions are listed together). */
+  showDivision?: boolean;
 }
 
 export default function MatchCard({
@@ -50,6 +52,7 @@ export default function MatchCard({
   href,
   onQuickView,
   spoilerFree = false,
+  showDivision = false,
 }: MatchCardProps) {
   const shouldHideScore =
     spoilerFree &&
@@ -72,6 +75,7 @@ export default function MatchCard({
           <Badge variant="default" size="sm">
             {match.round}
           </Badge>
+          {showDivision && match.division ? <Text variant="tiny" className="mt-1 font-black uppercase text-[#06054e]">{String(match.division)}</Text> : null}
           <Text variant="tiny" className="mt-1 uppercase">
             {new Date(match.dateTime).toLocaleDateString("en-AU", {
               day: "2-digit",

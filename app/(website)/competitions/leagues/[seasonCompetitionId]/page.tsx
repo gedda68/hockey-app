@@ -63,14 +63,9 @@ export default async function LeagueHubPage({ params }: Props) {
 
         <div className="mt-10 grid gap-3 sm:grid-cols-2">
           <HubCard
-            href={`/competitions/this-round?${q}`}
-            title="This round"
-            subtitle="This week / round selector"
-          />
-          <HubCard
             href={`/competitions/matches?${q}`}
-            title="Fixtures & results"
-            subtitle="Rounds, venues, scores"
+            title="Matches"
+            subtitle="Next round, fixtures, results"
           />
           <HubCard
             href={`/competitions/standings?${q}`}
@@ -87,7 +82,7 @@ export default async function LeagueHubPage({ params }: Props) {
             title="Awards"
             subtitle="Player of the match & season honours"
           />
-          <HubCard href="/competitions" title="Match Day Central" subtitle="All competition tools" />
+          <HubCard href="/competitions" title="Match Centre" subtitle="All competition tools" />
         </div>
 
         {league.divisions.length > 0 && (
