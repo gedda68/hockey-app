@@ -1,7 +1,9 @@
 import React from "react";
 import Link from "next/link";
 import MatchList from "../../../../components/matches/MatchList";
-import MatchFilters from "../../../../components/matches/MatchFilters";
+import MatchDayFilters from "../../../../components/competitions/MatchDayFilters";
+import { loadFixturesMeta, type FixtureMeta } from "../../../../lib/data/publicFixtureMeta";
+import { defaultYear } from "../../../../lib/competitions/fixtureView";
 import PageHeader from "../../../../components/shared/PageHeader";
 import StandingsTable from "../../../../components/standings/StandingsTable";
 import MyFixturesStrip from "../../../../components/matches/MyFixturesStrip";
@@ -24,180 +26,90 @@ export const dynamic = "force-dynamic";
 export default async function MatchesPage({
   searchParams,
 }: {
-  searchParams: {
-    seasonCompetitionId?: string;
-    round?: string;
-    status?: string;
-    view?: string;
-    teamId?: string;
-  };
+  searchParams: Promise<{ seasonCompetitionId?: string; year?: string; round?: string; status?: string; view?: string; clubId?: string; teamId?: string }>;
 }) {
-  // 1. PARAMS
   const params = await searchParams;
-  const selectedRound = params.round || "All";
-  const selectedStatus = params.status || "All";
   const selectedView: ViewType = (params.view as ViewType) || "results";
-  const selectedTeamId = params.teamId?.trim() || "";
+  const selectedStatus = params.status || "All";
+  const roundChoice = (params.round || "all").trim();
+  const now = new Date();
 
-  // 2. DATA LOADING (live)
-  const [seasonCompetitions, statsData, umpireList] = await Promise.all([
-    getSeasonCompetitionOptions(),
-    getMatchStatsData(),
-    getUmpireDetailsList(),
-  ]);
+  const [options, statsData, umpireList] = await Promise.all([getSeasonCompetitionOptions(), getMatchStatsData(), getUmpireDetailsList()]);
+  const years = [...new Set(options.map((o) => o.season))].sort().reverse();
+  const requested = options.find((o) => o.seasonCompetitionId === params.seasonCompetitionId);
+  const year = requested?.season ?? (params.year && years.includes(params.year) ? params.year : defaultYear(years, now));
+  const divisions = options.map((o) => ({ id: o.seasonCompetitionId, season: o.season, name: o.competitionName ?? o.label }));
+  const inYear = divisions.filter((d) => d.season === year).sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+  const selectedMeta = requested ?? options.find((o) => o.seasonCompetitionId === inYear[0]?.id);
+  const scId = selectedMeta?.seasonCompetitionId ?? "";
 
-  const selectedSeasonCompetitionId =
-    params.seasonCompetitionId ||
-    seasonCompetitions[0]?.seasonCompetitionId ||
-    "";
+  const meta = scId ? await loadFixturesMeta(scId) : { fixtures: [] as FixtureMeta[], clubLabelById: new Map<string, string>(), teamLabelById: new Map<string, string>() };
+  const { fixtures, clubLabelById, teamLabelById } = meta;
+  const teamId = (params.teamId ?? "").trim();
+  // A link that names only a team still shows that team's club.
+  const clubId = (params.clubId ?? "").trim() || (teamId ? (fixtures.find((f) => f.homeTeamId === teamId)?.homeClubId ?? fixtures.find((f) => f.awayTeamId === teamId)?.awayClubId ?? "") : "");
+  const clubs = [...new Set(fixtures.flatMap((f) => [f.homeClubId, f.awayClubId]).filter((x): x is string => Boolean(x)))]
+    .map((id) => ({ id, label: clubLabelById.get(id) ?? id })).sort((a, b) => a.label.localeCompare(b.label));
+  const teams = clubId
+    ? [...new Set(fixtures.flatMap((f) => [f.homeClubId === clubId ? f.homeTeamId : undefined, f.awayClubId === clubId ? f.awayTeamId : undefined]).filter((x): x is string => Boolean(x)))]
+        .map((id) => ({ id, label: teamLabelById.get(id) ?? id })).sort((a, b) => a.label.localeCompare(b.label, undefined, { numeric: true }))
+    : [];
 
-  const rounds = selectedSeasonCompetitionId
-    ? await getRoundsForSeasonCompetition(selectedSeasonCompetitionId)
-    : ["All"];
+  const [rounds, found, currentStandings] = scId
+    ? await Promise.all([
+        getRoundsForSeasonCompetition(scId),
+        filterMatches({ view: selectedView, seasonCompetitionId: scId, round: roundChoice === "all" ? "All" : roundChoice, status: selectedStatus, teamId: teamId || undefined }),
+        getLiveStandingsDivision(scId),
+      ])
+    : [["All"], [], null];
+  const allowed = new Set(fixtures.filter((f) => (teamId ? f.homeTeamId === teamId || f.awayTeamId === teamId : clubId ? f.homeClubId === clubId || f.awayClubId === clubId : true)).map((f) => f.match.matchId));
+  const filteredMatchesFinal = clubId || teamId ? found.filter((m) => allowed.has(m.matchId)) : found;
+  const umpireAllocations = await resolveUmpireAllocationsForMatches(filteredMatchesFinal);
 
-  // Re-filter with seasonCompetitionId applied (keeps initial parallelism cheap)
-  const filteredMatchesFinal = await filterMatches({
-    view: selectedView,
-    seasonCompetitionId: selectedSeasonCompetitionId || undefined,
-    round: selectedRound,
-    status: selectedStatus,
-    teamId: selectedTeamId || undefined,
-  });
-
-  const umpireAllocations =
-    await resolveUmpireAllocationsForMatches(filteredMatchesFinal);
-
-  const selectedMeta = seasonCompetitions.find(
-    (s) => s.seasonCompetitionId === selectedSeasonCompetitionId,
-  );
-  const currentStandings = selectedSeasonCompetitionId
-    ? await getLiveStandingsDivision(selectedSeasonCompetitionId)
-    : null;
-
-  const selectedTeam = selectedTeamId
-    ? currentStandings?.teams.find((t) => t.teamId === selectedTeamId)
-    : undefined;
-  const teamQuery = selectedTeamId ? `&teamId=${encodeURIComponent(selectedTeamId)}` : "";
-
-  const statuses =
-    selectedView === "upcoming"
-      ? ["All", "Scheduled"]
-      : ["All", "Live", "Final"];
-
-  // View toggle buttons
+  const statusOptions = (selectedView === "upcoming" ? ["All", "Scheduled"] : ["All", "Live", "Final"]).map((v) => ({ value: v, label: v === "All" ? "All statuses" : v }));
+  const tab = (view: "results" | "upcoming") => `/competitions/matches?${new URLSearchParams({ view, ...(scId ? { seasonCompetitionId: scId } : {}), ...(clubId ? { clubId } : {}), ...(teamId ? { teamId } : {}) }).toString()}`;
   const viewToggle = (
     <>
-      <Link
-        href={`/competitions/matches?view=results&seasonCompetitionId=${selectedSeasonCompetitionId}&round=${selectedRound}&status=All${teamQuery}`}
-        className={`px-6 py-2 rounded-full text-[10px] font-black uppercase tracking-widest transition-all shadow-lg ${
-          selectedView === "results"
-            ? "bg-red-600 text-white"
-            : "bg-white text-slate-600 hover:bg-slate-100"
-        }`}
-      >
-        Results
-      </Link>
-      <Link
-        href={`/competitions/matches?view=upcoming&seasonCompetitionId=${selectedSeasonCompetitionId}&round=${selectedRound}&status=All${teamQuery}`}
-        className={`px-6 py-2 rounded-full text-[10px] font-black uppercase tracking-widest transition-all shadow-lg ${
-          selectedView === "upcoming"
-            ? "bg-red-600 text-white"
-            : "bg-white text-slate-600 hover:bg-slate-100"
-        }`}
-      >
-        Fixtures
-      </Link>
+      <Link href={tab("results")} className={`rounded-full px-6 py-2 text-[10px] font-black uppercase tracking-widest shadow-lg transition-all ${selectedView === "results" ? "bg-red-600 text-white" : "bg-white text-slate-600 hover:bg-slate-100"}`}>Results</Link>
+      <Link href={tab("upcoming")} className={`rounded-full px-6 py-2 text-[10px] font-black uppercase tracking-widest shadow-lg transition-all ${selectedView === "upcoming" ? "bg-red-600 text-white" : "bg-white text-slate-600 hover:bg-slate-100"}`}>Fixtures</Link>
     </>
   );
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#06054e] via-slate-900 to-slate-800 px-4 md:px-8 lg:px-12 w-full ">
-      <div className="flex justify-between items-center mb-8">
-        <Link
-          href="/competitions"
-          className="text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-[#06054e] flex items-center gap-2 group"
-        >
-          <span className="transition-transform group-hover:-translate-x-1">
-            ←
-          </span>{" "}
-          Back to Dashboard
+    <div className="min-h-screen w-full bg-gradient-to-br from-[#06054e] via-slate-900 to-slate-800 px-4 pb-12 md:px-8 lg:px-12">
+      <div className="mb-6 flex items-center justify-between">
+        <Link href="/competitions" className="group flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-white">
+          <span className="transition-transform group-hover:-translate-x-1">←</span> Back to Dashboard
         </Link>
       </div>
 
-      <div className="flex flex-col mb-10 border-b-4 border-[#06054e] pb-6">
-        <PageHeader
-          title={selectedView === "upcoming" ? "Upcoming" : "Match"}
-          highlight={selectedView === "upcoming" ? "Fixtures" : "Results"}
-          actions={viewToggle}
+      <PageHeader title={selectedView === "upcoming" ? "Upcoming" : "Match"} highlight={selectedView === "upcoming" ? "Fixtures" : "Results"} actions={viewToggle} />
+      <MyFixturesStrip title="My fixtures" />
+
+      <div className="mt-6">
+        <MatchDayFilters
+          basePath="/competitions/matches" roundMode="results" fixed={{ view: selectedView }}
+          years={years} year={year} divisions={divisions} divisionId={scId}
+          rounds={rounds.filter((r) => r !== "All")} round={roundChoice} currentRound={/^\d+$/.test(roundChoice) ? roundChoice : null}
+          clubs={clubs} clubId={clubId} teams={teams} teamId={teamId} my={false} canMy={false} myClubId={null}
+          status={{ value: selectedStatus, options: statusOptions }}
         />
-
-        <MyFixturesStrip title="My fixtures" />
-
-        <MatchFilters
-          seasonCompetitions={seasonCompetitions}
-          rounds={rounds}
-          statuses={statuses}
-          selectedSeasonCompetitionId={selectedSeasonCompetitionId}
-          selectedRound={selectedRound}
-          selectedStatus={selectedStatus}
-          selectedView={selectedView}
-          selectedTeamId={selectedTeamId}
-        />
-
-        {selectedTeamId && (
-          <div className="mt-6 flex flex-wrap items-center gap-3">
-            <span className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-semibold text-[#06054e] shadow">
-              {selectedTeam?.icon && (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={selectedTeam.icon} alt="" className="h-5 w-5 rounded-full object-contain" />
-              )}
-              Showing {selectedTeam?.club ?? "this team"}&rsquo;s {selectedMeta?.season ?? ""} matches
-            </span>
-            <Link
-              href={`/competitions/matches?view=${selectedView}&seasonCompetitionId=${selectedSeasonCompetitionId}&round=${selectedRound}&status=${selectedStatus}`}
-              className="text-sm font-semibold text-slate-300 underline underline-offset-4 hover:text-white"
-            >
-              Show all teams
-            </Link>
-          </div>
-        )}
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-12 gap-10">
-        <div className="xl:col-span-8">
+      <div className="mt-8 grid grid-cols-1 items-start gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(320px,400px)]">
+        <div className="min-w-0">
           {filteredMatchesFinal.length > 0 ? (
-            <MatchList
-              matches={filteredMatchesFinal}
-              stats={selectedView === "results" ? statsData : {}}
-              isUpcoming={selectedView === "upcoming"}
-              umpireAllocations={umpireAllocations}
-              umpireList={umpireList}
-            />
+            <MatchList matches={filteredMatchesFinal} stats={selectedView === "results" ? statsData : {}} isUpcoming={selectedView === "upcoming"} umpireAllocations={umpireAllocations} umpireList={umpireList} />
           ) : (
-            <div className="bg-white rounded-3xl p-8 text-center text-slate-500">
-              <p className="text-sm">
-                {selectedView === "upcoming"
-                  ? "No upcoming fixtures scheduled yet."
-                  : "No match results available yet."}
-              </p>
-              <p className="text-xs mt-2">
-                {selectedView === "upcoming"
-                  ? "Check back soon for the fixture list!"
-                  : "Check back after matches have been played!"}
-              </p>
+            <div className="rounded-3xl bg-white p-8 text-center text-slate-500">
+              <p className="text-sm">{selectedView === "upcoming" ? "No upcoming fixtures match these filters." : "No match results match these filters."}</p>
+              <p className="mt-2 text-xs">Try All rounds or All statuses, or clear the club filter.</p>
             </div>
           )}
         </div>
-
-        <div className="xl:col-span-4">
-          <StandingsTable
-            division={currentStandings}
-            selectedDiv={selectedMeta?.label ?? "Standings"}
-            availableYears={selectedMeta?.season ? [selectedMeta.season] : []}
-            currentYear={selectedMeta?.season ?? ""}
-            showYearFilter={false}
-          />
-        </div>
+        <aside className="min-w-0 overflow-x-auto lg:sticky lg:top-4">
+          <StandingsTable division={currentStandings} selectedDiv={selectedMeta?.competitionName ?? selectedMeta?.label ?? "Standings"} availableYears={year ? [year] : []} currentYear={year} showYearFilter={false} />
+        </aside>
       </div>
     </div>
   );
