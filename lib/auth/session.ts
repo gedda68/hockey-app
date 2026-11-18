@@ -190,9 +190,9 @@ export async function attachSessionCookie(
   const { value, options } = await createSessionCookieParts(data);
   const name = sessionCookieNameForWrite(options.domain);
   res.cookies.set(name, value, options);
-  // A switch between a club portal (domain-scoped cookie) and the personal view (host-only) changes which
-  // variant is written. Expire the other one, or the browser keeps sending the old one first.
-  for (const h of expiredSessionCookieHeaders({ domain: options.domain })) res.headers.append("Set-Cookie", h);
+  // Do NOT add expiring Set-Cookie headers for "the other variant" here: they share the cookie's name, and when
+  // the response is assembled the later `session=` (the expiry) replaces the new one, signing the person out.
+  // The cookie is host-only everywhere now, so there is no second variant to remove; logout clears both.
 }
 
 /** Host-only cookie (no Domain=...), for localhost/subdomain quirks. */
