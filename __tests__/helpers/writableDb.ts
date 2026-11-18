@@ -49,6 +49,7 @@ export function writableDb(t: Record<string, Doc[]>) {
       findOne: async (q: Doc) => rows.find((d) => matches(d, q)) ?? null,
       insertOne: async (d: Doc) => { rows.push(structuredClone(d)); },
       createIndex: async () => "ok",
+      deleteMany: async (q: Doc) => { let n = 0; for (let i = rows.length - 1; i >= 0; i--) if (matches(rows[i], q)) { rows.splice(i, 1); n++; } return { deletedCount: n }; },
       insertMany: async (ds: Doc[]) => { ds.forEach((d) => rows.push(structuredClone(d))); },
       updateOne: async (q: Doc, u: Doc, o?: Doc) => { const d = rows.find((x) => matches(x, q)); if (d) apply(d, u); else if (o?.upsert) { const n = { ...q }; apply(n, u); rows.push(n); } return { matchedCount: d ? 1 : 0 }; },
       replaceOne: async (q: Doc, doc: Doc, o?: Doc) => { const i = rows.findIndex((x) => matches(x, q)); if (i >= 0) rows[i] = structuredClone(doc); else if (o?.upsert) rows.push(structuredClone(doc)); return { matchedCount: i >= 0 ? 1 : 0 }; },

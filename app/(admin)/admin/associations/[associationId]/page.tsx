@@ -206,6 +206,13 @@ export default async function AssociationDetailPage({
                   Fixture operations
                 </Link>
                 <Link
+                  href={`/admin/associations/${associationId}/draw-generator`}
+                  className="inline-flex items-center gap-2 px-4 py-2 border-2 border-indigo-600 text-indigo-900 rounded-xl font-black hover:bg-indigo-50 transition-all text-sm"
+                >
+                  <Calendar size={18} />
+                  Draw generator
+                </Link>
+                <Link
                   href={`/admin/associations/${associationId}/match-events`}
                   className="inline-flex items-center gap-2 px-4 py-2 border-2 border-slate-400 text-slate-800 rounded-xl font-black hover:bg-slate-50 transition-all text-sm"
                 >
