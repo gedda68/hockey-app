@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { cleanBallot, tally, decide, leaderboard, roundShouldClose, windowState, checkNomination, groupNominations, MAX_NOMINATIONS_PER_CATEGORY } from "@/lib/awards/logic";
+import { competitionLeaderboard, cleanBallot, tally, decide, leaderboard, roundShouldClose, windowState, checkNomination, groupNominations, MAX_NOMINATIONS_PER_CATEGORY } from "@/lib/awards/logic";
 
 const squad = ["a", "b", "c", "d", "me"];
 describe("cleanBallot", () => {
@@ -84,5 +84,27 @@ describe("nominations", () => {
     ]);
     expect(g[0]).toMatchObject({ nomineeId: "b", count: 2 });
     expect(g[1]).toMatchObject({ nomineeId: "a", count: 1 });
+  });
+});
+
+describe("competitionLeaderboard", () => {
+  it("adds team votes and officials' votes into one season total", () => {
+    const rows = competitionLeaderboard([
+      { kind: "team", status: "closed", teamName: "U14", tally: tally([{ first: "a", second: "b" }]), winnerId: "a" },
+      { kind: "team", status: "closed", teamName: "U14", tally: tally([{ first: "b" }]), winnerId: "b" },
+      { kind: "officials", status: "closed", tally: tally([{ first: "b", second: "z" }]), winnerId: "b" },
+      { kind: "team", status: "open", teamName: "U14", tally: tally([{ first: "q" }]) },
+    ]);
+    expect(rows[0]).toMatchObject({ memberId: "b", teamPoints: 5, officialPoints: 3, total: 8, wins: 2, games: 2, teamName: "U14" });
+    expect(rows[1]).toMatchObject({ memberId: "a", total: 3, wins: 1 });
+    expect(rows.find((r) => r.memberId === "z")).toMatchObject({ officialPoints: 2, games: 0 });
+    expect(rows.find((r) => r.memberId === "q")).toBeUndefined();
+  });
+  it("breaks a tied total on match wins", () => {
+    const rows = competitionLeaderboard([
+      { kind: "team", status: "closed", teamName: "T", tally: tally([{ first: "a" }]), winnerId: "a" },
+      { kind: "officials", status: "closed", tally: tally([{ first: "b" }]) },
+    ]);
+    expect(rows.map((r) => r.memberId)).toEqual(["a", "b"]);
   });
 });

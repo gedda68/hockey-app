@@ -896,6 +896,15 @@ export const menuConfig: MenuItem[] = [
     allowedRoles: ["super-admin", "association-admin", "club-admin", "club-committee", "coach", "manager"],
   },
   {
+    label: "Competition votes",
+    href: "/admin/competition-votes",
+    icon: "📈",
+    description: "Team and umpire votes added up across the competition: player of the season",
+    color: "from-amber-500 to-amber-600",
+    section: "competition",
+    allowedRoles: ["super-admin", "association-admin", "assoc-committee", "assoc-competition"],
+  },
+  {
     label: "Season awards (committee)",
     href: "/admin/awards",
     icon: "🏆",

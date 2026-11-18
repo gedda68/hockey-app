@@ -4,7 +4,7 @@ const sent = vi.hoisted(() => [] as { to: string; subject: string }[]);
 vi.mock("@/lib/email/client", () => ({ sendEmail: async (m: { to: string; subject: string }) => { sent.push(m); return { success: true }; }, APP_URL: "https://app.test" }));
 vi.mock("@/lib/access/guardians", () => ({ isMinor: (dob: unknown) => dob === "minor", guardianIdsFor: async () => [], childrenOf: async () => [] }));
 
-import { announce, castVote, closeDueRounds, closeDuePrograms, closeRound, loadAwardSettings, myVotes, nominate, nominationsView, openDueRounds, resolveTie, saveAwardSettings, seasonBoard, setWinners, withdrawNomination } from "@/lib/awards/service";
+import { announce, castVote, competitionBoard, loadOfficialSettings, officialMemberIds, openOfficialRounds, recordSeasonPlayer, saveOfficialSettings, closeDueRounds, closeDuePrograms, closeRound, loadAwardSettings, myVotes, nominate, nominationsView, openDueRounds, resolveTie, saveAwardSettings, seasonBoard, setWinners, withdrawNomination } from "@/lib/awards/service";
 import { voteCandidates, awardProgramCandidates } from "@/lib/awards/candidates";
 import { writableDb, type Doc } from "../helpers/writableDb";
 
@@ -117,6 +117,67 @@ describe("player of the match votes", () => {
     const board = await seasonBoard(db, { teamId: "T1", year: "2026" });
     expect(board[0]).toMatchObject({ memberId: "p2", points: 6, wins: 1, name: "P2 Smith" });
     expect(await seasonBoard(db, { teamId: "T1", year: "2025" })).toEqual([]);
+  });
+});
+
+describe("umpires' and officials' votes", () => {
+  const away = ["a1", "a2", "a3"];
+  beforeEach(() => {
+    t.members.push(mem("ump1"), mem("tech1"), ...away.map((i) => mem(i, { clubId: "other" })));
+    t.association_official_register = [{ umpireNumber: "U-77", memberId: "ump1" }];
+    t.league_fixtures[0].owningAssociationId = "ASSOC";
+    t.league_fixtures[0].umpires = [{ umpireType: "umpire", umpireId: "U-77" }, { umpireType: "technical_official", umpireId: "tech1" }, { umpireType: "umpire", umpireId: "u-gone", allocationStatus: "declined" }, { umpireType: "umpire", umpireId: "ump1", isStandby: true }];
+    t.fixture_lineups.push({ fixtureId: "F1", teamId: "T2", players: away.map((m) => ({ memberId: m, shirtNumber: 4 })), staff: [] });
+    t.season_competitions = [{ seasonCompetitionId: "SC1", owningAssociationId: "ASSOC" }];
+  });
+  it("maps umpire numbers and member ids to members, skipping standbys and declines", async () => {
+    expect((await officialMemberIds(db, t.league_fixtures[0].umpires)).sort()).toEqual(["tech1", "ump1"]);
+  });
+  it("opens one vote per game for the officials, with players from both teams", async () => {
+    const r = await openOfficialRounds(db, NOW);
+    expect(r.opened).toBe(1);
+    const round = t.match_vote_rounds[0];
+    expect(round).toMatchObject({ kind: "officials", fixtureId: "F1", teamName: "Under 14s v Rivals", clubId: null, status: "open" });
+    expect(round.voterIds.sort()).toEqual(["tech1", "ump1"]);
+    expect(round.candidates).toHaveLength(8);
+    expect(round.candidates.find((c: Doc) => c.memberId === "a1").teamName).toBe("Rivals");
+    expect(sent.map((s) => s.to).sort()).toEqual(["tech1@x.test", "ump1@x.test"]);
+    expect(sent[0].subject).toContain("Best players on ground");
+    expect((await openOfficialRounds(db, NOW)).opened).toBe(0);
+  });
+  it("lets officials vote for players from either team and counts team and official votes together", async () => {
+    await openDueRounds(db, NOW);
+    await openOfficialRounds(db, NOW);
+    const team = t.match_vote_rounds.find((r) => r.kind === "team")!, off = t.match_vote_rounds.find((r) => r.kind === "officials")!;
+    expect(await castVote(db, off.roundId, "ump1", { first: "a2", second: "p1" }, NOW)).toEqual({ ok: true });
+    expect(await castVote(db, off.roundId, "p1", { first: "a2" }, NOW)).toMatchObject({ ok: false, status: 403 }); // players don't vote on officials' rounds
+    expect(await castVote(db, team.roundId, "ump1", { first: "p1" }, NOW)).toMatchObject({ ok: false, status: 403 });
+    await castVote(db, off.roundId, "tech1", { first: "p1", second: "a2" }, NOW);
+    await castVote(db, team.roundId, "p2", { first: "p1" }, NOW);
+    await closeRound(db, off.roundId, NOW); await closeRound(db, team.roundId, NOW);
+    const board = await competitionBoard(db, "SC1");
+    expect(board.games).toBe(1);
+    expect(board.rows[0]).toMatchObject({ memberId: "p1", name: "P1 Smith", teamPoints: 3, officialPoints: 5, total: 8, teamName: "Under 14s" });
+    expect(board.rows[1]).toMatchObject({ memberId: "a2", officialPoints: 5, total: 5 });
+    // the club's own team table is unaffected by officials' votes
+    expect((await seasonBoard(db, { teamId: "T1", year: "2026" }))[0]).toMatchObject({ memberId: "p1", points: 3 });
+  });
+  it("respects the association's switch and clamps days", async () => {
+    expect(await loadOfficialSettings(db, "ASSOC")).toMatchObject({ enabled: true, closeDays: 3 });
+    await saveOfficialSettings(db, "ASSOC", { officials: { enabled: false, closeDays: 40 } });
+    expect(await loadOfficialSettings(db, "ASSOC")).toMatchObject({ enabled: false, closeDays: 14 });
+    expect((await openOfficialRounds(db, NOW)).opened).toBe(0);
+  });
+  it("records the top player as the competition's player of the season, once", async () => {
+    await openDueRounds(db, NOW);
+    const team = t.match_vote_rounds[0];
+    await castVote(db, team.roundId, "p2", { first: "p1" }, NOW);
+    await closeRound(db, team.roundId, NOW);
+    expect(await recordSeasonPlayer(db, "SC1", "p4", "admin")).toMatchObject({ ok: false, status: 400 });
+    expect(await recordSeasonPlayer(db, "NOPE", "p1", "admin")).toMatchObject({ ok: false, status: 404 });
+    expect(await recordSeasonPlayer(db, "SC1", "p1", "admin")).toEqual({ ok: true });
+    expect(t.competition_awards[0]).toMatchObject({ context: "league", awardType: "player_of_competition", memberId: "p1", memberDisplayName: "P1 Smith", awardLabelSnapshot: "Player of the season" });
+    expect(await recordSeasonPlayer(db, "SC1", "p1", "admin")).toMatchObject({ ok: false, status: 409 });
   });
 });
 

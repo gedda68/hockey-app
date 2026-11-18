@@ -64,6 +64,29 @@ export function leaderboard(rounds: RoundLike[]): BoardRow[] {
   return [...by.values()].sort((a, b) => b.points - a.points || b.wins - a.wins || a.memberId.localeCompare(b.memberId));
 }
 
+export interface CompRound { kind?: string; status: string; tally?: TallyRow[]; winnerId?: string | null; teamName?: string }
+export interface CompRow { memberId: string; teamPoints: number; officialPoints: number; total: number; wins: number; games: number; teamName: string }
+
+/**
+ * Everyone in a competition on one table. Points from their own team's votes and from the umpires and officials add up
+ * to the season total, which decides player of the season. Ties go to most match wins, then official points.
+ */
+export function competitionLeaderboard(rounds: CompRound[]): CompRow[] {
+  const by = new Map<string, CompRow>();
+  const row = (id: string, team?: string) => { let r = by.get(id); if (!r) by.set(id, (r = { memberId: id, teamPoints: 0, officialPoints: 0, total: 0, wins: 0, games: 0, teamName: team ?? "" })); if (team && !r.teamName) r.teamName = team; return r; };
+  for (const r of rounds) {
+    if (r.status !== "closed") continue;
+    const official = r.kind === "officials";
+    for (const t of r.tally ?? []) {
+      const x = row(t.memberId, official ? undefined : r.teamName);
+      if (official) x.officialPoints += t.points; else { x.teamPoints += t.points; x.games++; }
+      x.total += t.points;
+    }
+    if (r.winnerId) row(r.winnerId).wins++;
+  }
+  return [...by.values()].sort((a, b) => b.total - a.total || b.wins - a.wins || b.officialPoints - a.officialPoints || a.memberId.localeCompare(b.memberId));
+}
+
 /** Should this round be closed now? When time is up, or everyone who can vote has. */
 export function roundShouldClose(r: { status: string; closesAt: string; voterCount: number; votedCount: number }, now: Date): boolean {
   if (r.status !== "open") return false;

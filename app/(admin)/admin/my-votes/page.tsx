@@ -7,9 +7,9 @@ import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import PageHeader from "@/components/admin/PageHeader";
 
-interface Cand { memberId: string; name: string; shirtNumber: number | null }
+interface Cand { memberId: string; name: string; shirtNumber: number | null; teamName?: string }
 interface Ballot { first?: string; second?: string; third?: string }
-interface Round { roundId: string; teamName: string; opponentName?: string; startsAt: string; closesAt: string; candidates: Cand[]; myBallot: Ballot | null }
+interface Round { roundId: string; kind?: string; teamName: string; opponentName?: string; startsAt: string; closesAt: string; candidates: Cand[]; myBallot: Ballot | null }
 interface Done { roundId: string; teamName: string; opponentName?: string; startsAt: string; winnerName: string | null; tied: boolean }
 interface Board { teamId: string; teamName: string; rows: { memberId: string; name: string; points: number; wins: number }[] }
 
@@ -34,6 +34,7 @@ function VoteCard({ round, me, onSaved }: { round: Round; me: string; onSaved: (
     <div className="space-y-3 rounded-2xl border-2 border-amber-100 bg-white p-4">
       <div>
         <p className="font-black text-slate-800">{round.teamName}{round.opponentName ? ` v ${round.opponentName}` : ""}</p>
+        {round.kind === "officials" && <p className="text-xs font-bold text-sky-700">You officiated this game. Vote for the best players from either team.</p>}
         <p className="text-xs font-semibold text-slate-500">{day(round.startsAt)} · voting closes {day(round.closesAt)}</p>
       </div>
       {PLACES.map(({ key, label, pts }, i) => (
@@ -41,7 +42,7 @@ function VoteCard({ round, me, onSaved }: { round: Round; me: string; onSaved: (
           <span className="w-24 text-sm font-black text-slate-600">{label} ({pts} {pts === 1 ? "pt" : "pts"})</span>
           <select value={b[key] ?? ""} disabled={i > 0 && !b[PLACES[i - 1].key]} onChange={(e) => setB((x) => ({ ...x, [key]: e.target.value || undefined }))} className="flex-1 rounded-xl border-2 border-slate-200 bg-white px-3 py-2 text-sm font-semibold disabled:bg-slate-50">
             <option value="">{i === 0 ? "Choose a player" : "Optional"}</option>
-            {round.candidates.filter((c) => c.memberId !== me && (b[key] === c.memberId || !picked.includes(c.memberId))).map((c) => <option key={c.memberId} value={c.memberId}>{c.shirtNumber != null ? `#${c.shirtNumber} ` : ""}{c.name}</option>)}
+            {round.candidates.filter((c) => c.memberId !== me && (b[key] === c.memberId || !picked.includes(c.memberId))).map((c) => <option key={c.memberId} value={c.memberId}>{c.shirtNumber != null ? `#${c.shirtNumber} ` : ""}{c.name}{c.teamName ? ` (${c.teamName})` : ""}</option>)}
           </select>
         </label>
       ))}

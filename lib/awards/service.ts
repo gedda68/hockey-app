@@ -10,7 +10,8 @@ import { buildWinnerEmail } from "@/lib/email/templates/awardWinner";
 import { isMinor } from "@/lib/access/guardians";
 import { isQuietHour } from "@/lib/rsvp/logic";
 import { memberBelongsToClubFilter } from "@/lib/rosters/memberClubQuery";
-import { cleanBallot, checkNomination, decide, leaderboard, roundShouldClose, tally, windowState, type Ballot, type NominationLike, type TallyRow } from "@/lib/awards/logic";
+import { DEFAULT_AWARDS_LABELS_LEAGUE, insertCompetitionAward, mergeAwardsLabels } from "@/lib/competitions/competitionAwards";
+import { cleanBallot, checkNomination, competitionLeaderboard, decide, leaderboard, roundShouldClose, tally, windowState, type Ballot, type NominationLike, type TallyRow } from "@/lib/awards/logic";
 
 export const ROUNDS = "match_vote_rounds";
 export const VOTES = "match_votes";
@@ -76,7 +77,7 @@ export async function openDueRounds(db: Db, now: Date = new Date()): Promise<{ o
       const names = await namesFor(db, [...candidateIds, ...staffIds]);
       const shirt = new Map(players.map((p: any) => [String(p.memberId), p.shirtNumber ?? null]));
       const round = {
-        roundId: newId("MVR"), fixtureId: String(f.fixtureId), seasonCompetitionId: String(f.seasonCompetitionId ?? ""), teamId: String(teamId), clubId,
+        roundId: newId("MVR"), kind: "team", fixtureId: String(f.fixtureId), seasonCompetitionId: String(f.seasonCompetitionId ?? ""), teamId: String(teamId), clubId,
         teamName: String(team?.displayName || team?.name || "Your team"), opponentName: String(other?.displayName || other?.name || "").trim(),
         startsAt: String(f.scheduledStart), matchDate: String(f.scheduledStart).slice(0, 10), status: "open",
         voterIds: [...new Set([...candidateIds, ...staffIds])], candidates: candidateIds.map((id) => ({ memberId: id, name: names.get(id) ?? "Player", shirtNumber: shirt.get(id) ?? null })),
@@ -91,13 +92,97 @@ export async function openDueRounds(db: Db, now: Date = new Date()): Promise<{ o
   return { opened, emailed };
 }
 
+// ── Umpires' and officials' votes: best players on the ground, from either team ─────────────────────────────────────
+
+export interface OfficialSettings { associationId: string; enabled: boolean; closeDays: number }
+export async function loadOfficialSettings(db: Db, associationId: string): Promise<OfficialSettings> {
+  const s: any = await db.collection(AWARD_SETTINGS).findOne({ clubId: `assoc:${associationId}` }, { projection: { _id: 0 } });
+  return { associationId, enabled: s?.officials?.enabled !== false, closeDays: Math.min(14, Math.max(1, Math.round(Number(s?.officials?.closeDays) || 3))) };
+}
+export async function saveOfficialSettings(db: Db, associationId: string, raw: any): Promise<OfficialSettings> {
+  const cur = await loadOfficialSettings(db, associationId);
+  const o = raw?.officials ?? {};
+  const next = { associationId, enabled: typeof o.enabled === "boolean" ? o.enabled : cur.enabled, closeDays: o.closeDays != null ? Math.min(14, Math.max(1, Math.round(Number(o.closeDays) || cur.closeDays))) : cur.closeDays };
+  await db.collection(AWARD_SETTINGS).updateOne({ clubId: `assoc:${associationId}` }, { $set: { clubId: `assoc:${associationId}`, officials: { enabled: next.enabled, closeDays: next.closeDays } } }, { upsert: true });
+  return next;
+}
+
+/** Turns the ids on a fixture's umpire slots (member ids or umpire numbers) into member ids. */
+export async function officialMemberIds(db: Db, slots: any[]): Promise<string[]> {
+  const ids = [...new Set(slots.filter((s) => s?.umpireId && !s.isStandby && s.allocationStatus !== "declined").map((s) => String(s.umpireId).trim()))];
+  if (!ids.length) return [];
+  const reg: any[] = await db.collection("association_official_register").find({ umpireNumber: { $in: ids } }, { projection: { umpireNumber: 1, memberId: 1 } }).toArray();
+  const viaNumber = new Map(reg.filter((r) => r.memberId).map((r) => [String(r.umpireNumber).trim(), String(r.memberId)]));
+  const direct: any[] = await db.collection("members").find({ memberId: { $in: ids } }, { projection: { memberId: 1 } }).toArray();
+  const real = new Set(direct.map((m) => String(m.memberId)));
+  const out = new Set<string>();
+  for (const id of ids) { const m = viaNumber.get(id) ?? (real.has(id) ? id : ""); if (m) out.add(m); }
+  return [...out];
+}
+
+/** After each completed game, the umpires and technical officials vote 3-2-1 for the best players from either team. */
+export async function openOfficialRounds(db: Db, now: Date = new Date()): Promise<{ opened: number; emailed: number }> {
+  const since = new Date(now.getTime() - 7 * DAY).toISOString();
+  const fixtures: any[] = await db.collection("league_fixtures").find({ status: "completed", scheduledStart: { $gte: since } }, { projection: { fixtureId: 1, seasonCompetitionId: 1, owningAssociationId: 1, homeTeamId: 1, awayTeamId: 1, scheduledStart: 1, umpires: 1 } }).limit(400).toArray();
+  let opened = 0, emailed = 0;
+  for (const f of fixtures) {
+    if (!Array.isArray(f.umpires) || !f.umpires.length) continue;
+    if (await db.collection(ROUNDS).findOne({ fixtureId: String(f.fixtureId), kind: "officials" }, { projection: { roundId: 1 } })) continue;
+    const settings = await loadOfficialSettings(db, String(f.owningAssociationId ?? ""));
+    if (!settings.enabled) continue;
+    const voterIds = await officialMemberIds(db, f.umpires);
+    if (!voterIds.length) continue;
+    const sides: { teamId: string; name: string; players: any[] }[] = [];
+    for (const teamId of [f.homeTeamId, f.awayTeamId]) {
+      if (!teamId) continue;
+      const [team, lineup]: any[] = await Promise.all([db.collection("teams").findOne({ teamId: String(teamId) }, { projection: { name: 1, displayName: 1 } }), db.collection("fixture_lineups").findOne({ fixtureId: String(f.fixtureId), teamId: String(teamId) })]);
+      sides.push({ teamId: String(teamId), name: String(team?.displayName || team?.name || "Team"), players: (lineup?.players ?? []).filter((p: any) => p?.memberId && !p.didNotPlay) });
+    }
+    const all = sides.flatMap((s) => s.players.map((p) => ({ ...p, teamName: s.name })));
+    if (all.length < 3) continue;
+    const names = await namesFor(db, all.map((p) => String(p.memberId)));
+    const round = {
+      roundId: newId("MVR"), kind: "officials", fixtureId: String(f.fixtureId), seasonCompetitionId: String(f.seasonCompetitionId ?? ""), owningAssociationId: String(f.owningAssociationId ?? ""), teamId: null, clubId: null,
+      teamName: sides.map((s) => s.name).join(" v "), opponentName: "", startsAt: String(f.scheduledStart), matchDate: String(f.scheduledStart).slice(0, 10), status: "open",
+      voterIds, candidates: all.map((p) => ({ memberId: String(p.memberId), name: names.get(String(p.memberId)) ?? "Player", shirtNumber: p.shirtNumber ?? null, teamName: p.teamName })),
+      votedCount: 0, tally: [] as TallyRow[], winnerId: null as string | null, result: null as any, openedAt: now.toISOString(), closesAt: new Date(now.getTime() + settings.closeDays * DAY).toISOString(),
+    };
+    await db.collection(ROUNDS).insertOne(round);
+    opened++;
+    if (!isQuietHour(now)) emailed += await emailVoters(db, round);
+  }
+  return { opened, emailed };
+}
+
+/** The whole competition on one table: team votes plus the officials' votes. Player of the season is the top of this. */
+export async function competitionBoard(db: Db, seasonCompetitionId: string, limit = 25) {
+  const rounds: any[] = await db.collection(ROUNDS).find({ seasonCompetitionId, status: "closed" }, { projection: { kind: 1, status: 1, tally: 1, winnerId: 1, teamName: 1 } }).limit(5000).toArray();
+  const rows = competitionLeaderboard(rounds);
+  const names = await namesFor(db, rows.slice(0, limit).map((r) => r.memberId));
+  return { games: rounds.filter((r) => r.kind !== "officials").length, rows: rows.slice(0, limit).map((r) => ({ ...r, name: names.get(r.memberId) ?? "Player" })) };
+}
+
+/** Records the competition's player of the season on the official awards list (shown on the public awards page). */
+export async function recordSeasonPlayer(db: Db, seasonCompetitionId: string, memberId: string, createdBy: string): Promise<VoteResult> {
+  const sc: any = await db.collection("season_competitions").findOne({ seasonCompetitionId }, { projection: { awardsLabels: 1 } });
+  if (!sc) return { ok: false, error: "Competition not found", status: 404 };
+  const board = await competitionBoard(db, seasonCompetitionId, 500);
+  const row = board.rows.find((r) => r.memberId === memberId);
+  if (!row) return { ok: false, error: "That player has no votes in this competition", status: 400 };
+  const existing = await db.collection("competition_awards").findOne({ context: "league", seasonCompetitionId, awardType: "player_of_competition", memberId });
+  if (existing) return { ok: false, error: "Already recorded", status: 409 };
+  const labels = mergeAwardsLabels(sc.awardsLabels, DEFAULT_AWARDS_LABELS_LEAGUE);
+  await insertCompetitionAward(db, { context: "league", seasonCompetitionId, awardType: "player_of_competition", fixtureId: null, memberId, memberDisplayName: row.name, teamName: row.teamName || null, awardLabelSnapshot: labels.playerOfCompetition, notes: `Most votes across the season: ${row.total} points`, createdBy });
+  return { ok: true };
+}
+
 async function emailVoters(db: Db, round: any): Promise<number> {
   const ms: any[] = await db.collection("members").find({ memberId: { $in: round.voterIds } }, { projection: { memberId: 1, personalInfo: 1, firstName: 1, lastName: 1, contact: 1, notificationPrefs: 1 } }).toArray();
   let n = 0;
   for (const m of ms) {
     const to = emailOf(m);
     if (!to || m.notificationPrefs?.enabled === false) continue;
-    const mail = buildVoteEmail({ name: String(m.personalInfo?.firstName ?? m.firstName ?? ""), teamName: round.teamName, opponent: round.opponentName, whenText: matchDay(round.startsAt), closesText: matchDay(round.closesAt) });
+    const mail = buildVoteEmail({ name: String(m.personalInfo?.firstName ?? m.firstName ?? ""), teamName: round.teamName, opponent: round.opponentName, whenText: matchDay(round.startsAt), closesText: matchDay(round.closesAt), officials: round.kind === "officials" });
     const r = await sendEmail({ to, subject: mail.subject, html: mail.html, text: mail.text }).catch(() => ({ success: false }));
     if ((r as any)?.success) n++;
   }
@@ -154,7 +239,7 @@ export async function myVotes(db: Db, memberId: string, now: Date = new Date()) 
   const mine: any[] = await db.collection(ROUNDS).find({ voterIds: memberId }, { projection: { _id: 0 } }).sort({ startsAt: -1 }).limit(40).toArray();
   const votes: any[] = mine.length ? await db.collection(VOTES).find({ voterId: memberId, roundId: { $in: mine.map((r) => String(r.roundId)) } }, { projection: { roundId: 1, ballot: 1 } }).toArray() : [];
   const ballotOf = new Map(votes.map((v) => [String(v.roundId), v.ballot]));
-  const strip = (r: any) => ({ roundId: r.roundId, teamId: r.teamId, teamName: r.teamName, opponentName: r.opponentName, startsAt: r.startsAt, closesAt: r.closesAt, status: r.status, candidates: r.candidates, myBallot: ballotOf.get(String(r.roundId)) ?? null });
+  const strip = (r: any) => ({ roundId: r.roundId, kind: r.kind ?? "team", teamId: r.teamId, teamName: r.teamName, opponentName: r.opponentName, startsAt: r.startsAt, closesAt: r.closesAt, status: r.status, candidates: r.candidates, myBallot: ballotOf.get(String(r.roundId)) ?? null });
   const open = mine.filter((r) => r.status === "open" && Date.parse(r.closesAt) > now.getTime()).map(strip);
   const winnerNames = await namesFor(db, mine.map((r) => r.winnerId).filter(Boolean));
   const done = mine.filter((r) => r.status === "closed").slice(0, 10).map((r) => ({ roundId: r.roundId, teamName: r.teamName, opponentName: r.opponentName, startsAt: r.startsAt, winnerId: r.winnerId, winnerName: r.winnerId ? winnerNames.get(String(r.winnerId)) ?? "" : null, tied: r.result?.kind === "tied" }));
@@ -279,7 +364,8 @@ export async function closeDuePrograms(db: Db, now: Date = new Date()): Promise<
 
 export async function processAwards(db: Db, now: Date = new Date()) {
   const opened = await openDueRounds(db, now);
+  const officials = await openOfficialRounds(db, now);
   const closed = await closeDueRounds(db, now);
   const programs = await closeDuePrograms(db, now);
-  return { opened: opened.opened, emailed: opened.emailed, closed: closed.closed, programsClosed: programs.closed };
+  return { opened: opened.opened + officials.opened, emailed: opened.emailed + officials.emailed, closed: closed.closed, programsClosed: programs.closed };
 }
