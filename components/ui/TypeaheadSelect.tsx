@@ -18,6 +18,9 @@ export interface TypeaheadOption {
 
 // Used when the caller passes no className: a visible, full-width box with a chevron so it
 // is obvious the field can be edited, and room for long names.
+const DARK_INPUT =
+  "w-full rounded-xl border border-white/15 bg-white/10 px-4 py-3 pr-10 text-sm font-bold text-white " +
+  "placeholder:font-normal placeholder:text-white/60 hover:bg-white/15 focus:border-white/40 focus:outline-none focus:ring-2 focus:ring-white/20";
 const DEFAULT_INPUT =
   "w-full rounded-xl border-2 border-slate-300 bg-white px-4 py-3 pr-10 text-sm font-bold text-slate-900 " +
   "placeholder:font-normal placeholder:text-slate-400 hover:border-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200";
@@ -29,6 +32,7 @@ export default function TypeaheadSelect({
   placeholder = "Select…",
   className,
   ariaLabel,
+  variant = "light",
 }: {
   options: TypeaheadOption[];
   value: string;
@@ -36,6 +40,8 @@ export default function TypeaheadSelect({
   placeholder?: string;
   className?: string;
   ariaLabel?: string;
+  /** "dark" for boxes on a dark page. */
+  variant?: "light" | "dark";
 }) {
   const id = useId();
   const root = useRef<HTMLDivElement>(null);
@@ -104,7 +110,7 @@ export default function TypeaheadSelect({
         placeholder={placeholder}
         autoComplete="off"
         title={shown}
-        className={className ?? DEFAULT_INPUT}
+        className={className ?? (variant === "dark" ? DARK_INPUT : DEFAULT_INPUT)}
         onFocus={(e) => {
           setOpen(true);
           e.currentTarget.select();
@@ -136,7 +142,7 @@ export default function TypeaheadSelect({
         <svg
           aria-hidden="true"
           viewBox="0 0 20 20"
-          className={`pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500 transition-transform ${open ? "rotate-180" : ""}`}
+          className={`pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 ${variant === "dark" ? "text-white/70" : "text-slate-500"} transition-transform ${open ? "rotate-180" : ""}`}
           fill="none"
           stroke="currentColor"
           strokeWidth="2"
@@ -160,10 +166,10 @@ export default function TypeaheadSelect({
               width: rect.width,
               zIndex: 10000,
             }}
-            className="max-h-56 overflow-auto rounded-xl border border-slate-200 bg-white py-1 shadow-lg"
+            className={`max-h-56 overflow-auto rounded-xl border py-1 shadow-lg ${variant === "dark" ? "border-white/15 bg-[#0d0c5c]" : "border-slate-200 bg-white"}`}
           >
             {filtered.length === 0 ? (
-              <li className="px-3 py-2 text-sm text-slate-400">No matches</li>
+              <li className={`px-3 py-2 text-sm ${variant === "dark" ? "text-white/60" : "text-slate-400"}`}>No matches</li>
             ) : (
               filtered.map((o, i) => (
                 <li
@@ -175,7 +181,7 @@ export default function TypeaheadSelect({
                     pick(o);
                   }}
                   onMouseEnter={() => setHi(i)}
-                  className={`cursor-pointer px-3 py-2 text-sm font-bold ${i === hi ? "bg-yellow-100" : ""} ${o.value === value ? "text-[#06054e]" : "text-slate-700"}`}
+                  className={`cursor-pointer px-3 py-2 text-sm font-bold ${variant === "dark" ? `${i === hi ? "bg-white/15" : ""} ${o.value === value ? "text-white" : "text-white/80"}` : `${i === hi ? "bg-yellow-100" : ""} ${o.value === value ? "text-[#06054e]" : "text-slate-700"}`}`}
                 >
                   {o.label}
                 </li>
