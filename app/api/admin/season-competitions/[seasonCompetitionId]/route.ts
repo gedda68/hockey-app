@@ -45,7 +45,7 @@ const UpdateSeasonCompetitionSchema = z.object({
 
 const VALID_TRANSITIONS: Record<string, string[]> = {
   draft: ["published", "archived"],
-  published: ["in_progress", "archived"],
+  published: ["draft", "in_progress", "archived"],
   in_progress: ["completed", "archived"],
   completed: ["archived"],
   archived: [],
