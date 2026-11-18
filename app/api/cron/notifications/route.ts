@@ -11,6 +11,7 @@
  * Params: ?limit=<n> (default 300), ?budgetSeconds=<n> (default 45), ?dryRun=true (just counts who would be refreshed)
  */
 
+import { processDueSurveys } from "@/lib/surveys/process";
 import { NextRequest, NextResponse } from "next/server";
 import { getDatabase } from "@/lib/mongodb";
 import { refreshForMember } from "@/lib/notifications/engine";
@@ -59,7 +60,9 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const pruned = await pruneDeliveries(db).catch(() => 0);
     // Scheduled posts to Facebook pages that have come due.
     const social = await processDuePosts(db).catch(() => ({ posted: 0, failed: 0 }));
-    return NextResponse.json({ ok: true, pruned, social, eligible: members.length, refreshed, failed, stoppedEarly: refreshed + failed < members.length });
+    // Surveys that are due to open, need their emails or reminder sent, or have passed their closing time.
+    const surveys = await processDueSurveys(db).catch(() => ({ opened: 0, emailed: 0, reminded: 0, closed: 0 }));
+    return NextResponse.json({ ok: true, pruned, social, surveys, eligible: members.length, refreshed, failed, stoppedEarly: refreshed + failed < members.length });
   } catch (e) {
     console.error("notifications cron error:", e);
     return NextResponse.json({ error: "Job failed" }, { status: 500 });

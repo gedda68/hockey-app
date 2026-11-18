@@ -15,6 +15,7 @@ import {
 import RenewalReminderBanner from "@/components/admin/RenewalReminderBanner";
 import ComingUpPanel from "@/components/admin/ComingUpPanel";
 import SponsorBar from "@/components/admin/SponsorBar";
+import SurveyPopup from "@/components/surveys/SurveyPopup";
 
 export default function AdminLayout({ children }: { children: ReactNode }) {
   return (
@@ -37,6 +38,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
               <ComingUpPanel />
             </div>
             <SponsorBar />
+            <SurveyPopup />
           </div>
         </AdminEditingScopeProvider>
       </BrandShell>
