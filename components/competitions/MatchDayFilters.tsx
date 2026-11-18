@@ -26,9 +26,10 @@ const STATUS = [{ value: "all", label: "All matches" }, { value: "fixtures", lab
 export default function MatchDayFilters(p: MatchDayFiltersProps) {
   const router = useRouter();
   const go = (patch: Record<string, string>) => {
-    const sp = new URLSearchParams({ seasonCompetitionId: p.divisionId, round: p.round, status: p.status, ...(p.clubId ? { clubId: p.clubId } : {}), ...(p.teamId ? { teamId: p.teamId } : {}), ...(p.my ? { my: "1" } : {}), ...patch });
+    const sp = new URLSearchParams({ year: p.year, seasonCompetitionId: p.divisionId, round: p.round, status: p.status, ...(p.clubId ? { clubId: p.clubId } : {}), ...(p.teamId ? { teamId: p.teamId } : {}), ...(p.my ? { my: "1" } : {}), ...patch });
     for (const k of [...sp.keys()]) if (!sp.get(k)) sp.delete(k);
-    if (sp.get("seasonCompetitionId") !== "all") sp.delete("year");
+    // The year only needs to be in the address when no single division carries it.
+    if (sp.get("seasonCompetitionId") && sp.get("seasonCompetitionId") !== "all") sp.delete("year");
     if (sp.get("round") === "next") sp.delete("round");
     if (sp.get("status") === "all") sp.delete("status");
     router.push(`/competitions/matches?${sp.toString()}`);
@@ -36,13 +37,14 @@ export default function MatchDayFilters(p: MatchDayFiltersProps) {
   const cell = "min-w-0 basis-[calc(50%-0.25rem)] lg:basis-0 lg:flex-1 flex flex-col gap-1";
   const cap = "text-[10px] font-black uppercase tracking-widest text-slate-300";
   const inYear = p.divisions.filter((d) => d.season === p.year);
-  const reset = { round: "next", clubId: "", teamId: "", my: "" };
+  // Changing year or division keeps the other choices (the page ignores a club that has no matches there); only the team is cleared.
+  const reset = { teamId: "" };
 
   const changeYear = (year: string) => {
     if (p.divisionId === "all") return go({ ...reset, year, seasonCompetitionId: "all" });
     const name = inYear.find((x) => x.id === p.divisionId)?.name;
     const same = p.divisions.find((d) => d.season === year && d.name === name) ?? p.divisions.find((d) => d.season === year);
-    go({ ...reset, seasonCompetitionId: same?.id ?? "" });
+    go({ ...reset, year, seasonCompetitionId: same?.id ?? "" });
   };
   const roundOptions = [{ value: "next", label: "Next round" }, { value: "week", label: "This week" }, { value: "all", label: "All rounds" }, ...p.rounds.map((r) => ({ value: r, label: `Round ${r}` }))];
   const clubOptions = [{ value: "all", label: "All clubs" }, ...(p.canMy ? [{ value: "__my", label: "My teams" }] : []), ...p.clubs.map((c) => ({ value: c.id, label: `${c.label}${c.id === p.myClubId ? " (my club)" : ""}` }))];

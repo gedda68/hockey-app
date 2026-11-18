@@ -61,10 +61,12 @@ export default async function MatchesPage({
 
   const teamId = (params.teamId ?? "").trim();
   // A link that names only a team still shows that team's club.
-  const clubId = (params.clubId ?? "").trim() || (teamId ? (fixtures.find((f) => f.homeTeamId === teamId)?.homeClubId ?? fixtures.find((f) => f.awayTeamId === teamId)?.awayClubId ?? "") : "");
+  const rawClubId = (params.clubId ?? "").trim() || (teamId ? (fixtures.find((f) => f.homeTeamId === teamId)?.homeClubId ?? fixtures.find((f) => f.awayTeamId === teamId)?.awayClubId ?? "") : "");
   const myTeamIds = session ? await getMyTeamIdsForSession({ userId: session.userId, memberId: session.memberId ?? null, scopedRoles: session.scopedRoles ?? [] }) : [];
 
   const clubs = [...new Set(fixtures.flatMap((f) => [f.homeClubId, f.awayClubId]).filter((x): x is string => Boolean(x)))].map((id) => ({ id, label: clubLabelById.get(id) ?? id })).sort((a, b) => a.label.localeCompare(b.label));
+  // A club (or team) that isn't in this year / division is ignored rather than leaving an empty page.
+  const clubId = clubs.some((c) => c.id === rawClubId) ? rawClubId : "";
   const teams = clubId
     ? [...new Set(fixtures.flatMap((f) => [f.homeClubId === clubId ? f.homeTeamId : undefined, f.awayClubId === clubId ? f.awayTeamId : undefined]).filter((x): x is string => Boolean(x)))]
         .map((id) => ({ id, label: teamLabelById.get(id) ?? id })).sort((a, b) => a.label.localeCompare(b.label, undefined, { numeric: true }))
