@@ -22,6 +22,7 @@
     "backfill:registrations": "tsx scripts/backfill-registrations.ts",
     "backfill:matrix-holdings": "tsx scripts/backfill-matrix-holdings.ts",
     "link:users": "tsx scripts/link-users-to-members.ts",
+    "setup:bhl-2027": "tsx scripts/create-bhl-2027.ts",
     "seed:fee-lists": "tsx scripts/seed-fee-lists.ts",
     "dedupe:registrations": "tsx scripts/dedupe-registrations.ts",
     "create:member-logins": "tsx scripts/create-member-logins.ts",
