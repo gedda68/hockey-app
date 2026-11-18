@@ -52,15 +52,16 @@ async function main() {
   const shared = venuesByWords(venues, cfg.sharedVenueKeywords);
   if (shared.length < cfg.sharedVenueKeywords.length) problems.push(`Shared grounds: found ${shared.map((v) => v.name).join(", ") || "none"} for ${cfg.sharedVenueKeywords.join(" / ")}`);
   const homeVenueByClub: Record<string, string> = {};
-  for (const [code, word] of Object.entries<string>(cfg.clubHomeVenueKeywords)) {
-    const v = venuesByWords(venues, [word]);
+  const homeOverride = Object.fromEntries(arg("--home").map((m) => m.split("=") as [string, string]));
+  for (const [code, words] of Object.entries<string[]>(cfg.clubHomeVenueKeywords)) {
+    const v = homeOverride[code] ? venues.filter((x) => x.venueId === homeOverride[code]) : venuesByWords(venues, words);
     const clubId = matches.find((m) => m.wanted.club === code)?.clubId;
-    if (v.length !== 1) problems.push(`Home ground for ${code}: ${v.length ? `${v.length} venues match "${word}"` : `no venue matches "${word}"`}`);
+    if (v.length !== 1) problems.push(`Home ground for ${code}: ${v.length ? `${v.length} venues match (${v.map((x) => x.name).join(", ")}); choose with --home ${code}=<venueId>` : `no venue matches ${words.join(" / ")}; add it under the association's venues, or choose with --home ${code}=<venueId>`}`);
     else if (clubId) homeVenueByClub[clubId] = v[0].venueId;
   }
   const finalsVenues = venuesByWords(venues, cfg.finalsVenueKeywords);
   const finalsPitches = (finalsVenues as (VenueDoc & { pitches: { pitchId: string; label?: string }[] })[]).flatMap((v) => v.pitches.map((p) => ({ pitchId: p.pitchId, venueId: v.venueId, venueName: `${v.name}${p.label ? ` · ${p.label}` : ""}`, addressLine: null })));
-  if (!finalsPitches.length) problems.push("No pitches found for the finals venue");
+  if (finalsPitches.length < 2) problems.push(`Finals need two pitches at ${cfg.finalsVenueKeywords.join(" / ")}; found ${finalsPitches.length}`);
 
   const holidays = queenslandHolidays(Number(cfg.season));
   const labelOf = new Map(holidays.map((h) => [h.date, h.name] as const));
@@ -69,7 +70,7 @@ async function main() {
   const windows = toWindows(blackout, (d) => labelOf.get(d) ?? "");
 
   console.log(`Association ${associationId}: ${matches.filter((m) => m.teamId).length}/${matches.length} teams matched, ${shared.length} shared grounds, ${Object.keys(homeVenueByClub).length} club grounds, ${windows.length} blackout windows`);
-  if (problems.length) { console.log("\nNeeds attention:\n - " + problems.join("\n - ")); if (apply) { console.log("\nNothing was written."); await client.close(); process.exit(1); } }
+  if (problems.length) { console.log("\nVenues on file for this association:\n" + (venues.map((v) => `   ${v.name} (${v.venueId}, ${v.pitches.length} pitch${v.pitches.length === 1 ? "" : "es"})`).join("\n") || "   none")); console.log("\nNeeds attention:\n - " + problems.join("\n - ")); if (apply) { console.log("\nNothing was written."); await client.close(); process.exit(1); } }
 
   // 1. Competitions and season competitions.
   const now = new Date();
