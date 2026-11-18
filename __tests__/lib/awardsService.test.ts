@@ -4,7 +4,7 @@ const sent = vi.hoisted(() => [] as { to: string; subject: string }[]);
 vi.mock("@/lib/email/client", () => ({ sendEmail: async (m: { to: string; subject: string }) => { sent.push(m); return { success: true }; }, APP_URL: "https://app.test" }));
 vi.mock("@/lib/access/guardians", () => ({ isMinor: (dob: unknown) => dob === "minor", guardianIdsFor: async () => [], childrenOf: async () => [] }));
 
-import { announce, castVote, competitionBoard, loadOfficialSettings, officialMemberIds, openOfficialRounds, recordSeasonPlayer, saveOfficialSettings, closeDueRounds, closeDuePrograms, closeRound, loadAwardSettings, myVotes, nominate, nominationsView, openDueRounds, resolveTie, saveAwardSettings, seasonBoard, setWinners, withdrawNomination } from "@/lib/awards/service";
+import { announce, castVote, competitionBoard, loadOfficialSettings, officialMemberIds, officialTies, openOfficialRounds, recordSeasonPlayer, saveOfficialSettings, closeDueRounds, closeDuePrograms, closeRound, loadAwardSettings, myVotes, nominate, nominationsView, openDueRounds, resolveTie, saveAwardSettings, seasonBoard, setWinners, withdrawNomination } from "@/lib/awards/service";
 import { voteCandidates, awardProgramCandidates } from "@/lib/awards/candidates";
 import { writableDb, type Doc } from "../helpers/writableDb";
 
@@ -161,6 +161,41 @@ describe("umpires' and officials' votes", () => {
     expect(board.rows[1]).toMatchObject({ memberId: "a2", officialPoints: 5, total: 5 });
     // the club's own team table is unaffected by officials' votes
     expect((await seasonBoard(db, { teamId: "T1", year: "2026" }))[0]).toMatchObject({ memberId: "p1", points: 3 });
+  });
+  it("the officials' winner becomes the game's public player of the match", async () => {
+    await openOfficialRounds(db, NOW);
+    const off = t.match_vote_rounds[0];
+    await castVote(db, off.roundId, "ump1", { first: "a2", second: "p1" }, NOW);
+    await castVote(db, off.roundId, "tech1", { first: "a2" }, NOW);
+    expect(t.competition_awards[0]).toMatchObject({ context: "league", seasonCompetitionId: "SC1", awardType: "player_of_match", fixtureId: "F1", memberId: "a2", memberDisplayName: "A2 Smith", teamName: "Rivals", teamId: "T2", awardLabelSnapshot: "Player of the match", createdBy: "officials-vote" });
+    expect(t.competition_awards).toHaveLength(1);
+  });
+  it("a tie among the officials waits for an administrator, then publishes", async () => {
+    await openOfficialRounds(db, NOW);
+    const off = t.match_vote_rounds[0];
+    await castVote(db, off.roundId, "ump1", { first: "a2" }, NOW);
+    await castVote(db, off.roundId, "tech1", { first: "p1" }, NOW);
+    expect(t.competition_awards ?? []).toHaveLength(0);
+    const ties = await officialTies(db, "SC1");
+    expect(ties[0]).toMatchObject({ roundId: off.roundId, game: "Under 14s v Rivals" });
+    expect(ties[0].tied.map((p: Doc) => p.memberId).sort()).toEqual(["a2", "p1"]);
+    expect(await resolveTie(db, off.roundId, "p1")).toEqual({ ok: true });
+    expect(t.competition_awards[0]).toMatchObject({ memberId: "p1", awardType: "player_of_match", teamName: "Under 14s" });
+    expect(await officialTies(db, "SC1")).toEqual([]);
+  });
+  it("never replaces a player of the match an administrator entered", async () => {
+    t.competition_awards = [{ awardRecordId: "X", context: "league", seasonCompetitionId: "SC1", awardType: "player_of_match", fixtureId: "F1", memberId: "p3", createdBy: "admin1" }];
+    await openOfficialRounds(db, NOW);
+    await castVote(db, t.match_vote_rounds[0].roundId, "ump1", { first: "a2" }, NOW);
+    await castVote(db, t.match_vote_rounds[0].roundId, "tech1", { first: "a2" }, NOW);
+    expect(t.competition_awards).toHaveLength(1);
+    expect(t.competition_awards[0].memberId).toBe("p3");
+  });
+  it("team votes never touch the official record", async () => {
+    await openDueRounds(db, NOW);
+    await castVote(db, t.match_vote_rounds[0].roundId, "p2", { first: "p1" }, NOW);
+    await closeRound(db, t.match_vote_rounds[0].roundId, NOW);
+    expect(t.competition_awards ?? []).toHaveLength(0);
   });
   it("respects the association's switch and clamps days", async () => {
     expect(await loadOfficialSettings(db, "ASSOC")).toMatchObject({ enabled: true, closeDays: 3 });

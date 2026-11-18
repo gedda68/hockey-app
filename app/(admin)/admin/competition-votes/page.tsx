@@ -10,7 +10,7 @@ import PageHeader from "@/components/admin/PageHeader";
 
 interface Comp { seasonCompetitionId: string; name: string; season: string; status: string }
 interface Row { memberId: string; name: string; teamName: string; teamPoints: number; officialPoints: number; total: number; wins: number; games: number }
-interface Board { games: number; rows: Row[]; openVotes: number; settings: { enabled: boolean; closeDays: number }; recorded: string[] }
+interface Board { games: number; rows: Row[]; openVotes: number; ties: { roundId: string; game: string; startsAt: string; tied: { memberId: string; name: string; teamName: string }[] }[]; settings: { enabled: boolean; closeDays: number }; recorded: string[] }
 
 export default function CompetitionVotesPage() {
   const [comps, setComps] = useState<Comp[] | null>(null);
@@ -30,7 +30,7 @@ export default function CompetitionVotesPage() {
     if (!id) return;
     setBoard(null);
     const r = await fetch(`/api/admin/competition-votes?seasonCompetitionId=${encodeURIComponent(id)}`, { credentials: "include" }).catch(() => null);
-    setBoard(r?.ok ? await r.json() : { games: 0, rows: [], openVotes: 0, settings: { enabled: true, closeDays: 3 }, recorded: [] });
+    setBoard(r?.ok ? await r.json() : { games: 0, rows: [], openVotes: 0, ties: [], settings: { enabled: true, closeDays: 3 }, recorded: [] });
   }, [id]);
   useEffect(() => { void load(); }, [load]);
 
@@ -56,9 +56,20 @@ export default function CompetitionVotesPage() {
           {!board ? <div className="flex justify-center py-12"><Loader2 className="animate-spin text-slate-400" /></div> : (
             <>
               <section className="space-y-2 rounded-2xl border-2 border-slate-100 bg-white p-4">
-                <label className="flex items-center gap-3 text-sm font-bold text-slate-700"><input type="checkbox" checked={board.settings.enabled} onChange={(e) => post({ action: "settings", officials: { enabled: e.target.checked } }, "Saved")} /> Umpires and officials vote on the best players after each game</label>
+                <label className="flex items-center gap-3 text-sm font-bold text-slate-700"><input type="checkbox" checked={board.settings.enabled} onChange={(e) => post({ action: "settings", officials: { enabled: e.target.checked } }, "Saved")} /> Umpires and officials vote on the best players after each game. Their winner is the game's public player of the match.</label>
                 <p className="text-xs font-semibold text-slate-400">{board.games} team votes counted · {board.openVotes} votes still open. Voting stays open {board.settings.closeDays} days. Officials are the people allocated to the fixture as umpires or technical officials.</p>
               </section>
+              {board.ties.length > 0 && (
+                <section className="space-y-3 rounded-2xl border-2 border-amber-200 bg-amber-50 p-4">
+                  <h2 className="text-sm font-black uppercase tracking-wide text-amber-800">Officials finished level</h2>
+                  {board.ties.map((t) => (
+                    <div key={t.roundId} className="space-y-2">
+                      <p className="text-sm font-bold text-slate-700">{t.game}: choose the player of the match</p>
+                      <div className="flex flex-wrap gap-2">{t.tied.map((p) => <button key={p.memberId} type="button" disabled={busy} onClick={() => post({ action: "decide", roundId: t.roundId, winnerId: p.memberId }, `${p.name} is player of the match`)} className="rounded-xl bg-amber-500 px-3 py-1.5 text-sm font-black text-white">{p.name}{p.teamName ? ` (${p.teamName})` : ""}</button>)}</div>
+                    </div>
+                  ))}
+                </section>
+              )}
               {board.rows.length === 0 ? <p className="rounded-2xl border-2 border-dashed border-slate-200 bg-white p-6 text-center text-sm font-semibold text-slate-400">No votes have been counted yet.</p> : (
                 <div className="overflow-x-auto rounded-2xl border-2 border-slate-100 bg-white">
                   <table className="w-full text-sm">
