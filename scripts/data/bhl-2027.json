@@ -72,13 +72,24 @@
   "state hockey centre"
  ],
  "finalsVenueKeywords": [
-  "state hockey centre"
+  "burringbar"
  ],
  "clubHomeVenueKeywords": {
-  "EST": "easts",
-  "UQH": "uq",
-  "RHC": "redcliffe",
-  "LAB": "labrador"
+  "EST": [
+   "easts",
+   "eastern suburbs"
+  ],
+  "UQH": [
+   "uq",
+   "university of queensland",
+   "university of qld"
+  ],
+  "RHC": [
+   "redcliffe"
+  ],
+  "LAB": [
+   "labrador"
+  ]
  },
  "teams": [
   {
