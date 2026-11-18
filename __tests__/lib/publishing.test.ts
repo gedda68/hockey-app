@@ -17,3 +17,14 @@ describe("publishing matches", () => {
     expect((t as any).league_fixtures[0]).toMatchObject({ published: false, publishedAt: null });
   });
 });
+
+import { summariseRounds } from "@/lib/competitions/publishing";
+describe("round summary", () => {
+  it("counts published matches per round and labels finals weeks", () => {
+    const r = summariseRounds([
+      { round: 1, published: true }, { round: 1, published: false }, { round: 2, published: false }, { round: 2, status: "cancelled", published: true },
+      { round: 19, matchLevel: "finals", published: false }, { round: 20, matchLevel: "finals", published: true },
+    ]);
+    expect(r.map((x) => [x.label, x.published, x.total])).toEqual([["Round 1", 1, 2], ["Round 2", 0, 1], ["Finals week 1", 0, 1], ["Finals week 2", 1, 1]]);
+  });
+});
