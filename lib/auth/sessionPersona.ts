@@ -379,6 +379,23 @@ export async function sessionWithPersona(
   }
 
   if (parsed.scopeType === "global") {
+    // Acting as yourself (Member, personal): stay in your home club, so its colours, portal host and club-scoped
+    // pages (incidents, training...) keep working. Only people with no home club get a club-less session.
+    if (session.memberId && parsed.role !== "super-admin") {
+      try {
+        const m = await db.collection("members").findOne(
+          { _id: new ObjectId(String(session.memberId)) },
+          { projection: { clubId: 1, "membership.clubId": 1 } },
+        );
+        const home = String((m as any)?.membership?.clubId || (m as any)?.clubId || "");
+        if (home) {
+          const inClub = await sessionWithPersona(db, session, encodePersonaKey(parsed.role, "club", home));
+          if (inClub) return inClub;
+        }
+      } catch {
+        /* fall through to a club-less session */
+      }
+    }
     return applyPortalSubdomainToSession(db, {
       ...base,
       role: parsed.role,
