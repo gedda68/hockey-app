@@ -70,6 +70,8 @@ export async function POST(request: NextRequest) {
         dateOfBirth: member.personalInfo?.dateOfBirth,
         gender: member.personalInfo?.gender,
         school: member.personalInfo?.school ?? null,
+        indigenousStatus: member.personalInfo?.indigenousStatus ?? "",
+        nationality: member.personalInfo?.nationality ?? "",
         email: member.contact?.primaryEmail,
         phone: member.contact?.primaryPhone,
         mobile: member.contact?.mobilePhone,
