@@ -20,3 +20,11 @@ export function dayOf(ms: number, offset = DEFAULT_OFFSET): string {
   const mins = m ? (m[1] === "-" ? -1 : 1) * (Number(m[2]) * 60 + Number(m[3])) : 600;
   return new Date(ms + mins * 60_000).toISOString().slice(0, 10);
 }
+
+/** Start times from `first` while a match of `matchMin` plus the gap still ends by `last`: ("13:00","19:00",90,15) gives 13:00, 14:45, 16:30, 18:15 is too late so 3. */
+export function slotGrid(first: string, last: string, matchMin: number, gapMin: number): string[] {
+  const toMin = (c: string) => Number(c.slice(0, 2)) * 60 + Number(c.slice(3));
+  const out: string[] = [];
+  for (let m = toMin(first); m + matchMin <= toMin(last) && out.length < 24; m += matchMin + gapMin) out.push(`${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`);
+  return out;
+}

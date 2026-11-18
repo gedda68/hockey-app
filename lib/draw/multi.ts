@@ -8,8 +8,16 @@ import { alignDivisions, clubPairKey, type DivisionInput } from "@/lib/draw/alig
 import type { Busy, DrawPitch, DrawTeam } from "@/lib/draw/generate";
 import { DEFAULT_OFFSET, addDays, at } from "@/lib/draw/time";
 
+export interface MultiDivision extends DivisionInput {
+  /** Days after the round's first date that this division plays (0 = same day, 1 = the next day). */
+  dayOffset?: number;
+  /** This division's own start times; defaults to the draw's slot times. Divisions that play on the same day at the same times are drawn together. */
+  slotTimes?: string[];
+}
 export interface MultiDrawOptions {
-  divisions: DivisionInput[];
+  divisions: MultiDivision[];
+  /** Venues that clubs without a ground of their own may use. When set, other clubs' grounds are never used for them. */
+  sharedVenueIds?: string[];
   startDate: string;
   roundGapDays?: number;
   slotTimes: string[];
@@ -59,11 +67,19 @@ export function generateMultiDraw(o: MultiDrawOptions): MultiDrawResult {
   const clubOf = (id: string) => teams.get(id)?.clubId ?? null;
   const divOrder = new Map(o.divisions.map((d, i) => [d.id, i]));
 
-  // 1. Pairings, lined up across divisions
-  const aligned = o.alignClubs === false ? null : alignDivisions(o.divisions);
-  const base = aligned ? aligned.fixtures : alignDivisions(o.divisions.map((d) => ({ ...d, teams: d.teams.map((t) => ({ ...t, clubId: null })) }))).fixtures;
-  type Item = { divisionId: string; g: number; home: string; away: string; key: string | null };
-  const items: Item[] = base.map((f) => ({ divisionId: f.divisionId, g: f.g, home: f.homeTeamId, away: f.awayTeamId, key: aligned ? clubPairKey(clubOf(f.homeTeamId), clubOf(f.awayTeamId)) : null }));
+  // 1. Pairings, lined up across divisions that play on the same day at the same times
+  type Item = { divisionId: string; g: number; home: string; away: string; key: string | null; cls: string };
+  const classOf = (d: MultiDivision) => `${d.dayOffset ?? 0}|${(d.slotTimes?.length ? [...d.slotTimes].sort() : times).join(",")}`;
+  const classes = new Map<string, MultiDivision[]>();
+  for (const d of o.divisions) classes.set(classOf(d), [...(classes.get(classOf(d)) ?? []), d]);
+  const classInfo = new Map<string, { dayOffset: number; times: string[] }>();
+  for (const [c, ds] of classes) classInfo.set(c, { dayOffset: ds[0].dayOffset ?? 0, times: ds[0].slotTimes?.length ? [...ds[0].slotTimes].sort() : times });
+  const items: Item[] = [];
+  for (const [c, ds] of classes) {
+    const noClubs = o.alignClubs === false;
+    const r = alignDivisions(noClubs ? ds.map((d) => ({ ...d, teams: d.teams.map((t) => ({ ...t, clubId: null })) })) : ds);
+    for (const f of r.fixtures) items.push({ divisionId: f.divisionId, g: f.g, home: f.homeTeamId, away: f.awayTeamId, key: noClubs ? null : clubPairKey(clubOf(f.homeTeamId), clubOf(f.awayTeamId)), cls: c });
+  }
 
   // 2. Home side chosen once per club meeting, so both clubs share a ground and the home games even out
   const clubBal = new Map<string, number>(), teamBal = new Map<string, number>();
@@ -73,12 +89,16 @@ export function generateMultiDraw(o: MultiDrawOptions): MultiDrawResult {
     for (const it of items.filter((x) => x.g === g)) { const k = it.key ?? `solo-${it.divisionId}-${it.home}`; groups.set(k, [...(groups.get(k) ?? []), it]); }
     for (const [, grp] of groups) {
       const a = clubOf(grp[0].home), b = clubOf(grp[0].away);
-      let homeClub: string | null;
+      let homeClub: string | null = null;
       if (a && b && a !== b) {
-        const ba = clubBal.get(a) ?? 0, bb = clubBal.get(b) ?? 0;
-        homeClub = ba <= bb ? a : b;
-        if (ba === bb) homeClub = (teamBal.get(grp[0].home) ?? 0) <= (teamBal.get(grp[0].away) ?? 0) ? a : b;
-      } else homeClub = null;
+        // Try each club as the host and keep the one that leaves its teams' home and away counts most even.
+        const cost = (host: string) => grp.reduce((sum, it) => {
+          const h = clubOf(it.home) === host ? it.home : it.away, w = h === it.home ? it.away : it.home;
+          return sum + ((teamBal.get(h) ?? 0) + 1) ** 2 + ((teamBal.get(w) ?? 0) - 1) ** 2;
+        }, 0);
+        const ca = cost(a), cb = cost(b);
+        homeClub = ca < cb ? a : cb < ca ? b : (clubBal.get(a) ?? 0) <= (clubBal.get(b) ?? 0) ? a : b;
+      }
       for (const it of grp) {
         if (homeClub && clubOf(it.home) !== homeClub) [it.home, it.away] = [it.away, it.home];
         else if (!homeClub && (teamBal.get(it.home) ?? 0) > (teamBal.get(it.away) ?? 0)) [it.home, it.away] = [it.away, it.home];
@@ -91,7 +111,8 @@ export function generateMultiDraw(o: MultiDrawOptions): MultiDrawResult {
   // 3. Dates
   const roundDates: Record<number, string> = {};
   let cursor = o.startDate;
-  for (const g of gs) { let d = cursor, guard = 0; while (black.has(d) && guard++ < 60) d = addDays(d, gap); roundDates[g + 1] = d; cursor = addDays(d, gap); }
+  const offsets = [...new Set([...classInfo.values()].map((c) => c.dayOffset))];
+  for (const g of gs) { let d = cursor, guard = 0; while (offsets.some((n) => black.has(addDays(d, n))) && guard++ < 60) d = addDays(d, gap); roundDates[g + 1] = d; cursor = addDays(d, gap); }
 
   // 4. Placement
   const pitchBusy = new Map<string, Busy[]>(Object.entries(o.pitchBusy ?? {}).map(([k, v]) => [k, [...v]]));
@@ -107,13 +128,14 @@ export function generateMultiDraw(o: MultiDrawOptions): MultiDrawResult {
   const seq = new Map<string, number[]>();
   for (const d of o.divisions) seq.set(d.id, [...new Set(items.filter((i) => i.divisionId === d.id).map((i) => i.g))].sort((a, b) => a - b));
 
+  const dateOf = (it: Item) => addDays(roundDates[it.g + 1], classInfo.get(it.cls)!.dayOffset);
   const canPlay = (it: Item, s: number, e: number, strictClub: boolean) => {
     if (!free(teamBusy, it.home, s, e, 0) || !free(teamBusy, it.away, s, e, 0)) return false;
     if (strictClub) { const hc = clubOf(it.home), ac = clubOf(it.away); if (hc && !free(clubBusy, hc, s, e, 0)) return false; if (ac && ac !== hc && !free(clubBusy, ac, s, e, 0)) return false; }
     return true;
   };
   const commit = (it: Item, p: DrawPitch, s: number, warnings: string[], groupKey: string | null) => {
-    const e = s + slotMs, date = roundDates[it.g + 1];
+    const e = s + slotMs, date = dateOf(it);
     book(pitchBusy, p.pitchId, s, e); book(teamBusy, it.home, s, e); book(teamBusy, it.away, s, e);
     const hc = clubOf(it.home), ac = clubOf(it.away); book(clubBusy, hc, s, e); if (ac !== hc) book(clubBusy, ac, s, e);
     const home = teams.get(it.home);
@@ -122,15 +144,17 @@ export function generateMultiDraw(o: MultiDrawOptions): MultiDrawResult {
   };
   const fail = (it: Item, reason: string) => {
     unplaced.push({ divisionId: it.divisionId, round: seq.get(it.divisionId)!.indexOf(it.g) + 1, homeTeamId: it.home, awayTeamId: it.away, reason });
-    placed.push({ divisionId: it.divisionId, round: seq.get(it.divisionId)!.indexOf(it.g) + 1, homeTeamId: it.home, awayTeamId: it.away, date: roundDates[it.g + 1], start: null, end: null, pitchId: null, venueId: null, venueName: null, addressLine: null, groupKey: it.key ? `${it.g}#${it.key}` : null, warnings: [reason] });
+    placed.push({ divisionId: it.divisionId, round: seq.get(it.divisionId)!.indexOf(it.g) + 1, homeTeamId: it.home, awayTeamId: it.away, date: dateOf(it), start: null, end: null, pitchId: null, venueId: null, venueName: null, addressLine: null, groupKey: it.key ? `${it.g}#${it.key}` : null, warnings: [reason] });
   };
 
   let grouped = 0, together = 0;
-  for (const g of gs) {
-    const date = roundDates[g + 1];
-    const slotStarts = times.map((t) => at(date, t, offset));
+  const rounds = [...classInfo.keys()].flatMap((cls) => gs.map((g) => ({ cls, g }))).sort((a, b) => a.g - b.g || classInfo.get(a.cls)!.dayOffset - classInfo.get(b.cls)!.dayOffset);
+  for (const { cls, g } of rounds) {
+    const info = classInfo.get(cls)!, date = addDays(roundDates[g + 1], info.dayOffset);
+    const slotStarts = info.times.map((t) => at(date, t, offset));
     const groups = new Map<string, Item[]>();
-    for (const it of items.filter((x) => x.g === g)) { const k = it.key ?? `solo-${it.divisionId}-${it.home}`; groups.set(k, [...(groups.get(k) ?? []), it]); }
+    for (const it of items.filter((x) => x.g === g && x.cls === cls)) { const k = it.key ?? `solo-${it.divisionId}-${it.home}`; groups.set(k, [...(groups.get(k) ?? []), it]); }
+    if (!groups.size) continue;
     // Biggest meetings first, then those wanting a particular ground.
     const list = [...groups.entries()].sort((a, b) => b[1].length - a[1].length || Number(!!teams.get(b[1][0].home)?.homeVenueId) - Number(!!teams.get(a[1][0].home)?.homeVenueId));
     for (const [k, grp] of list) {
@@ -141,9 +165,12 @@ export function generateMultiDraw(o: MultiDrawOptions): MultiDrawResult {
       const key = grp.length > 1 ? `${g}#${k}` : null;
       if (grp.length > 1) grouped += grp.length;
       const homeVenue = teams.get(grp[0].home)?.homeVenueId ?? null;
+      const shared = o.sharedVenueIds?.length ? new Set(o.sharedVenueIds) : null;
+      const allowed = (p: DrawPitch) => !shared || p.venueId === homeVenue || shared.has(p.venueId);
+      const usable = o.pitches.filter(allowed);
       let done = false;
       if (ordered.length >= 1) {
-        const pitchList = [...o.pitches].sort((a, b) => Number(b.venueId === homeVenue) - Number(a.venueId === homeVenue));
+        const pitchList = [...usable].sort((a, b) => Number(b.venueId === homeVenue) - Number(a.venueId === homeVenue));
         for (const strict of [true, false]) {
           for (const p of pitchList) {
             for (let i = 0; i + ordered.length <= slotStarts.length && !done; i++) {
@@ -160,7 +187,7 @@ export function generateMultiDraw(o: MultiDrawOptions): MultiDrawResult {
       for (const it of ordered) {
         let ok = false;
         for (const strict of [true, false]) {
-          const ranked = o.pitches.flatMap((p) => slotStarts.map((s) => ({ p, s }))).sort((x, y) => Number(y.p.venueId === homeVenue) - Number(x.p.venueId === homeVenue) || x.s - y.s);
+          const ranked = usable.flatMap((p) => slotStarts.map((s) => ({ p, s }))).sort((x, y) => Number(y.p.venueId === homeVenue) - Number(x.p.venueId === homeVenue) || x.s - y.s);
           const c = ranked.find(({ p, s }) => free(pitchBusy, p.pitchId, s, s + slotMs, buf) && canPlay(it, s, s + slotMs, strict));
           if (c) { commit(it, c.p, c.s, [...(grp.length > 1 ? ["Could not be placed back to back with the club's other matches"] : []), ...(strict ? [] : ["Another team from the same club plays at this time"])], key); ok = true; break; }
         }

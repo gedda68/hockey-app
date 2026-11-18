@@ -7,8 +7,11 @@ import PageHeader from "@/components/admin/PageHeader";
 import type { DrawPlan } from "@/lib/draw/service";
 
 type Comp = { seasonCompetitionId: string; competitionName?: string; season?: string };
-type Team = { teamId: string; name: string; clubName: string };
-type Div = { seasonCompetitionId: string; teamIds: string[] };
+type Team = { teamId: string; name: string; clubName: string; clubId: string };
+type Div = { seasonCompetitionId: string; teamIds: string[]; weekday: number; startTime: string; legs: number };
+type Venue = { venueId: string; name: string; pitches?: { pitchId: string; label?: string }[] };
+const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+const blank = (): Div => ({ seasonCompetitionId: "", teamIds: [], weekday: 6, startTime: "13:00", legs: 2 });
 
 const fmtDay = (d: string | null) => (d ? new Date(`${d}T00:00:00Z`).toLocaleDateString("en-AU", { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" }) : "No date");
 const fmtTime = (iso: string | null) => (iso ? new Date(iso).toLocaleTimeString("en-AU", { hour: "numeric", minute: "2-digit", timeZone: "Australia/Brisbane" }) : "Not placed");
@@ -18,14 +21,16 @@ export default function DrawGeneratorPage({ params }: { params: Promise<{ associ
   const { associationId } = use(params);
   const [comps, setComps] = useState<Comp[]>([]);
   const [teams, setTeams] = useState<Team[]>([]);
-  const [divs, setDivs] = useState<Div[]>([{ seasonCompetitionId: "", teamIds: [] }]);
+  const [divs, setDivs] = useState<Div[]>([blank()]);
   const [startDate, setStartDate] = useState("");
-  const [times, setTimes] = useState("08:00, 09:45, 11:30, 13:15");
+  const [lastEnd, setLastEnd] = useState("19:00");
+  const [venues, setVenues] = useState<Venue[]>([]);
+  const [homeGround, setHomeGround] = useState<Record<string, string>>({});
+  const [shared, setShared] = useState<string[]>([]);
   const [slotMinutes, setSlotMinutes] = useState(90);
   const [gap, setGap] = useState(7);
   const [buffer, setBuffer] = useState(15);
   const [blackout, setBlackout] = useState("");
-  const [dbl, setDbl] = useState(false);
   const [align, setAlign] = useState(true);
   const [withUmps, setWithUmps] = useState(true);
   const [replace, setReplace] = useState(false);
@@ -35,14 +40,25 @@ export default function DrawGeneratorPage({ params }: { params: Promise<{ associ
 
   useEffect(() => {
     fetch(`/api/admin/associations/${associationId}/season-competitions`).then((r) => r.json()).then((d) => setComps(d.seasonCompetitions ?? [])).catch(() => {});
+    fetch(`/api/admin/associations/${associationId}/venues?status=active`).then((r) => r.json()).then((d) => setVenues(d.venues ?? [])).catch(() => {});
     fetch(`/api/admin/associations/${associationId}/league-builder-teams`).then((r) => r.json()).then((d) => setTeams(d.teams ?? [])).catch(() => {});
   }, [associationId]);
 
   const compName = (id: string) => { const c = comps.find((x) => x.seasonCompetitionId === id); return c ? `${c.competitionName || id} ${c.season ?? ""}`.trim() : id; };
-  const body = useMemo(() => ({
-    divisions: divs.filter((d) => d.seasonCompetitionId), doubleRound: dbl, alignClubs: align, startDate, roundGapDays: gap, slotMinutes, bufferMinutes: buffer,
-    slotTimes: times.split(/[,\s]+/).filter(Boolean), blackoutDates: blackout.split(/[,\s]+/).filter(Boolean), suggestUmpires: withUmps, replace,
-  }), [divs, dbl, align, startDate, gap, slotMinutes, buffer, times, blackout, withUmps, replace]);
+  const body = useMemo(() => {
+    const base = startDate ? new Date(`${startDate}T00:00:00Z`).getUTCDay() : 6;
+    return {
+      divisions: divs.filter((d) => d.seasonCompetitionId).map((d) => ({ seasonCompetitionId: d.seasonCompetitionId, teamIds: d.teamIds, dayOffset: (d.weekday - base + 7) % 7, startTime: d.startTime, endTime: lastEnd, legs: d.legs })),
+      alignClubs: align, startDate, roundGapDays: gap, slotMinutes, bufferMinutes: buffer, slotTimes: [], blackoutDates: blackout.split(/[,\s]+/).filter(Boolean),
+      suggestUmpires: withUmps, replace, homeVenueByClub: homeGround, sharedVenueIds: shared,
+    };
+  }, [divs, align, startDate, lastEnd, gap, slotMinutes, buffer, blackout, withUmps, replace, homeGround, shared]);
+  const clubs = useMemo(() => {
+    const ids = new Set(divs.flatMap((d) => d.teamIds));
+    const m = new Map<string, string>();
+    for (const t of teams) if (ids.has(t.teamId) && t.clubId) m.set(t.clubId, t.clubName || t.clubId);
+    return [...m.entries()].sort((a, b) => a[1].localeCompare(b[1]));
+  }, [divs, teams]);
   const takenElsewhere = (idx: number) => new Set(divs.flatMap((d, i) => (i === idx ? [] : d.teamIds)));
   const setDiv = (i: number, f: Partial<Div>) => setDivs((all) => all.map((d, k) => (k === i ? { ...d, ...f } : d)));
 
@@ -79,12 +95,11 @@ export default function DrawGeneratorPage({ params }: { params: Promise<{ associ
           <label className="text-xs font-black uppercase text-slate-500">Days between rounds<br /><input type="number" min={1} max={28} className={`${inp} w-24`} value={gap} onChange={(e) => setGap(Number(e.target.value))} /></label>
           <label className="text-xs font-black uppercase text-slate-500">Match length (min)<br /><input type="number" min={30} max={240} className={`${inp} w-24`} value={slotMinutes} onChange={(e) => setSlotMinutes(Number(e.target.value))} /></label>
           <label className="text-xs font-black uppercase text-slate-500">Gap between matches (min)<br /><input type="number" min={0} max={120} className={`${inp} w-24`} value={buffer} onChange={(e) => setBuffer(Number(e.target.value))} /></label>
-          <label className="text-xs font-black uppercase text-slate-500">Start times (one per match slot)<br /><input className={`${inp} w-64`} value={times} onChange={(e) => setTimes(e.target.value)} /></label>
+          <label className="text-xs font-black uppercase text-slate-500">Last match must finish by<br /><input type="time" className={inp} value={lastEnd} onChange={(e) => setLastEnd(e.target.value)} /></label>
           <label className="text-xs font-black uppercase text-slate-500">Dates with no play<br /><input className={`${inp} w-64`} placeholder="2026-04-03, 2026-04-25" value={blackout} onChange={(e) => setBlackout(e.target.value)} /></label>
         </div>
         <div className="flex flex-wrap gap-5 text-sm font-bold text-slate-700">
           <label className="flex items-center gap-2"><input type="checkbox" checked={align} onChange={(e) => setAlign(e.target.checked)} /> Keep each club meeting together across divisions</label>
-          <label className="flex items-center gap-2"><input type="checkbox" checked={dbl} onChange={(e) => setDbl(e.target.checked)} /> Home and away (play twice)</label>
           <label className="flex items-center gap-2"><input type="checkbox" checked={withUmps} onChange={(e) => setWithUmps(e.target.checked)} /> Suggest umpires</label>
           <label className="flex items-center gap-2"><input type="checkbox" checked={replace} onChange={(e) => setReplace(e.target.checked)} /> Replace these divisions&apos; existing fixtures</label>
         </div>
@@ -100,6 +115,9 @@ export default function DrawGeneratorPage({ params }: { params: Promise<{ associ
                     <option value="">Choose division…</option>
                     {comps.filter((c) => c.seasonCompetitionId === d.seasonCompetitionId || !divs.some((x) => x.seasonCompetitionId === c.seasonCompetitionId)).map((c) => <option key={c.seasonCompetitionId} value={c.seasonCompetitionId}>{compName(c.seasonCompetitionId)}</option>)}
                   </select>
+                  <select className={inp} aria-label="Day" value={d.weekday} onChange={(e) => setDiv(i, { weekday: Number(e.target.value) })}>{DAYS.map((n, k) => <option key={n} value={k}>{n}</option>)}</select>
+                  <label className="text-xs font-bold text-slate-500">from <input type="time" className={inp} value={d.startTime} onChange={(e) => setDiv(i, { startTime: e.target.value })} /></label>
+                  <label className="text-xs font-bold text-slate-500">meet <select className={inp} value={d.legs} onChange={(e) => setDiv(i, { legs: Number(e.target.value) })}>{[1, 2, 3, 4].map((n) => <option key={n} value={n}>{n}x</option>)}</select></label>
                   <span className="text-xs font-bold text-slate-500">{d.teamIds.length} teams</span>
                   <button className="text-xs font-black text-slate-500" onClick={() => setDiv(i, { teamIds: d.teamIds.length === avail.length ? [] : avail.map((t) => t.teamId) })}>{d.teamIds.length === avail.length ? "Clear" : "Select all"}</button>
                   {divs.length > 1 && <button className="text-xs font-black text-red-600 ml-auto" onClick={() => setDivs((all) => all.filter((_, k) => k !== i))}>Remove division</button>}
@@ -110,8 +128,17 @@ export default function DrawGeneratorPage({ params }: { params: Promise<{ associ
               </div>
             );
           })}
-          <button className="text-sm font-black text-indigo-700" onClick={() => setDivs((all) => [...all, { seasonCompetitionId: "", teamIds: [] }])}>+ Add another division</button>
+          <button className="text-sm font-black text-indigo-700" onClick={() => setDivs((all) => [...all, { ...blank(), weekday: all[all.length - 1]?.weekday ?? 6, startTime: all[all.length - 1]?.startTime ?? "13:00" }])}>+ Add another division</button>
         </div>
+
+        {venues.length > 0 && (
+          <div className="space-y-2">
+            <h2 className="text-sm font-black text-slate-700">Grounds</h2>
+            <p className="text-xs font-semibold text-slate-500">Tick the grounds any club can use. Give a club its own ground below and its home matches are played there.</p>
+            <div className="flex flex-wrap gap-4">{venues.map((v) => <label key={v.venueId} className="flex items-center gap-2 text-sm font-semibold text-slate-700"><input type="checkbox" checked={shared.includes(v.venueId)} onChange={(e) => setShared((p) => (e.target.checked ? [...p, v.venueId] : p.filter((x) => x !== v.venueId)))} />{v.name} <span className="text-slate-400">{v.pitches?.length ?? 0} pitch{(v.pitches?.length ?? 0) === 1 ? "" : "es"}</span></label>)}</div>
+            {clubs.length > 0 && <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-2">{clubs.map(([id, name]) => <label key={id} className="flex items-center gap-2 text-sm font-semibold text-slate-700"><span className="w-40 truncate">{name}</span><select className={inp} value={homeGround[id] ?? ""} onChange={(e) => setHomeGround((p) => ({ ...p, [id]: e.target.value }))}><option value="">Shared grounds</option>{venues.map((v) => <option key={v.venueId} value={v.venueId}>{v.name}</option>)}</select></label>)}</div>}
+          </div>
+        )}
 
         <div className="flex flex-wrap gap-3">
           <button disabled={!ready || busy} onClick={() => run(false)} className="px-4 py-2 rounded-xl bg-slate-800 text-white text-sm font-black disabled:opacity-40">Preview draw</button>

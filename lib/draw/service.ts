@@ -8,12 +8,26 @@ import type { Busy, DrawPitch } from "@/lib/draw/generate";
 import { generateMultiDraw, type MultiDrawResult } from "@/lib/draw/multi";
 import { findClashes, type Clash, type SchedFixture } from "@/lib/draw/clashes";
 import { suggestUmpires, tierFromLabel, type Gap, type Official, type Suggestion, type UmpMatch } from "@/lib/draw/umpires";
-import { DEFAULT_OFFSET, addDays, isClock, isDay } from "@/lib/draw/time";
+import { DEFAULT_OFFSET, addDays, isClock, isDay, slotGrid } from "@/lib/draw/time";
 import { activeRosterMemberIds, immediateFamilyRelatedMemberIds, memberPrimaryClubIdFromDoc } from "@/lib/officiating/umpireCoiAndAvailability";
 
-export interface DivisionPick { seasonCompetitionId: string; teamIds: string[] }
+export interface DivisionPick {
+  seasonCompetitionId: string;
+  teamIds: string[];
+  /** Days after the round's first date (0 = the same day, 1 = the next day). */
+  dayOffset?: number;
+  /** When this division's matches start, and the time the last one must finish by. */
+  startTime?: string;
+  endTime?: string;
+  /** How many times each pair meets (default from home-and-away). */
+  legs?: number;
+}
 export interface DrawInput {
   divisions: DivisionPick[];
+  /** Club id to the venue that is its home ground. */
+  homeVenueByClub?: Record<string, string>;
+  /** Venues clubs without a ground of their own share. */
+  sharedVenueIds?: string[];
   /** Keep a club's meetings together across divisions (default true). */
   alignClubs?: boolean;
   doubleRound?: boolean;
@@ -48,11 +62,17 @@ export type PlanResult = { ok: true; plan: DrawPlan; scope: { associationId: str
 
 const FIXTURES = "league_fixtures", REGISTER = "association_official_register";
 
+function cleanMap(v: unknown): Record<string, string> {
+  const out: Record<string, string> = {};
+  if (v && typeof v === "object") for (const [k, x] of Object.entries(v as Record<string, unknown>)) if (k && typeof x === "string" && x.trim()) out[k] = x.trim();
+  return out;
+}
+
 export function cleanDrawInput(raw: unknown): { ok: true; value: DrawInput } | { ok: false; error: string } {
   const b = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
   const list = (v: unknown) => (Array.isArray(v) ? v.map((x) => String(x).trim()).filter(Boolean) : []);
   const rawDivs = Array.isArray(b.divisions) ? b.divisions : [];
-  const divisions: DivisionPick[] = rawDivs.map((d) => { const o = (d && typeof d === "object" ? d : {}) as Record<string, unknown>; return { seasonCompetitionId: String(o.seasonCompetitionId ?? "").trim(), teamIds: [...new Set(list(o.teamIds))] }; }).filter((d) => d.seasonCompetitionId);
+  const divisions: DivisionPick[] = rawDivs.map((d) => { const o = (d && typeof d === "object" ? d : {}) as Record<string, unknown>; const dayOffset = Number(o.dayOffset ?? 0); return { seasonCompetitionId: String(o.seasonCompetitionId ?? "").trim(), teamIds: [...new Set(list(o.teamIds))], dayOffset: Number.isInteger(dayOffset) && dayOffset >= 0 && dayOffset <= 6 ? dayOffset : 0, ...(isClock(o.startTime) ? { startTime: o.startTime } : {}), ...(isClock(o.endTime) ? { endTime: o.endTime } : {}), ...(Number.isInteger(Number(o.legs)) && Number(o.legs) >= 1 && Number(o.legs) <= 4 ? { legs: Number(o.legs) } : {}) }; }).filter((d) => d.seasonCompetitionId);
   if (!divisions.length) return { ok: false, error: "Choose at least one division" };
   if (new Set(divisions.map((d) => d.seasonCompetitionId)).size !== divisions.length) return { ok: false, error: "A division is listed twice" };
   if (divisions.length > 12) return { ok: false, error: "Too many divisions for one draw" };
@@ -62,10 +82,10 @@ export function cleanDrawInput(raw: unknown): { ok: true; value: DrawInput } | {
   if (new Set(all).size !== all.length) return { ok: false, error: "A team is in more than one division" };
   if (!isDay(b.startDate)) return { ok: false, error: "Use a start date like 2026-03-07" };
   const slotTimes = [...new Set(list(b.slotTimes))].filter(isClock);
-  if (!slotTimes.length) return { ok: false, error: "Add at least one start time, like 08:30" };
+  if (!slotTimes.length && !divisions.every((d) => d.startTime)) return { ok: false, error: "Add at least one start time, like 08:30" };
   const num = (v: unknown, d: number, lo: number, hi: number) => { const n = Number(v ?? d); return Number.isFinite(n) ? Math.min(hi, Math.max(lo, Math.round(n))) : d; };
   return { ok: true, value: {
-    divisions, alignClubs: b.alignClubs !== false, doubleRound: !!b.doubleRound, startDate: b.startDate, roundGapDays: num(b.roundGapDays, 7, 1, 28), slotTimes,
+    divisions, alignClubs: b.alignClubs !== false, homeVenueByClub: cleanMap(b.homeVenueByClub), sharedVenueIds: [...new Set(list(b.sharedVenueIds))], doubleRound: !!b.doubleRound, startDate: b.startDate, roundGapDays: num(b.roundGapDays, 7, 1, 28), slotTimes,
     slotMinutes: num(b.slotMinutes, 90, 30, 240), bufferMinutes: num(b.bufferMinutes, 15, 0, 120),
     pitchIds: list(b.pitchIds), blackoutDates: list(b.blackoutDates).filter(isDay), suggestUmpires: b.suggestUmpires !== false,
     umpireSlots: num(b.umpireSlots, 2, 0, 4), replace: !!b.replace,
@@ -83,7 +103,7 @@ export async function buildPlan(db: Db, input: DrawInput): Promise<PlanResult> {
   const allTeamIds = input.divisions.flatMap((d) => d.teamIds);
   const teamDocs = await db.collection("teams").find({ teamId: { $in: allTeamIds } }).toArray();
   if (teamDocs.length !== allTeamIds.length) return { ok: false, status: 400, error: "One or more teams were not found" };
-  const teams = allTeamIds.map((id) => { const t = teamDocs.find((d) => d.teamId === id)!; return { teamId: id, clubId: (t.clubId as string) ?? null, homeVenueId: (t.homeVenueId as string) ?? null, name: String(t.name ?? t.teamName ?? id), roster: t }; });
+  const teams = allTeamIds.map((id) => { const t = teamDocs.find((d) => d.teamId === id)!; return { teamId: id, clubId: (t.clubId as string) ?? null, homeVenueId: (t.homeVenueId as string) ?? input.homeVenueByClub?.[String(t.clubId ?? "")] ?? null, name: String(t.name ?? t.teamName ?? id), roster: t }; });
   const teamById = new Map(teams.map((t) => [t.teamId, t]));
   const nameOf = new Map(teams.map((t) => [t.teamId, t.name]));
   const clubOf: Record<string, string | null> = Object.fromEntries(teams.map((t) => [t.teamId, t.clubId]));
@@ -112,8 +132,9 @@ export async function buildPlan(db: Db, input: DrawInput): Promise<PlanResult> {
   }
 
   const draw = generateMultiDraw({
-    divisions: input.divisions.map((d, i) => ({ id: d.seasonCompetitionId, name: divName(scs[i] as Record<string, unknown>), doubleRound: input.doubleRound, teams: d.teamIds.map((id) => teamById.get(id)!) })),
-    alignClubs: input.alignClubs, startDate: input.startDate, roundGapDays: input.roundGapDays, slotTimes: input.slotTimes, slotMinutes: input.slotMinutes ?? 90, bufferMinutes: input.bufferMinutes,
+    divisions: input.divisions.map((d, i) => ({ id: d.seasonCompetitionId, name: divName(scs[i] as Record<string, unknown>), doubleRound: input.doubleRound, legs: d.legs, teams: d.teamIds.map((id) => teamById.get(id)!), dayOffset: d.dayOffset ?? 0, ...(d.startTime ? { slotTimes: slotGrid(d.startTime, d.endTime ?? "19:00", input.slotMinutes ?? 90, input.bufferMinutes ?? 15) } : {}) })),
+    sharedVenueIds: input.sharedVenueIds?.length ? input.sharedVenueIds : undefined,
+    alignClubs: input.alignClubs, startDate: input.startDate, roundGapDays: input.roundGapDays, slotTimes: input.slotTimes.length ? input.slotTimes : input.divisions.flatMap((d) => (d.startTime ? [d.startTime] : [])), slotMinutes: input.slotMinutes ?? 90, bufferMinutes: input.bufferMinutes,
     pitches: chosen, blackoutDates: input.blackoutDates, pitchBusy, teamBusy, offset: DEFAULT_OFFSET,
   });
   const scById = new Map(scs.map((x) => [String(x!.seasonCompetitionId), x as Record<string, unknown>]));
