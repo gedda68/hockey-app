@@ -3,7 +3,7 @@ import { buildPlan, checkCompetition, cleanDrawInput, savePlan } from "@/lib/dra
 import { writableDb, type Doc } from "../helpers/writableDb";
 
 let t: Record<string, Doc[]>, db: any;
-const input = { teamIds: ["T1", "T2", "T3", "T4"], startDate: "2026-03-07", slotTimes: ["08:00", "09:30"], slotMinutes: 90, bufferMinutes: 0 };
+const input = { divisions: [{ seasonCompetitionId: "SC1", teamIds: ["T1", "T2", "T3", "T4"] }], startDate: "2026-03-07", slotTimes: ["08:00", "09:30"], slotMinutes: 90, bufferMinutes: 0 };
 beforeEach(() => {
   t = {
     season_competitions: [{ seasonCompetitionId: "SC1", competitionId: "C1", owningAssociationId: "bha" }],
@@ -25,13 +25,17 @@ beforeEach(() => {
 
 describe("draw service", () => {
   it("checks the input", () => {
-    expect(cleanDrawInput({ teamIds: ["a"] })).toMatchObject({ ok: false });
-    expect(cleanDrawInput({ teamIds: ["a", "b"], startDate: "nope", slotTimes: ["08:00"] })).toMatchObject({ ok: false });
-    expect(cleanDrawInput({ teamIds: ["a", "b"], startDate: "2026-03-07", slotTimes: ["25:00"] })).toMatchObject({ ok: false });
-    expect(cleanDrawInput({ teamIds: ["a", "b", "a"], startDate: "2026-03-07", slotTimes: ["08:00"], slotMinutes: 5000 })).toMatchObject({ ok: true, value: { teamIds: ["a", "b"], slotMinutes: 240 } });
+    const d = (ids: string[], sc = "S") => ({ seasonCompetitionId: sc, teamIds: ids });
+    expect(cleanDrawInput({ divisions: [] })).toMatchObject({ ok: false });
+    expect(cleanDrawInput({ divisions: [d(["a"])] })).toMatchObject({ ok: false });
+    expect(cleanDrawInput({ divisions: [d(["a", "b"])], startDate: "nope", slotTimes: ["08:00"] })).toMatchObject({ ok: false });
+    expect(cleanDrawInput({ divisions: [d(["a", "b"])], startDate: "2026-03-07", slotTimes: ["25:00"] })).toMatchObject({ ok: false });
+    expect(cleanDrawInput({ divisions: [d(["a", "b"], "S1"), d(["b", "c"], "S2")], startDate: "2026-03-07", slotTimes: ["08:00"] })).toMatchObject({ ok: false });
+    expect(cleanDrawInput({ divisions: [d(["a", "b"]), d(["c", "d"])], startDate: "2026-03-07", slotTimes: ["08:00"] })).toMatchObject({ ok: false });
+    expect(cleanDrawInput({ divisions: [d(["a", "b", "a"])], startDate: "2026-03-07", slotTimes: ["08:00"], slotMinutes: 5000 })).toMatchObject({ ok: true, value: { divisions: [{ teamIds: ["a", "b"] }], slotMinutes: 240 } });
   });
   it("builds a plan with no blocking clashes and sensible umpires", async () => {
-    const r = await buildPlan(db, "SC1", input);
+    const r = await buildPlan(db, input);
     if (!r.ok) throw new Error(r.error);
     expect(r.plan.fixtures).toHaveLength(6);
     expect(r.plan.clashes.filter((c) => c.severity === "block")).toEqual([]);
@@ -46,37 +50,54 @@ describe("draw service", () => {
   });
   it("avoids what is already booked in other competitions", async () => {
     t.league_fixtures.push({ fixtureId: "x", seasonCompetitionId: "OTHER", owningAssociationId: "bha", homeTeamId: "T1", awayTeamId: "Z", pitchId: "P1", scheduledStart: new Date("2026-03-06T22:00:00Z").toISOString(), scheduledEnd: new Date("2026-03-06T23:30:00Z").toISOString(), status: "scheduled", umpires: [{ umpireId: "u2" }] });
-    const r = await buildPlan(db, "SC1", input);
+    const r = await buildPlan(db, input);
     if (!r.ok) throw new Error(r.error);
     const t1 = r.plan.fixtures.find((f) => f.round === 1 && (f.homeTeamId === "T1" || f.awayTeamId === "T1"))!;
     expect(t1.start).not.toBe("2026-03-06T22:00:00.000Z");
   });
   it("says why it cannot plan", async () => {
-    expect(await buildPlan(db, "NOPE", input)).toMatchObject({ ok: false, status: 404 });
-    expect(await buildPlan(db, "SC1", { ...input, teamIds: ["T1", "ZZ"] })).toMatchObject({ ok: false, status: 400 });
+    expect(await buildPlan(db, { ...input, divisions: [{ seasonCompetitionId: "NOPE", teamIds: ["T1", "T2"] }] })).toMatchObject({ ok: false, status: 404 });
+    expect(await buildPlan(db, { ...input, divisions: [{ seasonCompetitionId: "SC1", teamIds: ["T1", "ZZ"] }] })).toMatchObject({ ok: false, status: 400 });
     t.association_venues = [];
-    expect(await buildPlan(writableDb(t), "SC1", input)).toMatchObject({ ok: false, status: 400 });
+    expect(await buildPlan(writableDb(t), input)).toMatchObject({ ok: false, status: 400 });
   });
   it("saves unpublished fixtures with umpire allocations, then a check finds nothing wrong", async () => {
-    const r = await buildPlan(db, "SC1", input);
+    const r = await buildPlan(db, input);
     if (!r.ok) throw new Error(r.error);
-    const saved = await savePlan(db, "SC1", r.scope, r.plan, { userId: "admin", withUmpires: true });
+    const saved = await savePlan(db, r.scope, r.plan, { userId: "admin", withUmpires: true });
     expect(saved.fixtures).toBe(6);
     expect(saved.umpireAssignments).toBeGreaterThan(0);
     expect(t.league_fixtures.every((f) => f.published === false)).toBe(true);
     expect(t.umpire_assignments[0].responseToken).toHaveLength(64);
-    const chk = await checkCompetition(db, "SC1");
+    const chk = await checkCompetition(db, "SC1", 0);
     expect(chk!.fixtures).toBe(6);
     expect(chk!.clashes.filter((c) => c.severity === "block")).toEqual([]);
     // double-book a pitch by hand and the check catches it
     t.league_fixtures[1].pitchId = t.league_fixtures[0].pitchId; t.league_fixtures[1].scheduledStart = t.league_fixtures[0].scheduledStart; t.league_fixtures[1].scheduledEnd = t.league_fixtures[0].scheduledEnd;
-    expect((await checkCompetition(db, "SC1"))!.clashes.map((c) => c.kind)).toContain("pitch_overlap");
+    expect((await checkCompetition(db, "SC1", 0))!.clashes.map((c) => c.kind)).toContain("pitch_overlap");
+  });
+  it("draws several divisions together, lined up by club, and saves each under its own competition", async () => {
+    t.season_competitions.push({ seasonCompetitionId: "SC2", competitionId: "C2", owningAssociationId: "bha" });
+    t.teams.push(...["U1", "U2", "U3", "U4"].map((id, i) => ({ teamId: id, name: `Reserve ${i + 1}`, clubId: `club${i + 1}`, roster: [] })));
+    const two = { ...input, divisions: [input.divisions[0], { seasonCompetitionId: "SC2", teamIds: ["U1", "U2", "U3", "U4"] }], slotTimes: ["08:00", "09:30", "11:00", "12:30"] };
+    const r = await buildPlan(db, two);
+    if (!r.ok) throw new Error(r.error);
+    expect(r.plan.fixtures).toHaveLength(12);
+    expect(r.plan.alignment).toMatchObject({ grouped: 12, together: 12 });
+    expect(r.plan.clashes.filter((c) => c.severity === "block")).toEqual([]);
+    const saved = await savePlan(db, r.scope, r.plan, { userId: "a" });
+    expect(saved).toMatchObject({ fixtures: 12, competitions: 2 });
+    expect(t.league_fixtures.filter((f) => f.seasonCompetitionId === "SC2")).toHaveLength(6);
+  });
+  it("refuses divisions from different associations", async () => {
+    t.season_competitions.push({ seasonCompetitionId: "SC9", competitionId: "C9", owningAssociationId: "other" });
+    expect(await buildPlan(db, { ...input, divisions: [input.divisions[0], { seasonCompetitionId: "SC9", teamIds: ["T1"] }] })).toMatchObject({ ok: false, status: 400 });
   });
   it("can replace the competition's fixtures", async () => {
-    const r = await buildPlan(db, "SC1", input);
+    const r = await buildPlan(db, input);
     if (!r.ok) throw new Error(r.error);
-    await savePlan(db, "SC1", r.scope, r.plan, { userId: "a" });
-    await savePlan(db, "SC1", r.scope, r.plan, { userId: "a", replace: true });
+    await savePlan(db, r.scope, r.plan, { userId: "a" });
+    await savePlan(db, r.scope, r.plan, { userId: "a", replace: true });
     expect(t.league_fixtures).toHaveLength(6);
   });
 });
