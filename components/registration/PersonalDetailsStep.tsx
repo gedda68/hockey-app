@@ -52,9 +52,23 @@ export default function PersonalDetailsStep({
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
+  // School and district (optional, for statistics)
+  const [school, setSchool] = useState({ attends: false, name: "", district: "" });
+  const [schoolHints, setSchoolHints] = useState<string[]>([]);
+  const [districtHints, setDistrictHints] = useState<string[]>([]);
+  const hint = async (type: "school" | "district", q: string) => {
+    if (q.trim().length < 2) return (type === "school" ? setSchoolHints : setDistrictHints)([]);
+    const r = await fetch(`/api/public/school-suggestions?type=${type === "school" ? "name" : "district"}&q=${encodeURIComponent(q.trim())}`).catch(() => null);
+    const list: string[] = r?.ok ? (await r.json()).suggestions ?? [] : [];
+    (type === "school" ? setSchoolHints : setDistrictHints)(list);
+  };
 
   // Auto-fill from suggested data
   useEffect(() => {
+    if (suggestedData?.personalInfo?.school) {
+      const sc = suggestedData.personalInfo.school;
+      setSchool({ attends: sc.attends === true, name: sc.name || "", district: sc.district || "" });
+    }
     if (suggestedData) {
       setFormData({
         firstName: suggestedData.personalInfo?.firstName || "",
@@ -137,6 +151,7 @@ export default function PersonalDetailsStep({
         gender: formData.gender,
         phone: formData.phone,
         mobile: formData.mobile,
+        school: school.attends ? { attends: true, name: school.name, district: school.district } : { attends: false },
       },
       address: {
         street: formData.street,
@@ -331,6 +346,30 @@ export default function PersonalDetailsStep({
             />
           </div>
         </div>
+      </div>
+
+      {/* School (optional) */}
+      <div className="bg-white rounded-[2rem] shadow-xl border border-slate-100 p-8 mb-6">
+        <h2 className="text-2xl font-black text-[#06054e] mb-2">School</h2>
+        <p className="text-sm font-semibold text-slate-500 mb-4">Optional. We use this only for statistics, such as which schools and districts our young players come from.</p>
+        <label className="flex items-center gap-3 font-bold text-slate-700 mb-4">
+          <input type="checkbox" checked={school.attends} onChange={(e) => setSchool((x) => ({ ...x, attends: e.target.checked }))} className="h-5 w-5" />
+          Currently attending school
+        </label>
+        {school.attends && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label className="block mb-2"><span className="text-sm font-black uppercase text-slate-600">School name</span></label>
+              <input type="text" list="school-hints" value={school.name} maxLength={120} onChange={(e) => { setSchool((x) => ({ ...x, name: e.target.value })); void hint("school", e.target.value); }} placeholder="e.g. Kelvin Grove State College" className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-200 rounded-xl outline-none font-bold focus:ring-2 ring-yellow-400" />
+              <datalist id="school-hints">{schoolHints.map((h) => <option key={h} value={h} />)}</datalist>
+            </div>
+            <div>
+              <label className="block mb-2"><span className="text-sm font-black uppercase text-slate-600">School district</span></label>
+              <input type="text" list="district-hints" value={school.district} maxLength={80} onChange={(e) => { setSchool((x) => ({ ...x, district: e.target.value })); void hint("district", e.target.value); }} placeholder="e.g. Brisbane North" className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-200 rounded-xl outline-none font-bold focus:ring-2 ring-yellow-400" />
+              <datalist id="district-hints">{districtHints.map((h) => <option key={h} value={h} />)}</datalist>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Address */}
