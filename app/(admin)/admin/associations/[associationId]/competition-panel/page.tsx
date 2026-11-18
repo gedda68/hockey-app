@@ -36,7 +36,10 @@ export default async function CompetitionPanelPage({
         <span className="text-slate-400">/</span>
         <span className="font-bold text-[#06054e]">Competition panel</span>
       </div>
-      <h1 className="text-2xl font-black text-[#06054e]">Competition panel</h1>
+      <div className="flex flex-wrap items-center gap-3">
+        <h1 className="text-2xl font-black text-[#06054e]">Competition panel</h1>
+        <Link href={`/admin/associations/${encodeURIComponent(associationId)}/publishing`} className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-black text-[#06054e] hover:bg-slate-50">Publishing</Link>
+      </div>
       <CompetitionPanelOverview associationId={associationId} />
     </div>
   );
