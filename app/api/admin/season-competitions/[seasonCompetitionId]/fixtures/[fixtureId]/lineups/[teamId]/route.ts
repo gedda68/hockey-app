@@ -27,6 +27,7 @@ import { memberBelongsToClubFilter } from "@/lib/rosters/memberClubQuery";
 import { logPlatformAudit } from "@/lib/audit/platformAuditLog";
 import { dayInZone } from "@/lib/member/availability";
 import { unavailableForClubOnDay } from "@/lib/member/availabilityLookup";
+import { rsvpForFixture } from "@/lib/rsvp/lineup";
 
 type Params = {
   params: Promise<{
@@ -129,8 +130,12 @@ export async function GET(request: NextRequest, { params }: Params) {
       dayInZone(fixture.scheduledStart as string | null),
     );
 
+    // What the squad said when asked "can you play?" (null when nobody was asked).
+    const rsvp = await rsvpForFixture(db, { fixtureId: p.fixtureId, teamId: p.teamId, matchDay: dayInZone(fixture.scheduledStart as string | null) }).catch(() => null);
+
     return NextResponse.json({
       unavailable,
+      rsvp,
       lineup: lineup ?? { players: [], staff: [] },
       window: lineupEditWindow({
         scheduledStart: fixture.scheduledStart as string | null,

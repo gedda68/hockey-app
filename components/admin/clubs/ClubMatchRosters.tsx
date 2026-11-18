@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Lock, LockOpen, Search, Star, Users } from "lucide-react";
+import { countAnswers, inNotYetSelected, pickedButOut, type LineupRsvp } from "@/lib/rsvp/lineup";
 
 interface Win { open: boolean; closesAt: string | null; requiresReason: boolean; reason: string | null }
 interface Match {
@@ -109,6 +110,7 @@ function Editor({ match: m, players, now, onSaved }: { match: Match; players: Pl
   const url = `/api/admin/season-competitions/${encodeURIComponent(m.seasonCompetitionId)}/fixtures/${encodeURIComponent(m.fixtureId)}/lineups/${encodeURIComponent(m.teamId)}`;
   const [sel, setSel] = useState<Map<string, LP> | null>(null);
   const [away, setAway] = useState<Record<string, { from: string; to: string; note?: string }>>({});
+  const [rsvp, setRsvp] = useState<LineupRsvp | null>(null);
   const [win, setWin] = useState<Win>(m.window);
   const [q, setQ] = useState("");
   const [busy, setBusy] = useState(false);
@@ -120,6 +122,7 @@ function Editor({ match: m, players, now, onSaved }: { match: Match; players: Pl
       if (!live) return;
       setWin(j.window ?? m.window);
       setAway(j.unavailable ?? {});
+      setRsvp(j.rsvp ?? null);
       setSel(new Map(((j.lineup?.players ?? []) as LP[]).map((p) => [p.memberId, p])));
     }).catch(() => live && setMsg({ ok: false, text: "Could not load roster" }));
     return () => { live = false; };
@@ -154,6 +157,15 @@ function Editor({ match: m, players, now, onSaved }: { match: Match; players: Pl
     else setMsg({ ok: false, text: j.error ?? "Save failed" });
   };
   const left = countdown(win.closesAt, now);
+  const answers = rsvp?.answers ?? {};
+  const counts = rsvp ? countAnswers(answers) : null;
+  const outButPicked = rsvp ? pickedButOut(answers, sel.keys()) : [];
+  const addIns = () => setSel((s) => {
+    const n = new Map(s!);
+    for (const id of inNotYetSelected(answers, n.keys())) n.set(id, { memberId: id, shirtNumber: null, isGoalkeeper: false, isCaptain: false, started: false, minuteEntered: null, didNotPlay: false });
+    return n;
+  });
+  const pending = rsvp ? inNotYetSelected(answers, sel.keys()).length : 0;
 
   return (
     <div className="rounded-2xl border border-slate-200 bg-white shadow-sm">
@@ -177,6 +189,18 @@ function Editor({ match: m, players, now, onSaved }: { match: Match; players: Pl
         <span className="shrink-0 text-sm font-bold text-[#06054e]">{sel.size} playing{Object.keys(away).length > 0 && <span className="ml-2 text-xs font-semibold text-red-600">{[...sel.keys()].filter((id) => away[id]).length} of them marked unavailable</span>}</span>
       </div>
 
+      {counts && (
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-slate-100 bg-sky-50/60 px-4 py-2 text-xs font-bold">
+          <span className="text-slate-600">Squad replies:</span>
+          <span className="text-emerald-700">{counts.in} in</span>
+          <span className="text-amber-700">{counts.maybe} maybe</span>
+          <span className="text-red-700">{counts.out} out</span>
+          <span className="text-slate-500">{counts.none} no reply</span>
+          <button type="button" onClick={addIns} disabled={closed || pending === 0} className="ml-auto rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-black text-white disabled:opacity-40">{pending ? `Add the ${pending} who said they're in` : "Everyone who's in is selected"}</button>
+          {outButPicked.length > 0 && <span className="basis-full text-red-700">Picked, but said they can't make it: {outButPicked.map((id) => shown.find((p) => p.memberId === id)?.name ?? id).join(", ")}</span>}
+        </div>
+      )}
+
       <div className="max-h-[55vh] overflow-auto">
         <table className="min-w-full text-sm">
           <thead className="sticky top-0 bg-slate-50 text-[11px] uppercase tracking-wider text-slate-500">
@@ -188,7 +212,7 @@ function Editor({ match: m, players, now, onSaved }: { match: Match; players: Pl
               return (
                 <tr key={p.memberId} className={row ? "bg-emerald-50/50" : "hover:bg-slate-50"}>
                   <td className="px-3 py-2"><input type="checkbox" checked={!!row} disabled={closed} onChange={() => toggle(p.memberId)} aria-label={`${p.name} playing`} className="h-4 w-4 accent-[#06054e]" /></td>
-                  <td className="px-3 py-2 font-semibold text-slate-800">{p.name}{away[p.memberId] && <span title={away[p.memberId].note ? `Marked unavailable: ${away[p.memberId].note}` : "Marked unavailable for this date"} className="ml-2 rounded bg-red-100 px-1.5 py-0.5 text-[10px] font-bold uppercase text-red-700">Unavailable</span>}{p.status && p.status.toLowerCase() !== "active" && <span className="ml-2 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold uppercase text-slate-500">{p.status}</span>}</td>
+                  <td className="px-3 py-2 font-semibold text-slate-800">{p.name}{rsvp && (() => { const a = answers[p.memberId]; const label = a?.answer === "in" ? "In" : a?.answer === "maybe" ? "Maybe" : a?.answer === "out" ? "Out" : a ? "No reply" : null; const tone = a?.answer === "in" ? "bg-emerald-100 text-emerald-700" : a?.answer === "maybe" ? "bg-amber-100 text-amber-700" : a?.answer === "out" ? "bg-red-100 text-red-700" : "bg-slate-100 text-slate-500"; return label ? <span title={a?.note || undefined} className={`ml-2 rounded px-1.5 py-0.5 text-[10px] font-bold uppercase ${tone}`}>{label}</span> : null; })()}{away[p.memberId] && <span title={away[p.memberId].note ? `Marked unavailable: ${away[p.memberId].note}` : "Marked unavailable for this date"} className="ml-2 rounded bg-red-100 px-1.5 py-0.5 text-[10px] font-bold uppercase text-red-700">Unavailable</span>}{p.status && p.status.toLowerCase() !== "active" && <span className="ml-2 rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold uppercase text-slate-500">{p.status}</span>}</td>
                   <td className="px-3 py-2"><input type="number" min={0} max={999} disabled={!row || closed} value={row?.shirtNumber ?? ""} aria-label={`${p.name} shirt number`} onChange={(e) => patch(p.memberId, { shirtNumber: e.target.value === "" ? null : Number(e.target.value) })} className="w-16 rounded-lg border border-slate-200 px-2 py-1 text-sm disabled:bg-slate-50" /></td>
                   <td className="px-3 py-2 text-center"><input type="checkbox" disabled={!row || closed} checked={!!row?.isGoalkeeper} onChange={(e) => patch(p.memberId, { isGoalkeeper: e.target.checked })} aria-label={`${p.name} goalkeeper`} /></td>
                   <td className="px-3 py-2 text-center"><button disabled={!row || closed} onClick={() => patch(p.memberId, { isCaptain: !row?.isCaptain })} aria-label={`${p.name} captain`} aria-pressed={!!row?.isCaptain} className="disabled:opacity-30"><Star size={16} className={row?.isCaptain ? "fill-amber-400 text-amber-500" : "text-slate-300"} /></button></td>
