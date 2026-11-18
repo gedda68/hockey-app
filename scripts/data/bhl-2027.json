@@ -1,0 +1,380 @@
+{
+ "season": "2027",
+ "startDate": "2027-03-06",
+ "slotMinutes": 90,
+ "bufferMinutes": 15,
+ "roundGapDays": 7,
+ "stateTitles": [
+  [
+   "2027-04-30",
+   "2027-05-03",
+   "State titles"
+  ],
+  [
+   "2027-05-14",
+   "2027-05-16",
+   "State titles"
+  ]
+ ],
+ "divisions": [
+  {
+   "name": "BHL 1",
+   "day": "saturday",
+   "startTime": "13:00",
+   "endTime": "20:00",
+   "grandFinalDate": "2027-09-18"
+  },
+  {
+   "name": "BHL 2",
+   "day": "saturday",
+   "startTime": "13:00",
+   "endTime": "20:00",
+   "grandFinalDate": "2027-09-18"
+  },
+  {
+   "name": "BHL 3",
+   "day": "saturday",
+   "startTime": "13:00",
+   "endTime": "20:00",
+   "grandFinalDate": "2027-09-18"
+  },
+  {
+   "name": "BHL 4",
+   "day": "sunday",
+   "startTime": "12:00",
+   "endTime": "20:00",
+   "grandFinalDate": "2027-09-12"
+  },
+  {
+   "name": "BHL 5",
+   "day": "sunday",
+   "startTime": "12:00",
+   "endTime": "20:00",
+   "grandFinalDate": "2027-09-12"
+  },
+  {
+   "name": "BHL 6",
+   "day": "sunday",
+   "startTime": "12:00",
+   "endTime": "20:00",
+   "grandFinalDate": "2027-09-12"
+  },
+  {
+   "name": "BHL 7",
+   "day": "sunday",
+   "startTime": "12:00",
+   "endTime": "20:00",
+   "grandFinalDate": "2027-09-12"
+  }
+ ],
+ "sharedVenueKeywords": [
+  "burringbar",
+  "state hockey centre"
+ ],
+ "finalsVenueKeywords": [
+  "state hockey centre"
+ ],
+ "clubHomeVenueKeywords": {
+  "EST": "easts",
+  "UQH": "uq",
+  "RHC": "redcliffe",
+  "LAB": "labrador"
+ },
+ "teams": [
+  {
+   "name": "Eastern Suburbs BHL 1",
+   "club": "EST",
+   "division": "BHL 1"
+  },
+  {
+   "name": "St Andrews BHL 1",
+   "club": "STA",
+   "division": "BHL 1"
+  },
+  {
+   "name": "Bulimba BHL 1",
+   "club": "BUL",
+   "division": "BHL 1"
+  },
+  {
+   "name": "Labrador BHL 1",
+   "club": "LAB",
+   "division": "BHL 1"
+  },
+  {
+   "name": "University of Qld BHL 1",
+   "club": "UQH",
+   "division": "BHL 1"
+  },
+  {
+   "name": "Northern Suburbs BHL 1",
+   "club": "NTH",
+   "division": "BHL 1"
+  },
+  {
+   "name": "Redcliffe BHL 1",
+   "club": "RHC",
+   "division": "BHL 1"
+  },
+  {
+   "name": "Commercial BHL 1",
+   "club": "CHC",
+   "division": "BHL 1"
+  },
+  {
+   "name": "Valley BHL 1",
+   "club": "VAL",
+   "division": "BHL 1"
+  },
+  {
+   "name": "Kedron Wavell BHL 1",
+   "club": "KWC",
+   "division": "BHL 1"
+  },
+  {
+   "name": "Eastern Suburbs BHL 2",
+   "club": "EST",
+   "division": "BHL 2"
+  },
+  {
+   "name": "Labrador BHL 2",
+   "club": "LAB",
+   "division": "BHL 2"
+  },
+  {
+   "name": "Bulimba BHL 2",
+   "club": "BUL",
+   "division": "BHL 2"
+  },
+  {
+   "name": "Northern Suburbs BHL 2",
+   "club": "NTH",
+   "division": "BHL 2"
+  },
+  {
+   "name": "St Andrews BHL 2",
+   "club": "STA",
+   "division": "BHL 2"
+  },
+  {
+   "name": "Redcliffe BHL 2",
+   "club": "RHC",
+   "division": "BHL 2"
+  },
+  {
+   "name": "University of Qld BHL 2",
+   "club": "UQH",
+   "division": "BHL 2"
+  },
+  {
+   "name": "Commercial BHL 2",
+   "club": "CHC",
+   "division": "BHL 2"
+  },
+  {
+   "name": "Valley BHL 2",
+   "club": "VAL",
+   "division": "BHL 2"
+  },
+  {
+   "name": "South West United BHL 2",
+   "club": "SWU",
+   "division": "BHL 2"
+  },
+  {
+   "name": "Bulimba #1 BHL 3",
+   "club": "BUL",
+   "division": "BHL 3"
+  },
+  {
+   "name": "St Andrews BHL 3",
+   "club": "STA",
+   "division": "BHL 3"
+  },
+  {
+   "name": "Eastern Suburbs #1 BHL 3",
+   "club": "EST",
+   "division": "BHL 3"
+  },
+  {
+   "name": "Eastern Suburbs #2 BHL 3",
+   "club": "EST",
+   "division": "BHL 3"
+  },
+  {
+   "name": "Commercial BHL 3",
+   "club": "CHC",
+   "division": "BHL 3"
+  },
+  {
+   "name": "Bulimba #2 BHL 3",
+   "club": "BUL",
+   "division": "BHL 3"
+  },
+  {
+   "name": "University of Qld BHL 3",
+   "club": "UQH",
+   "division": "BHL 3"
+  },
+  {
+   "name": "Northern Suburbs BHL 3",
+   "club": "NTH",
+   "division": "BHL 3"
+  },
+  {
+   "name": "Redcliffe BHL 3",
+   "club": "RHC",
+   "division": "BHL 3"
+  },
+  {
+   "name": "Punjabi Kookaburras BHL 3",
+   "club": "PKHC",
+   "division": "BHL 3"
+  },
+  {
+   "name": "St Andrews BHL 4",
+   "club": "STA",
+   "division": "BHL 4"
+  },
+  {
+   "name": "University of Qld BHL 4",
+   "club": "UQH",
+   "division": "BHL 4"
+  },
+  {
+   "name": "Commercial BHL 4",
+   "club": "CHC",
+   "division": "BHL 4"
+  },
+  {
+   "name": "Eastern Suburbs BHL 4",
+   "club": "EST",
+   "division": "BHL 4"
+  },
+  {
+   "name": "South West United BHL 4",
+   "club": "SWU",
+   "division": "BHL 4"
+  },
+  {
+   "name": "Bulimba BHL 4",
+   "club": "BUL",
+   "division": "BHL 4"
+  },
+  {
+   "name": "Valley BHL 5",
+   "club": "VAL",
+   "division": "BHL 5"
+  },
+  {
+   "name": "University of Qld #2 BHL 5",
+   "club": "UQH",
+   "division": "BHL 5"
+  },
+  {
+   "name": "University of Qld #1 BHL 5",
+   "club": "UQH",
+   "division": "BHL 5"
+  },
+  {
+   "name": "Eastern Suburbs BHL 5",
+   "club": "EST",
+   "division": "BHL 5"
+  },
+  {
+   "name": "Commercial BHL 5",
+   "club": "CHC",
+   "division": "BHL 5"
+  },
+  {
+   "name": "St Andrews BHL 5",
+   "club": "STA",
+   "division": "BHL 5"
+  },
+  {
+   "name": "Bulimba BHL 5",
+   "club": "BUL",
+   "division": "BHL 5"
+  },
+  {
+   "name": "University of Qld #1 BHL 6",
+   "club": "UQH",
+   "division": "BHL 6"
+  },
+  {
+   "name": "Kedron Wavell BHL 6",
+   "club": "KWC",
+   "division": "BHL 6"
+  },
+  {
+   "name": "Redcliffe BHL 6",
+   "club": "RHC",
+   "division": "BHL 6"
+  },
+  {
+   "name": "University of Qld #2 BHL 6",
+   "club": "UQH",
+   "division": "BHL 6"
+  },
+  {
+   "name": "Eastern Suburbs Black BHL 6",
+   "club": "EST",
+   "division": "BHL 6"
+  },
+  {
+   "name": "Redlands BHL 6",
+   "club": "RDL",
+   "division": "BHL 6"
+  },
+  {
+   "name": "South West United BHL 6",
+   "club": "SWU",
+   "division": "BHL 6"
+  },
+  {
+   "name": "Northern Suburbs BHL 6",
+   "club": "NTH",
+   "division": "BHL 6"
+  },
+  {
+   "name": "Eastern Suburbs Gold BHL 6",
+   "club": "EST",
+   "division": "BHL 6"
+  },
+  {
+   "name": "Commercial BHL 6",
+   "club": "CHC",
+   "division": "BHL 6"
+  },
+  {
+   "name": "Kedron Wavell BHL 7",
+   "club": "KWC",
+   "division": "BHL 7"
+  },
+  {
+   "name": "Valley BHL 7",
+   "club": "VAL",
+   "division": "BHL 7"
+  },
+  {
+   "name": "University of Qld BHL 7",
+   "club": "UQH",
+   "division": "BHL 7"
+  },
+  {
+   "name": "Eastern Suburbs BHL 7",
+   "club": "EST",
+   "division": "BHL 7"
+  },
+  {
+   "name": "South West United BHL 7",
+   "club": "SWU",
+   "division": "BHL 7"
+  },
+  {
+   "name": "Northern Suburbs BHL 7",
+   "club": "NTH",
+   "division": "BHL 7"
+  }
+ ]
+}
