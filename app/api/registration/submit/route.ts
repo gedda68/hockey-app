@@ -6,6 +6,7 @@ import type { Db, Document, WithId } from "mongodb";
 import clientPromise from "@/lib/mongodb";
 import type { FeeLineItem } from "@/types/registration";
 import { sendEmail } from "@/lib/email/client";
+import { cleanSchool } from "@/lib/members/school";
 import { buildRegistrationConfirmationEmail } from "@/lib/email/templates/registrationConfirmation";
 
 // ============================================================================
@@ -135,6 +136,7 @@ export async function POST(request: NextRequest) {
               dateOfBirth: payload.personalInfo.dateOfBirth,
               gender: payload.personalInfo.gender,
               photoUrl: null,
+              ...(cleanSchool(payload.personalInfo?.school) ? { school: cleanSchool(payload.personalInfo?.school) } : {}),
             },
 
             contact: {
@@ -186,6 +188,8 @@ export async function POST(request: NextRequest) {
           if (payload.medicalInfo) updateData.medicalInfo = payload.medicalInfo;
           if (payload.shirtSize)
             updateData["preferences.shirtSize"] = payload.shirtSize;
+          const school = cleanSchool(payload.personalInfo?.school);
+          if (school) updateData["personalInfo.school"] = school;
 
           await db
             .collection("members")

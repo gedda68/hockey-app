@@ -744,6 +744,7 @@ export const menuConfig: MenuItem[] = [
     allowedRoles: REPORTING_ROLES,
     subItems: [
       { label: "Member Analytics",  href: "/admin/reports",                   icon: "👥", description: "Total members, players, roles by gender & age group", allowedRoles: REPORTING_ROLES },
+      { label: "Committee Reports", href: "/admin/committee-reports",         icon: "📊", description: "Registration trends, retention, participation by age and gender, officials, schools", allowedRoles: REPORTING_ROLES },
       { label: "By Association",    href: "/admin/reports?scope=association",  icon: "🏛️", description: "Member breakdown per association",                   allowedRoles: ["super-admin","association-admin","assoc-committee"] },
       { label: "By Club",           href: "/admin/reports?scope=club",         icon: "🏢", description: "Member breakdown per club",                          allowedRoles: REPORTING_ROLES },
       { label: "Historic Trends",   href: "/admin/reports?view=historic",      icon: "📉", description: "Year-on-year growth and membership trends",           allowedRoles: REPORTING_ROLES },
