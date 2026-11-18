@@ -20,29 +20,40 @@ export interface MatchDayFiltersProps {
   myClubId: string | null;
   /** The round on show, when it is a single round (for the previous / next buttons). */
   currentRound: string | null;
+  /** Page the filters belong to (default Match Day). */
+  basePath?: string;
+  /** What the round filter offers and what it opens on: Match Day has next round / this week, results just rounds. */
+  roundMode?: "matchday" | "results";
+  /** Query values kept on every change (for example the Results / Fixtures view). */
+  fixed?: Record<string, string>;
+  /** Optional match-status filter. */
+  status?: { value: string; options: { value: string; label: string }[] };
 }
 
 export default function MatchDayFilters(p: MatchDayFiltersProps) {
   const router = useRouter();
   const go = (patch: Record<string, string>) => {
-    const sp = new URLSearchParams({ seasonCompetitionId: p.divisionId, round: p.round, ...(p.clubId ? { clubId: p.clubId } : {}), ...(p.teamId ? { teamId: p.teamId } : {}), ...(p.my ? { my: "1" } : {}), ...patch });
+    const dflt = p.roundMode === "results" ? "all" : "next";
+    const sp = new URLSearchParams({ ...(p.fixed ?? {}), seasonCompetitionId: p.divisionId, round: p.round, ...(p.status ? { status: p.status.value } : {}), ...(p.clubId ? { clubId: p.clubId } : {}), ...(p.teamId ? { teamId: p.teamId } : {}), ...(p.my ? { my: "1" } : {}), ...patch });
     for (const k of [...sp.keys()]) if (!sp.get(k)) sp.delete(k);
-    if (sp.get("round") === "next") sp.delete("round");
-    router.push(`/competitions/this-round?${sp.toString()}`);
+    if (sp.get("round") === dflt) sp.delete("round");
+    if (sp.get("status") === "All") sp.delete("status");
+    router.push(`${p.basePath ?? "/competitions/this-round"}?${sp.toString()}`);
   };
   const cell = "flex min-w-0 flex-col gap-1";
   const cap = "text-[10px] font-black uppercase tracking-widest text-slate-300";
   const idx = p.currentRound ? p.rounds.indexOf(p.currentRound) : -1;
   const step = "h-[46px] w-11 shrink-0 rounded-xl border border-white/15 bg-white/10 text-lg font-black text-white transition hover:bg-white/15 disabled:opacity-30 disabled:hover:bg-white/10";
+  const dfltRound = p.roundMode === "results" ? "all" : "next";
   const inYear = p.divisions.filter((d) => d.season === p.year);
 
   const changeYear = (year: string) => {
     const same = p.divisions.find((d) => d.season === year && d.name === inYear.find((x) => x.id === p.divisionId)?.name) ?? p.divisions.find((d) => d.season === year);
-    go({ seasonCompetitionId: same?.id ?? "", round: "next", clubId: "", teamId: "", my: "" });
+    go({ seasonCompetitionId: same?.id ?? "", round: dfltRound, clubId: "", teamId: "", my: "" });
   };
 
   // Every filter is the same type-ahead box: type to narrow the list, arrows and Enter to pick.
-  const roundOptions = [{ value: "next", label: "Next round" }, { value: "week", label: "This week" }, { value: "all", label: "All rounds" }, ...p.rounds.map((r) => ({ value: r, label: `Round ${r}` }))];
+  const roundOptions = [...(p.roundMode === "results" ? [] : [{ value: "next", label: "Next round" }, { value: "week", label: "This week" }]), { value: "all", label: "All rounds" }, ...p.rounds.map((r) => ({ value: r, label: `Round ${r}` }))];
   const clubOptions = [{ value: "all", label: "All clubs" }, ...(p.canMy ? [{ value: "__my", label: "My teams" }] : []), ...p.clubs.map((c) => ({ value: c.id, label: `${c.label}${c.id === p.myClubId ? " (my club)" : ""}` }))];
   // Clearing the text while typing must not change a required filter.
   const only = (fn: (v: string) => void) => (v: string) => { if (v) fn(v); };
@@ -53,7 +64,7 @@ export default function MatchDayFilters(p: MatchDayFiltersProps) {
         <TypeaheadSelect variant="dark" ariaLabel="Year" options={p.years.map((y) => ({ value: y, label: y }))} value={p.year} onChange={only(changeYear)} />
       </div>
       <div className={`${cell} w-full sm:w-auto sm:min-w-[11rem]`}><span className={cap}>Division</span>
-        <TypeaheadSelect variant="dark" ariaLabel="Division" options={inYear.map((d) => ({ value: d.id, label: d.name }))} value={p.divisionId} onChange={only((v) => go({ seasonCompetitionId: v, round: "next", clubId: "", teamId: "", my: "" }))} />
+        <TypeaheadSelect variant="dark" ariaLabel="Division" options={inYear.map((d) => ({ value: d.id, label: d.name }))} value={p.divisionId} onChange={only((v) => go({ seasonCompetitionId: v, round: dfltRound, clubId: "", teamId: "", my: "" }))} />
       </div>
       <div className={cell}><span className={cap}>Round</span>
         <div className="flex items-center gap-2">
@@ -68,6 +79,11 @@ export default function MatchDayFilters(p: MatchDayFiltersProps) {
       {p.clubId && p.teams.length > 1 ? (
         <div className={`${cell} w-full sm:w-auto sm:min-w-[11rem]`}><span className={cap}>Team</span>
           <TypeaheadSelect variant="dark" ariaLabel="Team" options={[{ value: "all", label: "All teams" }, ...p.teams.map((t) => ({ value: t.id, label: t.label }))]} value={p.teamId || "all"} onChange={(v) => go({ teamId: v === "all" ? "" : v })} placeholder="All teams" />
+        </div>
+      ) : null}
+      {p.status ? (
+        <div className={`${cell} w-full sm:w-auto sm:min-w-[11rem]`}><span className={cap}>Status</span>
+          <TypeaheadSelect variant="dark" ariaLabel="Status" options={p.status.options} value={p.status.value} onChange={only((v) => go({ status: v }))} />
         </div>
       ) : null}
     </div>
