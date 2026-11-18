@@ -50,6 +50,7 @@ export function writableDb(t: Record<string, Doc[]>) {
       createIndex: async () => "ok",
       insertMany: async (ds: Doc[]) => { ds.forEach((d) => rows.push(structuredClone(d))); },
       updateOne: async (q: Doc, u: Doc, o?: Doc) => { const d = rows.find((x) => matches(x, q)); if (d) apply(d, u); else if (o?.upsert) { const n = { ...q }; apply(n, u); rows.push(n); } return { matchedCount: d ? 1 : 0 }; },
+      replaceOne: async (q: Doc, doc: Doc, o?: Doc) => { const i = rows.findIndex((x) => matches(x, q)); if (i >= 0) rows[i] = structuredClone(doc); else if (o?.upsert) rows.push(structuredClone(doc)); return { matchedCount: i >= 0 ? 1 : 0 }; },
       updateMany: async (q: Doc, u: Doc) => { const hit = rows.filter((d) => matches(d, q)); hit.forEach((d) => apply(d, u)); return { matchedCount: hit.length }; },
     };
   };

@@ -10,7 +10,7 @@ import { buildWinnerEmail } from "@/lib/email/templates/awardWinner";
 import { isMinor } from "@/lib/access/guardians";
 import { isQuietHour } from "@/lib/rsvp/logic";
 import { memberBelongsToClubFilter } from "@/lib/rosters/memberClubQuery";
-import { DEFAULT_AWARDS_LABELS_LEAGUE, insertCompetitionAward, mergeAwardsLabels } from "@/lib/competitions/competitionAwards";
+import { DEFAULT_AWARDS_LABELS_LEAGUE, insertCompetitionAward, mergeAwardsLabels, upsertPlayerOfMatchAward } from "@/lib/competitions/competitionAwards";
 import { cleanBallot, checkNomination, competitionLeaderboard, decide, leaderboard, roundShouldClose, tally, windowState, type Ballot, type NominationLike, type TallyRow } from "@/lib/awards/logic";
 
 export const ROUNDS = "match_vote_rounds";
@@ -142,7 +142,7 @@ export async function openOfficialRounds(db: Db, now: Date = new Date()): Promis
     if (all.length < 3) continue;
     const names = await namesFor(db, all.map((p) => String(p.memberId)));
     const round = {
-      roundId: newId("MVR"), kind: "officials", fixtureId: String(f.fixtureId), seasonCompetitionId: String(f.seasonCompetitionId ?? ""), owningAssociationId: String(f.owningAssociationId ?? ""), teamId: null, clubId: null,
+      roundId: newId("MVR"), kind: "officials", homeTeamId: f.homeTeamId ? String(f.homeTeamId) : null, awayTeamId: f.awayTeamId ? String(f.awayTeamId) : null, fixtureId: String(f.fixtureId), seasonCompetitionId: String(f.seasonCompetitionId ?? ""), owningAssociationId: String(f.owningAssociationId ?? ""), teamId: null, clubId: null,
       teamName: sides.map((s) => s.name).join(" v "), opponentName: "", startsAt: String(f.scheduledStart), matchDate: String(f.scheduledStart).slice(0, 10), status: "open",
       voterIds, candidates: all.map((p) => ({ memberId: String(p.memberId), name: names.get(String(p.memberId)) ?? "Player", shirtNumber: p.shirtNumber ?? null, teamName: p.teamName })),
       votedCount: 0, tally: [] as TallyRow[], winnerId: null as string | null, result: null as any, openedAt: now.toISOString(), closesAt: new Date(now.getTime() + settings.closeDays * DAY).toISOString(),
@@ -160,6 +160,12 @@ export async function competitionBoard(db: Db, seasonCompetitionId: string, limi
   const rows = competitionLeaderboard(rounds);
   const names = await namesFor(db, rows.slice(0, limit).map((r) => r.memberId));
   return { games: rounds.filter((r) => r.kind !== "officials").length, rows: rows.slice(0, limit).map((r) => ({ ...r, name: names.get(r.memberId) ?? "Player" })) };
+}
+
+/** Games where the officials finished level and someone needs to choose the player of the match. */
+export async function officialTies(db: Db, seasonCompetitionId: string) {
+  const rounds: any[] = await db.collection(ROUNDS).find({ seasonCompetitionId, kind: "officials", status: "closed", winnerId: null }, { projection: { _id: 0, roundId: 1, teamName: 1, startsAt: 1, result: 1, candidates: 1 } }).limit(100).toArray();
+  return rounds.filter((r) => r.result?.kind === "tied").map((r) => ({ roundId: r.roundId, game: r.teamName, startsAt: r.startsAt, tied: (r.result.memberIds as string[]).map((id) => { const c = (r.candidates ?? []).find((x: any) => x.memberId === id); return { memberId: id, name: c?.name ?? "Player", teamName: c?.teamName ?? "" }; }) }));
 }
 
 /** Records the competition's player of the season on the official awards list (shown on the public awards page). */
@@ -205,6 +211,27 @@ export async function castVote(db: Db, roundId: string, voterId: string, raw: un
   return { ok: true };
 }
 
+export const OFFICIALS_AWARD_SOURCE = "officials-vote";
+
+/**
+ * The umpires' and officials' winner is the game's public player of the match. A player of the match an administrator
+ * entered by hand for the same game is left alone.
+ */
+export async function publishOfficialsWinner(db: Db, round: any, memberId: string): Promise<boolean> {
+  if (round?.kind !== "officials" || !round.seasonCompetitionId || !memberId) return false;
+  const existing: any = await db.collection("competition_awards").findOne({ context: "league", seasonCompetitionId: round.seasonCompetitionId, awardType: "player_of_match", fixtureId: round.fixtureId });
+  if (existing && existing.createdBy !== OFFICIALS_AWARD_SOURCE) return false;
+  const sc: any = await db.collection("season_competitions").findOne({ seasonCompetitionId: round.seasonCompetitionId }, { projection: { awardsLabels: 1 } });
+  const labels = mergeAwardsLabels(sc?.awardsLabels, DEFAULT_AWARDS_LABELS_LEAGUE);
+  const cand = (round.candidates ?? []).find((c: any) => c.memberId === memberId);
+  const teamId = cand?.teamName ? ((await db.collection("teams").findOne({ $or: [{ displayName: cand.teamName }, { name: cand.teamName }], teamId: { $in: [round.homeTeamId, round.awayTeamId].filter(Boolean) } }, { projection: { teamId: 1 } })) as any)?.teamId ?? null : null;
+  await upsertPlayerOfMatchAward(db, {
+    context: "league", seasonCompetitionId: round.seasonCompetitionId, awardType: "player_of_match", fixtureId: String(round.fixtureId), memberId,
+    memberDisplayName: cand?.name ?? "Player", teamId, teamName: cand?.teamName ?? null, awardLabelSnapshot: labels.playerOfMatch, notes: "Voted by the umpires and officials", createdBy: OFFICIALS_AWARD_SOURCE,
+  });
+  return true;
+}
+
 /** Counts the votes and records the result. A tie on points and first-place votes is left for staff to settle. */
 export async function closeRound(db: Db, roundId: string, now: Date = new Date()): Promise<{ status: string; winnerId: string | null; tied: string[] }> {
   const round: any = await db.collection(ROUNDS).findOne({ roundId });
@@ -215,6 +242,7 @@ export async function closeRound(db: Db, roundId: string, now: Date = new Date()
   const d = decide(rows);
   const winnerId = d.kind === "winner" ? d.memberId : null;
   await db.collection(ROUNDS).updateOne({ roundId }, { $set: { status: "closed", closedAt: now.toISOString(), tally: rows, votedCount: votes.length, winnerId, result: d } });
+  if (winnerId) await publishOfficialsWinner(db, round, winnerId).catch((e) => console.error("publish player of the match failed:", e));
   return { status: "closed", winnerId, tied: d.kind === "tied" ? d.memberIds : [] };
 }
 
@@ -224,6 +252,7 @@ export async function resolveTie(db: Db, roundId: string, winnerId: string): Pro
   if (round.status !== "closed" || round.result?.kind !== "tied") return { ok: false, error: "This vote isn't tied", status: 409 };
   if (!round.result.memberIds.includes(winnerId)) return { ok: false, error: "Choose one of the tied players", status: 400 };
   await db.collection(ROUNDS).updateOne({ roundId }, { $set: { winnerId, result: { kind: "winner", memberId: winnerId, chosenByStaff: true } } });
+  await publishOfficialsWinner(db, round, winnerId).catch((e) => console.error("publish player of the match failed:", e));
   return { ok: true };
 }
 
