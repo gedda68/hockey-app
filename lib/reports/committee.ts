@@ -36,6 +36,7 @@ export interface RetentionRow { season: string; previous: number; retained: numb
 export interface Cell { label: string; total: number; Female: number; Male: number; Other: number; Unknown: number }
 export interface RateRow { label: string; cohort: number; retained: number; rate: number }
 export interface Count { label: string; count: number }
+export interface SchoolRow { label: string; district: string; total: number; Female: number; Male: number; Other: number; Unknown: number }
 export interface OfficialRow { memberId: string; name: string; roles: string[]; clubs: string[] }
 
 export interface CommitteeReport {
@@ -51,6 +52,7 @@ export interface CommitteeReport {
   monthly: { month: string; current: number; previous: number }[];
   officials: { coaches: OfficialRow[]; umpires: OfficialRow[]; technical: OfficialRow[] };
   school: { districts: Count[]; schools: (Count & { district: string })[]; atSchool: number; notAtSchool: number; notRecorded: number; youngCoverage: number };
+  schoolPlayers: { districts: SchoolRow[]; schools: SchoolRow[]; recorded: number; players: number };
   clubs: { clubId: string; name: string; people: number; players: number; previous: number; retained: number; rate: number }[];
 }
 
@@ -124,6 +126,23 @@ export function buildCommitteeReport(o: { regs: Reg[]; people: Map<string, Perso
   }
   const byCount = <T extends Count>(m: Map<string, T>) => [...m.values()].sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
 
+  // Players only, by school and district, split by gender: for planning where players come from.
+  const dRows = new Map<string, SchoolRow>(), sRows = new Map<string, SchoolRow>();
+  let recorded = 0;
+  const bump = (m: Map<string, SchoolRow>, key: string, label: string, district: string, g: Gender) => {
+    const row = m.get(key) ?? { label, district, total: 0, Female: 0, Male: 0, Other: 0, Unknown: 0 };
+    row.total++; row[g]++; m.set(key, row);
+  };
+  for (const id of players) {
+    const p = o.people.get(id), sc = p?.school;
+    if (!sc?.attends) continue;
+    const g = genderLabel(p?.gender);
+    if (sc.district || sc.name) recorded++;
+    if (sc.district) bump(dRows, groupKey(sc.district), sc.district, "", g);
+    if (sc.name) bump(sRows, groupKey(sc.name) + "|" + groupKey(sc.district ?? ""), sc.name, sc.district ?? "", g);
+  }
+  const byTotal = (m: Map<string, SchoolRow>) => [...m.values()].sort((a, b) => b.total - a.total || a.label.localeCompare(b.label));
+
   const clubSets = new Map<string, { cur: Set<string>; prev: Set<string>; players: Set<string> }>();
   for (const r of o.regs) {
     if (!r.clubId || (r.season !== o.season && r.season !== prev)) continue;
@@ -143,6 +162,7 @@ export function buildCommitteeReport(o: { regs: Reg[]; people: Map<string, Perso
     monthly: MONTHS.map((month, i) => ({ month, current: mc[i], previous: mp[i] })),
     officials,
     school: { districts: byCount(districts).slice(0, 20), schools: byCount(schools).slice(0, 25), atSchool, notAtSchool, notRecorded, youngCoverage: pct(youngRecorded, young) },
+    schoolPlayers: { districts: byTotal(dRows), schools: byTotal(sRows), recorded, players: players.length },
     clubs,
   };
 }
@@ -159,6 +179,7 @@ export function committeeCsv(r: CommitteeReport, title: string): string {
   for (const [name, list] of [["All members", r.members], ["Players", r.players]] as const) rows.push([`${name} by age group and gender`], ["Age group", "Total", "Female", "Male", "Other", "Not stated"], ...list.map((c) => [c.label, c.total, c.Female, c.Male, c.Other, c.Unknown]), []);
   rows.push(["Registered coaches, umpires and technical officials"], ["Role", "Name", "Clubs"], ...(["coaches", "umpires", "technical"] as const).flatMap((k) => r.officials[k].map((o) => [k === "technical" ? "Technical official" : k === "coaches" ? "Coach" : "Umpire", o.name, o.clubs.join("; ")])), []);
   rows.push(["School districts"], ["District", "Members"], ...r.school.districts.map((d) => [d.label, d.count]), [], ["Schools"], ["School", "District", "Members"], ...r.school.schools.map((d) => [d.label, d.district, d.count]), []);
+  rows.push(["Players by school district and gender"], ["District", "Total", "Female", "Male", "Other", "Not stated"], ...r.schoolPlayers.districts.map((d) => [d.label, d.total, d.Female, d.Male, d.Other, d.Unknown]), [], ["Players by school and gender"], ["School", "District", "Total", "Female", "Male", "Other", "Not stated"], ...r.schoolPlayers.schools.map((d) => [d.label, d.district, d.total, d.Female, d.Male, d.Other, d.Unknown]), []);
   if (r.clubs.length > 1) rows.push(["Clubs"], ["Club", "People", "Players", "Registered last season", "Registered again", "Retention %"], ...r.clubs.map((c) => [c.name, c.people, c.players, c.previous, c.retained, c.rate]));
   return rows.map((row) => row.map(q).join(",")).join("\n");
 }

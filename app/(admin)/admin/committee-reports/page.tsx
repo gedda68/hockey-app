@@ -138,6 +138,13 @@ export default function CommitteeReportsPage() {
             </div>
           </Card>
 
+          <Card title="Players by school district and gender" note={`Players at school with a district recorded: ${r.schoolPlayers.recorded} of ${r.totals.players}. Use the association level (city or state) to plan across clubs.`} table={<DataTable head={["District", "Total", "Female", "Male", "Other", "Not stated"]} rows={r.schoolPlayers.districts.map((d) => [d.label, d.total, d.Female, d.Male, d.Other, d.Unknown])} />}>
+            {r.schoolPlayers.districts.length ? <StackedBars labels={r.schoolPlayers.districts.slice(0, 20).map((d) => d.label)} names={GENDER_NAMES} series={GENDERS.map((g) => r.schoolPlayers.districts.slice(0, 20).map((d) => d[g]))} /> : <p className="text-sm font-bold text-slate-400">No school districts recorded for players yet.</p>}
+          </Card>
+          <Card title="Players by school and gender" note="Every school with players, largest first.">
+            <DataTable head={["School", "District", "Total", "Female", "Male", "Other", "Not stated"]} rows={r.schoolPlayers.schools.map((d) => [d.label, d.district, d.total, d.Female, d.Male, d.Other, d.Unknown])} />
+          </Card>
+
           {r.clubs.length > 1 && (
             <Card title="Clubs">
               <DataTable head={["Club", "People", "Players", "Last season", "Registered again", "Retention %"]} rows={r.clubs.map((c) => [c.name, c.people, c.players, c.previous, c.retained, `${c.rate}%`])} />
