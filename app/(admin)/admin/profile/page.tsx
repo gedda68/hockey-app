@@ -212,9 +212,7 @@ export default async function AdminProfilePage() {
         <p className="text-slate-500 text-sm mt-1 font-medium">
           Account details, roles by organisation, and member data when linked. Sections appear only
           when data exists. Admin URLs stay on your portal host (e.g.{" "}
-          <span className="font-mono text-slate-600">bha.localhost:3000</span>); set{" "}
-          <span className="font-mono">SESSION_COOKIE_DOMAIN=.localhost</span> in dev so the session
-          is shared across subdomains.
+          <span className="font-mono text-slate-600">bha.localhost:3000</span>).
         </p>
       </div>
 

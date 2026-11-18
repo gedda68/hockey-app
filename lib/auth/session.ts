@@ -120,15 +120,15 @@ async function decrypt(token: string): Promise<SessionData | null> {
 }
 
 /**
- * Only an explicit SESSION_COOKIE_DOMAIN makes the session cookie domain-scoped. Everything else (including
- * local development on *.localhost) is host-only, exactly as login writes it, so a login, a profile switch and a
- * background refresh can never leave two different copies of the cookie. Moving to another tenant host is done
- * with /api/auth/consume-session instead.
+ * The session cookie is always host-only, exactly as login writes it. A Domain= copy (SESSION_COOKIE_DOMAIN, or
+ * `.localhost` in development) is rejected by browsers on *.localhost and, where accepted, sits beside the
+ * host-only login cookie so a profile switch or refresh never takes effect. Moving to another tenant host is done
+ * with /api/auth/consume-session instead. SESSION_COOKIE_DOMAIN is still used to clear old domain cookies at logout.
  */
 function resolvedSessionCookieDomain(
   _portalSubdomain: string | null | undefined,
 ): string | undefined {
-  return process.env.SESSION_COOKIE_DOMAIN?.trim() || undefined;
+  return undefined;
 }
 
 function sessionCookieBase(portalSubdomain: string | null | undefined) {
