@@ -112,3 +112,16 @@ export async function loadFixturesMeta(seasonCompetitionId: string): Promise<{
 
   return { fixtures, clubLabelById, teamLabelById };
 }
+
+/** Teams with the bye in each round of a division with an odd number of teams (counts all matches, published or not). */
+export async function loadByes(seasonCompetitionId: string): Promise<Record<number, { teamId: string; name: string }[]>> {
+  const { computeByes } = await import("@/lib/competitions/byes");
+  const db = (await clientPromise).db(process.env.DB_NAME || "hockey-app");
+  const fx = await db.collection("league_fixtures").find({ seasonCompetitionId, status: { $nin: ["cancelled"] } }).project({ round: 1, homeTeamId: 1, awayTeamId: 1, matchLevel: 1, status: 1 }).toArray();
+  const byes = computeByes(fx);
+  const ids = [...new Set(Object.values(byes).flat())];
+  if (!ids.length) return {};
+  const teams = await db.collection("teams").find({ teamId: { $in: ids } }).project({ teamId: 1, name: 1 }).toArray();
+  const nameOf = new Map(teams.map((t) => [String(t.teamId), String(t.name ?? t.teamId)]));
+  return Object.fromEntries(Object.entries(byes).map(([r, list]) => [Number(r), list.map((teamId) => ({ teamId, name: nameOf.get(teamId) ?? teamId }))]));
+}

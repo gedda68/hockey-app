@@ -7,10 +7,11 @@ import MatchDayFilters from "@/components/competitions/MatchDayFilters";
 import { getSession } from "@/lib/auth/session";
 import { getMyTeamIdsForSession } from "@/lib/data/myFixtures";
 import { filterMatches, getSeasonCompetitionOptions, getRoundsForSeasonCompetition, getMatchStatsData, getUmpireDetailsList, resolveUmpireAllocationsForMatches } from "@/lib/data";
-import { loadFixturesMeta, type FixtureMeta } from "@/lib/data/publicFixtureMeta";
+import { loadFixturesMeta, loadByes, type FixtureMeta } from "@/lib/data/publicFixtureMeta";
 import { defaultYear, resolveRound, selectMatches } from "@/lib/competitions/fixtureView";
 import { getLiveStandingsDivision } from "@/lib/data/liveStandings";
 import type { Match } from "@/types";
+import type { ByeItem } from "@/components/matches/ByeRow";
 
 export const dynamic = "force-dynamic";
 
@@ -48,10 +49,11 @@ export default async function MatchesPage({
   const scIds = allDivisions ? inYear.map((d) => d.id) : single ? [single.seasonCompetitionId] : [];
   const divisionId = allDivisions ? "all" : single?.seasonCompetitionId ?? "";
 
-  const [metas, matchSets, roundSets] = await Promise.all([
+  const [metas, matchSets, roundSets, byeSets] = await Promise.all([
     Promise.all(scIds.map((id) => loadFixturesMeta(id))),
     Promise.all(scIds.map((id) => filterMatches({ seasonCompetitionId: id }) as unknown as Promise<Match[]>)),
     Promise.all(scIds.map((id) => getRoundsForSeasonCompetition(id))),
+    Promise.all(scIds.map((id) => loadByes(id))),
   ]);
   const fixtures: FixtureMeta[] = metas.flatMap((m) => m.fixtures);
   const clubLabelById = new Map<string, string>(), teamLabelById = new Map<string, string>();
@@ -84,6 +86,25 @@ export default async function MatchesPage({
   const resolved = resolveRound(roundChoice, scoped, now);
   const picked = selectMatches(scoped, resolved);
   const matches = status === "fixtures" ? picked.filter((m) => !isResult(m) && m.status === "Scheduled") : status === "results" ? picked.filter(isResult) : picked;
+  // Odd-sized divisions: "Team v bye" for each team resting in a round that is on show (not on Results, which lists played matches).
+  const byeItems: ByeItem[] = [];
+  if (status !== "results") {
+    scIds.forEach((id, i) => {
+      const shown = new Set(selectMatches(matchSets[i], resolved).map((m) => Number(m.round)));
+      const played = new Set(matchSets[i].map((m) => Number(m.round)));
+      for (const [r, list] of Object.entries(byeSets[i])) {
+        const round = Number(r);
+        if (!played.has(round) || (resolved.kind !== "all" && !shown.has(round))) continue;
+        for (const b of list) {
+          const fx = fixtures.find((f) => f.homeTeamId === b.teamId || f.awayTeamId === b.teamId);
+          const clubOfTeam = fx ? (fx.homeTeamId === b.teamId ? fx.homeClubId : fx.awayClubId) : undefined;
+          if (myOnly ? !myTeamIds.includes(b.teamId) : teamId ? b.teamId !== teamId : clubId ? clubOfTeam !== clubId : false) continue;
+          const sample = matchSets[i].find((m) => m.homeTeamId === b.teamId || m.awayTeamId === b.teamId);
+          byeItems.push({ key: `bye-${id}-${round}-${b.teamId}`, round, division: divisions.find((d) => d.id === id)?.name, teamName: b.name, icon: sample ? (sample.homeTeamId === b.teamId ? sample.homeTeamIcon : sample.awayTeamIcon) : undefined });
+        }
+      }
+    });
+  }
   const umpireAllocations = await resolveUmpireAllocationsForMatches(matches);
   const standings = single ? await getLiveStandingsDivision(single.seasonCompetitionId) : null;
 
@@ -126,8 +147,8 @@ export default async function MatchesPage({
 
       <div className={`mt-6 grid grid-cols-1 items-start gap-8 ${showStandings ? "lg:grid-cols-[minmax(0,1fr)_minmax(320px,400px)]" : ""}`}>
         <div className="min-w-0">
-          {matches.length > 0 ? (
-            <SpoilerFreeMatchList matches={matches} isUpcoming={status !== "results"} defaultSpoilerFree={params.spoiler === "1"} stats={statsData} umpireAllocations={umpireAllocations} umpireList={umpireList} showDivision={allDivisions} />
+          {matches.length > 0 || byeItems.length > 0 ? (
+            <SpoilerFreeMatchList matches={matches} isUpcoming={status !== "results"} defaultSpoilerFree={params.spoiler === "1"} stats={statsData} umpireAllocations={umpireAllocations} umpireList={umpireList} showDivision={allDivisions} byes={byeItems} />
           ) : (
             <div className="rounded-3xl bg-white p-8 text-center text-slate-500">
               <p className="text-sm">No matches found for these filters.</p>

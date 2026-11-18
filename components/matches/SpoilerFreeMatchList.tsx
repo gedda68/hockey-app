@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import type { Match, MatchStats, UmpireDetails } from "@/types";
 import MatchList from "@/components/matches/MatchList";
+import type { ByeItem } from "@/components/matches/ByeRow";
 
 export default function SpoilerFreeMatchList({
   matches,
@@ -12,6 +13,7 @@ export default function SpoilerFreeMatchList({
   umpireAllocations,
   umpireList,
   showDivision,
+  byes,
 }: {
   matches: Match[];
   isUpcoming: boolean;
@@ -20,6 +22,7 @@ export default function SpoilerFreeMatchList({
   umpireAllocations?: Record<string, unknown>;
   umpireList?: UmpireDetails[];
   showDivision?: boolean;
+  byes?: ByeItem[];
 }) {
   const hasResults = useMemo(
     () =>
@@ -47,7 +50,7 @@ export default function SpoilerFreeMatchList({
         </div>
       ) : null}
 
-      <MatchList matches={matches} isUpcoming={isUpcoming} spoilerFree={spoilerFree} stats={stats} umpireAllocations={umpireAllocations} umpireList={umpireList} showDivision={showDivision} />
+      <MatchList matches={matches} isUpcoming={isUpcoming} spoilerFree={spoilerFree} stats={stats} umpireAllocations={umpireAllocations} umpireList={umpireList} showDivision={showDivision} byes={byes} />
     </div>
   );
 }
