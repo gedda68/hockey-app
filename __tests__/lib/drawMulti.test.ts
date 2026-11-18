@@ -80,3 +80,32 @@ describe("multi-division draw", () => {
     expect(plain.fixtures).toHaveLength(18);
   });
 });
+
+describe("different days, times and grounds", () => {
+  const sat = (id: string) => ({ ...div(id), dayOffset: 0, slotTimes: ["13:00", "14:45", "16:30"] });
+  const sun = (id: string) => ({ ...div(id), dayOffset: 1, slotTimes: ["12:00", "13:45", "15:30"] });
+  const grounds = [{ pitchId: "own", venueId: "East", venueName: "Easts" }, { pitchId: "s1", venueId: "Shared", venueName: "Shared 1" }, { pitchId: "s2", venueId: "Shared", venueName: "Shared 2" }, { pitchId: "uq", venueId: "UQ", venueName: "UQ" }];
+  const r = generateMultiDraw({ ...base, divisions: [sat("BHL1"), sat("BHL2"), sun("BHL4")], slotTimes: ["13:00"], pitches: grounds, bufferMinutes: 15 });
+  it("plays each division on its own day at its own time", () => {
+    const day = (id: string) => new Set(r.fixtures.filter((f) => f.divisionId === id).map((f) => new Date(f.date! + "T00:00:00Z").getUTCDay()));
+    expect([...day("BHL1")]).toEqual([6]); expect([...day("BHL4")]).toEqual([0]);
+    const first = r.fixtures.filter((f) => f.divisionId === "BHL4" && f.date === "2026-03-08").map((f) => f.start).sort()[0];
+    expect(first).toBe(new Date(Date.parse("2026-03-08T12:00:00+10:00")).toISOString());
+    expect(r.unplaced).toEqual([]);
+  });
+  it("only groups divisions that play on the same day", () => {
+    for (const f of r.fixtures.filter((x) => x.groupKey)) expect(f.divisionId).not.toBe("BHL4");
+  });
+  it("sends clubs without a ground to the shared pitches and clubs with one to their own", () => {
+    const own = base.divisions.map((d) => ({ ...d, teams: d.teams.map((t) => ({ ...t, homeVenueId: t.clubId === "East" ? "East" : t.clubId === "Souths" ? "UQ" : null })) }));
+    const x = generateMultiDraw({ ...base, divisions: own.slice(0, 2).map((d) => ({ ...d, dayOffset: 0, slotTimes: ["13:00", "14:45", "16:30"] })), slotTimes: ["13:00"], pitches: grounds, sharedVenueIds: ["Shared"], bufferMinutes: 15 });
+    expect(x.fixtures.filter((f) => f.venueId === "East").every((f) => f.homeTeamId.startsWith("East"))).toBe(true);
+    expect(x.fixtures.filter((f) => f.venueId === "UQ").every((f) => f.homeTeamId.startsWith("Souths"))).toBe(true);
+    expect(x.fixtures.filter((f) => f.homeTeamId.startsWith("Commercial") && f.venueId).every((f) => f.venueId === "Shared")).toBe(true);
+  });
+  it("supports more than two meetings and skips a blackout on either day", () => {
+    const t = generateMultiDraw({ ...base, divisions: [{ ...sat("A"), legs: 3 }, sun("B")], slotTimes: ["13:00"], blackoutDates: ["2026-03-15"], pitches: grounds, bufferMinutes: 15 });
+    expect(t.fixtures.filter((f) => f.divisionId === "A")).toHaveLength(18);
+    expect(t.roundDates[2]).toBe("2026-03-21");
+  });
+});
