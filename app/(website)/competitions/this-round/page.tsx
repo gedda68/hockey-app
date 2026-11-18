@@ -84,6 +84,7 @@ export default async function ThisRoundPage({
           rounds={rounds.filter((r) => r !== "All")} round={roundChoice}
           clubs={clubs} clubId={clubId} teams={teams} teamId={teamId} my={myOnly} canMy={myTeamIds.length > 0}
           myClubId={session?.clubId ? String(session.clubId) : null}
+          currentRound={resolved.kind === "round" ? resolved.round : null}
         />
 
         <div className="flex flex-wrap items-center gap-3">

@@ -18,6 +18,8 @@ export interface MatchDayFiltersProps {
   my: boolean;
   canMy: boolean;
   myClubId: string | null;
+  /** The round on show, when it is a single round (for the previous / next buttons). */
+  currentRound: string | null;
 }
 
 export default function MatchDayFilters(p: MatchDayFiltersProps) {
@@ -29,7 +31,9 @@ export default function MatchDayFilters(p: MatchDayFiltersProps) {
     router.push(`/competitions/this-round?${sp.toString()}`);
   };
   const cell = "flex min-w-0 flex-col gap-1";
-  const cap = "text-[10px] font-black uppercase tracking-widest text-slate-400";
+  const cap = "text-[10px] font-black uppercase tracking-widest text-slate-300";
+  const idx = p.currentRound ? p.rounds.indexOf(p.currentRound) : -1;
+  const step = "h-[46px] w-11 shrink-0 rounded-xl border border-white/15 bg-white/10 text-lg font-black text-white transition hover:bg-white/15 disabled:opacity-30 disabled:hover:bg-white/10";
   const inYear = p.divisions.filter((d) => d.season === p.year);
 
   const changeYear = (year: string) => {
@@ -44,22 +48,26 @@ export default function MatchDayFilters(p: MatchDayFiltersProps) {
   const only = (fn: (v: string) => void) => (v: string) => { if (v) fn(v); };
 
   return (
-    <div className="grid grid-cols-2 gap-3 rounded-2xl bg-white/95 p-4 shadow-lg md:grid-cols-3 xl:grid-cols-5">
-      <div className={cell}><span className={cap}>Year</span>
-        <TypeaheadSelect ariaLabel="Year" options={p.years.map((y) => ({ value: y, label: y }))} value={p.year} onChange={only(changeYear)} />
+    <div className="flex flex-wrap items-end gap-4">
+      <div className={`${cell} w-full sm:w-auto sm:min-w-[11rem]`}><span className={cap}>Year</span>
+        <TypeaheadSelect variant="dark" ariaLabel="Year" options={p.years.map((y) => ({ value: y, label: y }))} value={p.year} onChange={only(changeYear)} />
       </div>
-      <div className={cell}><span className={cap}>Division</span>
-        <TypeaheadSelect ariaLabel="Division" options={inYear.map((d) => ({ value: d.id, label: d.name }))} value={p.divisionId} onChange={only((v) => go({ seasonCompetitionId: v, round: "next", clubId: "", teamId: "", my: "" }))} />
+      <div className={`${cell} w-full sm:w-auto sm:min-w-[11rem]`}><span className={cap}>Division</span>
+        <TypeaheadSelect variant="dark" ariaLabel="Division" options={inYear.map((d) => ({ value: d.id, label: d.name }))} value={p.divisionId} onChange={only((v) => go({ seasonCompetitionId: v, round: "next", clubId: "", teamId: "", my: "" }))} />
       </div>
       <div className={cell}><span className={cap}>Round</span>
-        <TypeaheadSelect ariaLabel="Round" options={roundOptions} value={p.round} onChange={only((v) => go({ round: v }))} />
+        <div className="flex items-center gap-2">
+          <div className="min-w-[11rem] flex-1"><TypeaheadSelect variant="dark" ariaLabel="Round" options={roundOptions} value={p.round} onChange={only((v) => go({ round: v }))} /></div>
+          <button type="button" aria-label="Previous round" className={step} disabled={idx <= 0} onClick={() => go({ round: p.rounds[idx - 1] })}>‹</button>
+          <button type="button" aria-label="Next round" className={step} disabled={idx < 0 || idx >= p.rounds.length - 1} onClick={() => go({ round: p.rounds[idx + 1] })}>›</button>
+        </div>
       </div>
-      <div className={cell}><span className={cap}>Club</span>
-        <TypeaheadSelect ariaLabel="Club" options={clubOptions} value={p.my ? "__my" : p.clubId || "all"} onChange={(v) => (v === "__my" ? go({ my: "1", clubId: "", teamId: "" }) : go({ clubId: v === "all" ? "" : v, teamId: "", my: "" }))} placeholder="All clubs" />
+      <div className={`${cell} w-full sm:w-auto sm:min-w-[11rem]`}><span className={cap}>Club</span>
+        <TypeaheadSelect variant="dark" ariaLabel="Club" options={clubOptions} value={p.my ? "__my" : p.clubId || "all"} onChange={(v) => (v === "__my" ? go({ my: "1", clubId: "", teamId: "" }) : go({ clubId: v === "all" ? "" : v, teamId: "", my: "" }))} placeholder="All clubs" />
       </div>
       {p.clubId && p.teams.length > 1 ? (
-        <div className={cell}><span className={cap}>Team</span>
-          <TypeaheadSelect ariaLabel="Team" options={[{ value: "all", label: "All teams" }, ...p.teams.map((t) => ({ value: t.id, label: t.label }))]} value={p.teamId || "all"} onChange={(v) => go({ teamId: v === "all" ? "" : v })} placeholder="All teams" />
+        <div className={`${cell} w-full sm:w-auto sm:min-w-[11rem]`}><span className={cap}>Team</span>
+          <TypeaheadSelect variant="dark" ariaLabel="Team" options={[{ value: "all", label: "All teams" }, ...p.teams.map((t) => ({ value: t.id, label: t.label }))]} value={p.teamId || "all"} onChange={(v) => go({ teamId: v === "all" ? "" : v })} placeholder="All teams" />
         </div>
       ) : null}
     </div>
