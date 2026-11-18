@@ -20,7 +20,7 @@ import { SeasonCompetitionSchema, FinalsSeriesConfigSchema } from "../lib/db/sch
 import { buildPlan, cleanDrawInput, savePlan } from "../lib/draw/service";
 import { dayRange, queenslandHolidays } from "../lib/draw/holidays";
 import { finalsPlan, legsForTeams, placeFinals, slotText } from "../lib/draw/finals";
-import { matchTeams, toWindows, venuesByWords, type VenueDoc } from "../lib/draw/seasonSetup";
+import { matchTeams, toWindows, type VenueDoc } from "../lib/draw/seasonSetup";
 import { addDays } from "../lib/draw/time";
 
 const DB_NAME = process.env.DB_NAME || "hockey-app";
@@ -49,25 +49,27 @@ async function main() {
   for (const m of matches) if (m.problem) problems.push(`Team "${m.wanted.name}": ${m.problem}`);
 
   const venues = (await db.collection("association_venues").find({ associationId, status: "active" }).toArray()).map((v) => ({ venueId: String(v.venueId), name: String(v.name ?? ""), pitches: (v.pitches ?? []) as { pitchId: string; label?: string }[] })) as (VenueDoc & { pitches: { pitchId: string; label?: string }[] })[];
-  const shared = venuesByWords(venues, cfg.sharedVenueKeywords);
-  if (shared.length < cfg.sharedVenueKeywords.length) problems.push(`Shared grounds: found ${shared.map((v) => v.name).join(", ") || "none"} for ${cfg.sharedVenueKeywords.join(" / ")}`);
+  // Grounds are pitches: association_venues.pitches[].pitchId links them, and the label comes from the database.
+  const venueOfPitch = new Map<string, (typeof venues)[number]>();
+  for (const v of venues) for (const p of v.pitches) venueOfPitch.set(p.pitchId, v);
+  const needPitches = [...new Set<string>([...cfg.pitchIds, ...cfg.sharedPitchIds, ...Object.values<string>(cfg.clubHomePitchIds), ...cfg.finalsPitchIds])];
+  for (const id of needPitches) if (!venueOfPitch.has(id)) problems.push(`Pitch ${id} was not found on any active venue of this association`);
+  const shared = [...new Map(cfg.sharedPitchIds.flatMap((id: string) => (venueOfPitch.has(id) ? [[venueOfPitch.get(id)!.venueId, venueOfPitch.get(id)!] as const] : []))).values()];
   const homeVenueByClub: Record<string, string> = {};
-  const homeOverride = Object.fromEntries(arg("--home").map((m) => m.split("=") as [string, string]));
-  for (const [code, words] of Object.entries<string[]>(cfg.clubHomeVenueKeywords)) {
-    const v = homeOverride[code] ? venues.filter((x) => x.venueId === homeOverride[code]) : venuesByWords(venues, words);
-    const clubId = matches.find((m) => m.wanted.club === code)?.clubId;
-    if (v.length !== 1) problems.push(`Home ground for ${code}: ${v.length ? `${v.length} venues match (${v.map((x) => x.name).join(", ")}); choose with --home ${code}=<venueId>` : `no venue matches ${words.join(" / ")}; add it under the association's venues, or choose with --home ${code}=<venueId>`}`);
-    else if (clubId) homeVenueByClub[clubId] = v[0].venueId;
+  for (const [code, pitchId] of Object.entries<string>(cfg.clubHomePitchIds)) {
+    const clubId = matches.find((m) => m.wanted.club === code)?.clubId, v = venueOfPitch.get(pitchId);
+    if (clubId && v) homeVenueByClub[clubId] = v.venueId;
   }
-  const finalsVenues = venuesByWords(venues, cfg.finalsVenueKeywords);
-  const finalsPitches = (finalsVenues as (VenueDoc & { pitches: { pitchId: string; label?: string }[] })[]).flatMap((v) => v.pitches.map((p) => ({ pitchId: p.pitchId, venueId: v.venueId, venueName: `${v.name}${p.label ? ` · ${p.label}` : ""}`, addressLine: null })));
-  if (finalsPitches.length < 2) problems.push(`Finals need two pitches at ${cfg.finalsVenueKeywords.join(" / ")}; found ${finalsPitches.length}`);
+  const labelOf = (id: string) => venueOfPitch.get(id)?.pitches.find((p) => p.pitchId === id)?.label ?? id;
+  const finalsPitches = (cfg.finalsPitchIds as string[]).flatMap((id) => { const v = venueOfPitch.get(id); return v ? [{ pitchId: id, venueId: v.venueId, venueName: `${v.name} · ${labelOf(id)}`, addressLine: null }] : []; });
+  if (finalsPitches.length < 2) problems.push(`Finals need two pitches (${cfg.finalsPitchIds.join(", ")})`);
+  console.log("Grounds: " + (cfg.pitchIds as string[]).map((id) => `${id} = ${venueOfPitch.get(id) ? `${venueOfPitch.get(id)!.name} · ${labelOf(id)}` : "NOT FOUND"}`).join("; "));
 
   const holidays = queenslandHolidays(Number(cfg.season));
-  const labelOf = new Map(holidays.map((h) => [h.date, h.name] as const));
-  const stateDays = (cfg.stateTitles as string[][]).flatMap(([a, b, l]) => dayRange(a, b).map((d) => { labelOf.set(d, l); return d; }));
+  const dayLabel = new Map(holidays.map((h) => [h.date, h.name] as const));
+  const stateDays = (cfg.stateTitles as string[][]).flatMap(([a, b, l]) => dayRange(a, b).map((d) => { dayLabel.set(d, l); return d; }));
   const blackout = [...new Set([...holidays.map((h) => h.date), ...stateDays])].sort();
-  const windows = toWindows(blackout, (d) => labelOf.get(d) ?? "");
+  const windows = toWindows(blackout, (d) => dayLabel.get(d) ?? "");
 
   console.log(`Association ${associationId}: ${matches.filter((m) => m.teamId).length}/${matches.length} teams matched, ${shared.length} shared grounds, ${Object.keys(homeVenueByClub).length} club grounds, ${windows.length} blackout windows`);
   if (problems.length) { console.log("\nVenues on file for this association:\n" + (venues.map((v) => `   ${v.name} (${v.venueId}, ${v.pitches.length} pitch${v.pitches.length === 1 ? "" : "es"})`).join("\n") || "   none")); console.log("\nNeeds attention:\n - " + problems.join("\n - ")); if (apply) { console.log("\nNothing was written."); await client.close(); process.exit(1); } }
@@ -102,7 +104,7 @@ async function main() {
       dayOffset: (WEEKDAY[d.day] - startWeekday + 7) % 7, startTime: d.startTime, endTime: d.endTime, legs: legsForTeams(matches.filter((m) => m.wanted.division === d.name).length),
     })),
     startDate: cfg.startDate, roundGapDays: cfg.roundGapDays, slotTimes: [], slotMinutes: cfg.slotMinutes, bufferMinutes: cfg.bufferMinutes, blackoutDates: blackout,
-    homeVenueByClub, sharedVenueIds: shared.map((v) => v.venueId), alignClubs: true, suggestUmpires: false, replace: true,
+    homeVenueByClub, sharedVenueIds: shared.map((v) => (v as { venueId: string }).venueId), pitchIds: cfg.pitchIds, alignClubs: true, suggestUmpires: false, replace: true,
   };
   const input = cleanDrawInput(raw);
   if (!input.ok) throw new Error(input.error);

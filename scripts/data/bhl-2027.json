@@ -67,30 +67,6 @@
    "grandFinalDate": "2027-09-12"
   }
  ],
- "sharedVenueKeywords": [
-  "burringbar",
-  "state hockey centre"
- ],
- "finalsVenueKeywords": [
-  "burringbar"
- ],
- "clubHomeVenueKeywords": {
-  "EST": [
-   "easts",
-   "eastern suburbs"
-  ],
-  "UQH": [
-   "uq",
-   "university of queensland",
-   "university of qld"
-  ],
-  "RHC": [
-   "redcliffe"
-  ],
-  "LAB": [
-   "labrador"
-  ]
- },
  "teams": [
   {
    "name": "Eastern Suburbs BHL 1",
@@ -387,5 +363,31 @@
    "club": "NTH",
    "division": "BHL 7"
   }
+ ],
+ "pitchIds": [
+  "BUR1",
+  "BUR2",
+  "SHC1",
+  "SHC2",
+  "UQ4",
+  "EHTT",
+  "RED",
+  "LAB"
+ ],
+ "sharedPitchIds": [
+  "BUR1",
+  "BUR2",
+  "SHC1",
+  "SHC2"
+ ],
+ "clubHomePitchIds": {
+  "EST": "EHTT",
+  "UQH": "UQ4",
+  "RHC": "RED",
+  "LAB": "LAB"
+ },
+ "finalsPitchIds": [
+  "BUR1",
+  "BUR2"
  ]
 }
