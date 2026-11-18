@@ -9,7 +9,7 @@ import { ChevronDown, ChevronUp } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { useBrand } from "@/lib/contexts/BrandContext";
-import { recordPartnerStripClick } from "@/components/website/PartnerStripClickable";
+import { recordPartnerImpressions, recordPartnerStripClick } from "@/components/website/PartnerStripClickable";
 import type { SponsorGroup } from "@/lib/sponsors/groups";
 
 const KEY = "sponsor-bar-collapsed";
@@ -35,6 +35,12 @@ export default function SponsorBar() {
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scope, !!user]);
+
+  // Count the sponsors only while the bar is open and they can actually be seen.
+  useEffect(() => {
+    if (collapsed) return;
+    for (const g of groups) recordPartnerImpressions(g.scopeType, g.scopeId, g.partners.map((_, i) => i), "portal");
+  }, [groups, collapsed]);
 
   const toggle = () => {
     setCollapsed((c) => {
@@ -81,7 +87,7 @@ export default function SponsorBar() {
                     return (
                       <li key={`${p.name}-${slot}`} className="shrink-0">
                         {p.url ? (
-                          <a href={p.url} target="_blank" rel="noopener noreferrer" onPointerDown={() => recordPartnerStripClick(g.scopeType, g.scopeId, slot)} className="block opacity-90 transition hover:opacity-100">
+                          <a href={p.url} target="_blank" rel="noopener noreferrer" onPointerDown={() => recordPartnerStripClick(g.scopeType, g.scopeId, slot, "portal")} className="block opacity-90 transition hover:opacity-100">
                             {inner}
                           </a>
                         ) : inner}

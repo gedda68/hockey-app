@@ -887,6 +887,15 @@ export const menuConfig: MenuItem[] = [
     section: "personal",
   },
   {
+    label: "Sponsor reports",
+    href: "/admin/sponsor-report",
+    icon: "🤝",
+    description: "How often each sponsor's logo was shown and clicked, with a report to send them",
+    color: "from-emerald-500 to-emerald-600",
+    section: "directory",
+    allowedRoles: ["super-admin", "association-admin", "club-admin", "club-committee"],
+  },
+  {
     label: "Match votes",
     href: "/admin/match-votes",
     icon: "🗳️",
