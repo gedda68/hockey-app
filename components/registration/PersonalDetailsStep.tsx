@@ -3,6 +3,7 @@
 
 "use client";
 
+import { COUNTRIES, INDIGENOUS_OPTIONS, matchCountry } from "@/lib/members/demographics";
 import { useState, useEffect } from "react";
 import { User, ChevronRight, ChevronLeft } from "lucide-react";
 
@@ -54,6 +55,7 @@ export default function PersonalDetailsStep({
   const [errors, setErrors] = useState<Record<string, string>>({});
   // School and district (optional, for statistics)
   const [school, setSchool] = useState({ attends: false, name: "", district: "" });
+  const [demo, setDemo] = useState({ indigenousStatus: "", nationality: "" });
   const [schoolHints, setSchoolHints] = useState<string[]>([]);
   const [districtHints, setDistrictHints] = useState<string[]>([]);
   const hint = async (type: "school" | "district", q: string) => {
@@ -65,6 +67,9 @@ export default function PersonalDetailsStep({
 
   // Auto-fill from suggested data
   useEffect(() => {
+    if (suggestedData?.personalInfo) {
+      setDemo({ indigenousStatus: suggestedData.personalInfo.indigenousStatus || "", nationality: suggestedData.personalInfo.nationality || "" });
+    }
     if (suggestedData?.personalInfo?.school) {
       const sc = suggestedData.personalInfo.school;
       setSchool({ attends: sc.attends === true, name: sc.name || "", district: sc.district || "" });
@@ -151,6 +156,8 @@ export default function PersonalDetailsStep({
         gender: formData.gender,
         phone: formData.phone,
         mobile: formData.mobile,
+        indigenousStatus: demo.indigenousStatus,
+        nationality: matchCountry(demo.nationality) ?? "",
         school: school.attends ? { attends: true, name: school.name, district: school.district } : { attends: false },
       },
       address: {
@@ -344,6 +351,26 @@ export default function PersonalDetailsStep({
               placeholder="0400 123 456"
               className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-200 rounded-xl outline-none font-bold focus:ring-2 ring-yellow-400"
             />
+          </div>
+        </div>
+      </div>
+
+      {/* About you (optional) */}
+      <div className="bg-white rounded-[2rem] shadow-xl border border-slate-100 p-8 mb-6">
+        <h2 className="text-2xl font-black text-[#06054e] mb-2">About you</h2>
+        <p className="text-sm font-semibold text-slate-500 mb-4">Optional. This helps us plan programs and report to funders. It is never shown publicly and only appears in totals.</p>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <label htmlFor="indigenous-status" className="block mb-2"><span className="text-sm font-black uppercase text-slate-600">Are you of Aboriginal or Torres Strait Islander origin?</span></label>
+            <select id="indigenous-status" value={demo.indigenousStatus} onChange={(e) => setDemo((x) => ({ ...x, indigenousStatus: e.target.value }))} className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-200 rounded-xl outline-none font-bold focus:ring-2 ring-yellow-400">
+              <option value="">Choose…</option>
+              {INDIGENOUS_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
+          </div>
+          <div>
+            <label htmlFor="nationality" className="block mb-2"><span className="text-sm font-black uppercase text-slate-600">Nationality</span></label>
+            <input id="nationality" type="text" list="country-list" value={demo.nationality} autoComplete="off" onChange={(e) => setDemo((x) => ({ ...x, nationality: e.target.value }))} onBlur={() => setDemo((x) => ({ ...x, nationality: matchCountry(x.nationality) ?? "" }))} placeholder="Start typing a country" className="w-full px-4 py-3 bg-slate-50 border-2 border-slate-200 rounded-xl outline-none font-bold focus:ring-2 ring-yellow-400" />
+            <datalist id="country-list">{COUNTRIES.map((c) => <option key={c} value={c} />)}</datalist>
           </div>
         </div>
       </div>

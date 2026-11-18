@@ -7,6 +7,7 @@ import clientPromise from "@/lib/mongodb";
 import type { FeeLineItem } from "@/types/registration";
 import { sendEmail } from "@/lib/email/client";
 import { cleanSchool } from "@/lib/members/school";
+import { cleanDemographics } from "@/lib/members/demographics";
 import { buildRegistrationConfirmationEmail } from "@/lib/email/templates/registrationConfirmation";
 
 // ============================================================================
@@ -137,6 +138,7 @@ export async function POST(request: NextRequest) {
               gender: payload.personalInfo.gender,
               photoUrl: null,
               ...(cleanSchool(payload.personalInfo?.school) ? { school: cleanSchool(payload.personalInfo?.school) } : {}),
+              ...cleanDemographics(payload.personalInfo),
             },
 
             contact: {
@@ -190,6 +192,7 @@ export async function POST(request: NextRequest) {
             updateData["preferences.shirtSize"] = payload.shirtSize;
           const school = cleanSchool(payload.personalInfo?.school);
           if (school) updateData["personalInfo.school"] = school;
+          for (const [k, v] of Object.entries(cleanDemographics(payload.personalInfo))) updateData[`personalInfo.${k}`] = v;
 
           await db
             .collection("members")
