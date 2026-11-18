@@ -15,6 +15,7 @@ import { logDelivery } from "@/lib/notifications/deliveryLog";
 import { surveyCandidates, type SurveyInviteLike } from "@/lib/surveys/candidates";
 import { rsvpCandidates, type RsvpPendingLike } from "@/lib/rsvp/candidates";
 import { matchStartMs } from "@/lib/rsvp/logic";
+import { shiftCandidates, type MyShiftLike } from "@/lib/volunteers/candidates";
 import {
   announcementCandidates, approvalCandidates, eventCandidates, matchCandidates, nominationCandidates,
   type AnnouncementLike, type Candidate, type EventLike, type FixtureLike, type WaitingOnMe, type WindowLike,
@@ -23,7 +24,7 @@ import {
 export const COLLECTION = "member_notifications";
 export const REFRESH_MINUTES = 10;
 /** Categories whose notifications go away by themselves once the thing is done (nominated, accepted…). */
-const SELF_RESOLVING = ["approvals", "nominations", "announcements", "surveys", "availability"];
+const SELF_RESOLVING = ["approvals", "nominations", "announcements", "surveys", "availability", "volunteering"];
 
 const DAY = 86400000;
 
@@ -162,6 +163,17 @@ export async function gatherCandidates(db: Db, memberId: string, now: Date): Pro
       rows.push({ requestId: String(r.requestId), inviteId: String(i.inviteId), title: String(r.title), teamName: String(r.teamName ?? "Your team"), matchDate: String(r.matchDate), startsAt: r.startsAt ?? null, status: String(r.status), matchStartMs: matchStartMs({ matchDate: String(r.matchDate), startsAt: r.startsAt ?? null }), ...(String(i.playerId) !== memberId ? { forChild: String(i.playerName ?? "your child").split(" ")[0] } : {}) });
     }
     out.push(...rsvpCandidates(rows, now));
+  }
+
+  // Volunteer shifts I'm on in the next few days.
+  const mySignups = await db.collection("volunteer_signups").find({ memberId, status: { $in: ["confirmed", "swap_requested"] } }, { projection: { signupId: 1, shiftId: 1, status: 1 } }).limit(100).toArray();
+  if (mySignups.length) {
+    const day0 = dayInZone(now) as string, day4 = dayInZone(new Date(now.getTime() + 4 * DAY)) as string;
+    const shifts = await db.collection("volunteer_shifts").find({ shiftId: { $in: mySignups.map((x) => String(x.shiftId)) }, status: "open", date: { $gte: day0, $lte: day4 } }, { projection: { shiftId: 1, date: 1, startTime: 1, endTime: 1, slots: 1, status: 1, label: 1, clubId: 1 } }).toArray();
+    const by = new Map(shifts.map((sh: any) => [String(sh.shiftId), sh]));
+    const rows: MyShiftLike[] = [];
+    for (const su of mySignups) { const sh: any = by.get(String(su.shiftId)); if (sh) rows.push({ shiftId: String(sh.shiftId), date: sh.date, startTime: sh.startTime, endTime: sh.endTime, slots: sh.slots, status: sh.status, label: String(sh.label), clubId: sh.clubId, signupId: String(su.signupId), needsCover: su.status === "swap_requested" }); }
+    out.push(...shiftCandidates(rows, now));
   }
 
   const contact = (member.contact ?? {}) as Record<string, unknown>;

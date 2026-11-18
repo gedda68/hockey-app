@@ -870,6 +870,23 @@ export const menuConfig: MenuItem[] = [
     allowedRoles: ["super-admin", "association-admin", "club-admin", "club-committee", "coach", "manager"],
   },
   {
+    label: "Volunteer shifts",
+    href: "/admin/volunteer-shifts",
+    icon: "🧑‍🍳",
+    description: "Canteen, scoring and ground set-up shifts: sign-ups, swaps and reminders",
+    color: "from-orange-400 to-orange-500",
+    section: "directory",
+    allowedRoles: ["super-admin", "association-admin", "club-admin", "club-committee"],
+  },
+  {
+    label: "My Shifts",
+    href: "/admin/my-shifts",
+    icon: "🙌",
+    description: "Sign up for canteen, scoring and set-up, and swap if you can't make it",
+    color: "from-orange-300 to-orange-400",
+    section: "personal",
+  },
+  {
     label: "My Availability",
     href: "/admin/my-availability",
     icon: "🗓️",
