@@ -96,6 +96,17 @@ export default async function MatchesPage({
         />
       </div>
 
+      {scId && (
+        <div className="mt-4 flex flex-wrap gap-2">
+          {[["Download this view (.xlsx)", roundChoice, true], ["Download whole season", "all", roundChoice !== "all"]].map(([label, round, show]) => show ? (
+            <a key={String(label)} className="rounded-full bg-white px-4 py-2 text-[10px] font-black uppercase tracking-widest text-slate-700 shadow-lg hover:bg-slate-100"
+              href={`/api/public/competitions/fixtures-export?${new URLSearchParams({ seasonCompetitionId: scId, round: String(round), view: selectedView, ...(selectedStatus !== "All" && label !== "Download whole season" ? { status: selectedStatus } : {}), ...(clubId ? { clubId } : {}), ...(teamId ? { teamId } : {}) }).toString()}`}>{label}</a>
+          ) : null)}
+          {clubId && <a className="rounded-full bg-white px-4 py-2 text-[10px] font-black uppercase tracking-widest text-slate-700 shadow-lg hover:bg-slate-100"
+            href={`/api/public/competitions/fixtures-export?${new URLSearchParams({ season: year, round: "all", view: selectedView, clubId }).toString()}`}>{clubLabelById.get(clubId) ?? "Club"}: all divisions {year}</a>}
+        </div>
+      )}
+
       <div className="mt-8 grid grid-cols-1 items-start gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(320px,400px)]">
         <div className="min-w-0">
           {filteredMatchesFinal.length > 0 ? (
