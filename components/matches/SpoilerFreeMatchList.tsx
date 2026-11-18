@@ -1,17 +1,25 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import type { Match } from "@/types";
+import type { Match, MatchStats, UmpireDetails } from "@/types";
 import MatchList from "@/components/matches/MatchList";
 
 export default function SpoilerFreeMatchList({
   matches,
   isUpcoming,
   defaultSpoilerFree = false,
+  stats,
+  umpireAllocations,
+  umpireList,
+  showDivision,
 }: {
   matches: Match[];
   isUpcoming: boolean;
   defaultSpoilerFree?: boolean;
+  stats?: Record<string, MatchStats | null | undefined>;
+  umpireAllocations?: Record<string, unknown>;
+  umpireList?: UmpireDetails[];
+  showDivision?: boolean;
 }) {
   const hasResults = useMemo(
     () =>
@@ -39,7 +47,7 @@ export default function SpoilerFreeMatchList({
         </div>
       ) : null}
 
-      <MatchList matches={matches} isUpcoming={isUpcoming} spoilerFree={spoilerFree} />
+      <MatchList matches={matches} isUpcoming={isUpcoming} spoilerFree={spoilerFree} stats={stats} umpireAllocations={umpireAllocations} umpireList={umpireList} showDivision={showDivision} />
     </div>
   );
 }

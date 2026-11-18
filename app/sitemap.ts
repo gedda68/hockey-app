@@ -15,7 +15,6 @@ const STATIC_PATHS = [
   "/competitions/standings",
   "/competitions/events",
   "/competitions/statistics",
-  "/competitions/this-round",
   "/competitions/leagues",
   "/tournaments",
   "/representative",

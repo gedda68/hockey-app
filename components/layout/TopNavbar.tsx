@@ -39,7 +39,7 @@ const navItems = [
       { name: "Leagues", href: "/competitions/leagues" },
       { name: "Awards", href: "/competitions/awards" },
       { name: "Tournaments", href: "/tournaments" },
-      { name: "Fixtures", href: "/competitions/matches" },
+      { name: "Matches", href: "/competitions/matches" },
       { name: "Ladder", href: "/competitions/standings" },
       { name: "Calendar", href: "/competitions/events" },
       { name: "Umpire allocations", href: "/competitions/officials" },

@@ -16,10 +16,10 @@ export async function sendWeeklyFanTipsEmail(to: string, displayName: string): P
       <p>Hi ${escapeHtml(displayName)},</p>
       <p>Here are a few quick tips to get the most from the portal:</p>
       ${TIPS_HTML}
-      <p><a href="${APP_URL}/competitions/my-fixtures">Open My fixtures</a> · <a href="${APP_URL}/competitions/this-round">This round</a></p>
+      <p><a href="${APP_URL}/competitions/my-fixtures">Open My fixtures</a> · <a href="${APP_URL}/competitions/matches">Matches</a></p>
       <p style="color:#666;font-size:12px">You are receiving this because weekly tips are enabled on your fan preferences. You can turn this off in My fixtures.</p>
     `,
-    text: `Hi ${displayName}. Weekly tips: visit ${APP_URL}/competitions/my-fixtures and ${APP_URL}/competitions/this-round`,
+    text: `Hi ${displayName}. Weekly tips: visit ${APP_URL}/competitions/my-fixtures and ${APP_URL}/competitions/matches`,
   });
   return r.success;
 }

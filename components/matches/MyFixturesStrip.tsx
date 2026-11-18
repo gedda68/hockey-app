@@ -30,8 +30,8 @@ export default async function MyFixturesStrip({
   if (scope?.clubId) matchDayQs.set("clubId", scope.clubId);
   const matchDayHref =
     matchDayQs.toString().length > 0
-      ? `/competitions/this-round?${matchDayQs.toString()}`
-      : "/competitions/this-round";
+      ? `/competitions/matches?${matchDayQs.toString()}`
+      : "/competitions/matches";
 
   return (
     <section className="mt-10 rounded-3xl border border-white/10 bg-white/5 p-5">
