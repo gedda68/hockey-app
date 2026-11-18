@@ -10,7 +10,7 @@
 export const LEVELS = ["global", "association", "club", "personal"] as const;
 export type Level = (typeof LEVELS)[number];
 
-export const CATEGORIES = ["matches", "nominations", "events", "membership", "approvals", "announcements", "surveys"] as const;
+export const CATEGORIES = ["matches", "nominations", "events", "membership", "approvals", "announcements", "surveys", "availability"] as const;
 export type Category = (typeof CATEGORIES)[number];
 
 export const CHANNELS = ["inApp", "email", "sms", "social"] as const;
@@ -34,6 +34,7 @@ export const CATEGORY_LABELS: Record<Category, { label: string; hint: string }> 
   approvals: { label: "Invitations & approvals", hint: "Role invitations and approvals waiting for you" },
   announcements: { label: "Announcements", hint: "Messages written by your club, association or the national body" },
   surveys: { label: "Surveys", hint: "Questions from your team, club or association that need your answer" },
+  availability: { label: "Match availability", hint: "Your coach or manager asking whether you can play" },
 };
 
 export const CHANNEL_LABELS: Record<Channel, string> = { inApp: "In the app", email: "Email", sms: "SMS", social: "WhatsApp" };

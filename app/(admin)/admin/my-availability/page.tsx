@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { Loader2, Trash2 } from "lucide-react";
 
 import PageHeader from "@/components/admin/PageHeader";
+import MyRequests from "@/components/rsvp/MyRequests";
 interface Entry { availabilityId: string; kind: "unavailable" | "available"; from: string; to: string; note?: string }
 
 const inputCls = "w-full rounded-xl border-2 border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-800 outline-none focus:border-teal-400";
@@ -53,7 +54,9 @@ export default function MyAvailabilityPage() {
 
   return (
     <div className="mx-auto max-w-3xl space-y-6 p-6">
-      <PageHeader eyebrow="Personal" title="My availability" subtitle="Mark dates you can't make it, so selectors, coaches and officials allocators know." />
+      <PageHeader eyebrow="Personal" title="My availability" subtitle="Answer match requests from your coach, and mark dates you can't make it." />
+
+      <MyRequests />
 
       <div className="space-y-4 rounded-2xl border-2 border-slate-100 bg-white p-5 shadow-sm">
         <div className="grid gap-4 sm:grid-cols-3">

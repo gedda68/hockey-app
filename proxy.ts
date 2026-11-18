@@ -88,6 +88,7 @@ function isPublicPath(path: string): boolean {
     "/nominate",
     "/nomination-status",
     "/survey",
+    "/rsvp",
     "/clubs",
     "/officials",
     "/news",

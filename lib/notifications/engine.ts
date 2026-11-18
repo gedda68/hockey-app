@@ -13,6 +13,8 @@ import { allows, mergePrefs, type NotificationPrefs } from "@/lib/notifications/
 import { dispatchExtraChannels } from "@/lib/notifications/channels";
 import { logDelivery } from "@/lib/notifications/deliveryLog";
 import { surveyCandidates, type SurveyInviteLike } from "@/lib/surveys/candidates";
+import { rsvpCandidates, type RsvpPendingLike } from "@/lib/rsvp/candidates";
+import { matchStartMs } from "@/lib/rsvp/logic";
 import {
   announcementCandidates, approvalCandidates, eventCandidates, matchCandidates, nominationCandidates,
   type AnnouncementLike, type Candidate, type EventLike, type FixtureLike, type WaitingOnMe, type WindowLike,
@@ -21,7 +23,7 @@ import {
 export const COLLECTION = "member_notifications";
 export const REFRESH_MINUTES = 10;
 /** Categories whose notifications go away by themselves once the thing is done (nominated, accepted…). */
-const SELF_RESOLVING = ["approvals", "nominations", "announcements", "surveys"];
+const SELF_RESOLVING = ["approvals", "nominations", "announcements", "surveys", "availability"];
 
 const DAY = 86400000;
 
@@ -146,6 +148,20 @@ export async function gatherCandidates(db: Db, memberId: string, now: Date): Pro
       onBehalfOf: pending.find((p) => String(p.surveyId) === String(sv.surveyId))?.onBehalfOf?.name,
     }));
     out.push(...surveyCandidates(forms, now));
+  }
+
+  // "Can you play?" requests from my coach or manager (or for my children, as their parent).
+  const rsvpInvites = await db.collection("rsvp_invites").find({ notify: memberId, status: "pending" }, { projection: { inviteId: 1, requestId: 1, playerId: 1, playerName: 1, notify: 1 } }).limit(50).toArray();
+  if (rsvpInvites.length) {
+    const reqs = await db.collection("rsvp_requests").find({ requestId: { $in: rsvpInvites.map((i) => String(i.requestId)) }, status: "open" }, { projection: { requestId: 1, title: 1, teamName: 1, matchDate: 1, startsAt: 1, status: 1 } }).toArray();
+    const byId = new Map(reqs.map((r: any) => [String(r.requestId), r]));
+    const rows: RsvpPendingLike[] = [];
+    for (const i of rsvpInvites) {
+      const r: any = byId.get(String(i.requestId));
+      if (!r) continue;
+      rows.push({ requestId: String(r.requestId), inviteId: String(i.inviteId), title: String(r.title), teamName: String(r.teamName ?? "Your team"), matchDate: String(r.matchDate), startsAt: r.startsAt ?? null, status: String(r.status), matchStartMs: matchStartMs({ matchDate: String(r.matchDate), startsAt: r.startsAt ?? null }), ...(String(i.playerId) !== memberId ? { forChild: String(i.playerName ?? "your child").split(" ")[0] } : {}) });
+    }
+    out.push(...rsvpCandidates(rows, now));
   }
 
   const contact = (member.contact ?? {}) as Record<string, unknown>;
