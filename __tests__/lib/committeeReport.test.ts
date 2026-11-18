@@ -96,6 +96,12 @@ describe("officials, schools and clubs", () => {
     expect(both.school.districts).toEqual([{ label: "Brisbane North", count: 2 }]);
     expect(both.school.youngCoverage).toBe(100);
   });
+  it("counts players by school and district, split by gender", () => {
+    const x = buildCommitteeReport({ regs: [reg("a", "2026", ["player"]), reg("b", "2026", ["player"]), reg("d", "2026", ["coach"])], people, season: "2026" });
+    expect(x.schoolPlayers.districts).toEqual([expect.objectContaining({ label: "Brisbane North", total: 2, Female: 1, Male: 1 })]);
+    expect(x.schoolPlayers.schools[0]).toMatchObject({ total: 2, Female: 1, Male: 1, district: "Brisbane North" });
+    expect(x.schoolPlayers.recorded).toBe(2);
+  });
   it("compares clubs", () => {
     expect(r.clubs.find((c) => c.clubId === "c2")).toMatchObject({ name: "Eagles", people: 2, previous: 1, retained: 1, rate: 100 });
   });
