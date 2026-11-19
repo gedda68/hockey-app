@@ -1,4 +1,9 @@
-// A ranked stats table (real data). Server-safe: no client state.
+"use client";
+// A ranked stats table (real data), ten rows a page; each table pages on its own.
+import { useState } from "react";
+
+const PAGE_SIZE = 10;
+
 export interface StatsColumn { key: string; label: string; align?: "left" | "right" }
 export interface StatsRowData { id: string; cells: Record<string, string | number>; sub?: string; icon?: { src?: string; alt: string } }
 
@@ -11,6 +16,12 @@ function ClubIcon({ src, alt }: { src?: string; alt: string }) {
 }
 
 export default function StatsTable({ title, columns, rows, empty = "No results recorded yet." }: { title: string; columns: StatsColumn[]; rows: StatsRowData[]; empty?: string }) {
+  const [page, setPage] = useState(0);
+  const pages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
+  const cur = Math.min(page, pages - 1); // the list can shrink when filters change
+  const start = cur * PAGE_SIZE;
+  const shown = rows.slice(start, start + PAGE_SIZE);
+  const btn = "rounded-lg border border-slate-200 px-3 py-1 text-[11px] font-black uppercase tracking-wider text-[#06054e] enabled:hover:bg-slate-100 disabled:opacity-30";
   return (
     <section className="rounded-3xl bg-white p-5 shadow-lg">
       <h3 className="mb-3 border-b-2 border-slate-200 pb-3 text-base font-black uppercase italic text-[#06054e]">{title}</h3>
@@ -28,7 +39,7 @@ export default function StatsTable({ title, columns, rows, empty = "No results r
               </tr>
             </thead>
             <tbody>
-              {rows.map((r, i) => (
+              {shown.map((r, j) => { const i = start + j; return (
                 <tr key={r.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50">
                   <td className={`py-2.5 font-black ${i === 0 ? "text-yellow-500" : i === 1 ? "text-slate-400" : i === 2 ? "text-amber-600" : "text-slate-600"}`}>{i + 1}</td>
                   {columns.map((c, ci) => (
@@ -42,9 +53,19 @@ export default function StatsTable({ title, columns, rows, empty = "No results r
                     </td>
                   ))}
                 </tr>
-              ))}
+              ); })}
             </tbody>
           </table>
+        </div>
+      )}
+      {rows.length > PAGE_SIZE && (
+        <div className="mt-3 flex items-center justify-between gap-2 border-t border-slate-100 pt-3">
+          <span className="text-[11px] font-bold text-slate-400">{start + 1}–{start + shown.length} of {rows.length}</span>
+          <div className="flex items-center gap-2">
+            <button type="button" className={btn} disabled={cur === 0} onClick={() => setPage(cur - 1)} aria-label={`Previous page of ${title}`}>Prev</button>
+            <span className="text-[11px] font-bold text-slate-500">{cur + 1} / {pages}</span>
+            <button type="button" className={btn} disabled={cur >= pages - 1} onClick={() => setPage(cur + 1)} aria-label={`Next page of ${title}`}>Next</button>
+          </div>
         </div>
       )}
     </section>

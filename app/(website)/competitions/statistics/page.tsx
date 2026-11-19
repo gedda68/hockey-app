@@ -45,7 +45,7 @@ export default async function StatisticsPage({ searchParams }: { searchParams: P
   const { summary } = stats;
 
   const playerRows = (sorted: typeof stats.players, cells: (p: (typeof stats.players)[number]) => Record<string, string | number>): StatsRowData[] =>
-    sorted.slice(0, 25).map((p) => ({ id: p.memberId, cells: { name: nameOf(p.memberId), ...cells(p) }, sub: club(p.clubId), icon: { src: clubLogo.get(p.clubId), alt: club(p.clubId) || nameOf(p.memberId) } }));
+    sorted.map((p) => ({ id: p.memberId, cells: { name: nameOf(p.memberId), ...cells(p) }, sub: club(p.clubId), icon: { src: clubLogo.get(p.clubId), alt: club(p.clubId) || nameOf(p.memberId) } }));
   const byName = (a: { memberId: string }, b: { memberId: string }) => nameOf(a.memberId).localeCompare(nameOf(b.memberId));
   const scorers = [...stats.players].filter((p) => p.goals > 0).sort((a, b) => b.goals - a.goals || a.matches - b.matches || byName(a, b));
   const assisters = [...stats.players].filter((p) => p.assists > 0).sort((a, b) => b.assists - a.assists || byName(a, b));
