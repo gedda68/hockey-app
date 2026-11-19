@@ -1,6 +1,14 @@
 // A ranked stats table (real data). Server-safe: no client state.
 export interface StatsColumn { key: string; label: string; align?: "left" | "right" }
-export interface StatsRowData { id: string; cells: Record<string, string | number>; sub?: string }
+export interface StatsRowData { id: string; cells: Record<string, string | number>; sub?: string; icon?: { src?: string; alt: string } }
+
+function ClubIcon({ src, alt }: { src?: string; alt: string }) {
+  if (src) {
+    // eslint-disable-next-line @next/next/no-img-element
+    return <img src={src} alt={alt} className="h-8 w-8 shrink-0 rounded-full bg-slate-100 object-contain" />;
+  }
+  return <span aria-hidden className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#06054e] text-[10px] font-black text-yellow-200">{alt.trim().slice(0, 2).toUpperCase() || "?"}</span>;
+}
 
 export default function StatsTable({ title, columns, rows, empty = "No results recorded yet." }: { title: string; columns: StatsColumn[]; rows: StatsRowData[]; empty?: string }) {
   return (
@@ -25,7 +33,12 @@ export default function StatsTable({ title, columns, rows, empty = "No results r
                   <td className={`py-2.5 font-black ${i === 0 ? "text-yellow-500" : i === 1 ? "text-slate-400" : i === 2 ? "text-amber-600" : "text-slate-600"}`}>{i + 1}</td>
                   {columns.map((c, ci) => (
                     <td key={c.key} className={`py-2.5 ${c.align === "left" ? "text-left" : "text-right font-bold text-[#06054e]"}`}>
-                      {ci === 0 ? (<><span className="font-bold text-[#06054e]">{r.cells[c.key]}</span>{r.sub && <span className="block text-[11px] font-normal text-slate-400">{r.sub}</span>}</>) : r.cells[c.key]}
+                      {ci === 0 ? (
+                        <div className="flex items-center gap-2.5">
+                          {r.icon && <ClubIcon src={r.icon.src} alt={r.icon.alt} />}
+                          <div className="min-w-0"><span className="font-bold text-[#06054e]">{r.cells[c.key]}</span>{r.sub && <span className="block text-[11px] font-normal text-slate-400">{r.sub}</span>}</div>
+                        </div>
+                      ) : r.cells[c.key]}
                     </td>
                   ))}
                 </tr>

@@ -24,6 +24,11 @@ describe("computeStats", () => {
     expect(m1).toMatchObject({ goals: 2, assists: 0, clubId: "c1" });
     expect(r.players.find((p) => p.memberId === "m2")).toMatchObject({ goals: 1, assists: 1 });
   });
+  it("splits goals into field, penalty corner and penalty stroke", () => {
+    const evs = [ev("a", "goal", "t1", "m1"), { ...ev("b", "goal", "t1", "m1"), notes: "Penalty Corner" }, ev("c", "penalty_stroke_goal", "t1", "m1")];
+    const m1 = computeStats([fx("g1", "t1", "t2", 3, 0, evs)], clubs, new Map()).players.find((p) => p.memberId === "m1")!;
+    expect(m1).toMatchObject({ goals: 3, fieldGoals: 1, corners: 1, strokes: 1 });
+  });
   it("builds team goals for/against and clean sheets", () => {
     const t1 = computeStats(data, clubs, new Map()).teams.find((t) => t.teamId === "t1")!;
     expect(t1).toMatchObject({ played: 1, wins: 1, gf: 3, ga: 0, cleanSheets: 1 });

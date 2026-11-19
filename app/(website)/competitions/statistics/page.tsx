@@ -28,7 +28,7 @@ export default async function StatisticsPage({ searchParams }: { searchParams: P
 
   const client = await clientPromise;
   const db = client.db(process.env.DB_NAME || "hockey-app");
-  const { fixtures, approvalBySc, clubByTeam, teamName, clubName } = await loadStatsScope(db, scope);
+  const { fixtures, approvalBySc, clubByTeam, teamName, clubName, clubLogo } = await loadStatsScope(db, scope);
 
   // Club choices come from the fixtures in scope; a club or player that isn't there is ignored.
   const clubIds = [...new Set(fixtures.flatMap((f) => [clubByTeam.get(f.homeTeamId), clubByTeam.get(f.awayTeamId)]).filter((x): x is string => Boolean(x)))];
@@ -45,13 +45,13 @@ export default async function StatisticsPage({ searchParams }: { searchParams: P
   const { summary } = stats;
 
   const playerRows = (sorted: typeof stats.players, cells: (p: (typeof stats.players)[number]) => Record<string, string | number>): StatsRowData[] =>
-    sorted.slice(0, 25).map((p) => ({ id: p.memberId, cells: { name: nameOf(p.memberId), ...cells(p) }, sub: club(p.clubId) }));
+    sorted.slice(0, 25).map((p) => ({ id: p.memberId, cells: { name: nameOf(p.memberId), ...cells(p) }, sub: club(p.clubId), icon: { src: clubLogo.get(p.clubId), alt: club(p.clubId) || nameOf(p.memberId) } }));
   const byName = (a: { memberId: string }, b: { memberId: string }) => nameOf(a.memberId).localeCompare(nameOf(b.memberId));
   const scorers = [...stats.players].filter((p) => p.goals > 0).sort((a, b) => b.goals - a.goals || a.matches - b.matches || byName(a, b));
   const assisters = [...stats.players].filter((p) => p.assists > 0).sort((a, b) => b.assists - a.assists || byName(a, b));
   const carded = [...stats.players].filter((p) => p.green + p.yellow + p.red > 0).sort((a, b) => b.red - a.red || b.yellow - a.yellow || b.green - a.green || byName(a, b));
   const teamRows: StatsRowData[] = stats.teams.map((t) => ({
-    id: t.teamId, sub: club(clubByTeam.get(t.teamId) ?? ""),
+    id: t.teamId, sub: club(clubByTeam.get(t.teamId) ?? ""), icon: { src: clubLogo.get(clubByTeam.get(t.teamId) ?? ""), alt: club(clubByTeam.get(t.teamId) ?? "") || (teamName.get(t.teamId) ?? "") },
     cells: { name: teamName.get(t.teamId) ?? t.teamId, p: t.played, w: t.wins, d: t.draws, l: t.losses, gf: t.gf, ga: t.ga, gd: t.gf - t.ga, cs: t.cleanSheets, avg: t.played ? (t.gf / t.played).toFixed(2) : "0.00" },
   }));
 
@@ -78,7 +78,7 @@ export default async function StatisticsPage({ searchParams }: { searchParams: P
 
         {category === "players" && (
           <div className="grid gap-6 lg:grid-cols-2">
-            <StatsTable title="Top scorers" columns={[{ key: "name", label: "Player", align: "left" }, { key: "m", label: "Games" }, { key: "g", label: "Goals" }]} rows={playerRows(scorers, (p) => ({ m: p.matches, g: p.goals }))} />
+            <StatsTable title="Top scorers" columns={[{ key: "name", label: "Player", align: "left" }, { key: "m", label: "Games" }, { key: "fg", label: "Field" }, { key: "pc", label: "Pen. corner" }, { key: "ps", label: "Pen. stroke" }, { key: "g", label: "Total" }, { key: "avg", label: "Goals / game" }]} rows={playerRows(scorers, (p) => ({ m: p.matches, fg: p.fieldGoals, pc: p.corners, ps: p.strokes, g: p.goals, avg: p.matches ? (p.goals / p.matches).toFixed(2) : "0.00" }))} />
             <StatsTable title="Top assists" columns={[{ key: "name", label: "Player", align: "left" }, { key: "m", label: "Games" }, { key: "a", label: "Assists" }]} rows={playerRows(assisters, (p) => ({ m: p.matches, a: p.assists }))} />
           </div>
         )}
