@@ -5,7 +5,8 @@ import { headers } from "next/headers";
 import clientPromise, { isMongoConnectionError } from "@/lib/mongodb";
 import TopNavbar from "./TopNavbar";
 import { clubPortalHomeUrl } from "@/lib/tenant/subdomainUrls";
-import { getRecentMatches } from "@/lib/data/matches";
+import { getCompletedMatches } from "@/lib/data/matches";
+import { buildTickerLines } from "@/lib/competitions/tickerLines";
 import type { TickerLine } from "@/components/website/home/HomeResultsTicker";
 import {
   resolvePortalSlugForRequest,
@@ -87,15 +88,7 @@ export default async function TopNavbarWrapper() {
       tenant?.kind === "association"
         ? { owningAssociationId: tenant.id }
         : undefined;
-    const recent = await getRecentMatches(24, matchOpts);
-    tickerLines = recent.map((m) => {
-      const hs = m.score?.home ?? "—";
-      const awayScr = m.score?.away ?? "—";
-      return {
-        key: m.matchId,
-        text: `${m.division} · ${m.homeTeam.name} ${hs}–${awayScr} ${m.awayTeam.name}`,
-      };
-    });
+    tickerLines = buildTickerLines(await getCompletedMatches(matchOpts), 24);
   } catch (error) {
     const tag = isMongoConnectionError(error)
       ? "[TopNavbarWrapper] MongoDB unavailable; rendering minimal navbar."
