@@ -67,14 +67,13 @@ export default async function LeagueHubPage({ params }: Props) {
               </p>
             )}
           </div>
-        </div>
-
-        <div className="mt-6 max-w-xl">
-          <LeagueSwitcher leagues={switcher} currentId={seasonCompetitionId} />
+          <div className="w-full sm:w-96">
+            <LeagueSwitcher leagues={switcher} currentId={seasonCompetitionId} />
+          </div>
         </div>
 
         <div className="mt-8 grid gap-6">
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-3">
             <HubCard href={`/competitions/matches?${q}`} title="Matches" subtitle="Next round, fixtures, results" />
             <HubCard href={`/competitions/standings?${q}`} title="Standings" subtitle="Ladder & tie-breakers" />
             <HubCard
@@ -92,25 +91,17 @@ export default async function LeagueHubPage({ params }: Props) {
   );
 }
 
-function HubCard({
-  href,
-  title,
-  subtitle,
-}: {
-  href: string;
-  title: string;
-  subtitle: string;
-}) {
+function HubCard({ href, title, subtitle }: { href: string; title: string; subtitle: string }) {
   return (
     <Link
       href={href}
-      className="block rounded-2xl border border-white/10 bg-[#06054e]/90 p-5 shadow-lg transition-transform active:scale-[0.99] sm:hover:-translate-y-0.5 sm:hover:border-yellow-400/30"
+      className="flex items-center justify-between gap-4 rounded-2xl border border-white/10 bg-[#06054e]/90 px-6 py-5 shadow-lg transition-transform active:scale-[0.99] sm:hover:border-yellow-400/30"
     >
-      <h2 className="text-lg font-bold text-white">{title}</h2>
-      <p className="mt-1 text-xs text-white/55">{subtitle}</p>
-      <span className="mt-3 inline-block text-[10px] font-black uppercase tracking-widest text-yellow-200">
-        Open →
-      </span>
+      <div className="min-w-0">
+        <h2 className="text-lg font-bold text-white">{title}</h2>
+        <p className="mt-1 text-xs text-white/55">{subtitle}</p>
+      </div>
+      <span className="shrink-0 text-[10px] font-black uppercase tracking-widest text-yellow-200">Open →</span>
     </Link>
   );
 }
