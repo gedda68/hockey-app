@@ -1,7 +1,8 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { PublicLeagueRow } from "@/lib/public/publicLeagues";
 
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 vi.mock("@/lib/public/publicLeagues", () => ({ listPublicLeagues: vi.fn() }));
 
 import { listPublicLeagues } from "@/lib/public/publicLeagues";
@@ -38,9 +39,28 @@ describe("/competitions/leagues", () => {
   beforeEach(() => {
     vi.mocked(listPublicLeagues).mockResolvedValue(ROWS);
   });
+  afterEach(() => vi.useRealTimers());
 
-  it("lists every league when no filter is set", async () => {
+  it("opens on the current year by default", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-06-01T00:00:00Z"));
     const html = await render();
+    expect(html).toContain("sc-qld-26");
+    expect(html).toContain("sc-nsw-26");
+    expect(html).not.toContain("sc-qld-25");
+    expect(html).toContain("Showing 2 of 3 leagues");
+  });
+
+  it("moves to the next year with leagues when the current year has none", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2024-06-01T00:00:00Z"));
+    const html = await render();
+    expect(html).toContain("sc-qld-25");
+    expect(html).not.toContain("sc-qld-26");
+  });
+
+  it("lists every league for all years", async () => {
+    const html = await render({ season: "all" });
     expect(html).toContain("QLD Premier");
     expect(html).toContain("NSW Premier");
     expect(html).toContain("Showing 3 of 3 leagues");
@@ -48,7 +68,7 @@ describe("/competitions/leagues", () => {
   });
 
   it("filters by state and says so", async () => {
-    const html = await render({ state: "QLD" });
+    const html = await render({ season: "all", state: "QLD" });
     expect(html).toContain("sc-qld-26");
     expect(html).toContain("sc-qld-25");
     expect(html).not.toContain("sc-nsw-26");
@@ -56,42 +76,37 @@ describe("/competitions/leagues", () => {
     expect(html).toContain("Clear filters");
   });
 
-  it("combines filters (season AND state)", async () => {
-    const html = await render({ season: "2026", state: "NSW" });
+  it("combines year and state, and filters by competition", async () => {
+    let html = await render({ season: "2026", state: "NSW" });
     expect(html).toContain("sc-nsw-26");
     expect(html).not.toContain("sc-qld-26");
-    expect(html).toContain("Showing 1 of 3 leagues");
+    html = await render({ season: "all", competition: "QLD Premier" });
+    expect(html).toContain("sc-qld-25");
+    expect(html).not.toContain("sc-nsw-26");
+    expect(html).toContain("Showing 2 of 3 leagues");
   });
 
-  it("shows a filter group only when it has two or more choices", async () => {
-    const html = await render();
-    expect(html).toContain('aria-label="Season"');
+  it("shows year, competition and state filters, but hides single-choice groups", async () => {
+    const html = await render({ season: "all" });
+    expect(html).toContain('aria-label="Year"');
+    expect(html).toContain('aria-label="Competition"');
     expect(html).toContain('aria-label="State"');
-    // every league is hockey in Australia, so those groups would be noise
     expect(html).not.toContain('aria-label="Sport"');
     expect(html).not.toContain('aria-label="Country"');
   });
 
-  it("shows the sport and country groups once the data has more than one value", async () => {
+  it("shows sport and country once the data has more than one value", async () => {
     vi.mocked(listPublicLeagues).mockResolvedValue([
       ...ROWS,
       league({ seasonCompetitionId: "sc-nz", state: "Auckland", country: "New Zealand", sport: "indoor hockey" }),
     ]);
-    const html = await render();
+    const html = await render({ season: "all" });
     expect(html).toContain('aria-label="Sport"');
     expect(html).toContain('aria-label="Country"');
   });
 
-  it("marks the active chip and links chips to canonical filter URLs", async () => {
-    const html = await render({ state: "QLD" });
-    expect(html).toContain('href="/competitions/leagues?state=QLD"');
-    expect(html).toMatch(/<a[^>]*aria-current="true"[^>]*>[^<]*QLD/);
-    // "All" for state clears just that facet
-    expect(html).toContain('href="/competitions/leagues"');
-  });
-
   it("explains an empty filtered result without telling visitors to run the seed script", async () => {
-    const html = await render({ state: "TAS" });
+    const html = await render({ season: "all", state: "TAS" });
     expect(html).toContain("No leagues match these filters");
     expect(html).not.toContain("seed:public-demo");
   });
@@ -104,7 +119,7 @@ describe("/competitions/leagues", () => {
   });
 
   it("keeps a stale selected value clearable instead of hiding the whole group", async () => {
-    const html = await render({ state: "TAS" });
+    const html = await render({ season: "all", state: "TAS" });
     expect(html).toContain('aria-label="State"');
     expect(html).toContain("Clear filters");
   });
