@@ -6,8 +6,7 @@ import clientPromise, { isMongoConnectionError } from "@/lib/mongodb";
 import TopNavbar from "./TopNavbar";
 import { clubPortalHomeUrl } from "@/lib/tenant/subdomainUrls";
 import { getCompletedMatches } from "@/lib/data/matches";
-import { buildTickerLines } from "@/lib/competitions/tickerLines";
-import type { TickerLine } from "@/components/website/home/HomeResultsTicker";
+import { buildTickerLines, type TickerLine } from "@/lib/competitions/tickerLines";
 import {
   resolvePortalSlugForRequest,
   resolveTenantByPortalSlug,
