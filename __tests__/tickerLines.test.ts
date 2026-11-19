@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildTickerLines } from "@/lib/competitions/tickerLines";
+import { buildTickerLines, fixtureRoundLabel } from "@/lib/competitions/tickerLines";
 import type { TickerMatch } from "@/lib/competitions/tickerLines";
 
 const m = (id: string, sc: string, date: string, h = 1, a = 0): TickerMatch =>
@@ -17,5 +17,14 @@ describe("buildTickerLines", () => {
   });
   it("falls back to demo results when nothing else exists", () => {
     expect(buildTickerLines([m("demo", "sc-demo-x-2026", "2026-11-14T00:00:00Z")]).map((x) => x.key)).toEqual(["demo"]);
+  });
+});
+
+describe("fixtureRoundLabel", () => {
+  it("labels league rounds and finals stages", () => {
+    expect(fixtureRoundLabel({ round: 20, matchLevel: "league" })).toBe("Round 20");
+    expect(fixtureRoundLabel({ round: 23, matchLevel: "finals", altius: { phaseLabel: "Grand Final" } })).toBe("Grand Final");
+    expect(fixtureRoundLabel({ round: 24, matchLevel: "finals", finals: { week: 2 } })).toBe("Finals Week 2");
+    expect(fixtureRoundLabel({ round: 0 })).toBe("");
   });
 });

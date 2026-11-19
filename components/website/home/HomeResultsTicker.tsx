@@ -1,5 +1,6 @@
 "use client";
 
+import { Fragment } from "react";
 import type { TickerLine, TickerTeam } from "@/lib/competitions/tickerLines";
 
 export type { TickerLine };
@@ -37,23 +38,26 @@ export default function HomeResultsTicker({ lines }: { lines: TickerLine[] }) {
           </div>
         ) : (
           <div
-            className="home-marquee-track gap-16 items-center"
+            className="home-marquee-track gap-5 items-center"
             suppressHydrationWarning
           >
             {[0, 1].map((dup) =>
               lines.map((line, i) => (
+                <Fragment key={`${dup}-${line.key}-${i}`}>
                 <span
-                  key={`${dup}-${line.key}-${i}`}
                   className="inline-flex items-center gap-2 text-xs md:text-sm font-bold tracking-wide text-slate-800 whitespace-nowrap"
-                  aria-label={`${line.division}: ${line.home.name} ${line.homeScore}, ${line.away.name} ${line.awayScore}`}
+                  aria-label={`${line.division} ${line.round}: ${line.home.name} ${line.homeScore}, ${line.away.name} ${line.awayScore}`}
                 >
                   <span className="text-[10px] font-black uppercase tracking-widest text-[#06054e]">{line.division}</span>
+                  {line.round && <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">{line.round}</span>}
                   <TeamIcon team={line.home} />
                   <span className="tabular-nums">{line.homeScore}</span>
                   <span aria-hidden>:</span>
                   <span className="tabular-nums">{line.awayScore}</span>
                   <TeamIcon team={line.away} />
                 </span>
+                <span aria-hidden className="select-none text-slate-300">|</span>
+                </Fragment>
               )),
             )}
           </div>

@@ -26,6 +26,7 @@ export type PublicTeamStats = {
   possessionPct: number | null;
 };
 import type { PublicTenantPayload } from "@/lib/tenant/portalHost";
+import { fixtureRoundLabel } from "@/lib/competitions/tickerLines";
 import { seasonCompetitionVisibleForPortalTenant } from "@/lib/tenant/seasonCompetitionTenantGate";
 
 // Types
@@ -34,6 +35,8 @@ interface Match {
   seasonCompetitionId: string;
   season: number;
   round: number;
+  /** "Round 5", or the stage for finals (Semi Final, Grand Final). */
+  roundLabel?: string;
   division: string;
   dateTime: string;
   venue: string;
@@ -212,6 +215,9 @@ export async function getMatches(opts?: GetMatchesOptions): Promise<Match[]> {
         legacyMatchId: 1,
         umpires: 1,
         matchEvents: 1,
+        matchLevel: 1,
+        finals: 1,
+        "altius.phaseLabel": 1,
       })
       .toArray();
 
@@ -309,6 +315,7 @@ export async function getMatches(opts?: GetMatchesOptions): Promise<Match[]> {
         matchEvents,
         season,
         round: Number(f.round ?? 0),
+        roundLabel: fixtureRoundLabel(f),
         division,
         dateTime,
         venue,
