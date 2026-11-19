@@ -56,7 +56,7 @@ export default function HomeResultsTicker({ lines }: { lines: TickerLine[] }) {
                   <span className="tabular-nums">{line.awayScore}</span>
                   <TeamIcon team={line.away} />
                 </span>
-                <span aria-hidden className="select-none text-slate-300">|</span>
+                <span aria-hidden className="select-none px-5 text-slate-300">|</span>
                 </Fragment>
               )),
             )}
