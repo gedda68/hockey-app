@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { Award, BarChart3, CalendarDays, LayoutGrid, ListOrdered, type LucideIcon } from "lucide-react";
 import LeagueSwitcher from "@/components/competitions/LeagueSwitcher";
 import {
   getPublicLeagueById,
@@ -74,15 +75,15 @@ export default async function LeagueHubPage({ params }: Props) {
 
         <div className="mt-8 grid gap-6">
           <div className="grid gap-3">
-            <HubCard href={`/competitions/matches?${q}`} title="Matches" subtitle="Next round, fixtures, results" />
-            <HubCard href={`/competitions/standings?${q}`} title="Standings" subtitle="Ladder & tie-breakers" />
+            <HubCard href={`/competitions/matches?${q}`} icon={CalendarDays} title="Matches" subtitle="Next round, fixtures, results" />
+            <HubCard href={`/competitions/standings?${q}`} icon={ListOrdered} title="Standings" subtitle="Ladder & tie-breakers" />
             <HubCard
               href={`/competitions/statistics?year=${encodeURIComponent(league.season)}`}
-              title="Statistics"
+              icon={BarChart3} title="Statistics"
               subtitle="Leaders & team totals"
             />
-            <HubCard href={`/competitions/awards?${q}`} title="Awards" subtitle="Player of the match & season honours" />
-            <HubCard href="/competitions" title="Match Centre" subtitle="All competition tools" />
+            <HubCard href={`/competitions/awards?${q}`} icon={Award} title="Awards" subtitle="Player of the match & season honours" />
+            <HubCard href="/competitions" icon={LayoutGrid} title="Match Centre" subtitle="All competition tools" />
           </div>
 
         </div>
@@ -91,13 +92,16 @@ export default async function LeagueHubPage({ params }: Props) {
   );
 }
 
-function HubCard({ href, title, subtitle }: { href: string; title: string; subtitle: string }) {
+function HubCard({ href, title, subtitle, icon: Icon }: { href: string; title: string; subtitle: string; icon: LucideIcon }) {
   return (
     <Link
       href={href}
-      className="flex items-center justify-between gap-4 rounded-2xl border border-white/10 bg-[#06054e]/90 px-6 py-5 shadow-lg transition-transform active:scale-[0.99] sm:hover:border-yellow-400/30"
+      className="flex items-center gap-4 rounded-2xl border border-white/10 bg-[#06054e]/90 px-5 py-4 shadow-lg transition-transform active:scale-[0.99] sm:hover:border-yellow-400/30"
     >
-      <div className="min-w-0">
+      <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-yellow-200/10 text-yellow-200">
+        <Icon className="h-6 w-6" aria-hidden />
+      </span>
+      <div className="min-w-0 flex-1">
         <h2 className="text-lg font-bold text-white">{title}</h2>
         <p className="mt-1 text-xs text-white/55">{subtitle}</p>
       </div>
