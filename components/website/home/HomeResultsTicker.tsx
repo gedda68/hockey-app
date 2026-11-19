@@ -46,14 +46,14 @@ export default function HomeResultsTicker({ lines }: { lines: TickerLine[] }) {
                 <Fragment key={`${dup}-${line.key}-${i}`}>
                 <span
                   className="inline-flex items-center gap-2 text-xs md:text-sm font-bold tracking-wide text-slate-800 whitespace-nowrap"
-                  aria-label={`${line.division} ${line.round}: ${line.home.name} ${line.homeScore}, ${line.away.name} ${line.awayScore}`}
+                  aria-label={`${line.division} ${line.round}: ${line.home.name} ${line.homeScore}${line.homeShootout != null ? ` (${line.homeShootout} in the shootout)` : ""}, ${line.away.name} ${line.awayScore}${line.awayShootout != null ? ` (${line.awayShootout} in the shootout)` : ""}`}
                 >
                   <span className="text-[10px] font-black uppercase tracking-widest text-[#06054e]">{line.division}</span>
                   {line.round && <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">{line.round}</span>}
                   <TeamIcon team={line.home} />
-                  <span className="tabular-nums">{line.homeScore}</span>
+                  <span className="tabular-nums">{line.homeScore}{line.homeShootout != null && <span className="ml-1 text-slate-500">({line.homeShootout})</span>}</span>
                   <span aria-hidden>:</span>
-                  <span className="tabular-nums">{line.awayScore}</span>
+                  <span className="tabular-nums">{line.awayScore}{line.awayShootout != null && <span className="ml-1 text-slate-500">({line.awayShootout})</span>}</span>
                   <TeamIcon team={line.away} />
                 </span>
                 <span aria-hidden className="select-none px-5 text-slate-300">|</span>
