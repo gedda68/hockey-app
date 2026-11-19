@@ -20,6 +20,15 @@ describe("buildTickerLines", () => {
   });
 });
 
+describe("shootouts", () => {
+  it("adds the shootout score only when there was one", () => {
+    const so = { ...m("s", "sc-1", "2026-09-19T00:00:00Z", 1, 1), shootoutScore: { home: 5, away: 4 } };
+    const [a, b] = buildTickerLines([so, m("n", "sc-1", "2026-09-18T00:00:00Z")]);
+    expect(a).toMatchObject({ homeScore: "1", awayScore: "1", homeShootout: "5", awayShootout: "4" });
+    expect(b.homeShootout).toBeUndefined();
+  });
+});
+
 describe("fixtureRoundLabel", () => {
   it("labels league rounds and finals stages", () => {
     expect(fixtureRoundLabel({ round: 20, matchLevel: "league" })).toBe("Round 20");
