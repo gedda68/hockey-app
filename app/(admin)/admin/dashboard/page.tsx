@@ -49,7 +49,7 @@ function StatCard({
 }) {
   const inner = (
     <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 flex items-start gap-4 hover:shadow-md transition-shadow">
-      <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-2xl flex-shrink-0 ${accent ?? "bg-slate-100"}`}>
+      <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-2xl shrink-0 ${accent ?? "bg-slate-100"}`}>
         {icon}
       </div>
       <div className="min-w-0">
@@ -87,14 +87,14 @@ function QuickTile({ item }: { item: { label: string; href: string; icon: string
       href={item.href}
       className="group bg-white rounded-2xl shadow-sm border-2 border-slate-100 hover:border-[#06054e] p-5 flex items-start gap-4 transition-all hover:shadow-md"
     >
-      <div className={`w-11 h-11 rounded-xl flex items-center justify-center text-2xl flex-shrink-0 bg-gradient-to-br ${item.color ?? "from-slate-400 to-slate-500"}`}>
+      <div className={`w-11 h-11 rounded-xl flex items-center justify-center text-2xl -shrink-0 bg-linear-to-br ${item.color ?? "from-slate-400 to-slate-500"}`}>
         {item.icon}
       </div>
       <div className="min-w-0 flex-1">
         <p className="font-black text-sm text-[#06054e] group-hover:text-yellow-600 transition-colors">{item.label}</p>
         {item.description && <p className="text-xs text-slate-500 mt-0.5 line-clamp-1">{item.description}</p>}
       </div>
-      <ChevronRight size={16} className="text-slate-300 group-hover:text-[#06054e] transition-colors mt-0.5 flex-shrink-0" />
+      <ChevronRight size={16} className="text-slate-300 group-hover:text-[#06054e] transition-colors mt-0.5 shrink-0" />
     </Link>
   );
 }
@@ -116,8 +116,8 @@ export default function DashboardPage() {
   const isClub      = CLUB_ROLES.includes(user?.role  ?? "");
   const isAssoc     = ASSOC_ROLES.includes(user?.role ?? "");
   const isSuperAdmin= user?.role === "super-admin";
-  // Plain members have no organisation-wide numbers to see — show their own stats instead.
-  // Only roles that manage people see the organisation-wide numbers. Everyone else (members, players,
+  // Plain members have no organization-wide numbers to see — show their own stats instead.
+  // Only roles that manage people see the organization-wide numbers. Everyone else (members, players,
   // parents and operational roles such as coach, umpire, volunteer) gets their own stats and shortcuts.
   const ORG_STATS_ROLES = ["super-admin","association-admin","assoc-committee","assoc-registrar","assoc-coach","assoc-selector","assoc-competition","media-marketing","club-admin","club-committee","registrar"];
   const isMember    = !!user && !ORG_STATS_ROLES.includes(user.role ?? "");
@@ -191,7 +191,7 @@ export default function DashboardPage() {
 
         {error && (
           <div className="bg-red-50 border-2 border-red-200 rounded-2xl p-5 flex items-center gap-3">
-            <AlertCircle className="text-red-500 flex-shrink-0" size={20} />
+            <AlertCircle className="text-red-500 shrink-0" size={20} />
             <p className="text-red-700 font-bold text-sm">{error}</p>
             <button onClick={fetchAnalytics} className="ml-auto text-red-600 font-bold text-sm hover:underline">Retry</button>
           </div>
@@ -324,8 +324,8 @@ export default function DashboardPage() {
                     <div className="space-y-2">
                       {analytics.clubTable.slice(0, 6).map(club => (
                         <div key={club.name} className="flex items-center justify-between text-xs">
-                          <span className="font-bold text-slate-700 truncate max-w-[140px]">{club.name}</span>
-                          <div className="flex items-center gap-3 flex-shrink-0">
+                          <span className="font-bold text-slate-700 truncate max-w-35">{club.name}</span>
+                          <div className="flex items-center gap-3 shrink-0">
                             <span className="text-slate-500">{club.players} players</span>
                             <span className="font-black text-slate-800">{club.active}</span>
                           </div>

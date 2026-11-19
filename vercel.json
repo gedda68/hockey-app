@@ -5,14 +5,30 @@
   "framework": "nextjs",
   "git": {
     "deploymentEnabled": {
-      "main": true,
+      "master": true,
       "develop": true
     }
   },
   "crons": [
     {
       "path": "/api/cron/notifications",
-      "schedule": "0 * * * *"
+      "schedule": "0 20 * * *"
+    },
+    {
+      "path": "/api/cron/weekly-digest",
+      "schedule": "0 21 * * *"
+    },
+    {
+      "path": "/api/cron/membership-renewal-reminder",
+      "schedule": "0 22 * * *"
+    },
+    {
+      "path": "/api/cron/seasonal-registration-reminder?weeks=6",
+      "schedule": "0 1 * * *"
+    },
+    {
+      "path": "/api/cron/seasonal-registration-reminder?weeks=2",
+      "schedule": "15 1 * * *"
     }
   ]
 }
