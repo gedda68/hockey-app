@@ -69,7 +69,7 @@ export default async function StatisticsPage({ searchParams }: { searchParams: P
       </div>
 
       <div className="space-y-8">
-        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <div className="grid grid-cols-1 gap-4">
           <StatisticsCard title="Total goals" value={summary.goals} subtitle={`${summary.matches} completed match${summary.matches === 1 ? "" : "es"}`} />
           <StatisticsCard title="Avg goals / match" value={summary.avgGoals.toFixed(2)} subtitle="Completed matches" />
           <StatisticsCard title="Clean sheets" value={summary.cleanSheets} subtitle="Shutouts" />
@@ -77,9 +77,10 @@ export default async function StatisticsPage({ searchParams }: { searchParams: P
         </div>
 
         {category === "players" && (
-          <div className="grid gap-6 lg:grid-cols-2">
+          <div className="space-y-6">
             <StatsTable title="Top scorers" columns={[{ key: "name", label: "Player", align: "left" }, { key: "m", label: "Games" }, { key: "fg", label: "Field" }, { key: "pc", label: "Pen. corner" }, { key: "ps", label: "Pen. stroke" }, { key: "g", label: "Total" }, { key: "avg", label: "Goals / game" }]} rows={playerRows(scorers, (p) => ({ m: p.matches, fg: p.fieldGoals, pc: p.corners, ps: p.strokes, g: p.goals, avg: p.matches ? (p.goals / p.matches).toFixed(2) : "0.00" }))} />
             <StatsTable title="Top assists" columns={[{ key: "name", label: "Player", align: "left" }, { key: "m", label: "Games" }, { key: "a", label: "Assists" }]} rows={playerRows(assisters, (p) => ({ m: p.matches, a: p.assists }))} />
+            <StatsTable title="Cards" columns={[{ key: "name", label: "Player", align: "left" }, { key: "gr", label: "Green" }, { key: "y", label: "Yellow" }, { key: "r", label: "Red" }]} rows={playerRows(carded, (p) => ({ gr: p.green, y: p.yellow, r: p.red }))} />
           </div>
         )}
         {category === "teams" && (
