@@ -1,14 +1,13 @@
-import type { ReactNode } from "react";
 import Link from "next/link";
 import type { Metadata } from "next";
 import { listPublicLeagues } from "@/lib/public/publicLeagues";
+import LeagueFilterBar, { type LeagueFilterField } from "@/components/competitions/LeagueFilterBar";
+import { defaultYear } from "@/lib/competitions/fixtureView";
 import {
-  LEAGUE_FILTER_KEYS,
   applyLeagueFilters,
   buildFilterOptions,
   hasActiveFilters,
   leaguesHref,
-  leaguesHrefWith,
   parseLeagueFilters,
   type LeagueFilterKey,
   type LeagueFilters,
@@ -34,70 +33,68 @@ export default async function PublicLeaguesPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const filters = parseLeagueFilters(await searchParams);
+  const sp = await searchParams;
+  const parsed = parseLeagueFilters(sp);
   const all = await listPublicLeagues();
-  const filtered = applyLeagueFilters(all, filters);
-  const options = buildFilterOptions(all, filters);
-  const active = hasActiveFilters(filters);
 
-  // A facet is only worth showing when it can change the result: 2+ choices, or a
-  // selection that needs to stay clearable.
-  const visibleKeys = LEAGUE_FILTER_KEYS.filter(
-    (k) => options[k].length >= 2 || Boolean(filters[k]),
-  );
+  // Opens on the current year (or the next one with leagues, else the latest); "All years" is season=all.
+  const seasons = [...new Set(all.map((l) => l.season))];
+  const filters: LeagueFilters = { ...parsed };
+  if (sp.season === undefined && seasons.length) filters.season = defaultYear(seasons, new Date());
+  if (filters.season?.toLowerCase() === "all") delete filters.season;
+
+  const options = buildFilterOptions(all, filters);
+  const nameOf = (l: { competitionName: string | null; competitionId: string }) => l.competitionName ?? l.competitionId;
+  // Competition choices come from the leagues that match the other filters; a competition that isn't there is ignored.
+  const byOthers = applyLeagueFilters(all, filters);
+  const competitionOptions = [...new Set(byOthers.map(nameOf))].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+  const wantedComp = typeof sp.competition === "string" ? sp.competition : "";
+  const competition = competitionOptions.includes(wantedComp) ? wantedComp : "";
+  const filtered = byOthers.filter((l) => !competition || nameOf(l) === competition);
+  const active = hasActiveFilters(filters) || Boolean(competition);
+
+  const fields: LeagueFilterField[] = [
+    { key: "season", label: "Year", value: filters.season ?? "all", allLabel: "All years", options: options.season.map((o) => ({ value: o.value, label: o.value })) },
+    { key: "competition", label: "Competition", value: competition, allLabel: "All competitions", options: competitionOptions.map((n) => ({ value: n, label: n })) },
+    ...(["country", "state", "sport"] as const)
+      .filter((k) => options[k].length >= 2 || Boolean(filters[k]))
+      .map((k) => ({ key: k, label: FILTER_LABELS[k], value: filters[k] ?? "all", allLabel: `All ${FILTER_LABELS[k].toLowerCase()}s`.replace("countrys", "countries"), options: options[k].map((o) => ({ value: o.value, label: o.value })) })),
+  ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#06054e] via-slate-900 to-slate-800 px-4 pb-16 pt-8 md:px-8">
-      <div className="mx-auto max-w-3xl">
+    <div className="min-h-screen bg-gradient-to-br from-[#06054e] via-slate-900 to-slate-800 px-4 pb-16 pt-8 md:px-8 lg:px-12">
+      <div className="mx-auto max-w-6xl">
         <Link
           href="/competitions"
           className="mb-6 inline-flex text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-white"
         >
-          ← Match Day Central
+          ← Match Centre
         </Link>
         <h1 className="text-3xl font-black uppercase italic tracking-tight text-yellow-200 sm:text-4xl">
           League competitions
         </h1>
         <p className="mt-2 max-w-xl text-sm text-white/70">
-          Open competitions for the current and recent seasons. Narrow by season or location, then
+          Open competitions for the current and upcoming seasons. Narrow by year, competition or location, then
           open the hub for fixtures and standings.
         </p>
 
-        {visibleKeys.length > 0 && (
-          <nav aria-label="Filter leagues" className="mt-8 space-y-4">
-            {visibleKeys.map((key) => (
-              <FilterGroup key={key} label={FILTER_LABELS[key]}>
-                <FilterChip href={leaguesHrefWith(filters, key, null)} active={!filters[key]}>
-                  All
-                </FilterChip>
-                {options[key].map((o) => (
-                  <FilterChip
-                    key={o.value}
-                    href={leaguesHrefWith(filters, key, o.value)}
-                    active={filters[key]?.toLowerCase() === o.value.toLowerCase()}
-                  >
-                    {o.value}
-                    <span className="ml-1.5 font-bold opacity-60">{o.count}</span>
-                  </FilterChip>
-                ))}
-              </FilterGroup>
-            ))}
-          </nav>
-        )}
+        <div className="mt-8">
+          <LeagueFilterBar fields={fields} />
+        </div>
 
         <p className="mt-6 text-[11px] text-white/50" aria-live="polite">
           Showing {filtered.length} of {all.length} league{all.length === 1 ? "" : "s"}
           {active && (
             <>
               {" · "}
-              <Link href={leaguesHref({})} className="font-black text-yellow-200 hover:underline">
+              <Link href="/competitions/leagues?season=all" className="font-black text-yellow-200 hover:underline">
                 Clear filters
               </Link>
             </>
           )}
         </p>
 
-        <ul className="mt-4 space-y-3">
+        <ul className="mt-4 grid gap-3 md:grid-cols-2">
           {filtered.length === 0 ? (
             <li className="rounded-2xl border border-white/10 bg-white/5 p-6 text-sm text-white/60">
               <EmptyState noLeaguesAtAll={all.length === 0} filters={filters} />
@@ -125,9 +122,6 @@ export default async function PublicLeaguesPage({
                         {place}
                       </p>
                     )}
-                    <p className="mt-1 font-mono text-[11px] text-white/40">
-                      {l.seasonCompetitionId}
-                    </p>
                   </Link>
                 </li>
               );
@@ -166,40 +160,5 @@ function EmptyState({
         </Link>
       )}
     </>
-  );
-}
-
-function FilterGroup({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <div role="group" aria-label={label}>
-      <div className="mb-2 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
-        {label}
-      </div>
-      <div className="flex flex-wrap gap-2">{children}</div>
-    </div>
-  );
-}
-
-function FilterChip({
-  href,
-  active,
-  children,
-}: {
-  href: string;
-  active: boolean;
-  children: ReactNode;
-}) {
-  return (
-    <Link
-      href={href}
-      aria-current={active ? "true" : undefined}
-      className={`rounded-full px-4 py-2 text-[10px] font-black uppercase tracking-widest transition-colors ${
-        active
-          ? "bg-yellow-400 text-[#06054e]"
-          : "border border-white/20 bg-white/5 text-white/80 hover:bg-white/10"
-      }`}
-    >
-      {children}
-    </Link>
   );
 }
