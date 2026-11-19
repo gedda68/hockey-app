@@ -1,8 +1,10 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import LeagueSwitcher from "@/components/competitions/LeagueSwitcher";
 import {
   getPublicLeagueById,
+  listPublicLeagues,
 } from "@/lib/public/publicLeagues";
 import { getPublicAssociationById } from "@/lib/public/publicAssociation";
 import { associationPortalHomeUrl } from "@/lib/tenant/subdomainUrls";
@@ -30,13 +32,15 @@ export default async function LeagueHubPage({ params }: Props) {
   const league = await getPublicLeagueById(seasonCompetitionId);
   if (!league) notFound();
 
+  const all = await listPublicLeagues();
+  const switcher = all.map((l) => ({ id: l.seasonCompetitionId, season: l.season, name: l.competitionName ?? l.competitionId }));
   const assoc = await getPublicAssociationById(league.owningAssociationId);
 
   const q = `seasonCompetitionId=${encodeURIComponent(seasonCompetitionId)}`;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#06054e] via-slate-900 to-slate-800 px-4 pb-20 pt-8 md:px-8">
-      <div className="mx-auto max-w-2xl">
+    <div className="min-h-screen bg-gradient-to-br from-[#06054e] via-slate-900 to-slate-800 px-4 pb-20 pt-8 md:px-8 lg:px-12">
+      <div className="mx-auto max-w-6xl">
         <Link
           href="/competitions/leagues"
           className="mb-6 inline-flex text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-white"
@@ -44,61 +48,55 @@ export default async function LeagueHubPage({ params }: Props) {
           ← All leagues
         </Link>
 
-        <p className="text-[10px] font-black uppercase tracking-[0.25em] text-yellow-200">
-          Season {league.season}
-        </p>
-        <h1 className="mt-2 text-3xl font-black uppercase italic tracking-tight text-white sm:text-4xl">
-          {league.competitionName ?? league.competitionId}
-        </h1>
-        {assoc && (
-          <p className="mt-2 text-sm text-white/70">
-            <Link
-              href={associationPortalHomeUrl({ code: assoc.code })}
-              className="underline decoration-white/30 underline-offset-4 hover:text-white"
-            >
-              {assoc.name}
-            </Link>
-          </p>
-        )}
-
-        <div className="mt-10 grid gap-3 sm:grid-cols-2">
-          <HubCard
-            href={`/competitions/matches?${q}`}
-            title="Matches"
-            subtitle="Next round, fixtures, results"
-          />
-          <HubCard
-            href={`/competitions/standings?${q}`}
-            title="Standings"
-            subtitle="Ladder & tie-breakers"
-          />
-          <HubCard
-            href={`/competitions/statistics?year=${encodeURIComponent(league.season)}`}
-            title="Statistics"
-            subtitle="Leaders & team totals"
-          />
-          <HubCard
-            href={`/competitions/awards?${q}`}
-            title="Awards"
-            subtitle="Player of the match & season honours"
-          />
-          <HubCard href="/competitions" title="Match Centre" subtitle="All competition tools" />
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-[0.25em] text-yellow-200">
+              Season {league.season}
+            </p>
+            <h1 className="mt-2 text-3xl font-black uppercase italic tracking-tight text-white sm:text-4xl">
+              {league.competitionName ?? league.competitionId}
+            </h1>
+            {assoc && (
+              <p className="mt-2 text-sm text-white/70">
+                <Link
+                  href={associationPortalHomeUrl({ code: assoc.code })}
+                  className="underline decoration-white/30 underline-offset-4 hover:text-white"
+                >
+                  {assoc.name}
+                </Link>
+              </p>
+            )}
+          </div>
         </div>
 
-        {league.divisions.length > 0 && (
-          <div className="mt-10 rounded-2xl border border-white/10 bg-white/5 p-4">
-            <h2 className="text-[10px] font-black uppercase tracking-widest text-slate-400">
-              Divisions
-            </h2>
-            <ul className="mt-2 space-y-1 text-sm text-white/90">
-              {league.divisions.map((d) => (
-                <li key={String(d.divisionId ?? d.name)}>
-                  {d.name ?? d.divisionId}
-                </li>
-              ))}
-            </ul>
+        <div className="mt-6 max-w-xl">
+          <LeagueSwitcher leagues={switcher} currentId={seasonCompetitionId} />
+        </div>
+
+        <div className="mt-8 grid gap-6 lg:grid-cols-[1fr_16rem]">
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            <HubCard href={`/competitions/matches?${q}`} title="Matches" subtitle="Next round, fixtures, results" />
+            <HubCard href={`/competitions/standings?${q}`} title="Standings" subtitle="Ladder & tie-breakers" />
+            <HubCard
+              href={`/competitions/statistics?year=${encodeURIComponent(league.season)}`}
+              title="Statistics"
+              subtitle="Leaders & team totals"
+            />
+            <HubCard href={`/competitions/awards?${q}`} title="Awards" subtitle="Player of the match & season honours" />
+            <HubCard href="/competitions" title="Match Centre" subtitle="All competition tools" />
           </div>
-        )}
+
+          {league.divisions.length > 0 && (
+            <aside className="h-fit rounded-2xl border border-white/10 bg-white/5 p-4">
+              <h2 className="text-[10px] font-black uppercase tracking-widest text-slate-400">Divisions</h2>
+              <ul className="mt-2 space-y-1 text-sm text-white/90">
+                {league.divisions.map((d) => (
+                  <li key={String(d.divisionId ?? d.name)}>{d.name ?? d.divisionId}</li>
+                ))}
+              </ul>
+            </aside>
+          )}
+        </div>
       </div>
     </div>
   );
