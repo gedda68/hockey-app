@@ -78,7 +78,7 @@ export default async function LeagueHubPage({ params }: Props) {
             <HubCard href={`/competitions/matches?${q}`} icon={CalendarDays} title="Matches" subtitle="Next round, fixtures, results" />
             <HubCard href={`/competitions/standings?${q}`} icon={ListOrdered} title="Standings" subtitle="Ladder & tie-breakers" />
             <HubCard
-              href={`/competitions/statistics?year=${encodeURIComponent(league.season)}`}
+              href={`/competitions/statistics?${q}`}
               icon={BarChart3} title="Statistics"
               subtitle="Leaders & team totals"
             />
