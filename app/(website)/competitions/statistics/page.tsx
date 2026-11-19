@@ -54,6 +54,10 @@ export default async function StatisticsPage({ searchParams }: { searchParams: P
     id: t.teamId, sub: club(clubByTeam.get(t.teamId) ?? ""), icon: { src: clubLogo.get(clubByTeam.get(t.teamId) ?? ""), alt: club(clubByTeam.get(t.teamId) ?? "") || (teamName.get(t.teamId) ?? "") },
     cells: { name: teamName.get(t.teamId) ?? t.teamId, p: t.played, w: t.wins, d: t.draws, l: t.losses, gf: t.gf, ga: t.ga, gd: t.gf - t.ga, cs: t.cleanSheets, avg: t.played ? (t.gf / t.played).toFixed(2) : "0.00" },
   }));
+  const teamCardRows: StatsRowData[] = [...stats.teams].sort((a, b) => b.red - a.red || b.yellow - a.yellow || b.green - a.green).map((t) => {
+    const r = teamRows.find((x) => x.id === t.teamId)!;
+    return { id: t.teamId, sub: r.sub, icon: r.icon, cells: { name: r.cells.name, gr: t.green, y: t.yellow, r: t.red, tot: t.green + t.yellow + t.red } };
+  });
 
   return (
     <div className="min-h-screen w-full bg-gradient-to-br from-[#06054e] via-slate-900 to-slate-800 px-4 pb-16 md:px-8 lg:px-12">
@@ -85,6 +89,9 @@ export default async function StatisticsPage({ searchParams }: { searchParams: P
         )}
         {category === "teams" && (
           <StatsTable title="Team statistics" columns={[{ key: "name", label: "Team", align: "left" }, { key: "p", label: "P" }, { key: "w", label: "W" }, { key: "d", label: "D" }, { key: "l", label: "L" }, { key: "gf", label: "GF" }, { key: "ga", label: "GA" }, { key: "gd", label: "GD" }, { key: "cs", label: "Clean sheets" }, { key: "avg", label: "Goals/game" }]} rows={teamRows} />
+        )}
+        {category === "teams" && (
+          <StatsTable title="Team cards" columns={[{ key: "name", label: "Team", align: "left" }, { key: "gr", label: "Green" }, { key: "y", label: "Yellow" }, { key: "r", label: "Red" }, { key: "tot", label: "Total" }]} rows={teamCardRows} />
         )}
         {category === "discipline" && (
           <StatsTable title="Cards" columns={[{ key: "name", label: "Player", align: "left" }, { key: "gr", label: "Green" }, { key: "y", label: "Yellow" }, { key: "r", label: "Red" }]} rows={playerRows(carded, (p) => ({ gr: p.green, y: p.yellow, r: p.red }))} />
