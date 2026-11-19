@@ -22,9 +22,11 @@ export async function loadStatsScope(db: Db, seasonCompetitionIds: string[]) {
   const teamName = new Map<string, string>(); const clubByTeam = new Map<string, string>();
   for (const t of teams) { const id = String(t.teamId); teamName.set(id, String(t.name ?? id)); if (t.clubId) clubByTeam.set(id, String(t.clubId)); }
   const clubIds = [...new Set(clubByTeam.values())];
-  const clubs = clubIds.length ? await db.collection("clubs").find({ id: { $in: clubIds } }).project({ id: 1, name: 1, shortName: 1 }).toArray() : [];
+  const clubs = clubIds.length ? await db.collection("clubs").find({ id: { $in: clubIds } }).project({ id: 1, name: 1, shortName: 1, logo: 1 }).toArray() : [];
   const clubName = new Map<string, string>(clubs.map((c) => [String(c.id), String(c.name ?? c.shortName ?? c.id)]));
-  return { fixtures, approvalBySc, clubByTeam, teamName, clubName };
+  const clubLogo = new Map<string, string>();
+  for (const c of clubs) if (typeof c.logo === "string" && c.logo.trim()) clubLogo.set(String(c.id), c.logo.trim());
+  return { fixtures, approvalBySc, clubByTeam, teamName, clubName, clubLogo };
 }
 
 export async function loadMemberNames(db: Db, memberIds: string[]) {

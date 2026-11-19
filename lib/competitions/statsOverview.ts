@@ -1,6 +1,7 @@
 // lib/competitions/statsOverview.ts — real statistics for the public Statistics page, from published fixtures.
 // Pure: give it fixtures (with results and match events) plus the club behind each team.
-import { aggregatePlayerStatsForSeason, hasAnyPlayerStat, isFixtureResultPublicForEvents } from "./playerSeasonStats";
+import { aggregatePlayerStatsForSeason, asMatchEvents, hasAnyPlayerStat, isFixtureResultPublicForEvents } from "./playerSeasonStats";
+import { goalType } from "./matchStats";
 
 export type StatsFixture = {
   fixtureId: string;
@@ -16,7 +17,7 @@ export type StatsFixture = {
 
 export type StatsFilter = { clubId?: string; memberId?: string };
 
-export type PlayerRow = { memberId: string; teamId: string; clubId: string; matches: number; goals: number; assists: number; gkSaves: number; green: number; yellow: number; red: number };
+export type PlayerRow = { memberId: string; teamId: string; clubId: string; matches: number; goals: number; fieldGoals: number; corners: number; strokes: number; assists: number; gkSaves: number; green: number; yellow: number; red: number };
 export type TeamRow = { teamId: string; played: number; wins: number; draws: number; losses: number; gf: number; ga: number; cleanSheets: number };
 export type StatsSummary = { matches: number; goals: number; avgGoals: number; cleanSheets: number; green: number; yellow: number; red: number };
 
@@ -71,11 +72,23 @@ export function computeStats(
       const teamId = fixturesByMember.get(t.memberId)?.[0]?.teamId ?? "";
       const clubId = clubByTeam.get(teamId) ?? "";
       if (filter.clubId && clubId !== filter.clubId) continue;
-      const p = players.get(t.memberId) ?? { memberId: t.memberId, teamId, clubId, matches: 0, goals: 0, assists: 0, gkSaves: 0, green: 0, yellow: 0, red: 0 };
-      p.matches += t.matchesWithEvents; p.goals += t.goals; p.assists += t.assists; p.gkSaves += t.gkSaves;
+      const p = players.get(t.memberId) ?? { memberId: t.memberId, teamId, clubId, matches: 0, goals: 0, fieldGoals: 0, corners: 0, strokes: 0, assists: 0, gkSaves: 0, green: 0, yellow: 0, red: 0 };
+      p.matches += t.matchesWithEvents; p.assists += t.assists; p.gkSaves += t.gkSaves;
       p.green += t.greenCards; p.yellow += t.yellowCards; p.red += t.redCards;
       players.set(t.memberId, p);
       summary.green += t.greenCards; summary.yellow += t.yellowCards; summary.red += t.redCards;
+    }
+  }
+  // Goals by type (shootout goals are not match goals): field, penalty corner, penalty stroke.
+  for (const f of scoped) {
+    if (!isFixtureResultPublicForEvents(f, approvalBySc.get(f.seasonCompetitionId) ?? false)) continue;
+    for (const e of asMatchEvents(f.matchEvents)) {
+      if (e.teamId !== f.homeTeamId && e.teamId !== f.awayTeamId) continue;
+      const g = goalType(e);
+      const p = players.get(e.memberId);
+      if (!p || !g || g === "shootout") continue;
+      if (g === "field") p.fieldGoals += 1; else if (g === "corner") p.corners += 1; else p.strokes += 1;
+      p.goals += 1;
     }
   }
   const all = [...players.values()];

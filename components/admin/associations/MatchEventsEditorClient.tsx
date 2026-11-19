@@ -393,12 +393,17 @@ export default function MatchEventsEditorClient({
                       <td className="py-2 pr-2">
                         <select
                           className="w-full max-w-[10rem] rounded border border-slate-300 px-1 py-1"
-                          value={row.kind}
+                          value={row.kind === "goal" && /penalty corner/i.test(row.notes ?? "") ? "goal_pc" : row.kind}
                           onChange={(e) =>
-                            updateRow(i, { kind: e.target.value as FixtureMatchEventKind })
+                            e.target.value === "goal_pc"
+                              ? updateRow(i, { kind: "goal", notes: "Penalty corner" })
+                              : updateRow(i, {
+                                  kind: e.target.value as FixtureMatchEventKind,
+                                  ...(row.kind === "goal" && /penalty corner/i.test(row.notes ?? "") ? { notes: null } : {}),
+                                })
                           }
                         >
-                          {KIND_OPTIONS.map((o) => (
+                          {[KIND_OPTIONS[0], { value: "goal_pc", label: "Penalty corner (goal)" }, ...KIND_OPTIONS.slice(1)].map((o) => (
                             <option key={o.value} value={o.value}>
                               {o.label}
                             </option>
