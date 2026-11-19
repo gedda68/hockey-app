@@ -73,8 +73,8 @@ export default async function LeagueHubPage({ params }: Props) {
           <LeagueSwitcher leagues={switcher} currentId={seasonCompetitionId} />
         </div>
 
-        <div className="mt-8 grid gap-6 lg:grid-cols-[1fr_16rem]">
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="mt-8 grid gap-6">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             <HubCard href={`/competitions/matches?${q}`} title="Matches" subtitle="Next round, fixtures, results" />
             <HubCard href={`/competitions/standings?${q}`} title="Standings" subtitle="Ladder & tie-breakers" />
             <HubCard
@@ -86,16 +86,6 @@ export default async function LeagueHubPage({ params }: Props) {
             <HubCard href="/competitions" title="Match Centre" subtitle="All competition tools" />
           </div>
 
-          {league.divisions.length > 0 && (
-            <aside className="h-fit rounded-2xl border border-white/10 bg-white/5 p-4">
-              <h2 className="text-[10px] font-black uppercase tracking-widest text-slate-400">Divisions</h2>
-              <ul className="mt-2 space-y-1 text-sm text-white/90">
-                {league.divisions.map((d) => (
-                  <li key={String(d.divisionId ?? d.name)}>{d.name ?? d.divisionId}</li>
-                ))}
-              </ul>
-            </aside>
-          )}
         </div>
       </div>
     </div>
