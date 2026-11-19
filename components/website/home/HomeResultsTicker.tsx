@@ -1,6 +1,20 @@
 "use client";
 
-export type TickerLine = { key: string; text: string };
+import type { TickerLine, TickerTeam } from "@/lib/competitions/tickerLines";
+
+export type { TickerLine };
+
+function TeamIcon({ team }: { team: TickerTeam }) {
+  if (team.icon) {
+    // eslint-disable-next-line @next/next/no-img-element
+    return <img src={team.icon} alt={team.name} title={team.name} className="h-6 w-6 shrink-0 rounded-full bg-slate-100 object-contain" />;
+  }
+  return (
+    <span title={team.name} className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#06054e] text-[9px] font-black text-yellow-200">
+      {team.name.trim().slice(0, 2).toUpperCase() || "?"}
+    </span>
+  );
+}
 
 export default function HomeResultsTicker({ lines }: { lines: TickerLine[] }) {
   return (
@@ -30,12 +44,15 @@ export default function HomeResultsTicker({ lines }: { lines: TickerLine[] }) {
               lines.map((line, i) => (
                 <span
                   key={`${dup}-${line.key}-${i}`}
-                  className="text-xs md:text-sm font-bold tracking-wide text-slate-800 whitespace-nowrap"
+                  className="inline-flex items-center gap-2 text-xs md:text-sm font-bold tracking-wide text-slate-800 whitespace-nowrap"
+                  aria-label={`${line.division}: ${line.home.name} ${line.homeScore}, ${line.away.name} ${line.awayScore}`}
                 >
-                  <span className="text-[#06054e] mr-2" aria-hidden>
-                    ●
-                  </span>
-                  {line.text}
+                  <span className="text-[10px] font-black uppercase tracking-widest text-[#06054e]">{line.division}</span>
+                  <TeamIcon team={line.home} />
+                  <span className="tabular-nums">{line.homeScore}</span>
+                  <span aria-hidden>:</span>
+                  <span className="tabular-nums">{line.awayScore}</span>
+                  <TeamIcon team={line.away} />
                 </span>
               )),
             )}

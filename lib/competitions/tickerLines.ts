@@ -8,12 +8,14 @@ export type TickerMatch = {
   seasonCompetitionId?: string | null;
   dateTime: string;
   division: string;
-  homeTeam: { name: string };
-  awayTeam: { name: string };
+  homeTeam: { name: string; icon?: string | null };
+  awayTeam: { name: string; icon?: string | null };
   score?: { home: number; away: number } | null;
 };
 
-export type TickerLine = { key: string; text: string };
+export type TickerTeam = { name: string; icon: string | null };
+/** One ticker entry: division, then home icon and score, a colon, away score and icon. */
+export type TickerLine = { key: string; division: string; home: TickerTeam; away: TickerTeam; homeScore: string; awayScore: string };
 
 export const isDemoMatch = (m: Pick<TickerMatch, "seasonCompetitionId">) => String(m.seasonCompetitionId ?? "").startsWith("sc-demo-");
 
@@ -25,6 +27,10 @@ export function buildTickerLines(completed: TickerMatch[], limit = 24): TickerLi
     .slice(0, limit)
     .map((m) => ({
       key: m.matchId,
-      text: `${m.division} · ${m.homeTeam.name} ${m.score?.home ?? "—"}–${m.score?.away ?? "—"} ${m.awayTeam.name}`,
+      division: m.division,
+      home: { name: m.homeTeam.name, icon: m.homeTeam.icon || null },
+      away: { name: m.awayTeam.name, icon: m.awayTeam.icon || null },
+      homeScore: String(m.score?.home ?? "—"),
+      awayScore: String(m.score?.away ?? "—"),
     }));
 }

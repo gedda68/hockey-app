@@ -9,7 +9,7 @@ describe("buildTickerLines", () => {
   it("lists the newest results first", () => {
     const l = buildTickerLines([m("a", "sc-1", "2026-08-01T00:00:00Z"), m("b", "sc-1", "2026-09-19T00:00:00Z")]);
     expect(l.map((x) => x.key)).toEqual(["b", "a"]);
-    expect(l[0].text).toBe("BHL 1 · Hb 1–0 Ab");
+    expect(l[0]).toMatchObject({ division: "BHL 1", home: { name: "Hb", icon: null }, away: { name: "Ab" }, homeScore: "1", awayScore: "0" });
   });
   it("keeps demo results out when real ones exist, even if the demo ones are newer", () => {
     const l = buildTickerLines([m("demo", "sc-demo-x-2026", "2026-11-14T00:00:00Z"), m("final", "sc-real", "2026-09-19T00:00:00Z")]);
