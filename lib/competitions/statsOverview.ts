@@ -18,7 +18,7 @@ export type StatsFixture = {
 export type StatsFilter = { clubId?: string; memberId?: string };
 
 export type PlayerRow = { memberId: string; teamId: string; clubId: string; matches: number; goals: number; fieldGoals: number; corners: number; strokes: number; assists: number; gkSaves: number; green: number; yellow: number; red: number };
-export type TeamRow = { teamId: string; played: number; wins: number; draws: number; losses: number; gf: number; ga: number; cleanSheets: number };
+export type TeamRow = { teamId: string; played: number; wins: number; draws: number; losses: number; gf: number; ga: number; cleanSheets: number; green: number; yellow: number; red: number };
 export type StatsSummary = { matches: number; goals: number; avgGoals: number; cleanSheets: number; green: number; yellow: number; red: number };
 
 const scored = (f: StatsFixture) => {
@@ -40,7 +40,7 @@ export function computeStats(
 
   // Teams: only the club's own teams when a club is picked.
   const teams = new Map<string, TeamRow>();
-  const team = (id: string) => { let t = teams.get(id); if (!t) teams.set(id, (t = { teamId: id, played: 0, wins: 0, draws: 0, losses: 0, gf: 0, ga: 0, cleanSheets: 0 })); return t; };
+  const team = (id: string) => { let t = teams.get(id); if (!t) teams.set(id, (t = { teamId: id, played: 0, wins: 0, draws: 0, losses: 0, gf: 0, ga: 0, cleanSheets: 0, green: 0, yellow: 0, red: 0 })); return t; };
   const summary: StatsSummary = { matches: 0, goals: 0, avgGoals: 0, cleanSheets: 0, green: 0, yellow: 0, red: 0 };
   for (const f of scoped) {
     const s = scored(f);
@@ -84,6 +84,8 @@ export function computeStats(
     if (!isFixtureResultPublicForEvents(f, approvalBySc.get(f.seasonCompetitionId) ?? false)) continue;
     for (const e of asMatchEvents(f.matchEvents)) {
       if (e.teamId !== f.homeTeamId && e.teamId !== f.awayTeamId) continue;
+      const tm = teams.get(e.teamId);
+      if (tm) { if (e.kind === "green_card") tm.green += 1; else if (e.kind === "yellow_card") tm.yellow += 1; else if (e.kind === "red_card") tm.red += 1; }
       const g = goalType(e);
       const p = players.get(e.memberId);
       if (!p || !g || g === "shootout") continue;

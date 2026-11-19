@@ -33,6 +33,10 @@ describe("computeStats", () => {
     const t1 = computeStats(data, clubs, new Map()).teams.find((t) => t.teamId === "t1")!;
     expect(t1).toMatchObject({ played: 1, wins: 1, gf: 3, ga: 0, cleanSheets: 1 });
   });
+  it("counts each team's cards", () => {
+    const t2 = computeStats(data, clubs, new Map()).teams.find((t) => t.teamId === "t2")!;
+    expect(t2).toMatchObject({ red: 1, yellow: 0, green: 0 });
+  });
   it("filters by club and by player", () => {
     const c = computeStats(data, clubs, new Map(), { clubId: "c2" });
     expect(c.teams.map((t) => t.teamId)).toEqual(["t2"]);
